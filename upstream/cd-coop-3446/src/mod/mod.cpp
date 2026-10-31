@@ -22,6 +22,7 @@
 #include "mod/net/coop.h"
 #include "mod/net/aggro_test.h"
 #include "mod/net/attack_probe.h"
+#include "mod/net/load_trace.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/horse_diag.h"
 #include "mod/net/local_capture.h"
@@ -1024,6 +1025,7 @@ DWORD WINAPI late_init(LPVOID param) {
     bool sniffer_ok = false;
     if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
     if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
+    net::load_trace_install();  // Co-op+ dev diagnostic, no-op unless [dev] load_trace=1
     if (init->overlay) render::install(render::hud_draw);
     if (init->combat_tests && sniffer_ok) {
         CloseHandle(CreateThread(
@@ -1270,6 +1272,7 @@ DWORD WINAPI worker(LPVOID) {
         net::scaling_configure(scaling_settings(cfg, dir));
         net::save_guard_configure(cfg.coop_save_guard);
         net::room_set_invite_only(cfg.net_join_invite_only);
+        net::load_trace_enable(cfg.dev_load_trace);
         log::info("Config: who can join: {}", cfg.net_join_invite_only
                                                   ? "invited friends only ([net] join=invite)"
                                                   : "any Steam friend playing (\"Join Game\")");

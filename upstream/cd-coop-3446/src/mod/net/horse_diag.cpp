@@ -238,6 +238,13 @@ void on_cc_update(safetyhook::Context& ctx) {
     // crashed three different functions of this update (INFORME §5).
     if (g_contain && is_copy(key) && layer_without_action(s)) {
         g_skipped.fetch_add(1, std::memory_order_relaxed);
+        // Co-op+ (3460): this is also the component's "still loading?" query -- the actor
+        // loader's prepare step (exe+0x5B0CD0) calls it as vf 0x80 and keeps the actor at load
+        // state 8 while it returns true. Returning through the bare `ret` left al = the low
+        // byte of the vtable pointer (non-zero), so a copy that had no action yet could never
+        // finish loading, and it gets no action until it has loaded. Answer what the function
+        // itself answers when it has nothing to do: false (exe+0x9428E4 `xor al, al`).
+        ctx.rax = 0;
         ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
     }
 }
