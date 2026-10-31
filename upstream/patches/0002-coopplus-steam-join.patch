@@ -54,7 +54,7 @@ index 3cd2ce2..f8ef102 100644
      // playing); host = accept only this friend (0 = any friend playing).
      uint64_t steam_peer_id = 0;
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..391680d 100644
+index 79ccd06..d6f60c0 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -34,6 +34,7 @@
@@ -267,7 +267,7 @@ index 79ccd06..391680d 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -513,7 +628,79 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -513,7 +628,92 @@ void run_network(const Config& cfg, LocalSource& local) {
      session.disconnect(now_ms());
      transport.reset();
      net::cleanup();
@@ -316,6 +316,19 @@ index 79ccd06..391680d 100644
 +// stops, exactly as before.
 +void run_coop(const Config& base, LocalSource& local, bool in_game) {
 +    Config cfg = base;
++    if (cfg.net_transport_steam && (cfg.player_name.empty() || cfg.player_name == "Player")) {
++        // The name the other player sees: their Steam name unless the ini sets one.
++        // Steam comes up a few seconds after the mod; nothing can connect before it.
++        for (int i = 0; i < 60; ++i) {
++            if (std::string name = net::join_own_name(); !name.empty()) {
++                cfg.player_name = std::move(name);
++                log::info("Co-op+: playing as '{}' (Steam name)", cfg.player_name);
++                break;
++            }
++            if (stop_requested(1000)) return;
++        }
++    }
++    Config steam_named = cfg;  // what a Leave goes back to
 +    if (cfg.net_transport_steam) {
 +        if (const auto lobby = net::join_launch_lobby()) {
 +            // Steam started the game for a join ("Join Game" / an accepted invite).
@@ -337,7 +350,7 @@ index 79ccd06..391680d 100644
 +            cfg.steam_peer_id = 0;
 +        } else {
 +            // Leave: back to our own world, hosting it if role=auto, as configured otherwise.
-+            cfg = base;
++            cfg = steam_named;
 +            if (!base.net_role_auto && !base.net_role_host) cfg.net_role_host = true;
 +        }
 +        log::info("Co-op+: now {}", cfg.net_role_host ? "hosting our own world" : "joining a friend's world");
@@ -348,7 +361,7 @@ index 79ccd06..391680d 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -925,7 +1112,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1125,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -357,7 +370,7 @@ index 79ccd06..391680d 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -1020,29 +1207,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1220,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -390,7 +403,7 @@ index 79ccd06..391680d 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1080,7 +1252,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1265,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -525,10 +538,10 @@ index 50a62fa..3f61ef6 100644
  uint64_t room_lobby_id();
 diff --git a/upstream/cd-coop-3446/src/mod/net/steam_join.cpp b/upstream/cd-coop-3446/src/mod/net/steam_join.cpp
 new file mode 100644
-index 0000000..94dc650
+index 0000000..0607db5
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/steam_join.cpp
-@@ -0,0 +1,300 @@
+@@ -0,0 +1,314 @@
 +#include "mod/net/steam_join.h"
 +
 +#include <windows.h>
@@ -635,6 +648,7 @@ index 0000000..94dc650
 +    bool (*set_rich_presence)(void*, const char*, const char*) = nullptr;
 +    void (*clear_rich_presence)(void*) = nullptr;
 +    const char* (*friend_name)(void*, CSteamID) = nullptr;
++    const char* (*persona_name)(void*) = nullptr;
 +    void* frn = nullptr;
 +};
 +
@@ -694,6 +708,7 @@ index 0000000..94dc650
 +    get(a.set_rich_presence, "SteamAPI_ISteamFriends_SetRichPresence");
 +    get(a.clear_rich_presence, "SteamAPI_ISteamFriends_ClearRichPresence");
 +    get(a.friend_name, "SteamAPI_ISteamFriends_GetFriendPersonaName");
++    get(a.persona_name, "SteamAPI_ISteamFriends_GetPersonaName");
 +    if (missing) {
 +        // A different steam_api64.dll: permanent.
 +        g_disabled = true;
@@ -809,6 +824,18 @@ index 0000000..94dc650
 +    return name ? std::string(name) : std::string();
 +}
 +
++std::string join_own_name() {
++    std::lock_guard lock(g_mutex);
++    resolve_locked();
++    if (!g_resolved || g_disabled) return {};
++    const char* name = nullptr;
++    if (!call(name, g_api.persona_name, g_api.frn)) {
++        fail("GetPersonaName");
++        return {};
++    }
++    return name ? std::string(name) : std::string();
++}
++
 +void join_shutdown() {
 +    std::lock_guard lock(g_mutex);
 +    if (!g_registered) return;
@@ -831,10 +858,10 @@ index 0000000..94dc650
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/steam_join.h b/upstream/cd-coop-3446/src/mod/net/steam_join.h
 new file mode 100644
-index 0000000..f57c9b2
+index 0000000..7bca83f
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/steam_join.h
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,59 @@
 +#pragma once
 +// Steam's own ways into a friend's world, on top of the room lobby
 +// (room_code.h): "Join Game" in the friends list, invites from the Steam
@@ -883,6 +910,8 @@ index 0000000..f57c9b2
 +
 +// Name of a Steam user as the local player knows them ("" if unknown).
 +std::string join_persona_name(uint64_t steam_id);
++// The local player's Steam name ("" until Steam is up).
++std::string join_own_name();
 +
 +// Unregisters the callbacks. Must run before the mod's code is unloaded, or the
 +// game's next SteamAPI_RunCallbacks would call into freed memory.

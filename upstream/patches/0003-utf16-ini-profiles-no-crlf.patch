@@ -1,0 +1,14 @@
+diff --git a/upstream/cd-coop-3446/.gitattributes b/upstream/cd-coop-3446/.gitattributes
+index f8748a8..560fff2 100644
+--- a/upstream/cd-coop-3446/.gitattributes
++++ b/upstream/cd-coop-3446/.gitattributes
+@@ -3,6 +3,9 @@
+ 
+ # Windows files: the readmes and profiles of the packages, scripts
+ kit/** text eol=crlf
++# The INI profiles are UTF-16: a CRLF conversion inserts single bytes and breaks
++# the encoding (Co-op+ fix, patch 0003). Keep them byte-for-byte.
++kit/**/cdmp.ini* -text
+ *.ps1 text eol=crlf
+ 
+ # Binaries

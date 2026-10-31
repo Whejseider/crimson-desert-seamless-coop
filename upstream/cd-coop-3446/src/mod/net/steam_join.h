@@ -46,6 +46,8 @@ void join_presence_clear();
 
 // Name of a Steam user as the local player knows them ("" if unknown).
 std::string join_persona_name(uint64_t steam_id);
+// The local player's Steam name ("" until Steam is up).
+std::string join_own_name();
 
 // Unregisters the callbacks. Must run before the mod's code is unloaded, or the
 // game's next SteamAPI_RunCallbacks would call into freed memory.

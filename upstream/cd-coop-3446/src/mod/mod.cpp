@@ -672,6 +672,19 @@ void apply_role_settings(const Config& cfg, bool in_game) {
 // stops, exactly as before.
 void run_coop(const Config& base, LocalSource& local, bool in_game) {
     Config cfg = base;
+    if (cfg.net_transport_steam && (cfg.player_name.empty() || cfg.player_name == "Player")) {
+        // The name the other player sees: their Steam name unless the ini sets one.
+        // Steam comes up a few seconds after the mod; nothing can connect before it.
+        for (int i = 0; i < 60; ++i) {
+            if (std::string name = net::join_own_name(); !name.empty()) {
+                cfg.player_name = std::move(name);
+                log::info("Co-op+: playing as '{}' (Steam name)", cfg.player_name);
+                break;
+            }
+            if (stop_requested(1000)) return;
+        }
+    }
+    Config steam_named = cfg;  // what a Leave goes back to
     if (cfg.net_transport_steam) {
         if (const auto lobby = net::join_launch_lobby()) {
             // Steam started the game for a join ("Join Game" / an accepted invite).
@@ -693,7 +706,7 @@ void run_coop(const Config& base, LocalSource& local, bool in_game) {
             cfg.steam_peer_id = 0;
         } else {
             // Leave: back to our own world, hosting it if role=auto, as configured otherwise.
-            cfg = base;
+            cfg = steam_named;
             if (!base.net_role_auto && !base.net_role_host) cfg.net_role_host = true;
         }
         log::info("Co-op+: now {}", cfg.net_role_host ? "hosting our own world" : "joining a friend's world");

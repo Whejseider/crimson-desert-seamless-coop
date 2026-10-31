@@ -104,6 +104,7 @@ struct Api {
     bool (*set_rich_presence)(void*, const char*, const char*) = nullptr;
     void (*clear_rich_presence)(void*) = nullptr;
     const char* (*friend_name)(void*, CSteamID) = nullptr;
+    const char* (*persona_name)(void*) = nullptr;
     void* frn = nullptr;
 };
 
@@ -163,6 +164,7 @@ void resolve_locked() {
     get(a.set_rich_presence, "SteamAPI_ISteamFriends_SetRichPresence");
     get(a.clear_rich_presence, "SteamAPI_ISteamFriends_ClearRichPresence");
     get(a.friend_name, "SteamAPI_ISteamFriends_GetFriendPersonaName");
+    get(a.persona_name, "SteamAPI_ISteamFriends_GetPersonaName");
     if (missing) {
         // A different steam_api64.dll: permanent.
         g_disabled = true;
@@ -273,6 +275,18 @@ std::string join_persona_name(uint64_t steam_id) {
     const char* name = nullptr;
     if (!call(name, g_api.friend_name, g_api.frn, static_cast<CSteamID>(steam_id))) {
         fail("GetFriendPersonaName");
+        return {};
+    }
+    return name ? std::string(name) : std::string();
+}
+
+std::string join_own_name() {
+    std::lock_guard lock(g_mutex);
+    resolve_locked();
+    if (!g_resolved || g_disabled) return {};
+    const char* name = nullptr;
+    if (!call(name, g_api.persona_name, g_api.frn)) {
+        fail("GetPersonaName");
         return {};
     }
     return name ? std::string(name) : std::string();
