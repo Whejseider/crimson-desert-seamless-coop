@@ -97,7 +97,7 @@ DecodeResult decode(std::span<const std::uint8_t> bytes) {
             break;
         }
         case MsgType::HelloReply: {
-            HelloReply m; std::uint8_t acc, reason;
+            HelloReply m; std::uint8_t acc = 0, reason = 0;
             ok = p.u8(acc) && p.u8(reason) && p.u8(m.player_slot) && p.str(m.message);
             if (ok) { m.accepted = acc != 0; m.reason = static_cast<RefuseReason>(reason); r.message = m; }
             break;

@@ -152,6 +152,10 @@ struct Config {
     // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
     // the relay of our enemies is off then.
     bool coop_suppress_lab = false;
+    // [scaling] (Co-op+, party_scaling.h): with a guest in the host's world the
+    // host's enemies take 1/health_2p of every blow. Experimental: off by default.
+    bool scaling_enabled = false;
+    float scaling_health_2p = 1.7f;
     float coop_suppress_lab_radius_m = 60.0f;
 };
 

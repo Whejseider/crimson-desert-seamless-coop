@@ -114,6 +114,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/steam_transport.cpp
     src/mod/net/room_code.cpp
     src/mod/net/steam_join.cpp
+    src/mod/net/party_scaling.cpp
     src/mod/net/boss_safe.cpp
     src/mod/net/time_sync.cpp
     src/mod/render/dx12_hook.cpp

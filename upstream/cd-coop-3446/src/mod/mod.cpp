@@ -31,6 +31,7 @@
 #include "mod/net/player_hits.h"
 #include "mod/net/puppet_minimap.h"
 #include "mod/net/remote_puppet.h"
+#include "mod/net/party_scaling.h"
 #include "mod/net/boss_safe.h"
 #include "mod/net/steam_transport.h"
 #include "mod/net/room_code.h"
@@ -533,6 +534,11 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         }
         was_connected = connected;
         if (coop) {
+            // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
+            net::scaling_set_party(host && connected ? 2 : 1, host);
+            net::scaling_tick();
+        }
+        if (coop) {
             std::optional<proto::Vec3> pos;
             proto::Quat rot;
             if (local.snapshot()) {
@@ -560,6 +566,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 if (auto pos = net::puppet_position()) hud.remote->pos = *pos;
             }
             if (coop) hud.enemy_zone = net::suppress_hud_text();
+            if (coop) hud.scaling = net::scaling_hud_text();
             // Boss bar (boss_safe.h): the guest has no native one.
             if (const net::BossHud b = net::boss_hud(); b.active) {
                 hud.boss_active = true;
@@ -614,6 +621,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
             log::info("Local: {}", local.describe());
             if (coop) log::info("{}", coop->describe());
+            if (coop && cfg.scaling_enabled) log::info("{}", net::scaling_describe());
             if (cfg.overlay_enabled) {
                 const auto ov = render::status();
                 log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
@@ -1169,6 +1177,7 @@ DWORD WINAPI worker(LPVOID) {
         // on a stage boss kills it outside the host's script, which leaves the
         // host's quest stuck behind the arena barrier.
         net::boss_set_safe_mode(cfg.coop_boss_safe);
+        net::scaling_configure({cfg.scaling_enabled, cfg.scaling_health_2p});
         log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
         // Shared loot is the guest's, and only means anything with co-op on.
         //

@@ -87,3 +87,14 @@
   lobby id validated as a Chat-type CSteamID. A join ends the session and starts a guest session (CoopLink destructor
   restores hidden enemies and removes the puppet), then role settings are re-applied.
 - Two players only (upstream's limit); lobbies stay friends-only, 2 members.
+
+## 2026-10-31 D18: Party scaling as "damage taken / k", host side, experimental and off by default
+- Options: (a) raise the enemies' max HP in memory (needs new RE of the HP pool and of boss phase thresholds; only
+  possible live), (b) scale the damage enemies take: the guest's blows are divided by k before guest_hits applies them,
+  the host's native blows get (1 - 1/k) given back through VaryStatCheatReq right after the VaryHPAck. Same result as
+  health x k, built only from mechanisms upstream already uses live.
+- Chosen: (b). A ledger of our own injected HP losses keeps the guest's blows from being scaled twice; kills are never
+  undone; only hostile enemies in combat (enemy_relay) get anything back; the guest side never scales (host-auth).
+- Risk: a positive VaryStatCheatReq delta (a heal) has never been sent in a live test. So `[scaling] enabled=0` by
+  default, including in the package, until the M3 test shows it works (HP bar dips then recovers a little).
+- Two players only for now: one value `health_2p` in cdmp.ini; config/scaling.toml takes over with integration step 2.

@@ -160,6 +160,7 @@ void hud_draw(float width, float height) {
                     d.remote->health, d.remote->health_max, remote_distance);
     }
     if (!d.enemy_zone.empty()) ImGui::TextColored(ImVec4(0.75f, 0.85f, 1, 1), "%s", d.enemy_zone.c_str());
+    if (!d.scaling.empty()) ImGui::TextColored(ImVec4(0.75f, 0.85f, 1, 1), "%s", d.scaling.c_str());
     if (!cam) ImGui::TextDisabled(en ? "Camera: %s" : "Cámara: %s", camera.last_failure().c_str());
 
     // The room code, ALWAYS shown -- with the code when we have one, and an explicit

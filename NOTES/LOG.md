@@ -65,3 +65,10 @@
 - Installer test on a fake bin64/save in %TEMP%: backup OK, existing winmm.dll kept and restored, update keeps
   cdmp.ini (writes cdmp.ini.new), uninstall removes exactly the listed files. GetPrivateProfileString reads the
   generated UTF-16 profile: role=auto, transport=steam, coop=1. Find-CrimsonDesertBin64 finds D:\SteamLibrary\...
+- 05:40 Test plans: docs/tests/M0.md rewritten for the cd-coop-3446 base; new docs/tests/M1.md (two-PC Steam join).
+- Upstream on GitHub: still b7ae133 (our import is current). Their 2026-10-31 two-PC script says the core question
+  (does the guest SEE the host's character) is still open; 270e2cc position fix not yet verified live.
+- Party scaling (D18): common/party_scaling.h (pure, tests), net/party_scaling.*, hooks in local_capture (VaryHPAck)
+  and guest_hits (scale + ledger), [scaling] enabled=0 health_2p=1.7, panel line, 5 s log line. heal_back first
+  computed loss*(1-1/k) -> 17 HP gave 6 back with k=1.7f (float); now loss - round(loss/k), matching guest blows.
+  Build clean, all unit tests pass, loopback passes, root MSVC build + ctest pass. Our C4701 (protocol.cpp) fixed.

@@ -21,6 +21,7 @@
 #include "mod/net/enemy_relay.h"
 #include "common/keys.h"
 #include "mod/net/local_capture.h"
+#include "mod/net/party_scaling.h"
 #include "mod/net/remote_puppet.h"
 #include "mod/net/troc_sniffer.h"
 
@@ -752,8 +753,11 @@ void apply_hit(const proto::GameEvent& ev) {
             base = kDefaultBase, source = "default";
         }
     }
-    const int32_t damage =
-        no_damage ? 0 : std::max(1, static_cast<int32_t>(std::lround(std::min(base * factor, kMaxHitHp))));
+    // Co-op+ party scaling: with a guest in our world our enemies take 1/k of every
+    // blow (party_scaling.h); the guest's blows are scaled here, ours by the give-back.
+    const int32_t damage = no_damage ? 0
+                                     : scaling_guest_damage(std::max(
+                                           1, static_cast<int32_t>(std::lround(std::min(base * factor, kMaxHitHp)))));
     // Boss safety (boss_safe.h, pendiente-jefes.md plan J1). Against a stage boss
     // the guest must never land the killing blow: the boss's death has to come
     // from the host, because the host's stage script is what runs BossPhase, the
@@ -783,6 +787,7 @@ void apply_hit(const proto::GameEvent& ev) {
             std::memcpy(b, &enemy, 4);
             std::memcpy(b + 4, &kStatHP, 4);
             std::memcpy(b + 9, &delta, 4);
+            scaling_note_injected(enemy, above_one);
             ok = sniffer_inject_c2s(packet(kOpVaryStatCheatReq, b, sizeof b));
         }
         ok = send_collision(enemy) && ok;
@@ -795,6 +800,7 @@ void apply_hit(const proto::GameEvent& ev) {
         std::memcpy(b, &enemy, 4);
         std::memcpy(b + 4, &kStatHP, 4);
         std::memcpy(b + 9, &delta, 4);
+        scaling_note_injected(enemy, damage);
         ok = sniffer_inject_c2s(packet(kOpVaryStatCheatReq, b, sizeof b));
         std::lock_guard lock(g_mutex);
         g_cheated[enemy] = now_ms();

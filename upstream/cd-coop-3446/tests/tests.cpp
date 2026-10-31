@@ -23,6 +23,7 @@
 #include "common/reliable.h"
 #include "mod/net/room_codec.h"
 #include "mod/net/join_args.h"
+#include "common/party_scaling.h"
 #include "mod/net/boss_rules.h"
 
 #include <cctype>
@@ -1507,6 +1508,42 @@ void test_boss_rules() {
 }
 
 
+// Co-op+: party-size enemy toughness (common/party_scaling.h).
+void test_party_scaling() {
+    using namespace scaling;
+    Settings on{true, 1.7f};
+    Settings off{false, 1.7f};
+    // Alone, or off: never scaled.
+    CHECK(health_multiplier(on, 1) == 1.0f);
+    CHECK(health_multiplier(off, 2) == 1.0f);
+    CHECK(health_multiplier(on, 2) == 1.7f);
+    CHECK(health_multiplier(Settings{true, 9.0f}, 2) == kMaxMultiplier);
+    CHECK(health_multiplier(Settings{true, 0.5f}, 2) == 1.0f);
+    // Guest blows: divided, rounded, never 0 for a real blow.
+    CHECK(scale_damage(17, 1.7f) == 10);
+    CHECK(scale_damage(1, 1.7f) == 1);
+    CHECK(scale_damage(0, 1.7f) == 0);
+    CHECK(scale_damage(20, 1.0f) == 20);
+    // Host blows: give back (1 - 1/k) of the loss, floored, never the whole loss.
+    CHECK(heal_back(100000, 83000, 1.7f) == 7);   // 17 HP lost -> 7 back -> 10 net, as a guest blow
+    CHECK(heal_back(100000, 99000, 1.7f) == 0);   // 1 HP: nothing to give back
+    CHECK(heal_back(100000, 0, 1.7f) == 0);       // a kill is never undone
+    CHECK(heal_back(100000, -5000, 1.7f) == 0);
+    CHECK(heal_back(50000, 60000, 1.7f) == 0);    // a heal is not a blow
+    CHECK(heal_back(100000, 50000, 1.0f) == 0);   // k = 1: off
+    CHECK(heal_back(1000000, 900000, 4.0f) == 75);
+    // The ledger tells our injected blows from native ones.
+    InjectedLedger l;
+    l.note(0x1234, 10, 1000);
+    CHECK(!l.consume(0x9999, 10000, 1100));      // another enemy
+    CHECK(!l.consume(0x1234, 25000, 1100));      // a different amount: a native blow
+    CHECK(l.consume(0x1234, 10400, 1100));       // ours (rounding within 1 HP)
+    CHECK(!l.consume(0x1234, 10000, 1200));      // only once
+    l.note(0x1234, 5, 1000);
+    CHECK(!l.consume(0x1234, 5000, 1000 + InjectedLedger::kTtlMs + 1));  // too old
+    CHECK(l.size() == 0);
+}
+
 // Co-op+: the lobby a Steam "Join Game" / invite names on the command line.
 void test_join_args() {
     using net::find_connect_lobby;
@@ -1560,6 +1597,7 @@ int main() {    test_pattern();
     test_room_code();
     test_boss_rules();
     test_join_args();
+    test_party_scaling();
     if (g_failures == 0) std::printf("All tests passed\n");
     return g_failures == 0 ? 0 : 1;
 }

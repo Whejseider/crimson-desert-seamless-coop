@@ -27,6 +27,7 @@
 #include "mod/net/guest_hits.h"
 #include "mod/net/loot_twin.h"
 #include "mod/net/native_suppress.h"
+#include "mod/net/party_scaling.h"
 #include "common/keys.h"
 #include "mod/net/piece4_test.h"
 #include "mod/net/player_hits.h"
@@ -560,6 +561,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
                 e.hp_max = hp_max;
                 // Damage dealt by the local player: mirror it to the other world.
                 const uint32_t own = g_equip_key.load();
+                // Co-op+ party scaling (party_scaling.h): our blows, native or injected.
+                // Takes only its own lock, never g_actors_mutex.
+                scaling_observe_hp(key, before, hp, own && source == own);
                 if (own && source == own && hp < before && e.type && g_damage_enabled) {
                     Bytes b(proto::kDamageEventSize);
                     // Where it spawned (same in both worlds); else where it is.

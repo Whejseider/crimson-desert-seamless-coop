@@ -28,6 +28,9 @@
     double-click installer (finds the game via Steam, backs up saves, keeps an existing winmm.dll), uninstaller,
     README, one `role=auto` profile, verified ASI loader v9.7.4, source.zip. Tested on a fake game folder only.
   - Fixed an upstream bug that garbled the UTF-16 ini profiles on Windows checkouts (patch 0003).
+  - Test plans: docs/tests/M0.md (single PC, after GO) and docs/tests/M1.md (two PCs, Steam join).
+  - **M3 prep: party scaling** (D18): host's enemies take 1/k damage with a guest in (guest blows scaled, host blows
+    partly given back). Unit-tested; `[scaling] enabled=0` until a live test.
 
 ## Questions for the user (ask when they wake up; work continues meanwhile)
 1. Who is the second player for the first two-PC test, and when? (Both need the same mod zip; Denuvo 5 PCs/day.)
@@ -42,6 +45,6 @@
 
 ## Next steps (pre-GO, in order)
 1. (done) Friend-ready package.
-2. English two-PC test plan (docs/tests/M1.md) for the Steam join flow; M0 checklist updated for upstream.
+2. (done) Test plans M0/M1.
 3. Integration step 2 (our sim/config layers in the same DLL), starting with party-size scaling data plumbing.
 4. After GO: M0 + live checks (docs/tests/M0.md), then the two-PC session.
