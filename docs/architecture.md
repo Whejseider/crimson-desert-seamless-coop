@@ -1,5 +1,22 @@
 # Architecture and milestone plan (draft 1, 2026-10-31)
 
+## How it is actually built today (2026-10-31, session 2) -- read this first
+- **The shipped DLL is upstream's `cdmp.asi`** (cd-coop-3446, D10), built by `upstream/cd-coop-3446/CMakeLists.txt`.
+  Co-op+ code lives inside that tree as new files plus small edits, all recorded in `upstream/patches/0002-coopplus.patch`
+  (new: `net/steam_join.*`, `net/join_args.h`, `net/party_scaling.*`, `net/save_guard.*`, `common/party_scaling.h`,
+  `common/nameplate.h`; edits: `mod.cpp` session loop `run_coop`, `config.*`, `render/hud.*`, `room_code.*`, hooks in
+  `local_capture.cpp` / `guest_hits.cpp`, offset fixes in `game/offsets_3446.h`).
+- **Our own `src/sim`** (scaling curves, loot rules, progression rules, TOML config) is compiled into `cdmp.asi` as the
+  `coopplus_sim` library (D20). Only the scaling curves are used so far (`bin64\cdcoop\config\scaling.toml`).
+- Our earlier stand-alone DLL (`src/core`, `src/game`, `src/net`, `CrimsonDesertCoop.asi`) is **not shipped**; it stays
+  as the unit-tested reference for the protocol/interpolation ideas and may be retired.
+- Settings: upstream's `cdmp.ini` (UTF-16) for everything the engine reads, plus the Co-op+ keys `[net] role/join`,
+  `[overlay] nameplates`, `[coop] save_guard`, `[scaling]`; TOML files only where our sim layer reads them.
+- Players get `dist/CrimsonDesert-SeamlessCoop-<version>.zip` from `tools/package-coopplus.ps1`.
+- The layer picture below is the target design; the mapping onto upstream's folders is: game/ = `src/mod/game` +
+  hooks in `src/mod/net`, net/ = `src/common` + `steam_transport` / `room_code` / `steam_join`, sim/ = our `src/sim`
+  + `common/party_scaling.h`, ui/ = `src/mod/render`.
+
 ## Core idea (from research)
 Crimson Desert still runs the MMO client/server split from its BDO lineage inside one process, over an unencrypted
 in-memory loopback of ~1,115 "Troc" message types (cdmp research, build 2976). So co-op does not need to puppet bones or

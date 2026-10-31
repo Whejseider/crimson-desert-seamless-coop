@@ -124,3 +124,4 @@
 - 06:04 Correction: entries above stamped 06:20 ... 08:45 were estimates written without checking the clock; they are
   now the real commit times (git log). Times in this log come from `date` / commit times from here on.
 - 06:03 CHANGELOG.md (in the package) and docs/drafts/nexus-page.md (M7 draft, not posted).
+- 06:04 docs/architecture.md and integration-plan.md: 'how it is actually built today' sections for future sessions.

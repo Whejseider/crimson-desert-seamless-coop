@@ -15,6 +15,11 @@ Decision D10: Co-op+ builds on ByJunter's cdmp as ported by nouzert1 (`upstream/
 | Robustness | Per-build hardcoded `offsets_<build>.h`; refuses unknown builds | Signature scanning + `probe.toml` so a patch needs data, not a rebuild |
 
 ## Steps
+Status 2026-10-31 (session 2): step 1 offline part done (verify-port passes on the user's exe, loopback passes; the live
+part waits for GO). Step 2: Co-op+ code inside the upstream tree as patch 0002 plus our sim layer linked in (D20)
+instead of a separate top-level target. Step 3: offsets audited offline (docs/offsets.md); three fixed. Step 4 (M1
+lobby): done in code (steam_join, D17/D21), waiting for the two-PC test.
+
 1. **M0 on the current build** (needs GO + the PC): build upstream `cdmp.asi` with MSVC on the PC as-is, run its
    own single-PC relay test (`cdmp_peer --mode relay`), and our probe. Record the exe build, which upstream offsets still
    hold, and whether Denuvo/Themida interfere with loading (stop and report if they block).
