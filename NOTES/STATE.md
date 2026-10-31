@@ -40,6 +40,13 @@
   - Designs: docs/progression-sync.md (M5), docs/comfort-pack.md (M6; stack-size generator tools/make_comfort_pack.py).
   - Test plans: docs/tests/M0.md (one PC, incl. captures for M5) and docs/tests/M1.md (two PCs).
 
+## Ready for GO
+- Package `dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+22202d0f.zip` (4.2 MB; rebuild with tools\package-coopplus.ps1
+  after any commit): built from a committed HEAD, all tests green, verify-port green, Defender clean, installer /
+  update / uninstall tested on a fake game folder. Not yet installed in the real game folder (that is Phase B).
+- Also new since the first STATE of this session: join/leave toasts; "after a game update" stays off visibly;
+  CHANGELOG.md; draft Nexus page (docs/drafts/nexus-page.md).
+
 ## Questions for the user (ask when they wake up; work continues meanwhile)
 1. Who is the second player for the first two-PC test, and when? (Both need the same zip; Denuvo 5 PCs/day.)
 2. Hotkeys: Ctrl+F1 invite, Ctrl+F2 leave, F8 panel, Ctrl+F8 nameplate. OK, or other keys?

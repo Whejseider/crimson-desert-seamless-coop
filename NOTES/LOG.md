@@ -125,3 +125,5 @@
   now the real commit times (git log). Times in this log come from `date` / commit times from here on.
 - 06:03 CHANGELOG.md (in the package) and docs/drafts/nexus-page.md (M7 draft, not posted).
 - 06:04 docs/architecture.md and integration-plan.md: 'how it is actually built today' sections for future sessions.
+- 06:05 Final package 0.1.0-alpha+22202d0f built from HEAD; fake-folder install/uninstall OK; ini reads role=auto,
+  join=friends, transport=steam, coop=1; Defender: no detections.
