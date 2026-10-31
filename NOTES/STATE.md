@@ -1,5 +1,18 @@
 # STATE (single source of truth for resuming)
 
+## NOW (2026-10-31 afternoon, after GO) -- read this first
+- GO received. The game had auto-updated to **1.0.0.3460**; the mod now targets 3460 only (D22).
+- Done and verified on the running game: every address ported (verify-port ALL PASS), all 95 opcodes renumbered
+  from the live Troc table, MoveActor/StartAction layout change handled (mod/net/wire_layout.h), camera block +0x430,
+  load-packet transform end-158. Mod loads, Steam room/relay up, panel + room code + Ctrl+F1 hint draw, local
+  player read exact (0.05 m), hooks all install, saves untouched (the game never saved during tests).
+- Single-PC echo: the copy spawns at the right spot with name plate + HP bar, movement events flow.
+- **BLOCKER:** the copy's player actor stays at load state [actor+0x5E] = 0x08 / [actor+0xCF] = 0 (needs 0x10 / 1),
+  so the client queues its moves and it is invisible. Details + next step: docs/research/port-3460.md.
+- Upstream (nouzert1) started their own 3460 port today (commit 4922f596, addresses only; agrees with ours).
+- Test helpers (not in the package): build/port3460/{trial,keys,shot}.ps1, live.py/actor.py (read-only probes),
+  captures in build/port3460/captures. The installed cdmp.asi is the current dev build with the shipped cdmp.ini.
+
 **Phase A done. Session 2 (local, on the user's PC) is doing all pre-GO work; the user is asleep (since ~05:00 on
 2026-10-31) and asked for autonomous work until at least 11:00. Waiting for "GO: game testing is clear."**
 

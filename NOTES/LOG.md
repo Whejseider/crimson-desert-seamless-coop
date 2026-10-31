@@ -133,7 +133,7 @@
   package 0.1.0-alpha+22202d0f stays current. Waiting for "GO: game testing is clear." to start M0.
 
 ## 2026-10-31 ~14:10-14:45 — GO received; game had updated to 1.0.0.3460; port done
-- User said "GO: game testing is clear" (11:3x). Installer run on the real game folder: worked (game found via
+- User said "GO: game testing is clear". Installer run on the real game folder: worked (game found via
   Steam, 15 save files backed up to Documents\CrimsonDesert-CoopPlus-SaveBackups\2026-10-31_14-13-51).
 - The exe was 1.0.0.3460 (Steam update 08:54). Ported every address offline (D22): offsets_3460.h, horse_diag sites,
   verify-port retargeted -> ALL OFFLINE CHECKS PASSED on 3460. Build + unit tests + loopback e2e green.
@@ -147,3 +147,13 @@
 - Expected WRNs: "Game errors: logger not recognised" (stale since 3446) and "OtherEquipItemAck writer not recognised"
   (not ported, D22).
 - No desktop computer-use tools in this session (only browser tools), so loading a save / in-world checks are next.
+
+## 2026-10-31 ~14:45-15:25 — in-game testing on 3460
+- In world: local position exact, camera block found at +0x430 (was the panel's "sentinel mismatch"), nameplate
+  draws. Echo test: copy spawned 12 km off -> MoveData reordered in 3460 (found via the client parser, see
+  docs/research/port-3460.md) and load transform at end-158 -> copy now spawns in place with name plate.
+- Movement events never left the PC: every kOp* constant was 2976-era; regenerated all 95 from the live table
+  (docs/research/troc-opcodes-3460.txt). Events now flow (225+), injected MoveActorAcks verified byte by byte.
+- Copy still not drawn/moving: its player actor stops at load state 0x08 (body and user are fine). Blocker.
+- Game patch dialog "Extra Rewards / all skills reset" appears on load (the game's own 2.04.03 change); confirmed
+  it in tests, but nothing was saved, so the user will see it again on their own save.
