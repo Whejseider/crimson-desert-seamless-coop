@@ -199,7 +199,7 @@ index 3cd2ce2..27b7c49 100644
  };
  
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..debc939 100644
+index 79ccd06..8bc4e7d 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -31,9 +31,11 @@
@@ -444,7 +444,7 @@ index 79ccd06..debc939 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -513,7 +636,92 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -513,7 +636,95 @@ void run_network(const Config& cfg, LocalSource& local) {
      session.disconnect(now_ms());
      transport.reset();
      net::cleanup();
@@ -463,7 +463,7 @@ index 79ccd06..debc939 100644
 +
 +// Applies the settings that depend on being the host or the guest. Called once at
 +// startup, and again by Co-op+ when a Steam join or a leave changes the role.
-+void apply_role_settings(const Config& cfg, bool in_game) {
++void apply_role_settings(const Config& cfg, bool in_game, bool role_changed) {
 +    if (!(in_game && cfg.coop_enabled)) return;
 +    net::loot_set_enabled(cfg.coop_guest_loot && !cfg.net_role_host);
 +    // Phase 5: only the guest hides its own enemies (the host relays them).
@@ -482,7 +482,9 @@ index 79ccd06..debc939 100644
 +    s.lab = cfg.coop_suppress_lab;
 +    s.lab_radius_m = cfg.coop_suppress_lab_radius_m;
 +    s.english = cfg.overlay_english;
-+    if (s.mode != net::SuppressMode::Off || cfg.net_role_auto) net::suppress_configure(s);
++    // At startup a host never configured the zone (as upstream); after a role change
++    // it must be reconfigured either way, or a former guest keeps hiding enemies.
++    if (s.mode != net::SuppressMode::Off || role_changed) net::suppress_configure(s);
 +    if (s.mode != net::SuppressMode::Off && s.lab) {
 +        log::info("Suppress lab: automatic enemy copies off (they would be hidden too)");
 +    }
@@ -497,6 +499,7 @@ index 79ccd06..debc939 100644
 +        // The name the other player sees: their Steam name unless the ini sets one.
 +        // Steam comes up a few seconds after the mod; nothing can connect before it.
 +        for (int i = 0; i < 60; ++i) {
++            net::join_poll();  // listen for a Steam join already while we wait
 +            if (std::string name = net::join_own_name(); !name.empty()) {
 +                cfg.player_name = std::move(name);
 +                log::info("Co-op+: playing as '{}' (Steam name)", cfg.player_name);
@@ -514,7 +517,7 @@ index 79ccd06..debc939 100644
 +            cfg.room_lobby = *lobby;
 +            cfg.room_code.clear();
 +            cfg.steam_peer_id = 0;
-+            apply_role_settings(cfg, in_game);
++            apply_role_settings(cfg, in_game, true);
 +        }
 +    }
 +    for (;;) {
@@ -531,14 +534,14 @@ index 79ccd06..debc939 100644
 +            if (!base.net_role_auto && !base.net_role_host) cfg.net_role_host = true;
 +        }
 +        log::info("Co-op+: now {}", cfg.net_role_host ? "hosting our own world" : "joining a friend's world");
-+        apply_role_settings(cfg, in_game);
++        apply_role_settings(cfg, in_game, true);
 +        // Let Steam settle the old session before the new one starts.
 +        if (stop_requested(1500)) break;
 +    }
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -925,7 +1133,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1136,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -547,7 +550,7 @@ index 79ccd06..debc939 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -969,6 +1177,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1180,7 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -555,7 +558,7 @@ index 79ccd06..debc939 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1229,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1232,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -584,11 +587,11 @@ index 79ccd06..debc939 100644
          }
 +        // Loot and the guest's enemy zone depend on the role; Co-op+ re-applies
 +        // them when a Steam join changes it.
-+        apply_role_settings(cfg, in_game);
++        apply_role_settings(cfg, in_game, false);
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1080,7 +1274,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1277,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  

@@ -72,3 +72,5 @@
   and guest_hits (scale + ledger), [scaling] enabled=0 health_2p=1.7, panel line, 5 s log line. heal_back first
   computed loss*(1-1/k) -> 17 HP gave 6 back with k=1.7f (float); now loss - round(loss/k), matching guest blows.
   Build clean, all unit tests pass, loopback passes, root MSVC build + ctest pass. Our C4701 (protocol.cpp) fixed.
+- Self-review of run_coop: join callbacks now registered during the Steam-name wait; a role change always
+  reconfigures the guest's enemy zone (a role=guest player who left kept hiding enemies as host). Build/tests/loopback OK.

@@ -650,7 +650,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
 
 // Applies the settings that depend on being the host or the guest. Called once at
 // startup, and again by Co-op+ when a Steam join or a leave changes the role.
-void apply_role_settings(const Config& cfg, bool in_game) {
+void apply_role_settings(const Config& cfg, bool in_game, bool role_changed) {
     if (!(in_game && cfg.coop_enabled)) return;
     net::loot_set_enabled(cfg.coop_guest_loot && !cfg.net_role_host);
     // Phase 5: only the guest hides its own enemies (the host relays them).
@@ -669,7 +669,9 @@ void apply_role_settings(const Config& cfg, bool in_game) {
     s.lab = cfg.coop_suppress_lab;
     s.lab_radius_m = cfg.coop_suppress_lab_radius_m;
     s.english = cfg.overlay_english;
-    if (s.mode != net::SuppressMode::Off || cfg.net_role_auto) net::suppress_configure(s);
+    // At startup a host never configured the zone (as upstream); after a role change
+    // it must be reconfigured either way, or a former guest keeps hiding enemies.
+    if (s.mode != net::SuppressMode::Off || role_changed) net::suppress_configure(s);
     if (s.mode != net::SuppressMode::Off && s.lab) {
         log::info("Suppress lab: automatic enemy copies off (they would be hidden too)");
     }
@@ -684,6 +686,7 @@ void run_coop(const Config& base, LocalSource& local, bool in_game) {
         // The name the other player sees: their Steam name unless the ini sets one.
         // Steam comes up a few seconds after the mod; nothing can connect before it.
         for (int i = 0; i < 60; ++i) {
+            net::join_poll();  // listen for a Steam join already while we wait
             if (std::string name = net::join_own_name(); !name.empty()) {
                 cfg.player_name = std::move(name);
                 log::info("Co-op+: playing as '{}' (Steam name)", cfg.player_name);
@@ -701,7 +704,7 @@ void run_coop(const Config& base, LocalSource& local, bool in_game) {
             cfg.room_lobby = *lobby;
             cfg.room_code.clear();
             cfg.steam_peer_id = 0;
-            apply_role_settings(cfg, in_game);
+            apply_role_settings(cfg, in_game, true);
         }
     }
     for (;;) {
@@ -718,7 +721,7 @@ void run_coop(const Config& base, LocalSource& local, bool in_game) {
             if (!base.net_role_auto && !base.net_role_host) cfg.net_role_host = true;
         }
         log::info("Co-op+: now {}", cfg.net_role_host ? "hosting our own world" : "joining a friend's world");
-        apply_role_settings(cfg, in_game);
+        apply_role_settings(cfg, in_game, true);
         // Let Steam settle the old session before the new one starts.
         if (stop_requested(1500)) break;
     }
@@ -1236,7 +1239,7 @@ DWORD WINAPI worker(LPVOID) {
         }
         // Loot and the guest's enemy zone depend on the role; Co-op+ re-applies
         // them when a Steam join changes it.
-        apply_role_settings(cfg, in_game);
+        apply_role_settings(cfg, in_game, false);
 
         if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
 
