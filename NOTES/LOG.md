@@ -157,3 +157,7 @@
 - Copy still not drawn/moving: its player actor stops at load state 0x08 (body and user are fine). Blocker.
 - Game patch dialog "Extra Rewards / all skills reset" appears on load (the game's own 2.04.03 change); confirmed
   it in tests, but nothing was saved, so the user will see it again on their own save.
+
+## 2026-10-31 — 3460 findings posted upstream
+- With the user's OK, posted docs/drafts/upstream-3460-findings.md (+ full 3460 Troc table) as
+  https://github.com/nouzert1/cd-coop-3446/issues/1. Watch it for a reply about the 0x08 -> 0x10 load step.

@@ -1,4 +1,4 @@
-# Draft issue for nouzert1/cd-coop-3446 (NOT POSTED; needs the user's OK)
+# Issue for nouzert1/cd-coop-3446 -- POSTED 2026-10-31 with the user's OK: https://github.com/nouzert1/cd-coop-3446/issues/1
 
 **Title:** 3460: MoveData layout changed, opcode constants are 2976-era, camera block +0x430 (findings to share)
 
