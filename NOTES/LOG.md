@@ -77,3 +77,6 @@
 - 06:00 Nameplates (brief 6.2): common/nameplate.h fade (full to 25 m, 35% at 200 m, hidden from 600 m), text shrinks
   to 80%; F8 now toggles only the panel, Ctrl+F8 the nameplate; [overlay] nameplates=1. Panel moved into draw_panel().
   Occlusion not done (needs the depth buffer; live work). Build + tests OK. Visual check needs GO.
+- Diagnose Co-op+.cmd (diagnose.ps1): report to the Desktop (versions, mod files + hashes, ini settings, log tail);
+  tested on a fake install with -OutDir. Comfort Pack plan in docs/comfort-pack.md (CDUMM .field.json, companions
+  now, our own field.json after GO). README rewritten. Draft courtesy issue in docs/drafts/ (not posted).

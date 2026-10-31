@@ -42,6 +42,7 @@ PLAYING TOGETHER
 - The friend appears in your world as a character, on the minimap and the map.
 - Ctrl+F2 (guest): leave and go back to your own world.
 - F8: show/hide the co-op panel (top left): connection, ping, room code.
+- Ctrl+F8: show/hide your friend's name over their head.
 
 Fallback: the panel shows a 7-letter ROOM CODE for the host. A friend can type it
 into cdmp.ini under [room] code=  and restart the game.

@@ -38,7 +38,8 @@
 2. Hotkeys: Ctrl+F1 = invite, Ctrl+F2 = leave, F8 = panel, Ctrl+F8 = nameplate. OK, or do you prefer others?
 3. The GitHub repo is private. GPL needs the source to travel with the binaries: the package includes
    source.zip, so private is fine for friends. Make it public before a Nexus release? (Your call, later.)
-4. OK to post a courtesy GitHub issue to nouzert1 (cd-coop-3446) saying we build on the port and offering patches?
+4. OK to post the courtesy GitHub issue to nouzert1 (draft: docs/drafts/upstream-courtesy-issue.md)? It reports
+   their UTF-16 ini bug and offers our Steam join code.
 
 ## Blockers / waiting on the user
 1. **GO** for game testing (another session may be testing Elden Ring on this PC).
