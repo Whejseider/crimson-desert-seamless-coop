@@ -68,7 +68,7 @@ struct Config {
     // Every 2 s, log who sits in the attacker lists of our player and of the
     // other player's copy (attack_probe.h). Read only.
     bool dev_attack_probe = false;
-    bool dev_load_trace = false;  // Co-op+: log actor load-state steps (load_trace.h)
+    int dev_load_trace = 0;  // Co-op+: 1 = log actor load-state steps, 2 = + unhide experiment (load_trace.h)
 
     // Co-op over the network ([coop]): the other player (or, through
     // cdmp_peer --mode relay with nobody else connected, yourself) appears as

@@ -10,6 +10,7 @@
 
 #include <safetyhook.hpp>
 
+#include "mod/game/actor_lookup.h"
 #include "mod/game/offsets.h"
 #include "mod/game/rtti.h"
 #include "mod/game/safe_memory.h"
@@ -37,6 +38,16 @@ constexpr uint8_t kFinishTreeHead[] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x55, 0x56,
 // ([r14+8] = actor).
 constexpr uintptr_t kComponentBusy = 0x5B0EBF;
 constexpr uint8_t kComponentBusyHead[] = {0x84, 0xC0, 0x75, 0x43};  // test al,al / jnz
+
+// ClientCharacterControlActorComponent vtable slots 18 (resource load complete: sets the hide
+// bits on 2976) and 24 (end of login: clears them), entry; rcx = component, [rcx+8] = actor.
+constexpr uintptr_t kCcSlot18 = 0x942B50, kCcSlot24 = 0x942EA0;
+// ICharacterMovementMethod vf2 (slot 2 of Normal/AnimationAll/...): the per-frame step that,
+// for a remote actor, interpolates its network samples. rcx = method, [rcx+0x20] = actor.
+constexpr uintptr_t kMethodStep = 0xBBC5A0;
+SafetyHookMid g_step_hook;
+std::atomic<uint64_t> g_step_own{0}, g_step_copy{0};
+SafetyHookMid g_cc18_hook, g_cc24_hook;
 
 std::atomic<bool> g_enabled{false};
 SafetyHookMid g_hooks[3];
@@ -100,6 +111,26 @@ void on_finish(safetyhook::Context& ctx) {
     log::write(log::Level::Info, text);
 }
 
+template <int Slot>
+void on_cc_slot(safetyhook::Context& ctx) {
+    uintptr_t actor = 0;
+    uint32_t key = 0;
+    if (!game::safe_read(ctx.rcx + 8, &actor, 8) || !game::safe_read(actor + 0x60, &key, 4) || !wanted(key)) return;
+    uintptr_t frames[6];
+    const int n = exe_frames(ctx.rsp, frames, 6);
+    std::string text = std::format("LoadTrace: {:08X} CC slot {} | ret", key, Slot);
+    for (int i = 0; i < n; ++i) text += std::format(" {:X}", frames[i]);
+    log::write(log::Level::Info, text);
+}
+
+void on_method_step(safetyhook::Context& ctx) {
+    uintptr_t actor = 0;
+    uint32_t key = 0;
+    if (!game::safe_read(ctx.rcx + 0x20, &actor, 8) || !game::safe_read(actor + 0x60, &key, 4)) return;
+    if (key == 0xA0100001) g_step_own.fetch_add(1, std::memory_order_relaxed);
+    else if (key == 0xA010F001) g_step_copy.fetch_add(1, std::memory_order_relaxed);
+}
+
 std::atomic<int> g_busy_lines{0};
 void on_component_busy(safetyhook::Context& ctx) {
     if ((ctx.rax & 0xFF) == 0) return;
@@ -113,9 +144,99 @@ void on_component_busy(safetyhook::Context& ctx) {
               game::rtti_name_of_vtable(vt), vt - g_base, comp);
 }
 
+// Experiment ([dev] load_trace=2): clear the copy's status flags at ClientStatusActorComponent
+// +0x260 (bit 2 there on the copy, 0 on our own character) once it has loaded, and log it.
+std::atomic<int> g_mode{0};
+uintptr_t status_component(uintptr_t actor) {
+    uintptr_t list = 0;
+    uint32_t n = 0;
+    if (!game::safe_read(actor + 0x78, &list, 8) || !game::safe_read(actor + 0x80, &n, 4) || n > 128) return 0;
+    for (uint32_t i = 0; i < n; ++i) {
+        uintptr_t c = 0, vt = 0;
+        if (game::safe_read(list + i * 16, &c, 8) && c && game::safe_read(c, &vt, 8) &&
+            vt == g_base + off::kVtStatusComponent) {
+            return c;
+        }
+    }
+    return 0;
+}
+uintptr_t component_of(uintptr_t actor, uintptr_t vtable_rva) {
+    uintptr_t list = 0;
+    uint32_t n = 0;
+    if (!game::safe_read(actor + 0x78, &list, 8) || !game::safe_read(actor + 0x80, &n, 4) || n > 128) return 0;
+    for (uint32_t i = 0; i < n; ++i) {
+        uintptr_t c = 0, vt = 0;
+        if (game::safe_read(list + i * 16, &c, 8) && c && game::safe_read(c, &vt, 8) && vt == g_base + vtable_rva) return c;
+    }
+    return 0;
+}
+bool write_f32(uintptr_t at, float v) {
+    __try {
+        *reinterpret_cast<volatile float*>(at) = v;
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+bool write_u32(uintptr_t at, uint32_t v) {
+    __try {
+        *reinterpret_cast<volatile uint32_t*>(at) = v;
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+DWORD WINAPI unhide_loop(LPVOID) {
+    uint32_t last[4][2] = {};
+    bool seen[4] = {};
+    const uint32_t keys[4] = {0xA0100001u, 0xA010F001u, 0xB010006Cu, 0xB010F001u};
+    uint64_t last_report = GetTickCount64();
+    for (;;) {
+        Sleep(100);
+        if (GetTickCount64() - last_report >= 5000) {
+            last_report = GetTickCount64();
+            log::info("LoadTrace: movement steps in 5 s: ours {}, copy {}", g_step_own.exchange(0), g_step_copy.exchange(0));
+        }
+        for (int k = 0; k < 4; ++k) {
+            const auto actor = game::find_actor(keys[k]);
+            if (!actor) continue;
+            const uintptr_t st = status_component(*actor);
+            uint32_t flags[2] = {};
+            uint16_t state = 0;
+            if (!st || !game::safe_read(st + 0x260, flags, sizeof flags)) continue;
+            game::safe_read(*actor + 0x5E, &state, 2);
+            if (!seen[k] || flags[0] != last[k][0] || flags[1] != last[k][1]) {
+                log::info("LoadTrace: {:08X} status +0x260 {:08X} +0x264 {:08X} (load state {:X})", keys[k], flags[0],
+                          flags[1], state);
+                seen[k] = true;
+                last[k][0] = flags[0];
+                last[k][1] = flags[1];
+            }
+            if (g_mode == 2 && k == 1 && state == 0x10) {
+                // The hide flag (bit 2) and the model alpha it drives: [CC+0xE8]+0x100 is 1.0
+                // on our own character, 0.0 on the copy.
+                const uintptr_t cc = component_of(*actor, off::kVtCharacterControl);
+                uintptr_t fade = 0;
+                float alpha = -1;
+                if (cc && game::safe_read(cc + 0xE8, &fade, 8) && fade && game::safe_read(fade + 0x100, &alpha, 4) &&
+                    (alpha != 1.0f || flags[0] || flags[1])) {
+                    const bool ok = write_u32(st + 0x260, 0) && write_u32(st + 0x264, 0) && write_f32(fade + 0x100, 1.0f);
+                    log::info("LoadTrace: copy unhidden (flags {:X}/{:X}, alpha {} -> 1) {}", flags[0], flags[1], alpha,
+                              ok ? "ok" : "FAILED");
+                }
+            }
+        }
+    }
+}
+
 }  // namespace
 
 void load_trace_enable(bool on) { g_enabled = on; }
+int load_trace_mode() { return g_mode; }
+void load_trace_set_mode(int mode) {
+    g_mode = mode;
+    g_enabled = mode != 0;
+}
 
 void load_trace_install() {
     if (!g_enabled) return;
@@ -137,6 +258,25 @@ void load_trace_install() {
         g_finish_hook = safetyhook::create_mid(reinterpret_cast<void*>(g_base + kFinishTree), on_finish);
         log::info("LoadTrace: finish-tree hook {}", g_finish_hook ? "installed" : "FAILED");
     }
+    {
+        const uintptr_t vt = g_base + off::kVtCharacterControl;
+        uintptr_t s18 = 0, s24 = 0;
+        if (game::safe_read(vt + 18 * 8, &s18, 8) && game::safe_read(vt + 24 * 8, &s24, 8) &&
+            s18 == g_base + kCcSlot18 && s24 == g_base + kCcSlot24) {
+            g_cc18_hook = safetyhook::create_mid(reinterpret_cast<void*>(s18), on_cc_slot<18>);
+            g_cc24_hook = safetyhook::create_mid(reinterpret_cast<void*>(s24), on_cc_slot<24>);
+            log::info("LoadTrace: CC slot 18/24 hooks {}/{}", g_cc18_hook ? "installed" : "FAILED",
+                      g_cc24_hook ? "installed" : "FAILED");
+        }
+    }
+    {
+        uintptr_t s2 = 0;
+        if (game::safe_read(g_base + 0x5951BF8 + 2 * 8, &s2, 8) && s2 == g_base + kMethodStep) {
+            g_step_hook = safetyhook::create_mid(reinterpret_cast<void*>(s2), on_method_step);
+            log::info("LoadTrace: movement-step hook {}", g_step_hook ? "installed" : "FAILED");
+        }
+    }
+    CloseHandle(CreateThread(nullptr, 0, unhide_loop, nullptr, 0, nullptr));  // watches; clears only in mode 2
     uint8_t busy[sizeof kComponentBusyHead];
     if (game::safe_read(g_base + kComponentBusy, busy, sizeof busy) &&
         std::memcmp(busy, kComponentBusyHead, sizeof busy) == 0) {

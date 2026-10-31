@@ -145,7 +145,7 @@ void die_test(const char* what, uint32_t attacker) {
         std::memcpy(b.data() + 4, &stat, 4);
         std::memcpy(b.data() + 8, &delta, 8);
         Bytes pkt(5 + b.size());
-        const uint16_t op = 2181, len = 16;
+        const uint16_t op = 2565, len = 16;  // VaryStatByAccInputReq on 3460 (2976: 2181)
         std::memcpy(pkt.data(), &op, 2);
         std::memcpy(pkt.data() + 3, &len, 2);
         std::memcpy(pkt.data() + 5, b.data(), b.size());

@@ -441,7 +441,7 @@ index e7d51fb..c511de8 100644
      Rotate = 3,       // RotateActorReq, 176 bytes
      WallUp = 4,       // UpdateWallUpData, 132 bytes (built from memory)
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..eafccd7 100644
+index e89d220..30b26b9 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -510,7 +510,7 @@ index e89d220..eafccd7 100644
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
-+    c.dev_load_trace = read_uint(ini_path, L"dev", L"load_trace", 0) != 0;
++    c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 2u));
      c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
      c.coop_delay_ms = std::clamp(read_uint(ini_path, L"coop", L"delay_ms", c.coop_delay_ms), 50u, 5000u);
      c.coop_offset_m = read_metres(ini_path, L"coop", L"offset_m", c.coop_offset_m);
@@ -526,7 +526,7 @@ index e89d220..eafccd7 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..263c3f7 100644
+index 3cd2ce2..bb0a4ea 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -558,7 +558,7 @@ index 3cd2ce2..263c3f7 100644
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
-+    bool dev_load_trace = false;  // Co-op+: log actor load-state steps (load_trace.h)
++    int dev_load_trace = 0;  // Co-op+: 1 = log actor load-state steps, 2 = + unhide experiment (load_trace.h)
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
@@ -1099,7 +1099,7 @@ index 912762f..500c53b 100644
  namespace {
  
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..4ec0ded 100644
+index 79ccd06..9a01ef2 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,7 @@
@@ -1548,6 +1548,24 @@ index 79ccd06..4ec0ded 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
+@@ -669,7 +928,7 @@ void combat_test_loop() {
+                 std::memcpy(b.data(), &npc->key, 4);
+                 std::memcpy(b.data() + 4, &hp_stat, 4);
+                 std::memcpy(b.data() + 8, &delta, 8);
+-                const bool ok = net::sniffer_inject_c2s(packet(2181, b));
++                const bool ok = net::sniffer_inject_c2s(packet(2565, b));  // VaryStatByAccInputReq on 3460 (2976: 2181)
+                 log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
+                           npc->key, npc->distance, ok ? "queued" : "NOT queued");
+             } else {
+@@ -687,7 +946,7 @@ void combat_test_loop() {
+                 std::memcpy(b.data() + 12, pos, 12);
+                 std::memcpy(b.data() + 24, dir, 12);
+                 std::memcpy(b.data() + 36, &hash, 4);
+-                const bool ok = net::sniffer_inject_c2s(packet(2815, b));
++                const bool ok = net::sniffer_inject_c2s(packet(2150, b));  // AttackByCollisionReq on 3460 (2976: 2815)
+                 log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
+                           npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
+             }
 @@ -752,7 +1011,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
@@ -1637,7 +1655,7 @@ index 79ccd06..4ec0ded 100644
 +        net::scaling_configure(scaling_settings(cfg, dir));
 +        net::save_guard_configure(cfg.coop_save_guard);
 +        net::room_set_invite_only(cfg.net_join_invite_only);
-+        net::load_trace_enable(cfg.dev_load_trace);
++        net::load_trace_set_mode(cfg.dev_load_trace);
 +        log::info("Config: who can join: {}", cfg.net_join_invite_only
 +                                                  ? "invited friends only ([net] join=invite)"
 +                                                  : "any Steam friend playing (\"Join Game\")");
@@ -2062,10 +2080,10 @@ index 1865e4e..c35ede1 100644
          return;
 diff --git a/upstream/cd-coop-3446/src/mod/net/load_trace.cpp b/upstream/cd-coop-3446/src/mod/net/load_trace.cpp
 new file mode 100644
-index 0000000..f016529
+index 0000000..6c3d3b6
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/load_trace.cpp
-@@ -0,0 +1,148 @@
+@@ -0,0 +1,288 @@
 +#include "mod/net/load_trace.h"
 +
 +#include <windows.h>
@@ -2078,6 +2096,7 @@ index 0000000..f016529
 +
 +#include <safetyhook.hpp>
 +
++#include "mod/game/actor_lookup.h"
 +#include "mod/game/offsets.h"
 +#include "mod/game/rtti.h"
 +#include "mod/game/safe_memory.h"
@@ -2105,6 +2124,16 @@ index 0000000..f016529
 +// ([r14+8] = actor).
 +constexpr uintptr_t kComponentBusy = 0x5B0EBF;
 +constexpr uint8_t kComponentBusyHead[] = {0x84, 0xC0, 0x75, 0x43};  // test al,al / jnz
++
++// ClientCharacterControlActorComponent vtable slots 18 (resource load complete: sets the hide
++// bits on 2976) and 24 (end of login: clears them), entry; rcx = component, [rcx+8] = actor.
++constexpr uintptr_t kCcSlot18 = 0x942B50, kCcSlot24 = 0x942EA0;
++// ICharacterMovementMethod vf2 (slot 2 of Normal/AnimationAll/...): the per-frame step that,
++// for a remote actor, interpolates its network samples. rcx = method, [rcx+0x20] = actor.
++constexpr uintptr_t kMethodStep = 0xBBC5A0;
++SafetyHookMid g_step_hook;
++std::atomic<uint64_t> g_step_own{0}, g_step_copy{0};
++SafetyHookMid g_cc18_hook, g_cc24_hook;
 +
 +std::atomic<bool> g_enabled{false};
 +SafetyHookMid g_hooks[3];
@@ -2168,6 +2197,26 @@ index 0000000..f016529
 +    log::write(log::Level::Info, text);
 +}
 +
++template <int Slot>
++void on_cc_slot(safetyhook::Context& ctx) {
++    uintptr_t actor = 0;
++    uint32_t key = 0;
++    if (!game::safe_read(ctx.rcx + 8, &actor, 8) || !game::safe_read(actor + 0x60, &key, 4) || !wanted(key)) return;
++    uintptr_t frames[6];
++    const int n = exe_frames(ctx.rsp, frames, 6);
++    std::string text = std::format("LoadTrace: {:08X} CC slot {} | ret", key, Slot);
++    for (int i = 0; i < n; ++i) text += std::format(" {:X}", frames[i]);
++    log::write(log::Level::Info, text);
++}
++
++void on_method_step(safetyhook::Context& ctx) {
++    uintptr_t actor = 0;
++    uint32_t key = 0;
++    if (!game::safe_read(ctx.rcx + 0x20, &actor, 8) || !game::safe_read(actor + 0x60, &key, 4)) return;
++    if (key == 0xA0100001) g_step_own.fetch_add(1, std::memory_order_relaxed);
++    else if (key == 0xA010F001) g_step_copy.fetch_add(1, std::memory_order_relaxed);
++}
++
 +std::atomic<int> g_busy_lines{0};
 +void on_component_busy(safetyhook::Context& ctx) {
 +    if ((ctx.rax & 0xFF) == 0) return;
@@ -2181,9 +2230,99 @@ index 0000000..f016529
 +              game::rtti_name_of_vtable(vt), vt - g_base, comp);
 +}
 +
++// Experiment ([dev] load_trace=2): clear the copy's status flags at ClientStatusActorComponent
++// +0x260 (bit 2 there on the copy, 0 on our own character) once it has loaded, and log it.
++std::atomic<int> g_mode{0};
++uintptr_t status_component(uintptr_t actor) {
++    uintptr_t list = 0;
++    uint32_t n = 0;
++    if (!game::safe_read(actor + 0x78, &list, 8) || !game::safe_read(actor + 0x80, &n, 4) || n > 128) return 0;
++    for (uint32_t i = 0; i < n; ++i) {
++        uintptr_t c = 0, vt = 0;
++        if (game::safe_read(list + i * 16, &c, 8) && c && game::safe_read(c, &vt, 8) &&
++            vt == g_base + off::kVtStatusComponent) {
++            return c;
++        }
++    }
++    return 0;
++}
++uintptr_t component_of(uintptr_t actor, uintptr_t vtable_rva) {
++    uintptr_t list = 0;
++    uint32_t n = 0;
++    if (!game::safe_read(actor + 0x78, &list, 8) || !game::safe_read(actor + 0x80, &n, 4) || n > 128) return 0;
++    for (uint32_t i = 0; i < n; ++i) {
++        uintptr_t c = 0, vt = 0;
++        if (game::safe_read(list + i * 16, &c, 8) && c && game::safe_read(c, &vt, 8) && vt == g_base + vtable_rva) return c;
++    }
++    return 0;
++}
++bool write_f32(uintptr_t at, float v) {
++    __try {
++        *reinterpret_cast<volatile float*>(at) = v;
++        return true;
++    } __except (EXCEPTION_EXECUTE_HANDLER) {
++        return false;
++    }
++}
++bool write_u32(uintptr_t at, uint32_t v) {
++    __try {
++        *reinterpret_cast<volatile uint32_t*>(at) = v;
++        return true;
++    } __except (EXCEPTION_EXECUTE_HANDLER) {
++        return false;
++    }
++}
++DWORD WINAPI unhide_loop(LPVOID) {
++    uint32_t last[4][2] = {};
++    bool seen[4] = {};
++    const uint32_t keys[4] = {0xA0100001u, 0xA010F001u, 0xB010006Cu, 0xB010F001u};
++    uint64_t last_report = GetTickCount64();
++    for (;;) {
++        Sleep(100);
++        if (GetTickCount64() - last_report >= 5000) {
++            last_report = GetTickCount64();
++            log::info("LoadTrace: movement steps in 5 s: ours {}, copy {}", g_step_own.exchange(0), g_step_copy.exchange(0));
++        }
++        for (int k = 0; k < 4; ++k) {
++            const auto actor = game::find_actor(keys[k]);
++            if (!actor) continue;
++            const uintptr_t st = status_component(*actor);
++            uint32_t flags[2] = {};
++            uint16_t state = 0;
++            if (!st || !game::safe_read(st + 0x260, flags, sizeof flags)) continue;
++            game::safe_read(*actor + 0x5E, &state, 2);
++            if (!seen[k] || flags[0] != last[k][0] || flags[1] != last[k][1]) {
++                log::info("LoadTrace: {:08X} status +0x260 {:08X} +0x264 {:08X} (load state {:X})", keys[k], flags[0],
++                          flags[1], state);
++                seen[k] = true;
++                last[k][0] = flags[0];
++                last[k][1] = flags[1];
++            }
++            if (g_mode == 2 && k == 1 && state == 0x10) {
++                // The hide flag (bit 2) and the model alpha it drives: [CC+0xE8]+0x100 is 1.0
++                // on our own character, 0.0 on the copy.
++                const uintptr_t cc = component_of(*actor, off::kVtCharacterControl);
++                uintptr_t fade = 0;
++                float alpha = -1;
++                if (cc && game::safe_read(cc + 0xE8, &fade, 8) && fade && game::safe_read(fade + 0x100, &alpha, 4) &&
++                    (alpha != 1.0f || flags[0] || flags[1])) {
++                    const bool ok = write_u32(st + 0x260, 0) && write_u32(st + 0x264, 0) && write_f32(fade + 0x100, 1.0f);
++                    log::info("LoadTrace: copy unhidden (flags {:X}/{:X}, alpha {} -> 1) {}", flags[0], flags[1], alpha,
++                              ok ? "ok" : "FAILED");
++                }
++            }
++        }
++    }
++}
++
 +}  // namespace
 +
 +void load_trace_enable(bool on) { g_enabled = on; }
++int load_trace_mode() { return g_mode; }
++void load_trace_set_mode(int mode) {
++    g_mode = mode;
++    g_enabled = mode != 0;
++}
 +
 +void load_trace_install() {
 +    if (!g_enabled) return;
@@ -2205,6 +2344,25 @@ index 0000000..f016529
 +        g_finish_hook = safetyhook::create_mid(reinterpret_cast<void*>(g_base + kFinishTree), on_finish);
 +        log::info("LoadTrace: finish-tree hook {}", g_finish_hook ? "installed" : "FAILED");
 +    }
++    {
++        const uintptr_t vt = g_base + off::kVtCharacterControl;
++        uintptr_t s18 = 0, s24 = 0;
++        if (game::safe_read(vt + 18 * 8, &s18, 8) && game::safe_read(vt + 24 * 8, &s24, 8) &&
++            s18 == g_base + kCcSlot18 && s24 == g_base + kCcSlot24) {
++            g_cc18_hook = safetyhook::create_mid(reinterpret_cast<void*>(s18), on_cc_slot<18>);
++            g_cc24_hook = safetyhook::create_mid(reinterpret_cast<void*>(s24), on_cc_slot<24>);
++            log::info("LoadTrace: CC slot 18/24 hooks {}/{}", g_cc18_hook ? "installed" : "FAILED",
++                      g_cc24_hook ? "installed" : "FAILED");
++        }
++    }
++    {
++        uintptr_t s2 = 0;
++        if (game::safe_read(g_base + 0x5951BF8 + 2 * 8, &s2, 8) && s2 == g_base + kMethodStep) {
++            g_step_hook = safetyhook::create_mid(reinterpret_cast<void*>(s2), on_method_step);
++            log::info("LoadTrace: movement-step hook {}", g_step_hook ? "installed" : "FAILED");
++        }
++    }
++    CloseHandle(CreateThread(nullptr, 0, unhide_loop, nullptr, 0, nullptr));  // watches; clears only in mode 2
 +    uint8_t busy[sizeof kComponentBusyHead];
 +    if (game::safe_read(g_base + kComponentBusy, busy, sizeof busy) &&
 +        std::memcmp(busy, kComponentBusyHead, sizeof busy) == 0) {
@@ -2216,10 +2374,10 @@ index 0000000..f016529
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/load_trace.h b/upstream/cd-coop-3446/src/mod/net/load_trace.h
 new file mode 100644
-index 0000000..e6ae436
+index 0000000..59091d2
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/load_trace.h
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,18 @@
 +#pragma once
 +// Co-op+ dev diagnostic ([dev] load_trace=1): logs who advances an actor's load state.
 +//
@@ -2231,6 +2389,9 @@ index 0000000..e6ae436
 +namespace cdmp::net {
 +
 +void load_trace_enable(bool on);
++// 1 = trace, 2 = trace + clear the copy's hide flag (status +0x260) and set its alpha (experiment).
++void load_trace_set_mode(int mode);
++int load_trace_mode();
 +// Late init (before a save loads, so the local player's own load is traced too).
 +void load_trace_install();
 +
@@ -2712,7 +2873,7 @@ index 0000000..37a4982
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/piece4_test.cpp b/upstream/cd-coop-3446/src/mod/net/piece4_test.cpp
-index 911d138..269b530 100644
+index 911d138..e69b2a2 100644
 --- a/upstream/cd-coop-3446/src/mod/net/piece4_test.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/piece4_test.cpp
 @@ -25,11 +25,13 @@ namespace {
@@ -2733,6 +2894,15 @@ index 911d138..269b530 100644
  constexpr size_t kBatchSize = 77;
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
  
+@@ -143,7 +145,7 @@ void die_test(const char* what, uint32_t attacker) {
+         std::memcpy(b.data() + 4, &stat, 4);
+         std::memcpy(b.data() + 8, &delta, 8);
+         Bytes pkt(5 + b.size());
+-        const uint16_t op = 2181, len = 16;
++        const uint16_t op = 2565, len = 16;  // VaryStatByAccInputReq on 3460 (2976: 2181)
+         std::memcpy(pkt.data(), &op, 2);
+         std::memcpy(pkt.data() + 3, &len, 2);
+         std::memcpy(pkt.data() + 5, b.data(), b.size());
 diff --git a/upstream/cd-coop-3446/src/mod/net/player_hits.cpp b/upstream/cd-coop-3446/src/mod/net/player_hits.cpp
 index f6612e6..a402330 100644
 --- a/upstream/cd-coop-3446/src/mod/net/player_hits.cpp
@@ -3872,7 +4042,7 @@ index 64b6fc9..c912d03 100644
  constexpr uint32_t kSendEveryMs = 5000;
  // Below this difference nothing is done: ~2 game minutes, 10 real seconds.
 diff --git a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
-index 82b334d..e808ceb 100644
+index 82b334d..52a240c 100644
 --- a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
 @@ -30,7 +30,7 @@
@@ -3884,7 +4054,17 @@ index 82b334d..e808ceb 100644
  
  enum class Dir : uint8_t { ClientToServer = 1, ServerToClient = 2 };
  
-@@ -379,8 +379,6 @@ const std::string& name_for(uint16_t op) {
+@@ -141,7 +141,8 @@ thread_local bool t_posting = false;
+ // LoadingCompleteAck (S>C 2762), nothing of ours goes in either way: they
+ // wait in their queues (analisis-ia2/P5: the horse copy's action went in
+ // mid-load; both of Shadow's crashes were in the tunnel). At most 120 s.
+-constexpr uint16_t kOpGameLoadingStartReq = 2437, kOpLoadingCompleteAck = 2762;
++// Co-op+: 3460 numbers from the live Troc table (were 2976-era 2437 and 2762).
++constexpr uint16_t kOpGameLoadingStartReq = 2294, kOpLoadingCompleteAck = 2190;
+ constexpr uint64_t kAfterLoadingMs = 1500, kMaxLoadingMs = 120000;
+ std::atomic<bool> g_loading{false};
+ std::atomic<uint64_t> g_loading_start_ms{0}, g_loading_done_ms{0};
+@@ -379,8 +380,6 @@ const std::string& name_for(uint16_t op) {
      return it == g_name_by_opcode.end() ? unknown : it->second;
  }
  
@@ -3893,7 +4073,7 @@ index 82b334d..e808ceb 100644
  // ---------------------------------------------------------------- writer
  
  // cdmp_packets_*.bin: "CDPK" u32 version u32 pe_timestamp, then records:
-@@ -614,6 +612,11 @@ uint16_t opcode_for(const char* name, uint16_t fallback) {
+@@ -614,6 +613,11 @@ uint16_t opcode_for(const char* name, uint16_t fallback) {
      return found;
  }
  

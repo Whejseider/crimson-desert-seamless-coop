@@ -141,7 +141,8 @@ thread_local bool t_posting = false;
 // LoadingCompleteAck (S>C 2762), nothing of ours goes in either way: they
 // wait in their queues (analisis-ia2/P5: the horse copy's action went in
 // mid-load; both of Shadow's crashes were in the tunnel). At most 120 s.
-constexpr uint16_t kOpGameLoadingStartReq = 2437, kOpLoadingCompleteAck = 2762;
+// Co-op+: 3460 numbers from the live Troc table (were 2976-era 2437 and 2762).
+constexpr uint16_t kOpGameLoadingStartReq = 2294, kOpLoadingCompleteAck = 2190;
 constexpr uint64_t kAfterLoadingMs = 1500, kMaxLoadingMs = 120000;
 std::atomic<bool> g_loading{false};
 std::atomic<uint64_t> g_loading_start_ms{0}, g_loading_done_ms{0};
