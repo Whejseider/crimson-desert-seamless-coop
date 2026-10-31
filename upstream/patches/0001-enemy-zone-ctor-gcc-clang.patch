@@ -1,0 +1,14 @@
+diff --git a/CrimsonDesert-SeamlessCoop/upstream/cd-coop-3446/src/common/enemy_zone.h b/CrimsonDesert-SeamlessCoop/upstream/cd-coop-3446/src/common/enemy_zone.h
+index 550b980..2c692b5 100644
+--- a/CrimsonDesert-SeamlessCoop/upstream/cd-coop-3446/src/common/enemy_zone.h
++++ b/CrimsonDesert-SeamlessCoop/upstream/cd-coop-3446/src/common/enemy_zone.h
+@@ -76,7 +76,8 @@ public:
+         Why why = Why::None;
+     };
+ 
+-    explicit EnemyZoneMachine(Settings s = {}) : s_(s) {}
++    EnemyZoneMachine() : s_(Settings{}) {}
++    explicit EnemyZoneMachine(Settings s) : s_(s) {}
+ 
+     Step tick(const Input& in) {
+         Step st;

@@ -31,3 +31,19 @@
 
 ## 2026-10-31 D9: Comfort Pack = our own implementation of the ideas
 - Other authors' data patches are mostly "ask first" (unverified) and would have to match exactly on both PCs. We reimplement the ideas as host-synced values in our DLL, credit the mods that inspired them, and list compatible mods as companions. See `docs/mod-permissions.md`.
+
+## 2026-10-31 D10: Build on cdmp / cd-coop-3446 (user decision)
+- Options: build on the GPL-3 code (fast; project becomes GPL-3) / clean-room MIT (slow) / contact authors first.
+- User chose: build on it. Imported nouzert1/cd-coop-3446 at b7ae133 unchanged into `upstream/` (minus a bundled
+  binary), project LICENSE = GPL-3.0, CREDITS.md added. Upstream kept near-pristine (patches listed in
+  `upstream/README.md`) so we can keep merging its fixes; it was updated today.
+- Plan: `docs/integration-plan.md`.
+
+## 2026-10-31 D11: Phase B runs on the user's PC attached to this session (user decision)
+- The user will attach their gaming PC through Remote Control. No folders were shared yet at the time of asking.
+- Still gated by "GO: game testing is clear" for launching the game / screen control. Shell and file work on the PC are
+  allowed before GO (brief section 0 permits files and shell), but nothing is installed into the game folder before GO.
+
+## 2026-10-31 D12: Upstream portability patch
+- `EnemyZoneMachine(Settings s = {})` fails on GCC/Clang. Split into two constructors
+  (`upstream/patches/0001-...`) so upstream's unit tests run on Linux and in CI. No behaviour change.

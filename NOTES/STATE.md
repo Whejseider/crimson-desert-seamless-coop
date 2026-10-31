@@ -1,33 +1,33 @@
 # STATE (single source of truth for resuming)
 
-**Phase A (setup + research), 2026-10-31.** Phase B waits for the user's exact words: "GO: game testing is clear."
+**Phase A (setup + research) complete, 2026-10-31. Waiting for the user's exact words "GO: game testing is clear."**
 
 ## Done
-- Project skeleton, CMake, C++20. 42 unit tests pass (Linux). Windows DLL `CrimsonDesertCoop.asi` cross-builds (MinGW);
-  CI workflow builds it with MSVC. Release script makes a zip.
-- DLL (M0-ready, untested in game): fail-safe startup thread, exe-name filter, vanilla mode, logging, loaded-module
-  report (loaders/ReShade), Steam detection via the game's steam_api64 flat API, data-driven read-only probe
-  (`config/probe.toml`).
-- Pure logic: scaling curves (+ stagger, QoL compensation, radius), loot modes, progression merge + guest-save policy,
-  TOML config with friendly errors, versioned protocol, snapshot interpolation, signature scanner.
-- Research notes: NOTES/RESEARCH/*.md; claims register; architecture + milestones (docs/architecture.md).
+- Skeleton, CMake C++20; 42 own unit tests + upstream's test suite pass on Linux; Windows builds (MinGW) of our
+  `CrimsonDesertCoop.asi` and both test exes; CI workflow (MSVC builds of ours and of upstream cdmp.asi).
+- Our layers: sim/ (scaling, loot, progression, config), net/ (protocol, interpolation, Steam flat-API probe),
+  game/ (sigscan, data-driven probe), compat/, core/ (fail-safe start, vanilla mode, logging). Commented TOML configs.
+- Research: NOTES/RESEARCH/*.md (engine, DRM, loaders, PA statements, co-op prototype/news, other co-op mods, Nexus
+  survey, cdmp codebase), docs/research.md summary, CLAIMS.md, mod-permissions.md.
+- **D10 (user): build on cdmp via nouzert1/cd-coop-3446** -> imported to `upstream/` (GPL-3.0), LICENSE now GPL-3.0,
+  CREDITS.md, docs/integration-plan.md.
+- **D11 (user): Phase B on the user's PC attached via Remote Control.**
 
-## In progress
-- Engine/DRM/loader research agent (anticheat-drm.md, loaders-and-dll-mods.md, pearl-abyss-statements.md).
-
-## Open questions for the user (pivotal)
-1. Build on the GPL-3 cdmp / cd-coop-3446 code (fast, project becomes GPL-3) vs clean-room (MIT, slower). See
-   NOTES/RESEARCH/cdmp-codebase.md. Recommendation: build on it.
-2. Phase B needs the game PC: this session is a cloud container. Options: attach the PC via Remote Control, or run
-   Claude Code on the PC. Also needs a second PC + Steam account (a friend) for two-player tests.
-3. Network policy blocks nexusmods.com and reddit.com from this session (Nexus permissions are therefore UNVERIFIED).
+## Blockers / waiting on the user
+1. **GitHub push refused (403)**: the Claude GitHub App has no write access to ashersheets-jpg/elden-force-source.
+   Commits are local in the cloud container only (lost if it's reclaimed). User: reconnect GitHub / install the app.
+   Once the PC is attached, push from there as a fallback.
+2. **PC not attached yet**: list_computer_folders returned nothing. User: Claude desktop app > Settings > Claude Code >
+   Remote Control, add a folder (e.g. a new `CrimsonDesert-SeamlessCoop` dev folder, NOT the Elden Ring project).
+3. **GO** for game testing.
+4. Two-player tests need a second PC + Steam account that owns the game (a friend). Denuvo: max 5 PCs/day activation.
+5. Network policy here blocks nexusmods.com/reddit.com: Nexus permissions UNVERIFIED (can check from the PC later).
 
 ## Next steps
-1. Fold the engine/DRM research into CLAIMS C8 and docs/research.md.
-2. Ask the user the questions above; record answers in DECISIONS.md.
-3. If "build on cdmp": vendor cd-coop-3446 as `upstream/` (GPL-3), map its modules onto our layers, replace hardcoded
-   addresses with signatures, switch our license to GPL-3, add CREDITS.md.
-4. Prepare the Phase B M0 package (loader + asi + configs) and the two-PC test kit.
-
-## Waiting on GO
-- Everything in docs/tests/M0.md.
+1. When the PC is attached (before GO): copy/clone the project there, push the branch from there if GitHub is still
+   refused here, check for MSVC/VS Build Tools + CMake, build upstream `cdmp.asi` and ours with MSVC. Verify Nexus
+   permissions with curl/browser from the PC.
+2. After GO: M0 per docs/tests/M0.md + upstream's single-PC relay test (`cdmp_peer --mode relay`). Record the exe
+   build, which `offsets_3446.h` entries still hold (game is at patch 2.04.00 + hotfix).
+3. Integration step 2 (one DLL: upstream + cdcoop_core), then signatures, then M1 Steam lobbies (integration-plan.md).
+4. Courtesy note to nouzert1 (GitHub issue) offering patches back; user to approve before posting.

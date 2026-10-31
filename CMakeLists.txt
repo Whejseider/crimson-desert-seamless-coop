@@ -80,4 +80,26 @@ if(CDCOOP_BUILD_TESTS)
     target_link_options(cdcoop_tests PRIVATE -static)
   endif()
   add_test(NAME cdcoop_tests COMMAND cdcoop_tests)
+
+  # Upstream (cd-coop-3446) unit tests: its portable src/common logic, built here on any OS.
+  # (Its full mod, cdmp.asi, is MSVC-only and is built by upstream/cd-coop-3446/CMakeLists.txt on Windows.)
+  set(UP ${CMAKE_SOURCE_DIR}/upstream/cd-coop-3446)
+  add_executable(upstream_tests
+    ${UP}/tests/tests.cpp
+    ${UP}/src/common/pattern.cpp
+    ${UP}/src/common/protocol.cpp
+    ${UP}/src/common/client_session.cpp
+    ${UP}/src/common/reliable.cpp
+    ${UP}/src/common/enemy_load.cpp
+  )
+  target_include_directories(upstream_tests PRIVATE ${UP}/src)
+  target_compile_definitions(upstream_tests PRIVATE CDMP_VERSION="upstream")
+  target_compile_options(upstream_tests PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
+  if(WIN32)
+    target_link_libraries(upstream_tests PRIVATE ws2_32)
+  endif()
+  if(MINGW)
+    target_link_options(upstream_tests PRIVATE -static)
+  endif()
+  add_test(NAME upstream_tests COMMAND upstream_tests)
 endif()

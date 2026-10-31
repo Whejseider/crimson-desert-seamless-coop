@@ -12,7 +12,7 @@ search-result snippets were used and are marked "(snippet)". GitHub pages/raw fi
 - **Architecture (critical for co-op):** The single-player exe still contains the **MMO client AND server halves in one process**, talking over an in-memory loopback "virtual session" (`pa::NwVirtualSyncSession` / `pa::NwVirtualAsyncSession`) with ~1,115 opcode-registered "Troc" message handlers (Req/Ack/Nak). Server threads `ServerRunThread`, `ServerWalkThread`, `ServerRepeatTimerThread`; client `ClientRunThread`; all `pa::NetworkThread`. RTTI namespace `pa::`. Confidence: med-high (one detailed public RE write-up, corroborated by a second independent project).
 - **Executable:** `<Steam>\steamapps\common\Crimson Desert\bin64\CrimsonDesert.exe` (x64). `crashpad_handler.exe` and `pers.exe` (crash reporter) also present. Confidence: high.
 - **Steam App ID:** **3321460** (Deluxe Pack DLC 4024620). Confidence: high.
-- **Current version (2026-10-31):** public **patch 2.04.00** (+ same-version hotfix 2026-10-30), released **2026-10-29** with paid DLC "Charting the Unknown". Exe FileVersion reported **1.0.0.3392**, Steam build **26308950**, with `dlc/dlc_01` (per CDMW research doc reviewed 2026-10-30). Previous widely-targeted modding build: **1.0.0.2976 = patch 2.03.02, Steam build 25477059**. Confidence: high (2.04.00), med (1.0.0.3392 mapping — single source).
+- **Current version (2026-10-31):** public **patch 2.04.00** (+ same-version hotfix 2026-10-30), released **2026-10-29** with paid DLC "Charting the Unknown". Exe FileVersion **1.0.0.3392** (Steam build **26308950**, with `dlc/dlc_01`, per CDMW research doc reviewed 2026-10-30), followed by hotfix exes **1.0.0.3424** and **1.0.0.3446** (MasterLooter README: "the DLC update and its two October patches"; "The update moved every hooked function"). Latest exe seen: **1.0.0.3446**. Previous widely-targeted modding build: **1.0.0.2976 = patch 2.03.02, Steam build 25477059**. Confidence: high (2.04.00), med (1.0.0.3392 mapping — single source).
 - **Patch cadence: very high.** ~1.00.02 (launch 2026-03-19) → 1.18.01 (mid-Aug) → 2.00.00 "Enhanced" (~2026-08-25) → 2.01 … 2.03.02 → 2.04.00 (2026-10-29). Often multiple hotfixes per week early on; roughly every 1–3 weeks since. **Exe FileVersion is an internal build number, not the patch number.** Every patch tends to break offsets; community ASI mods pin to one exe build and disable themselves on others.
 - **Archives:** PAZ (data, per-file ChaCha20 + LZ4 raw block) + PAMT (index) in numbered folders (`0000`, `0010`, `0017`…), plus `meta/0.papgt` (group table, has a checksum that overlay writers must update). Data tables are `.pabgb`/`.pabgh`. Saves: `%LOCALAPPDATA%\Pearl Abyss\CD\save`, ChaCha20 + HMAC-SHA256 + LZ4.
 
@@ -61,7 +61,7 @@ search-result snippets were used and are marked "(snippet)". GitHub pages/raw fi
 | 2.01.00 | ~Sep 2026 | — | official notice boardNo=128 (snippet) |
 | ~2.02.00 | — | Steam build 25246367 | ByJunter cheat-tables-versions.md |
 | 2.03.00 / 2.03.01 / 2.03.02 | ~Oct 2026 | 1.0.0.2944 / 2949 / **2976** (Steam 25477059) | ByJunter (citing shin2344234 signatures file) |
-| **2.04.00** + hotfix | **2026-10-29** (+10-30) | **1.0.0.3392**, Steam build 26308950 (dlc/dlc_01) | keengamer/vulkk/mp1st (snippets); Ratty123/CDMW-Full research doc |
+| **2.04.00** + hotfixes | **2026-10-29** (+10-30) | **1.0.0.3392** (Steam 26308950, dlc/dlc_01) → 1.0.0.3424 → **1.0.0.3446** | keengamer/vulkk/mp1st (snippets); Ratty123/CDMW-Full research doc; shin2344234/master-looter README |
 
 Notes: an "Oct 15 DLC update" is mentioned in cranebeaker notes (unclear). Confidence on exact
 FileVersion↔patch mapping: med (community sources).
@@ -104,3 +104,4 @@ FileVersion↔patch mapping: med (community sources).
 - https://www.pcgameshardware.de/Crimson-Desert-Spiel-72378/Tests/Release-Review-Steam-Performance-DLSS-4-5-FSR-4-1521842/2/ (snippet) — RT/upscalers — med
 - https://github.com/Vidith007/RX-580-CRIMSON-DESERT-FIX ; https://github.com/Megadroidgames/Crimson-Desert-RX-580-Polaris-Fix — D3D12 proxy shims — high
 - https://github.com/NattKh/CrimsonDesertModdingTools — pabgb parsers — med
+- https://github.com/shin2344234/master-looter — exe builds 3392/3424/3446 — high

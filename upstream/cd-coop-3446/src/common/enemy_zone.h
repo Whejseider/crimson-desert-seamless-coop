@@ -76,7 +76,8 @@ public:
         Why why = Why::None;
     };
 
-    explicit EnemyZoneMachine(Settings s = {}) : s_(s) {}
+    EnemyZoneMachine() : s_(Settings{}) {}
+    explicit EnemyZoneMachine(Settings s) : s_(s) {}
 
     Step tick(const Input& in) {
         Step st;

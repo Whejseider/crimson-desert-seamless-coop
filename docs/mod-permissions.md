@@ -54,3 +54,11 @@ Status values: `UNVERIFIED`, `VERIFIED <date>`, `ASKED <date>`, `GRANTED <date>`
 - **Skill cooldowns:** no dedicated skill-only cooldown mod was found. The existing cooldown mods target items and gear.
 - **Weight limit:** no carry-weight or encumbrance mod was found. The game appears to use slot limits instead.
 - **Quicker fast travel:** no data mod for faster fast travel was found. Only teleport tools, a load-time mod (Crimson FastLoad, mods/3768) and game-speed mods exist.
+
+
+## Code dependencies (GPL-3.0, verified first-hand on GitHub 2026-10-31)
+| Project | Author | Link | Version | Permission | What we use | Credit |
+|---|---|---|---|---|---|---|
+| cdmp (Crimson Desert Multiplayer) | ByJunter | https://github.com/ByJunter/CrimsonDesertMultiplayer | b62a572 (2026-10-10) | GPL-3.0; author invites forks | Via cd-coop-3446 (whole co-op engine) | README, CREDITS.md, Nexus page, in-game About |
+| cd-coop-3446 | nouzert1 | https://github.com/nouzert1/cd-coop-3446 | b7ae133 (2026-10-31) | GPL-3.0 | `upstream/cd-coop-3446/` | same |
+| blizz3010/CrimsonDesertCoop | blizz3010 | https://github.com/blizz3010/CrimsonDesertCoop | - | **No licence: do not copy any code** | nothing | - |

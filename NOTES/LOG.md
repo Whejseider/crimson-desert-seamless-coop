@@ -14,3 +14,10 @@
 - Nexus survey done (search snippets only; all permissions UNVERIFIED). Game now at patch 2.04.00 (~Oct 30).
 - Prototype research done. Big find: ByJunter's cdmp (GPL-3, C++20 ASI, abandoned, invites forks) + nouzert1/cd-coop-3446 (port to build 3446, last commit today). Cloned both read-only to /tmp/claude-0/ext/ (outside the project), read README/ROADMAP/research index/CONTRIBUTING -> NOTES/RESEARCH/cdmp-codebase.md.
 - Wrote CLAIMS.md, docs/offsets.md, docs/protocol.md, docs/architecture.md, docs/tests/M0.md, DECISIONS D1-D9.
+- Engine/DRM research done: Denuvo Anti-Tamper (5 PCs/day) + Themida-style protector (.xtls); no anti-cheat; ASI mods hooking at function entry work; launch must go through Steam. Loader: Ultimate ASI Loader 9.7.x as winmm.dll (winhttp.dll fallback after Win11 KB5095093). Builds: 2.04.00 = exe 1.0.0.3392 -> 3424 -> 3446.
+- Asked user (AskUserQuestion): build on cdmp? -> YES. Phase B how? -> attach PC via Remote Control.
+- list_computer_folders -> no folders shared yet.
+- git push -> 403 (Claude GitHub App lacks access to the repo). add_repo push says already attached; retry still 403. Commits kept locally.
+- Imported cd-coop-3446 b7ae133 via `git archive` (rsync not installed) into upstream/, minus bundled dinput8.dll. LICENSE -> GPL-3.0.
+- Upstream tests on GCC: error in enemy_zone.h (default arg `Settings s = {}` with nested default member initializers; GCC/Clang reject, MSVC accepts). Patched (two ctors), saved as upstream/patches/0001. Upstream suite: "All tests passed" on Linux; also cross-builds with MinGW.
+- Wrote docs/integration-plan.md, CREDITS.md, README.md, D10-D12; CI job for upstream MSVC build.

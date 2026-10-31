@@ -53,3 +53,12 @@ what the repos say about themselves; claims about live behaviour are the authors
   docs/research/README.md, CONTRIBUTING.md
 - https://github.com/nouzert1/cd-coop-3446 (HEAD 2026-10-31): README
 - Nexus: https://www.nexusmods.com/crimsondesert/mods/3677 (not reachable from this session)
+
+## cd-coop-3446 layout (checked 2026-10-31, HEAD b7ae133)
+- ~24.4k lines: `src/common` (protocol, reliable channel, sessions, UDP, enemy tables for 2976, pattern scanner),
+  `src/mod/game` (player/camera readers, actor lookup, RTTI, safe memory, **per-build offset headers
+  `offsets_3424.h`, `offsets_3446.h`**), `src/mod/net` (40 files: capture, puppet, coop, native_suppress, time_sync,
+  minimap, aggro/attack probes), `src/mod/render` (overlay).
+- Still per-build hardcoded offsets: each patch needs a new header. Ours would replace these with signatures + probe.
+- New docs since upstream: port notes for 3424/3446, a hang diagnosis, "why bosses don't finish", "enemy relay never
+  connected", and a two-PC test kit dated today.
