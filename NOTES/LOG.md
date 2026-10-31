@@ -171,3 +171,9 @@
 - Copy still not drawn: name plate floats over empty ground at its position (camera turned to check). Same 48/23
   components as ours; status flags +0x390/+0x394 are 0. Visibility path in 3460 is the next investigation.
 - Game closed without saving after every test; shipped cdmp.ini restored; saves still dated 2026-05-13.
+
+## 2026-10-31 ~18:00-18:40 — the copy is drawn
+- Loading detector opcodes renumbered (2294/2190): the copy now loads after our world; control intact.
+- Invisible copy: real hide flags at status +0x3B8/+0x3C0; copy keeps bit 20. puppet_visibility clears it via the
+  game's handler exe+0x6E90A0 from the copy's movement step. Copy visible and following in the echo test.
+- Package 0.1.0-alpha+219050be built, Defender clean, installed. Saves untouched (still 2026-05-13).

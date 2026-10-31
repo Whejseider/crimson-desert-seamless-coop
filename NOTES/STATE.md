@@ -1,19 +1,18 @@
 # STATE (single source of truth for resuming)
 
-## NOW (2026-10-31 afternoon, after GO) -- read this first
-- GO received. The game had auto-updated to **1.0.0.3460**; the mod now targets 3460 only (D22).
-- Done and verified on the running game: every address ported (verify-port ALL PASS), all 95 opcodes renumbered
-  from the live Troc table, MoveActor/StartAction layout change handled (mod/net/wire_layout.h), camera block +0x430,
-  load-packet transform end-158. Mod loads, Steam room/relay up, panel + room code + Ctrl+F1 hint draw, local
-  player read exact (0.05 m), hooks all install, saves untouched (the game never saved during tests).
-- Single-PC echo: the copy spawns at the right spot with name plate + HP bar, movement events flow.
-- **FIXED (09b498a):** the copy now loads (state 0x10) and follows; **NEXT:** it is not drawn, and its spawn must wait until our own world is loaded (else our control drops).
-- Upstream (nouzert1) started their own 3460 port today (commit 4922f596, addresses only; agrees with ours).
-- Test helpers (not in the package): build/port3460/{trial,keys,shot}.ps1, live.py/actor.py (read-only probes),
-  captures in build/port3460/captures. The installed cdmp.asi is the current dev build with the shipped cdmp.ini.
-
-**Phase A done. Session 2 (local, on the user's PC) is doing all pre-GO work; the user is asleep (since ~05:00 on
-2026-10-31) and asked for autonomous work until at least 11:00. Waiting for "GO: game testing is clear."**
+## NOW (2026-10-31 evening) -- read this first
+- Game is **1.0.0.3460**; the mod targets it only (D22). Package `dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+219050be.zip`
+  is built from HEAD, Defender-clean, and installed in the game folder (user's cdmp.ini kept).
+- **Single-PC echo test passes the core:** the other player's character loads, is DRAWN, and follows (walk, jump),
+  with name plate + HP bar and map pin; it loads only after our own world is up; our control stays intact.
+- Fixed on the way (all in docs/research/port-3460.md): every address; MoveData layout; all 95 opcodes; camera
+  block; load transform; the containment's "still loading" answer; the loading detector's opcodes; the copy's
+  hide bit (puppet_visibility.cpp, through the game's own flag handler).
+- Not verified yet: anything between two PCs (Steam join/invite live, two real players, enemies, hits, scaling),
+  animations in detail, gear changes (OtherEquipItemAck writer not ported), enemy copies' visibility.
+- Dev tools: `[dev] load_trace=1` (load-state trace, movement-step counts, status flag watch); test helpers in
+  build/port3460 (trial/keys/shot/mouse/run_echo .ps1, live.py/actor.py read-only probes).
+- Upstream issue with our 3460 findings: https://github.com/nouzert1/cd-coop-3446/issues/1
 
 ## Where the project lives now
 - `C:\Users\asher\CrimsonDesert-SeamlessCoop` (D15; short path because MSVC breaks on deep folders).
