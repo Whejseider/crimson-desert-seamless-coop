@@ -649,15 +649,18 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     }
 
     net::save_guard_set_connected(false, {});
+    net::scaling_set_party(1, host);  // nobody in our world until the next session says so
     coop.reset();
     session.disconnect(now_ms());
     transport.reset();
     net::cleanup();
-    if (steam && end.kind != Kind::Join) {
-        // Leaving or stopping: out of the lobby, and friends no longer see "Join Game".
-        // (A Join leaves the old lobby itself when it enters the new one.)
-        net::room_leave();
+    if (steam) {
+        // Friends must not see "Join Game" on a lobby we are leaving; the next session
+        // sets its own presence once it has one.
         net::join_presence_clear();
+        // Leaving or stopping: out of the lobby. (A Join leaves the old lobby itself
+        // when it enters the new one.)
+        if (end.kind != Kind::Join) net::room_leave();
     }
     log::info("Network stopped ({})", end.kind == Kind::Join    ? "joining another world"
                                       : end.kind == Kind::Leave ? "left the other player's world"
@@ -695,8 +698,9 @@ void apply_role_settings(const Config& cfg, bool in_game, bool role_changed) {
 }
 
 // Co-op+: runs network sessions back to back. With [net] role=auto the player
-// hosts their own world; a Steam join switches to guest, and leaving (Ctrl+F2) switches back. Without a Steam join, a session runs until the mod
-// stops, exactly as before.
+// hosts their own world; a Steam join switches to guest, and leaving (Ctrl+F2)
+// switches back. Without a Steam join, a session runs until the mod stops, exactly
+// as before.
 void run_coop(const Config& base, LocalSource& local, bool in_game) {
     Config cfg = base;
     if (cfg.net_transport_steam && (cfg.player_name.empty() || cfg.player_name == "Player")) {

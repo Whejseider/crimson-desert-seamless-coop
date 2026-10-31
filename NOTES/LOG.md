@@ -104,3 +104,6 @@
   Rewrote the unpushed commit without the CI change (saved as docs/drafts/ci-tool-tests.patch); question added.
 - 07:30 D21 invite-only option; build clean, tests + loopback pass. Patch apply check: 0001+0002+0003 apply to the
   pristine import (cb21b60) and reproduce src/ exactly.
+- 07:45 Self-review of the mod.cpp/steam_join/room_code diff: session end now clears rich presence on every end
+  (a Join left a stale 'Join Game' on the old lobby) and drops party scaling to 1 player right away. Locking reviewed:
+  callbacks lock-free, fail() never re-locks. Build/tests/loopback OK.
