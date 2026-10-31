@@ -96,3 +96,5 @@
   from bin64\cdcoop\config. cdmp_host test with health_2p=1.3 in the ini and scaling.toml present: log 'regular x1.50,
   bosses x1.70', i.e. the TOML curves win and the ini switch turns it on. Package ships cdcoop\config\scaling.toml;
   installer keeps a player's edited copy on update (.new), uninstaller removes the folder when empty.
+- Package 0.1.0-alpha+5f39326b built (4.2 MB) and tested on a fake bin64: install, update with an edited
+  scaling.toml (kept, .new written), uninstall (only the exe left). Root ctest 2/2 pass.
