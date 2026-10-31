@@ -216,6 +216,16 @@ void hud_draw(float width, float height) {
     float remote_distance = 0;
     if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
     if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure());
+    if (!d.toast.empty()) {
+        // Co-op+: arrivals and departures, top centre, whatever F8 says.
+        ImGui::SetNextWindowPos(ImVec2(width * 0.5f, height * 0.08f), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
+        ImGui::SetNextWindowBgAlpha(0.6f);
+        ImGui::Begin("cdmp_toast", nullptr,
+                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize |
+                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
+        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.5f, 1.0f), "%s", d.toast.c_str());
+        ImGui::End();
+    }
 
     // ---- world markers
     if (!cam || !cam_world) return;

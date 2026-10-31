@@ -352,7 +352,7 @@ index 072e9a3..04afd07 100644
                                               0x89, 0x70, 0x18, 0x55, 0x57, 0x41, 0x54, 0x41};
  
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..8d08a70 100644
+index 79ccd06..bced8b5 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,7 @@
@@ -488,7 +488,7 @@ index 79ccd06..8d08a70 100644
      uint32_t peer_since = 0;  // host: when it locked onto its player
      uint32_t last_friend_scan = 0;
      size_t last_friend_count = SIZE_MAX;
-@@ -327,10 +371,78 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -327,10 +371,80 @@ void run_network(const Config& cfg, LocalSource& local) {
      bool mark_was_down = false;
      int marks = 0;
      std::vector<uint8_t> buf(proto::kMaxPacketSize);
@@ -498,6 +498,8 @@ index 79ccd06..8d08a70 100644
 +    std::string presence_said;
 +    std::string notice;
 +    uint32_t notice_until = 0;
++    std::string toast, toast_name;
++    uint32_t toast_until = 0;
 +    auto say = [&](std::string text) {
 +        log::info("Co-op+: {}", text);
 +        notice = std::move(text);
@@ -567,7 +569,7 @@ index 79ccd06..8d08a70 100644
          // The host's lobby, retried until it takes. Startup runs before the save is
          // loaded, so the first attempt reliably fails on a cold start; without this
          // the host never gets a room code at all and the guest has nothing to type.
-@@ -363,7 +475,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -363,7 +477,8 @@ void run_network(const Config& cfg, LocalSource& local) {
              last_friend_scan = now_ms();
              // A room code wins over the friends scan: it names one host exactly.
              if (room_code_pending) {
@@ -577,7 +579,7 @@ index 79ccd06..8d08a70 100644
                  if (host_id) {
                      peer = net::PeerAddr::steam(host_id);
                      steam->set_peer(host_id);
-@@ -403,7 +516,13 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -403,7 +518,13 @@ void run_network(const Config& cfg, LocalSource& local) {
                  // Only a Hello of our protocol: one of another version would
                  // never connect and would keep the place (security review M2).
                  auto packet = proto::decode({buf.data(), *n});
@@ -592,9 +594,22 @@ index 79ccd06..8d08a70 100644
                      std::holds_alternative<proto::Hello>(packet->body)) {
                      peer = from;
                      peer_since = now_ms();
-@@ -427,6 +546,13 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -426,7 +547,26 @@ void run_network(const Config& cfg, LocalSource& local) {
+             peer.reset();
              if (steam) steam->set_peer(0);
          }
++        // Co-op+: a short toast when the other player arrives or leaves, shown even
++        // with the panel hidden.
++        if (connected && !was_connected) {
++            toast_name = session.peer_name().empty() ? std::string("Your friend") : session.peer_name();
++            toast = host ? std::format("{} joined your world", toast_name)
++                         : std::format("You are in {}'s world", toast_name);
++            toast_until = now + 6000;
++        } else if (!connected && was_connected) {
++            toast = host ? std::format("{} left your world", toast_name)
++                         : std::format("Lost the connection to {}'s world", toast_name);
++            toast_until = now + 6000;
++        }
          was_connected = connected;
 +        if (coop) {
 +            // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
@@ -606,7 +621,7 @@ index 79ccd06..8d08a70 100644
          if (coop) {
              std::optional<proto::Vec3> pos;
              proto::Quat rot;
-@@ -455,6 +581,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -455,6 +595,8 @@ void run_network(const Config& cfg, LocalSource& local) {
                  if (auto pos = net::puppet_position()) hud.remote->pos = *pos;
              }
              if (coop) hud.enemy_zone = net::suppress_hud_text();
@@ -615,7 +630,7 @@ index 79ccd06..8d08a70 100644
              // Boss bar (boss_safe.h): the guest has no native one.
              if (const net::BossHud b = net::boss_hud(); b.active) {
                  hud.boss_active = true;
-@@ -475,6 +603,16 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +617,17 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -629,10 +644,11 @@ index 79ccd06..8d08a70 100644
 +                    hud.coop_hint = "Ctrl+F2: leave and go back to your world";
 +                }
 +            }
++            if (!toast.empty() && static_cast<int32_t>(now - toast_until) < 0) hud.toast = toast;
              render::hud_update(std::move(hud));
          }
  
-@@ -499,6 +637,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -499,6 +652,7 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
              if (coop) log::info("{}", coop->describe());
@@ -640,7 +656,7 @@ index 79ccd06..8d08a70 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +648,104 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +663,104 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -746,7 +762,7 @@ index 79ccd06..8d08a70 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -908,6 +1140,36 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -908,6 +1155,36 @@ DWORD WINAPI late_init(LPVOID param) {
      return 0;
  }
  
@@ -783,7 +799,7 @@ index 79ccd06..8d08a70 100644
  DWORD WINAPI worker(LPVOID) {
      const std::wstring dir = dir_of(module_path(g_self));
      log::open(dir + L"cdmp.log");
-@@ -925,7 +1187,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1202,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -792,7 +808,7 @@ index 79ccd06..8d08a70 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -969,6 +1231,12 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1246,12 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -805,7 +821,7 @@ index 79ccd06..8d08a70 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1288,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1303,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -838,7 +854,7 @@ index 79ccd06..8d08a70 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1311,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1326,7 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -847,7 +863,7 @@ index 79ccd06..8d08a70 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1333,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1348,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -1987,7 +2003,7 @@ index b6efad7..b358264 100644
  // before on a build where resolution is unavailable.
  uint16_t opcode_for(const char* name, uint16_t fallback);
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..de2c0a1 100644
+index 14edc91..f0852e9 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 @@ -11,6 +11,7 @@
@@ -2132,7 +2148,7 @@ index 14edc91..de2c0a1 100644
  
      // The room code, ALWAYS shown -- with the code when we have one, and an explicit
      // "no code" plus the reason when we do not.
-@@ -189,13 +163,65 @@ void hud_draw(float width, float height) {
+@@ -189,13 +163,75 @@ void hud_draw(float width, float height) {
          // read a file to find out what went wrong.
          ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
      }
@@ -2189,6 +2205,16 @@ index 14edc91..de2c0a1 100644
 +    float remote_distance = 0;
 +    if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
 +    if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure());
++    if (!d.toast.empty()) {
++        // Co-op+: arrivals and departures, top centre, whatever F8 says.
++        ImGui::SetNextWindowPos(ImVec2(width * 0.5f, height * 0.08f), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
++        ImGui::SetNextWindowBgAlpha(0.6f);
++        ImGui::Begin("cdmp_toast", nullptr,
++                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize |
++                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
++        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.5f, 1.0f), "%s", d.toast.c_str());
++        ImGui::End();
++    }
  
      // ---- world markers
      if (!cam || !cam_world) return;
@@ -2200,10 +2226,10 @@ index 14edc91..de2c0a1 100644
          if (auto p = game::project(*cam, *cam_world, head, width, height)) {
              draw_remote_marker(dl, *p, d, remote_distance);
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.h b/upstream/cd-coop-3446/src/mod/render/hud.h
-index 532564a..b23ad44 100644
+index 532564a..712ec63 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.h
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.h
-@@ -29,6 +29,13 @@ struct HudData {
+@@ -29,6 +29,16 @@ struct HudData {
      // where the code would be, so a missing code explains itself on screen instead
      // of only in the log.
      std::string room_status;
@@ -2214,10 +2240,13 @@ index 532564a..b23ad44 100644
 +    std::string scaling;
 +    // Co-op+ save guard: "the game saved during co-op" notice ("" = none).
 +    std::string save_notice;
++    // Co-op+: "<name> joined your world" and similar, for a few seconds ("" = none).
++    // Drawn even when the panel is hidden.
++    std::string toast;
      // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
      // copy. The guest has no native boss bar -- the stage that draws it exists
      // only in the host's world -- so we draw our own.
-@@ -42,6 +49,7 @@ struct HudData {
+@@ -42,6 +52,7 @@ struct HudData {
  struct HudOptions {
      bool self_marker = false;  // dev aid: draw a cross on our own character
      bool english = true;       // the panel's texts in English (else Spanish)

@@ -377,6 +377,8 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     std::string presence_said;
     std::string notice;
     uint32_t notice_until = 0;
+    std::string toast, toast_name;
+    uint32_t toast_until = 0;
     auto say = [&](std::string text) {
         log::info("Co-op+: {}", text);
         notice = std::move(text);
@@ -545,6 +547,18 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             peer.reset();
             if (steam) steam->set_peer(0);
         }
+        // Co-op+: a short toast when the other player arrives or leaves, shown even
+        // with the panel hidden.
+        if (connected && !was_connected) {
+            toast_name = session.peer_name().empty() ? std::string("Your friend") : session.peer_name();
+            toast = host ? std::format("{} joined your world", toast_name)
+                         : std::format("You are in {}'s world", toast_name);
+            toast_until = now + 6000;
+        } else if (!connected && was_connected) {
+            toast = host ? std::format("{} left your world", toast_name)
+                         : std::format("Lost the connection to {}'s world", toast_name);
+            toast_until = now + 6000;
+        }
         was_connected = connected;
         if (coop) {
             // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
@@ -613,6 +627,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     hud.coop_hint = "Ctrl+F2: leave and go back to your world";
                 }
             }
+            if (!toast.empty() && static_cast<int32_t>(now - toast_until) < 0) hud.toast = toast;
             render::hud_update(std::move(hud));
         }
 

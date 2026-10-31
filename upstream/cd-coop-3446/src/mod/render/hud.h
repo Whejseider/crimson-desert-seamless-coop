@@ -36,6 +36,9 @@ struct HudData {
     std::string scaling;
     // Co-op+ save guard: "the game saved during co-op" notice ("" = none).
     std::string save_notice;
+    // Co-op+: "<name> joined your world" and similar, for a few seconds ("" = none).
+    // Drawn even when the panel is hidden.
+    std::string toast;
     // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
     // copy. The guest has no native boss bar -- the stage that draws it exists
     // only in the host's world -- so we draw our own.

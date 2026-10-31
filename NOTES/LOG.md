@@ -116,3 +116,6 @@
 - Audit cont.: every head array in src/mod is now covered by verify-port or belongs to a dev feature that is off by
   default; values inherited from 3424 are field offsets/opcodes except kServerDockingWriter (compiled out) and the
   camera block offsets (unverifiable offline; added as an explicit M0 check because nameplates depend on it).
+- Camera block: only 2 plain-code xrefs to the camera global (0x2FB8997 reads +0xC8/+0xD0; 0x3E1C8D3 writes it);
+  the +0x428 block access is not in plain code. Not determinable offline; M0 check stays.
+- 08:30 Join/leave toasts (top centre, independent of F8). Build/tests/loopback OK.
