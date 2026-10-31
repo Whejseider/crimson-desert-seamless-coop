@@ -55,3 +55,11 @@
 - The Co-op+ commits were never pushed to elden-force-source (push was refused), and the local Elden Force branch was
   reset to its original commit, so the Elden Force repo is untouched on GitHub and locally.
 - The integration cannot create repositories (403), so the user creates the empty repo; then we push `main`.
+
+## 2026-10-31 D14: Remote Control attach is not possible (Windows PC) -> proposed: local Claude Code session on the PC
+- list_computer_folders: computer DESKTOP-SM0R9J3 offers one folder, `JumpRing` (the Elden Ring project; never to be
+  used for Co-op+), under "cannot_be_used": cloud sessions can only attach folders on Mac/Linux computers; this PC runs
+  Windows. So D11 (attach the PC to this cloud session) cannot work.
+- Proposed to the user: run Phase B in a Claude Code session on the PC itself (desktop app, local), in its own folder
+  cloned from https://github.com/ashersheets-jpg/crimson-desert-seamless-coop. That session has the game (D:), Chrome,
+  MSVC/screen control (after GO); it starts from README_FOR_CLAUDE.md -> NOTES/STATE.md.

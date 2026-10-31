@@ -19,7 +19,7 @@
 ## Blockers / waiting on the user
 1. Done: own repo https://github.com/ashersheets-jpg/crimson-desert-seamless-coop (private), `main` pushed. Never put
    Co-op+ files in the Elden Force repo.
-2. **PC not attached yet**: list_computer_folders returned nothing. User: Claude desktop app > Settings > Claude Code >
+2. **PC can't be attached to a cloud session (Windows; D14)**: continue Phase B in a local Claude Code session on the PC, in a clone of this repo (not the JumpRing/Elden Ring folder). Old note: list_computer_folders returned nothing. User: Claude desktop app > Settings > Claude Code >
    Remote Control, add a folder (e.g. a new `crimson-desert-seamless-coop` dev folder, NOT the Elden Ring project).
 3. **GO** for game testing.
 4. Two-player tests need a second PC + Steam account that owns the game (a friend). Denuvo: max 5 PCs/day activation.
