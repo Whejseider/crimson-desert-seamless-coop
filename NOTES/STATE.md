@@ -33,6 +33,8 @@
   - **Nameplates**: Steam name over the other player, distance fade; Ctrl+F8 toggles (F8 = panel).
   - **Save guard** (D19): saves copied to Documents when a co-op session starts; warning if the game saves during it.
   - Panel title "Crimson Desert Seamless Co-op+" with the GPL credit line (ByJunter, nouzert1).
+  - **Offset audit** (docs/offsets.md): the puppet's wall-climb and mount fixes pointed 0x10 into their functions on
+    3446 and would never have installed; fixed and now checked by verify-port.
   - Upstream bugs found and patched: UTF-16 ini profiles garbled by CRLF on Windows (0003); `opcodes_resolved`
     defined in an anonymous namespace (0002).
   - Designs: docs/progression-sync.md (M5), docs/comfort-pack.md (M6; stack-size generator tools/make_comfort_pack.py).

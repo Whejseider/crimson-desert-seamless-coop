@@ -109,3 +109,7 @@
   callbacks lock-free, fail() never re-locks. Build/tests/loopback OK.
 - Review: scaling ledger now records guest blows whenever scaling is active (a boss-only multiplier would have
   scaled a guest's boss blow twice). save_guard reviewed, no change.
+- 08:10 OFFSET AUDIT: kPointClimbEnter/kRideOnEnter/kRideOffEnter were 0x10 too high on 3446 (RTTI vtables slot
+  +0x38 hold 0x75F620/0x74E8D0/0x74F8A0, whose bytes match the expected heads; the old values point mid-function).
+  Fixed + added to verify-port (PASS). Other stale addresses fail closed (error logger, aggro_test, rope dev) - see
+  docs/offsets.md audit table.

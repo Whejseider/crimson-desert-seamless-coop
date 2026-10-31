@@ -35,6 +35,22 @@ index c83acf3..f88c811 100644
  # Only the symbol file's name goes into cdmp.asi, not the path of the PC that
  # built it (it named the user's folders).
  target_link_options(cdmp_mod PRIVATE "/PDBALTPATH:cdmp.pdb")
+diff --git a/upstream/cd-coop-3446/scripts/verify-port.ps1 b/upstream/cd-coop-3446/scripts/verify-port.ps1
+index d6c385a..12e789b 100644
+--- a/upstream/cd-coop-3446/scripts/verify-port.ps1
++++ b/upstream/cd-coop-3446/scripts/verify-port.ps1
+@@ -587,6 +587,11 @@ code_addrs = [
+     ('kClientClock             (time sync)',        0x1416B80, 'kClientClockHead',            False),
+     ('kMinimapIconDecide       (minimap icon)',     0x9E8A7D,  'kMinimapIconDecideHead',      True),
+     ('kServerOtherEquipWriter  (equip relay)',      0x29EDD11, 'kServerOtherEquipWriterHead', True),
++    # Co-op+: the puppet's wall-climb and mount fixes (remote_puppet.cpp). They were 0x10 off
++    # on 3446 and nothing checked them; a wrong one disables the fix with a warning.
++    ('kPointClimbEnter         (wall-climb fix)',   0x75F620,  'kPointClimbEnterHead',        True),
++    ('kRideOnEnter             (mount fix)',        0x74E8D0,  'kRideEnterHead',              True),
++    ('kRideOffEnter            (dismount fix)',     0x74F8A0,  'kRideEnterHead',              True),
+ ]
+ for label, rva, hname, must_match in code_addrs:
+     sig = head_bytes(hname)
 diff --git a/upstream/cd-coop-3446/src/common/nameplate.h b/upstream/cd-coop-3446/src/common/nameplate.h
 new file mode 100644
 index 0000000..56fdd51
@@ -307,6 +323,33 @@ index 3cd2ce2..637a627 100644
 +    float scaling_boss_health_2p = 1.7f;  // from cdcoop\config\scaling.toml when present (Co-op+)
      float coop_suppress_lab_radius_m = 60.0f;
  };
+ 
+diff --git a/upstream/cd-coop-3446/src/mod/game/offsets_3446.h b/upstream/cd-coop-3446/src/mod/game/offsets_3446.h
+index 072e9a3..04afd07 100644
+--- a/upstream/cd-coop-3446/src/mod/game/offsets_3446.h
++++ b/upstream/cd-coop-3446/src/mod/game/offsets_3446.h
+@@ -472,11 +472,19 @@ inline constexpr uintptr_t kVtWallUpMovementMethod = 0x5918F78;  // 3424:0x5916E
+ // RideOn and RideOff came out of the same walk -- the Enter sits at slot +0x38 in all three
+ // movement-method classes -- and both open with the bytes kRideEnterHead expects
+ // (48 8B C4 48 89 58 10 48 ...).
+-inline constexpr uintptr_t kPointClimbEnter = 0x75F630;  // 3424:0x691400 (wrong even there)
++// Co-op+ fix (2026-10-31, offline against the 3446 exe): the three Enters below were 0x10
++// too high (0x75F630 / 0x74E8E0 / 0x74F8B0, mid-function), so the head checks failed and
++// the wall-climb and mount fixes never installed. The 3446 vtables, found by RTTI
++// (probe vtables), hold these at slot +0x38, and each opens with the expected head:
++//   PointClimbMovementMethod exe+0x59196A8 -> 0x75F620  (4C 8B DC 49 89 5B 10 ...)
++//   RideOnMovementMethod     exe+0x5919810 -> 0x74E8D0  (48 8B C4 48 89 58 10 ...)
++//   RideOffMovementMethod    exe+0x5919868 -> 0x74F8A0  (48 8B C4 48 89 58 10 ...)
++// verify-port.ps1 now checks all three.
++inline constexpr uintptr_t kPointClimbEnter = 0x75F620;  // was 0x75F630; 3424:0x691400 (wrong even there)
+ inline constexpr uint8_t kPointClimbEnterHead[] = {0x4C, 0x8B, 0xDC, 0x49, 0x89, 0x5B, 0x10, 0x49,
+                                                    0x89, 0x6B, 0x18, 0x49, 0x89, 0x73, 0x20, 0x57};
+-inline constexpr uintptr_t kRideOnEnter = 0x74E8E0;   // vtable pa::RideOnMovementMethod  exe+0x5917760
+-inline constexpr uintptr_t kRideOffEnter = 0x74F8B0;  // vtable pa::RideOffMovementMethod exe+0x59177B8
++inline constexpr uintptr_t kRideOnEnter = 0x74E8D0;   // vtable pa::RideOnMovementMethod  exe+0x5919810 (was 0x74E8E0)
++inline constexpr uintptr_t kRideOffEnter = 0x74F8A0;  // vtable pa::RideOffMovementMethod exe+0x5919868 (was 0x74F8B0)
+ inline constexpr uint8_t kRideEnterHead[] = {0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, 0x10, 0x48,
+                                              0x89, 0x70, 0x18, 0x55, 0x57, 0x41, 0x54, 0x41};
  
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
 index 79ccd06..8d08a70 100644

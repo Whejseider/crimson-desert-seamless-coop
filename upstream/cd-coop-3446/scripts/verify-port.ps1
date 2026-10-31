@@ -587,6 +587,11 @@ code_addrs = [
     ('kClientClock             (time sync)',        0x1416B80, 'kClientClockHead',            False),
     ('kMinimapIconDecide       (minimap icon)',     0x9E8A7D,  'kMinimapIconDecideHead',      True),
     ('kServerOtherEquipWriter  (equip relay)',      0x29EDD11, 'kServerOtherEquipWriterHead', True),
+    # Co-op+: the puppet's wall-climb and mount fixes (remote_puppet.cpp). They were 0x10 off
+    # on 3446 and nothing checked them; a wrong one disables the fix with a warning.
+    ('kPointClimbEnter         (wall-climb fix)',   0x75F620,  'kPointClimbEnterHead',        True),
+    ('kRideOnEnter             (mount fix)',        0x74E8D0,  'kRideEnterHead',              True),
+    ('kRideOffEnter            (dismount fix)',     0x74F8A0,  'kRideEnterHead',              True),
 ]
 for label, rva, hname, must_match in code_addrs:
     sig = head_bytes(hname)

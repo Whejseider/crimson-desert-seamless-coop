@@ -472,11 +472,19 @@ inline constexpr uintptr_t kVtWallUpMovementMethod = 0x5918F78;  // 3424:0x5916E
 // RideOn and RideOff came out of the same walk -- the Enter sits at slot +0x38 in all three
 // movement-method classes -- and both open with the bytes kRideEnterHead expects
 // (48 8B C4 48 89 58 10 48 ...).
-inline constexpr uintptr_t kPointClimbEnter = 0x75F630;  // 3424:0x691400 (wrong even there)
+// Co-op+ fix (2026-10-31, offline against the 3446 exe): the three Enters below were 0x10
+// too high (0x75F630 / 0x74E8E0 / 0x74F8B0, mid-function), so the head checks failed and
+// the wall-climb and mount fixes never installed. The 3446 vtables, found by RTTI
+// (probe vtables), hold these at slot +0x38, and each opens with the expected head:
+//   PointClimbMovementMethod exe+0x59196A8 -> 0x75F620  (4C 8B DC 49 89 5B 10 ...)
+//   RideOnMovementMethod     exe+0x5919810 -> 0x74E8D0  (48 8B C4 48 89 58 10 ...)
+//   RideOffMovementMethod    exe+0x5919868 -> 0x74F8A0  (48 8B C4 48 89 58 10 ...)
+// verify-port.ps1 now checks all three.
+inline constexpr uintptr_t kPointClimbEnter = 0x75F620;  // was 0x75F630; 3424:0x691400 (wrong even there)
 inline constexpr uint8_t kPointClimbEnterHead[] = {0x4C, 0x8B, 0xDC, 0x49, 0x89, 0x5B, 0x10, 0x49,
                                                    0x89, 0x6B, 0x18, 0x49, 0x89, 0x73, 0x20, 0x57};
-inline constexpr uintptr_t kRideOnEnter = 0x74E8E0;   // vtable pa::RideOnMovementMethod  exe+0x5917760
-inline constexpr uintptr_t kRideOffEnter = 0x74F8B0;  // vtable pa::RideOffMovementMethod exe+0x59177B8
+inline constexpr uintptr_t kRideOnEnter = 0x74E8D0;   // vtable pa::RideOnMovementMethod  exe+0x5919810 (was 0x74E8E0)
+inline constexpr uintptr_t kRideOffEnter = 0x74F8A0;  // vtable pa::RideOffMovementMethod exe+0x5919868 (was 0x74F8B0)
 inline constexpr uint8_t kRideEnterHead[] = {0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, 0x10, 0x48,
                                              0x89, 0x70, 0x18, 0x55, 0x57, 0x41, 0x54, 0x41};
 
