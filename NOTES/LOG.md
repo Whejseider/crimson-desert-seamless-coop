@@ -21,3 +21,4 @@
 - Imported cd-coop-3446 b7ae133 via `git archive` (rsync not installed) into upstream/, minus bundled dinput8.dll. LICENSE -> GPL-3.0.
 - Upstream tests on GCC: error in enemy_zone.h (default arg `Settings s = {}` with nested default member initializers; GCC/Clang reject, MSVC accepts). Patched (two ctors), saved as upstream/patches/0001. Upstream suite: "All tests passed" on Linux; also cross-builds with MinGW.
 - Wrote docs/integration-plan.md, CREDITS.md, README.md, D10-D12; CI job for upstream MSVC build.
+- User: Crimson Desert installed via Steam on D: drive. list_computer_folders still empty (PC not attached yet). Recorded in STATE.

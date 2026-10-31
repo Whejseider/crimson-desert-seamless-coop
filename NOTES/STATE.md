@@ -13,6 +13,9 @@
   CREDITS.md, docs/integration-plan.md.
 - **D11 (user): Phase B on the user's PC attached via Remote Control.**
 
+## Facts from the user
+- Crimson Desert is installed through Steam on the **D: drive** (likely `D:\SteamLibrary\steamapps\common\Crimson Desert\bin64\CrimsonDesert.exe`, the same default cdmp's deploy script uses; confirm the exact path once the PC is attached). Before GO: read-only access only (file version, folder listing, hashing the exe for signature work); nothing installed, game not launched.
+
 ## Blockers / waiting on the user
 1. **GitHub push refused (403)**: the Claude GitHub App has no write access to ashersheets-jpg/elden-force-source.
    Commits are local in the cloud container only (lost if it's reclaimed). User: reconnect GitHub / install the app.
