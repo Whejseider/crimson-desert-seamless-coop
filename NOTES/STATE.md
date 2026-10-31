@@ -24,19 +24,24 @@
   - **M1 code: Steam join** (patch 0002, D17): `[net] role=auto`, "Join Game"/invite via callbacks + `+connect_lobby`
     launch argument, Ctrl+F1 invite (Steam overlay), Ctrl+F2 leave, rich presence, role switch between sessions.
     Builds clean, unit-tested parser, loopback still passes. **Needs a live two-PC test.**
+  - **Friend-ready package** (`tools/package-coopplus.ps1` -> `dist/CrimsonDesert-SeamlessCoop-<ver>.zip`):
+    double-click installer (finds the game via Steam, backs up saves, keeps an existing winmm.dll), uninstaller,
+    README, one `role=auto` profile, verified ASI loader v9.7.4, source.zip. Tested on a fake game folder only.
+  - Fixed an upstream bug that garbled the UTF-16 ini profiles on Windows checkouts (patch 0003).
 
 ## Questions for the user (ask when they wake up; work continues meanwhile)
 1. Who is the second player for the first two-PC test, and when? (Both need the same mod zip; Denuvo 5 PCs/day.)
 2. Hotkeys: Ctrl+F1 = invite, Ctrl+F2 = leave, F8 = panel. OK, or do you prefer others?
-3. OK to post a courtesy GitHub issue to nouzert1 (cd-coop-3446) saying we build on the port and offering patches?
+3. The GitHub repo is private. GPL needs the source to travel with the binaries: the package includes
+   source.zip, so private is fine for friends. Make it public before a Nexus release? (Your call, later.)
+4. OK to post a courtesy GitHub issue to nouzert1 (cd-coop-3446) saying we build on the port and offering patches?
 
 ## Blockers / waiting on the user
 1. **GO** for game testing (another session may be testing Elden Ring on this PC).
 2. Two-player tests need a second PC + Steam account that owns the game.
 
 ## Next steps (pre-GO, in order)
-1. Friend-ready package: release script (PowerShell) that builds, tests and zips cdmp.asi + Ultimate ASI Loader
-   v10.0.2 (MIT, from GitHub) + English install guide + install/uninstall script with save backup.
+1. (done) Friend-ready package.
 2. English two-PC test plan (docs/tests/M1.md) for the Steam join flow; M0 checklist updated for upstream.
 3. Integration step 2 (our sim/config layers in the same DLL), starting with party-size scaling data plumbing.
 4. After GO: M0 + live checks (docs/tests/M0.md), then the two-PC session.

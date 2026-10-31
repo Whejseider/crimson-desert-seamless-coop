@@ -24,13 +24,13 @@ $up = Join-Path $root 'upstream\cd-coop-3446'
 $bin = Join-Path $up "build\bin\$Config"
 $kit = Join-Path $root 'kit\coopplus'
 
-function Git { & git -C $root @args; if ($LASTEXITCODE -ne 0) { throw "git $args failed" } }
+function Invoke-Git { & git.exe -C $root @args; if ($LASTEXITCODE -ne 0) { throw "git $args failed" } }
 
-$dirty = Git status --porcelain --untracked-files=no -- upstream/cd-coop-3446/src upstream/cd-coop-3446/CMakeLists.txt
+$dirty = Invoke-Git status --porcelain --untracked-files=no -- upstream/cd-coop-3446/src upstream/cd-coop-3446/CMakeLists.txt
 if ($dirty -and -not $AllowDirty) {
     throw "Uncommitted changes in the mod's source; commit first so both players get the same build id.`n$($dirty -join "`n")"
 }
-$sha = (Git rev-parse --short=8 HEAD).Trim()
+$sha = (Invoke-Git rev-parse --short=8 HEAD).Trim()
 $cmake = Get-Content (Join-Path $root 'CMakeLists.txt') -Raw
 if ($cmake -notmatch 'project\(\w+ VERSION ([0-9.]+)') { throw 'No VERSION in CMakeLists.txt' }
 $version = "$($Matches[1])-alpha+$sha"
@@ -89,7 +89,7 @@ foreach ($f in 'install.ps1', 'uninstall.ps1', 'coopplus-common.ps1', 'Install C
 Copy-Item (Join-Path $root 'CREDITS.md') $stage
 Copy-Item (Join-Path $root 'LICENSE') (Join-Path $stage 'LICENSE.txt')
 Copy-Item (Join-Path $up 'kit\public\THIRD-PARTY-NOTICES.txt') $stage
-Git archive --format=zip -o (Join-Path $stage 'source.zip') HEAD
+Invoke-Git archive --format=zip -o (Join-Path $stage 'source.zip') HEAD
 
 Get-ChildItem $stage -File -Recurse | Where-Object Name -ne 'SHA256.txt' | ForEach-Object {
     '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.FullName.Substring($stage.Length + 1)

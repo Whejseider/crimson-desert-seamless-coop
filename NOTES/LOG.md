@@ -55,3 +55,13 @@
   SteamAPI_RunCallbacks/RegisterCallback/UnregisterCallback (no ManualDispatch).
 - Wrote steam_join.{h,cpp}, join_args.h, run_coop/apply_role_settings in mod.cpp, role=auto, HUD hint, tests.
   Build: no warnings in changed files; unit tests (incl. test_join_args) pass; loopback passes. Patch 0002 recorded.
+- 05:10 Found upstream bug: upstream .gitattributes `kit/** text eol=crlf` corrupts the UTF-16 cdmp.ini.* profiles on a
+  Windows checkout (each LF gains a lone 0x0D). Exempted them (patch 0003); blobs were fine.
+- Ultimate ASI Loader v9.7.4 NoPDB_x64 from GitHub: SHA-256 matches GitHub's digest; Authenticode "FusionFix"
+  self-signed (UnknownError = untrusted root, expected); Defender custom scan: no detections.
+- Steam name: mod uses GetPersonaName when [general] player_name is empty/"Player" (protocol caps 32 bytes, ASCII).
+- tools/package-coopplus.ps1 -> dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+f815d26f.zip (4 MB). First run failed:
+  PowerShell function `Git` shadowed git.exe (case-insensitive) -> recursion; renamed Invoke-Git.
+- Installer test on a fake bin64/save in %TEMP%: backup OK, existing winmm.dll kept and restored, update keeps
+  cdmp.ini (writes cdmp.ini.new), uninstall removes exactly the listed files. GetPrivateProfileString reads the
+  generated UTF-16 profile: role=auto, transport=steam, coop=1. Find-CrimsonDesertBin64 finds D:\SteamLibrary\...
