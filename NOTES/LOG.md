@@ -74,3 +74,6 @@
   Build clean, all unit tests pass, loopback passes, root MSVC build + ctest pass. Our C4701 (protocol.cpp) fixed.
 - Self-review of run_coop: join callbacks now registered during the Steam-name wait; a role change always
   reconfigures the guest's enemy zone (a role=guest player who left kept hiding enemies as host). Build/tests/loopback OK.
+- 06:00 Nameplates (brief 6.2): common/nameplate.h fade (full to 25 m, 35% at 200 m, hidden from 600 m), text shrinks
+  to 80%; F8 now toggles only the panel, Ctrl+F8 the nameplate; [overlay] nameplates=1. Panel moved into draw_panel().
+  Occlusion not done (needs the depth buffer; live work). Build + tests OK. Visual check needs GO.

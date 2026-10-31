@@ -11,6 +11,7 @@
 #include <mutex>
 
 #include "common/math3d.h"
+#include "common/nameplate.h"
 #include "mod/game/camera_reader.h"
 #include "mod/log.h"
 #include "mod/render/dx12_hook.h"
@@ -26,34 +27,39 @@ std::mutex g_mutex;
 HudData g_data;
 HudOptions g_options;
 
-void text_shadowed(ImDrawList* dl, ImVec2 pos, ImU32 color, const char* text) {
-    dl->AddText(ImVec2(pos.x + 1, pos.y + 1), kShadow, text);
-    dl->AddText(pos, color, text);
-}
-
-void draw_bar(ImDrawList* dl, ImVec2 center, float width, float fraction, ImU32 color) {
-    const ImVec2 a(center.x - width / 2, center.y);
-    const ImVec2 b(center.x + width / 2, center.y + 5);
-    dl->AddRectFilled(a, b, IM_COL32(0, 0, 0, 160));
-    dl->AddRectFilled(a, ImVec2(a.x + width * std::clamp(fraction, 0.0f, 1.0f), b.y), color);
+// Co-op+: the same colour at `alpha` of its own opacity (nameplate fade).
+ImU32 faded(ImU32 color, float alpha) {
+    const auto a = static_cast<ImU32>(((color >> IM_COL32_A_SHIFT) & 0xFF) * std::clamp(alpha, 0.0f, 1.0f));
+    return (color & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
 }
 
 void draw_remote_marker(ImDrawList* dl, const game::ScreenPoint& p, const HudData& d,
                         float distance) {
+    // Co-op+ (brief 6.2): fades and shrinks a little with distance (common/nameplate.h).
+    const float alpha = nameplate::alpha(distance);
+    const float scale = nameplate::text_scale(distance);
+    ImFont* font = ImGui::GetFont();
+    const float px = ImGui::GetFontSize() * scale;
+    auto text = [&](ImVec2 pos, ImU32 color, const char* t) {
+        dl->AddText(font, px, ImVec2(pos.x + 1, pos.y + 1), faded(kShadow, alpha), t);
+        dl->AddText(font, px, pos, faded(color, alpha), t);
+    };
     const ImVec2 c(p.x, p.y);
-    dl->AddCircleFilled(c, 7.0f, kShadow);
-    dl->AddCircleFilled(c, 5.0f, kAccent);
+    dl->AddCircleFilled(c, 7.0f, faded(kShadow, alpha));
+    dl->AddCircleFilled(c, 5.0f, faded(kAccent, alpha));
     const std::string name = d.peer_name.empty() ? (g_options.english ? "Player 2" : "Jugador 2") : d.peer_name;
-    const ImVec2 size = ImGui::CalcTextSize(name.c_str());
-    text_shadowed(dl, ImVec2(c.x - size.x / 2, c.y - 28), IM_COL32_WHITE, name.c_str());
+    const ImVec2 size = font->CalcTextSizeA(px, FLT_MAX, 0.0f, name.c_str());
+    text(ImVec2(c.x - size.x / 2, c.y - 28), IM_COL32_WHITE, name.c_str());
     if (d.remote->health_max > 0) {
-        draw_bar(dl, ImVec2(c.x, c.y - 12), 70, d.remote->health / d.remote->health_max,
-                 IM_COL32(90, 200, 90, 255));
+        const ImVec2 a(c.x - 35, c.y - 12), b(c.x + 35, c.y - 7);
+        const float frac = std::clamp(d.remote->health / d.remote->health_max, 0.0f, 1.0f);
+        dl->AddRectFilled(a, b, faded(IM_COL32(0, 0, 0, 160), alpha));
+        dl->AddRectFilled(a, ImVec2(a.x + 70 * frac, b.y), faded(IM_COL32(90, 200, 90, 255), alpha));
     }
     char dist[32];
     std::snprintf(dist, sizeof dist, "%.0f m", distance);
-    const ImVec2 ds = ImGui::CalcTextSize(dist);
-    text_shadowed(dl, ImVec2(c.x - ds.x / 2, c.y + 10), IM_COL32(220, 220, 220, 255), dist);
+    const ImVec2 ds = font->CalcTextSizeA(px, FLT_MAX, 0.0f, dist);
+    text(ImVec2(c.x - ds.x / 2, c.y + 10), IM_COL32(220, 220, 220, 255), dist);
 }
 
 }  // namespace
@@ -68,42 +74,8 @@ void hud_update(HudData data) {
     g_data = std::move(data);
 }
 
-void hud_draw(float width, float height) {
-    static bool visible = true;
-    static bool f8_was_down = false;
-    static game::CameraReader camera;
-    static bool camera_init = false;
-    static ULONGLONG last_diag = 0;
-
-    const bool f8_down = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;
-    if (f8_down && !f8_was_down) visible = !visible;
-    f8_was_down = f8_down;
-    if (!visible) return;
-
-    HudData d;
-    HudOptions opt;
-    {
-        std::lock_guard lock(g_mutex);
-        d = g_data;
-        opt = g_options;
-    }
-    if (!camera_init) {
-        camera.init();
-        camera_init = true;
-    }
-    const auto cam = camera.read();
-
-    // Is the camera position stored in world space or relative to the map
-    // chunk like the player's physics position? Whichever is closer to us.
-    std::optional<proto::Vec3> cam_world;
-    bool cam_is_local = false;
-    if (cam && d.local) {
-        const float to_world = math::length(math::sub(cam->position, d.local->position));
-        const float to_local = math::length(math::sub(cam->position, d.local->local_position));
-        cam_is_local = to_local < to_world;
-        cam_world = cam_is_local ? math::add(cam->position, d.local->chunk_origin) : cam->position;
-    }
-
+// The status panel (top left). F8 shows / hides it; the nameplate has its own toggle.
+void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, const std::string& camera_failure) {
     // ---- status panel
     ImGui::SetNextWindowPos(ImVec2(20, 20));
     ImGui::SetNextWindowBgAlpha(0.55f);
@@ -153,15 +125,13 @@ void hud_draw(float width, float height) {
     } else {
         ImGui::TextDisabled(en ? "You: %s" : "Tú: %s", d.local_status.c_str());
     }
-    float remote_distance = 0;
     if (d.remote && d.local) {
-        remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
         ImGui::Text(en ? "Other player: HP %.0f/%.0f  %.0f m away" : "Otro jugador: HP %.0f/%.0f  a %.0f m",
                     d.remote->health, d.remote->health_max, remote_distance);
     }
     if (!d.enemy_zone.empty()) ImGui::TextColored(ImVec4(0.75f, 0.85f, 1, 1), "%s", d.enemy_zone.c_str());
     if (!d.scaling.empty()) ImGui::TextColored(ImVec4(0.75f, 0.85f, 1, 1), "%s", d.scaling.c_str());
-    if (!cam) ImGui::TextDisabled(en ? "Camera: %s" : "Cámara: %s", camera.last_failure().c_str());
+    if (!camera_failure.empty()) ImGui::TextDisabled(en ? "Camera: %s" : "Cámara: %s", camera_failure.c_str());
 
     // The room code, ALWAYS shown -- with the code when we have one, and an explicit
     // "no code" plus the reason when we do not.
@@ -192,12 +162,63 @@ void hud_draw(float width, float height) {
     }
     if (!d.coop_hint.empty()) ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.6f, 1), "%s", d.coop_hint.c_str());
     ImGui::End();
+}
+
+void hud_draw(float width, float height) {
+    static bool panel_visible = true;
+    static bool plates_visible = true;
+    static bool plates_init = false;
+    static bool f8_was_down = false;
+    static game::CameraReader camera;
+    static bool camera_init = false;
+    static ULONGLONG last_diag = 0;
+
+    // F8: the panel. Ctrl+F8 (Co-op+): the nameplate over the other player.
+    const bool f8_down = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;
+    if (f8_down && !f8_was_down) {
+        if (GetAsyncKeyState(VK_CONTROL) & 0x8000) plates_visible = !plates_visible;
+        else panel_visible = !panel_visible;
+    }
+    f8_was_down = f8_down;
+
+    HudData d;
+    HudOptions opt;
+    {
+        std::lock_guard lock(g_mutex);
+        d = g_data;
+        opt = g_options;
+    }
+    if (!plates_init) {
+        plates_visible = opt.nameplates;
+        plates_init = true;
+    }
+    if (!camera_init) {
+        camera.init();
+        camera_init = true;
+    }
+    const auto cam = camera.read();
+
+    // Is the camera position stored in world space or relative to the map
+    // chunk like the player's physics position? Whichever is closer to us.
+    std::optional<proto::Vec3> cam_world;
+    bool cam_is_local = false;
+    if (cam && d.local) {
+        const float to_world = math::length(math::sub(cam->position, d.local->position));
+        const float to_local = math::length(math::sub(cam->position, d.local->local_position));
+        cam_is_local = to_local < to_world;
+        cam_world = cam_is_local ? math::add(cam->position, d.local->chunk_origin) : cam->position;
+    }
+
+    // ---- status panel
+    float remote_distance = 0;
+    if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
+    if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure());
 
     // ---- world markers
     if (!cam || !cam_world) return;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
-    if (d.remote) {
+    if (d.remote && plates_visible && nameplate::alpha(remote_distance) > 0.0f) {
         const proto::Vec3 head{d.remote->pos.x, d.remote->pos.y + kHeadHeight, d.remote->pos.z};
         if (auto p = game::project(*cam, *cam_world, head, width, height)) {
             draw_remote_marker(dl, *p, d, remote_distance);

@@ -24,6 +24,7 @@
 #include "mod/net/room_codec.h"
 #include "mod/net/join_args.h"
 #include "common/party_scaling.h"
+#include "common/nameplate.h"
 #include "mod/net/boss_rules.h"
 
 #include <cctype>
@@ -1544,6 +1545,23 @@ void test_party_scaling() {
     CHECK(l.size() == 0);
 }
 
+// Co-op+: nameplate fade (common/nameplate.h).
+void test_nameplate() {
+    using namespace nameplate;
+    CHECK(alpha(0.0f) == 1.0f);
+    CHECK(alpha(kFullUntilM) == 1.0f);
+    CHECK(alpha(kFadedAtM) > kMinAlpha - 0.001f && alpha(kFadedAtM) < kMinAlpha + 0.001f);
+    CHECK(alpha(100.0f) < 1.0f && alpha(100.0f) > kMinAlpha);
+    CHECK(alpha(kHiddenFromM - 1.0f) > 0.0f);
+    CHECK(alpha(kHiddenFromM) == 0.0f);
+    CHECK(alpha(-1.0f) == 0.0f);
+    CHECK(alpha(std::numeric_limits<float>::quiet_NaN()) == 0.0f);
+    CHECK(text_scale(10.0f) == 1.0f);
+    CHECK(text_scale(1000.0f) > 0.79f && text_scale(1000.0f) < 0.81f);
+    // Monotonic: farther never draws stronger.
+    for (float m = 0.0f; m < kHiddenFromM; m += 5.0f) CHECK(alpha(m + 5.0f) <= alpha(m));
+}
+
 // Co-op+: the lobby a Steam "Join Game" / invite names on the command line.
 void test_join_args() {
     using net::find_connect_lobby;
@@ -1598,6 +1616,7 @@ int main() {    test_pattern();
     test_boss_rules();
     test_join_args();
     test_party_scaling();
+    test_nameplate();
     if (g_failures == 0) std::printf("All tests passed\n");
     return g_failures == 0 ? 0 : 1;
 }

@@ -1255,7 +1255,7 @@ DWORD WINAPI worker(LPVOID) {
         if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
         if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
         if (overlay || sniffer) {
-            if (overlay) render::hud_configure({cfg.overlay_self_marker, cfg.overlay_english});
+            if (overlay) render::hud_configure({cfg.overlay_self_marker, cfg.overlay_english, cfg.overlay_nameplates});
             g_late_thread = CreateThread(nullptr, 0, late_init,
                                          new LateInit{in_game, overlay, sniffer,
                                                       in_game && cfg.dev_clone_hotkeys,

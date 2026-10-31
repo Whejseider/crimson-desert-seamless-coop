@@ -48,6 +48,8 @@ constexpr wchar_t kDefaultIni[] =
     L"self_marker=1\r\n"
     L"; Language of the panel's texts: en | es\r\n"
     L"language=en\r\n"
+    L"; Co-op+: the other player's name over their head (Ctrl+F8 toggles it in game)\r\n"
+    L"nameplates=1\r\n"
     L"\r\n"
     L"[sniffer]\r\n"
     L"; Needed for co-op (reads and sends the game's internal messages)\r\n"
@@ -184,6 +186,7 @@ Config load_config(const std::wstring& ini_path) {
     c.overlay_enabled = read_uint(ini_path, L"overlay", L"enabled", 1) != 0;
     c.overlay_self_marker = read_uint(ini_path, L"overlay", L"self_marker", 1) != 0;
     c.overlay_english = read_string(ini_path, L"overlay", L"language", "en") != L"es";
+    c.overlay_nameplates = read_uint(ini_path, L"overlay", L"nameplates", 1) != 0;
     c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
     c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
     c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;

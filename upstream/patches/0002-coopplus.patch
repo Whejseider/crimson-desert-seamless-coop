@@ -11,6 +11,42 @@ index c83acf3..79294e6 100644
      src/mod/net/boss_safe.cpp
      src/mod/net/time_sync.cpp
      src/mod/render/dx12_hook.cpp
+diff --git a/upstream/cd-coop-3446/src/common/nameplate.h b/upstream/cd-coop-3446/src/common/nameplate.h
+new file mode 100644
+index 0000000..56fdd51
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/common/nameplate.h
+@@ -0,0 +1,30 @@
++#pragma once
++// How strongly the other player's nameplate is drawn at a distance (Co-op+,
++// brief 6.2: "Steam usernames above heads, distance-faded, toggleable").
++// Pure logic, unit-tested in tests/tests.cpp; hud.cpp applies it.
++
++#include <algorithm>
++
++namespace cdmp::nameplate {
++
++inline constexpr float kFullUntilM = 25.0f;  // fully opaque this close
++inline constexpr float kFadedAtM = 200.0f;   // faded down to kMinAlpha by here
++inline constexpr float kMinAlpha = 0.35f;    // still readable when far
++inline constexpr float kHiddenFromM = 600.0f;  // beyond this the map pin does the job
++
++// 0 = do not draw, else the opacity in (0, 1].
++inline float alpha(float distance_m) {
++    if (!(distance_m >= 0.0f) || distance_m >= kHiddenFromM) return 0.0f;
++    if (distance_m <= kFullUntilM) return 1.0f;
++    const float t = std::min(1.0f, (distance_m - kFullUntilM) / (kFadedAtM - kFullUntilM));
++    return 1.0f - t * (1.0f - kMinAlpha);
++}
++
++// Text scale: a little smaller far away, never below 80%.
++inline float text_scale(float distance_m) {
++    if (!(distance_m > kFullUntilM)) return 1.0f;
++    const float t = std::min(1.0f, (distance_m - kFullUntilM) / (kFadedAtM - kFullUntilM));
++    return 1.0f - 0.2f * t;
++}
++
++}  // namespace cdmp::nameplate
 diff --git a/upstream/cd-coop-3446/src/common/party_scaling.h b/upstream/cd-coop-3446/src/common/party_scaling.h
 new file mode 100644
 index 0000000..4e45eff
@@ -120,7 +156,7 @@ index 0000000..4e45eff
 +
 +}  // namespace cdmp::scaling
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..0f55fec 100644
+index e89d220..f780dfe 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,6 +21,8 @@ constexpr wchar_t kDefaultIni[] =
@@ -132,7 +168,16 @@ index e89d220..0f55fec 100644
      L"role=guest\r\n"
      L"; UDP: address of the host or of cdmp_peer.exe (a UDP host listens on peer_port)\r\n"
      L"peer_host=127.0.0.1\r\n"
-@@ -95,7 +97,14 @@ constexpr wchar_t kDefaultIni[] =
+@@ -46,6 +48,8 @@ constexpr wchar_t kDefaultIni[] =
+     L"self_marker=1\r\n"
+     L"; Language of the panel's texts: en | es\r\n"
+     L"language=en\r\n"
++    L"; Co-op+: the other player's name over their head (Ctrl+F8 toggles it in game)\r\n"
++    L"nameplates=1\r\n"
+     L"\r\n"
+     L"[sniffer]\r\n"
+     L"; Needed for co-op (reads and sends the game's internal messages)\r\n"
+@@ -95,7 +99,14 @@ constexpr wchar_t kDefaultIni[] =
      L"; same kill, and your own quests and XP are untouched.\r\n"
      L"; It only ever fires for an enemy you actually helped kill, close to you\r\n"
      L"; (30 m), and rate-limited. Hosts do not need it (it is the host's own world).\r\n"
@@ -148,7 +193,7 @@ index e89d220..0f55fec 100644
  
  std::wstring read_string(const std::wstring& path, const wchar_t* section, const wchar_t* key,
                           const std::string& fallback) {
-@@ -164,7 +173,11 @@ Config load_config(const std::wstring& ini_path) {
+@@ -164,13 +175,18 @@ Config load_config(const std::wstring& ini_path) {
      c.peer_port = static_cast<uint16_t>(read_uint(ini_path, L"net", L"peer_port", c.peer_port));
      c.send_rate_hz = std::clamp(read_uint(ini_path, L"net", L"send_rate_hz", c.send_rate_hz), 1u, 60u);
      c.net_transport_steam = read_string(ini_path, L"net", L"transport", "udp") == L"steam";
@@ -161,7 +206,14 @@ index e89d220..0f55fec 100644
      c.steam_peer_id = _wcstoui64(read_string(ini_path, L"steam", L"peer_steamid", "").c_str(), nullptr, 10);
      c.steam_channel = static_cast<int>(read_uint(ini_path, L"steam", L"channel", 67));
      c.room_code = narrow(read_string(ini_path, L"room", L"code", ""));
-@@ -226,6 +239,8 @@ Config load_config(const std::wstring& ini_path) {
+     c.overlay_enabled = read_uint(ini_path, L"overlay", L"enabled", 1) != 0;
+     c.overlay_self_marker = read_uint(ini_path, L"overlay", L"self_marker", 1) != 0;
+     c.overlay_english = read_string(ini_path, L"overlay", L"language", "en") != L"es";
++    c.overlay_nameplates = read_uint(ini_path, L"overlay", L"nameplates", 1) != 0;
+     c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
+     c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
+     c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
+@@ -226,6 +242,8 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -171,7 +223,7 @@ index e89d220..0f55fec 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..27b7c49 100644
+index 3cd2ce2..376c684 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,12 @@ struct Config {
@@ -187,7 +239,15 @@ index 3cd2ce2..27b7c49 100644
      // [steam] peer_steamid: guest = the host's SteamID64 (0 = the only friend
      // playing); host = accept only this friend (0 = any friend playing).
      uint64_t steam_peer_id = 0;
-@@ -146,6 +152,10 @@ struct Config {
+@@ -34,6 +40,7 @@ struct Config {
+     bool overlay_enabled = true;  // kill switch for the DX12 hook
+     bool overlay_self_marker = true;  // dev aid while validating the projection
+     bool overlay_english = true;      // [overlay] language = en | es: the panel's texts
++    bool overlay_nameplates = true;   // [overlay] nameplates (Co-op+): the other player's name over their head
+ 
+     bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
+     bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
+@@ -146,6 +153,10 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -199,7 +259,7 @@ index 3cd2ce2..27b7c49 100644
  };
  
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..8bc4e7d 100644
+index 79ccd06..c3fdafe 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -31,9 +31,11 @@
@@ -591,6 +651,15 @@ index 79ccd06..8bc4e7d 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
+@@ -1058,7 +1255,7 @@ DWORD WINAPI worker(LPVOID) {
+         if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
+         if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
+         if (overlay || sniffer) {
+-            if (overlay) render::hud_configure({cfg.overlay_self_marker, cfg.overlay_english});
++            if (overlay) render::hud_configure({cfg.overlay_self_marker, cfg.overlay_english, cfg.overlay_nameplates});
+             g_late_thread = CreateThread(nullptr, 0, late_init,
+                                          new LateInit{in_game, overlay, sniffer,
+                                                       in_game && cfg.dev_clone_hotkeys,
 @@ -1080,7 +1277,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
@@ -1373,27 +1442,206 @@ index 0000000..7bca83f
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..7745816 100644
+index 14edc91..903f0ee 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-@@ -160,6 +160,7 @@ void hud_draw(float width, float height) {
+@@ -11,6 +11,7 @@
+ #include <mutex>
+ 
+ #include "common/math3d.h"
++#include "common/nameplate.h"
+ #include "mod/game/camera_reader.h"
+ #include "mod/log.h"
+ #include "mod/render/dx12_hook.h"
+@@ -26,34 +27,39 @@ std::mutex g_mutex;
+ HudData g_data;
+ HudOptions g_options;
+ 
+-void text_shadowed(ImDrawList* dl, ImVec2 pos, ImU32 color, const char* text) {
+-    dl->AddText(ImVec2(pos.x + 1, pos.y + 1), kShadow, text);
+-    dl->AddText(pos, color, text);
+-}
+-
+-void draw_bar(ImDrawList* dl, ImVec2 center, float width, float fraction, ImU32 color) {
+-    const ImVec2 a(center.x - width / 2, center.y);
+-    const ImVec2 b(center.x + width / 2, center.y + 5);
+-    dl->AddRectFilled(a, b, IM_COL32(0, 0, 0, 160));
+-    dl->AddRectFilled(a, ImVec2(a.x + width * std::clamp(fraction, 0.0f, 1.0f), b.y), color);
++// Co-op+: the same colour at `alpha` of its own opacity (nameplate fade).
++ImU32 faded(ImU32 color, float alpha) {
++    const auto a = static_cast<ImU32>(((color >> IM_COL32_A_SHIFT) & 0xFF) * std::clamp(alpha, 0.0f, 1.0f));
++    return (color & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
+ }
+ 
+ void draw_remote_marker(ImDrawList* dl, const game::ScreenPoint& p, const HudData& d,
+                         float distance) {
++    // Co-op+ (brief 6.2): fades and shrinks a little with distance (common/nameplate.h).
++    const float alpha = nameplate::alpha(distance);
++    const float scale = nameplate::text_scale(distance);
++    ImFont* font = ImGui::GetFont();
++    const float px = ImGui::GetFontSize() * scale;
++    auto text = [&](ImVec2 pos, ImU32 color, const char* t) {
++        dl->AddText(font, px, ImVec2(pos.x + 1, pos.y + 1), faded(kShadow, alpha), t);
++        dl->AddText(font, px, pos, faded(color, alpha), t);
++    };
+     const ImVec2 c(p.x, p.y);
+-    dl->AddCircleFilled(c, 7.0f, kShadow);
+-    dl->AddCircleFilled(c, 5.0f, kAccent);
++    dl->AddCircleFilled(c, 7.0f, faded(kShadow, alpha));
++    dl->AddCircleFilled(c, 5.0f, faded(kAccent, alpha));
+     const std::string name = d.peer_name.empty() ? (g_options.english ? "Player 2" : "Jugador 2") : d.peer_name;
+-    const ImVec2 size = ImGui::CalcTextSize(name.c_str());
+-    text_shadowed(dl, ImVec2(c.x - size.x / 2, c.y - 28), IM_COL32_WHITE, name.c_str());
++    const ImVec2 size = font->CalcTextSizeA(px, FLT_MAX, 0.0f, name.c_str());
++    text(ImVec2(c.x - size.x / 2, c.y - 28), IM_COL32_WHITE, name.c_str());
+     if (d.remote->health_max > 0) {
+-        draw_bar(dl, ImVec2(c.x, c.y - 12), 70, d.remote->health / d.remote->health_max,
+-                 IM_COL32(90, 200, 90, 255));
++        const ImVec2 a(c.x - 35, c.y - 12), b(c.x + 35, c.y - 7);
++        const float frac = std::clamp(d.remote->health / d.remote->health_max, 0.0f, 1.0f);
++        dl->AddRectFilled(a, b, faded(IM_COL32(0, 0, 0, 160), alpha));
++        dl->AddRectFilled(a, ImVec2(a.x + 70 * frac, b.y), faded(IM_COL32(90, 200, 90, 255), alpha));
+     }
+     char dist[32];
+     std::snprintf(dist, sizeof dist, "%.0f m", distance);
+-    const ImVec2 ds = ImGui::CalcTextSize(dist);
+-    text_shadowed(dl, ImVec2(c.x - ds.x / 2, c.y + 10), IM_COL32(220, 220, 220, 255), dist);
++    const ImVec2 ds = font->CalcTextSizeA(px, FLT_MAX, 0.0f, dist);
++    text(ImVec2(c.x - ds.x / 2, c.y + 10), IM_COL32(220, 220, 220, 255), dist);
+ }
+ 
+ }  // namespace
+@@ -68,42 +74,8 @@ void hud_update(HudData data) {
+     g_data = std::move(data);
+ }
+ 
+-void hud_draw(float width, float height) {
+-    static bool visible = true;
+-    static bool f8_was_down = false;
+-    static game::CameraReader camera;
+-    static bool camera_init = false;
+-    static ULONGLONG last_diag = 0;
+-
+-    const bool f8_down = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;
+-    if (f8_down && !f8_was_down) visible = !visible;
+-    f8_was_down = f8_down;
+-    if (!visible) return;
+-
+-    HudData d;
+-    HudOptions opt;
+-    {
+-        std::lock_guard lock(g_mutex);
+-        d = g_data;
+-        opt = g_options;
+-    }
+-    if (!camera_init) {
+-        camera.init();
+-        camera_init = true;
+-    }
+-    const auto cam = camera.read();
+-
+-    // Is the camera position stored in world space or relative to the map
+-    // chunk like the player's physics position? Whichever is closer to us.
+-    std::optional<proto::Vec3> cam_world;
+-    bool cam_is_local = false;
+-    if (cam && d.local) {
+-        const float to_world = math::length(math::sub(cam->position, d.local->position));
+-        const float to_local = math::length(math::sub(cam->position, d.local->local_position));
+-        cam_is_local = to_local < to_world;
+-        cam_world = cam_is_local ? math::add(cam->position, d.local->chunk_origin) : cam->position;
+-    }
+-
++// The status panel (top left). F8 shows / hides it; the nameplate has its own toggle.
++void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, const std::string& camera_failure) {
+     // ---- status panel
+     ImGui::SetNextWindowPos(ImVec2(20, 20));
+     ImGui::SetNextWindowBgAlpha(0.55f);
+@@ -153,14 +125,13 @@ void hud_draw(float width, float height) {
+     } else {
+         ImGui::TextDisabled(en ? "You: %s" : "Tú: %s", d.local_status.c_str());
+     }
+-    float remote_distance = 0;
+     if (d.remote && d.local) {
+-        remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
+         ImGui::Text(en ? "Other player: HP %.0f/%.0f  %.0f m away" : "Otro jugador: HP %.0f/%.0f  a %.0f m",
                      d.remote->health, d.remote->health_max, remote_distance);
      }
      if (!d.enemy_zone.empty()) ImGui::TextColored(ImVec4(0.75f, 0.85f, 1, 1), "%s", d.enemy_zone.c_str());
+-    if (!cam) ImGui::TextDisabled(en ? "Camera: %s" : "Cámara: %s", camera.last_failure().c_str());
 +    if (!d.scaling.empty()) ImGui::TextColored(ImVec4(0.75f, 0.85f, 1, 1), "%s", d.scaling.c_str());
-     if (!cam) ImGui::TextDisabled(en ? "Camera: %s" : "Cámara: %s", camera.last_failure().c_str());
++    if (!camera_failure.empty()) ImGui::TextDisabled(en ? "Camera: %s" : "Cámara: %s", camera_failure.c_str());
  
      // The room code, ALWAYS shown -- with the code when we have one, and an explicit
-@@ -189,6 +190,7 @@ void hud_draw(float width, float height) {
+     // "no code" plus the reason when we do not.
+@@ -189,13 +160,65 @@ void hud_draw(float width, float height) {
          // read a file to find out what went wrong.
          ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
      }
 +    if (!d.coop_hint.empty()) ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.6f, 1), "%s", d.coop_hint.c_str());
      ImGui::End();
++}
++
++void hud_draw(float width, float height) {
++    static bool panel_visible = true;
++    static bool plates_visible = true;
++    static bool plates_init = false;
++    static bool f8_was_down = false;
++    static game::CameraReader camera;
++    static bool camera_init = false;
++    static ULONGLONG last_diag = 0;
++
++    // F8: the panel. Ctrl+F8 (Co-op+): the nameplate over the other player.
++    const bool f8_down = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;
++    if (f8_down && !f8_was_down) {
++        if (GetAsyncKeyState(VK_CONTROL) & 0x8000) plates_visible = !plates_visible;
++        else panel_visible = !panel_visible;
++    }
++    f8_was_down = f8_down;
++
++    HudData d;
++    HudOptions opt;
++    {
++        std::lock_guard lock(g_mutex);
++        d = g_data;
++        opt = g_options;
++    }
++    if (!plates_init) {
++        plates_visible = opt.nameplates;
++        plates_init = true;
++    }
++    if (!camera_init) {
++        camera.init();
++        camera_init = true;
++    }
++    const auto cam = camera.read();
++
++    // Is the camera position stored in world space or relative to the map
++    // chunk like the player's physics position? Whichever is closer to us.
++    std::optional<proto::Vec3> cam_world;
++    bool cam_is_local = false;
++    if (cam && d.local) {
++        const float to_world = math::length(math::sub(cam->position, d.local->position));
++        const float to_local = math::length(math::sub(cam->position, d.local->local_position));
++        cam_is_local = to_local < to_world;
++        cam_world = cam_is_local ? math::add(cam->position, d.local->chunk_origin) : cam->position;
++    }
++
++    // ---- status panel
++    float remote_distance = 0;
++    if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
++    if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure());
  
      // ---- world markers
+     if (!cam || !cam_world) return;
+     ImDrawList* dl = ImGui::GetBackgroundDrawList();
+ 
+-    if (d.remote) {
++    if (d.remote && plates_visible && nameplate::alpha(remote_distance) > 0.0f) {
+         const proto::Vec3 head{d.remote->pos.x, d.remote->pos.y + kHeadHeight, d.remote->pos.z};
+         if (auto p = game::project(*cam, *cam_world, head, width, height)) {
+             draw_remote_marker(dl, *p, d, remote_distance);
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.h b/upstream/cd-coop-3446/src/mod/render/hud.h
-index 532564a..6bc5204 100644
+index 532564a..1b1e8ba 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.h
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.h
 @@ -29,6 +29,11 @@ struct HudData {
@@ -1408,20 +1656,29 @@ index 532564a..6bc5204 100644
      // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
      // copy. The guest has no native boss bar -- the stage that draws it exists
      // only in the host's world -- so we draw our own.
+@@ -42,6 +47,7 @@ struct HudData {
+ struct HudOptions {
+     bool self_marker = false;  // dev aid: draw a cross on our own character
+     bool english = true;       // the panel's texts in English (else Spanish)
++    bool nameplates = true;    // Co-op+: name over the other player (Ctrl+F8 toggles in game)
+ };
+ 
+ void hud_configure(const HudOptions& options);
 diff --git a/upstream/cd-coop-3446/tests/tests.cpp b/upstream/cd-coop-3446/tests/tests.cpp
-index 6c43dc1..d71ffbf 100644
+index 6c43dc1..671407e 100644
 --- a/upstream/cd-coop-3446/tests/tests.cpp
 +++ b/upstream/cd-coop-3446/tests/tests.cpp
-@@ -22,6 +22,8 @@
+@@ -22,6 +22,9 @@
  #include "common/protocol.h"
  #include "common/reliable.h"
  #include "mod/net/room_codec.h"
 +#include "mod/net/join_args.h"
 +#include "common/party_scaling.h"
++#include "common/nameplate.h"
  #include "mod/net/boss_rules.h"
  
  #include <cctype>
-@@ -1505,6 +1507,68 @@ void test_boss_rules() {
+@@ -1505,6 +1508,85 @@ void test_boss_rules() {
      CHECK(!net::is_boss_stage_name("cd_field_village_idle"));
  }
  
@@ -1462,6 +1719,23 @@ index 6c43dc1..d71ffbf 100644
 +    CHECK(l.size() == 0);
 +}
 +
++// Co-op+: nameplate fade (common/nameplate.h).
++void test_nameplate() {
++    using namespace nameplate;
++    CHECK(alpha(0.0f) == 1.0f);
++    CHECK(alpha(kFullUntilM) == 1.0f);
++    CHECK(alpha(kFadedAtM) > kMinAlpha - 0.001f && alpha(kFadedAtM) < kMinAlpha + 0.001f);
++    CHECK(alpha(100.0f) < 1.0f && alpha(100.0f) > kMinAlpha);
++    CHECK(alpha(kHiddenFromM - 1.0f) > 0.0f);
++    CHECK(alpha(kHiddenFromM) == 0.0f);
++    CHECK(alpha(-1.0f) == 0.0f);
++    CHECK(alpha(std::numeric_limits<float>::quiet_NaN()) == 0.0f);
++    CHECK(text_scale(10.0f) == 1.0f);
++    CHECK(text_scale(1000.0f) > 0.79f && text_scale(1000.0f) < 0.81f);
++    // Monotonic: farther never draws stronger.
++    for (float m = 0.0f; m < kHiddenFromM; m += 5.0f) CHECK(alpha(m + 5.0f) <= alpha(m));
++}
++
 +// Co-op+: the lobby a Steam "Join Game" / invite names on the command line.
 +void test_join_args() {
 +    using net::find_connect_lobby;
@@ -1490,12 +1764,13 @@ index 6c43dc1..d71ffbf 100644
  }  // namespace
  
  int main() {    test_pattern();
-@@ -1532,6 +1596,8 @@ int main() {    test_pattern();
+@@ -1532,6 +1614,9 @@ int main() {    test_pattern();
      test_enemy_zone_machine();
      test_room_code();
      test_boss_rules();
 +    test_join_args();
 +    test_party_scaling();
++    test_nameplate();
      if (g_failures == 0) std::printf("All tests passed\n");
      return g_failures == 0 ? 0 : 1;
  }

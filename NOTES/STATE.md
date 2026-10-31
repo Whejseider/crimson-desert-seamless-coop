@@ -31,10 +31,11 @@
   - Test plans: docs/tests/M0.md (single PC, after GO) and docs/tests/M1.md (two PCs, Steam join).
   - **M3 prep: party scaling** (D18): host's enemies take 1/k damage with a guest in (guest blows scaled, host blows
     partly given back). Unit-tested; `[scaling] enabled=0` until a live test.
+  - Nameplates: the Steam name over the other player fades with distance; Ctrl+F8 toggles it (F8 = panel).
 
 ## Questions for the user (ask when they wake up; work continues meanwhile)
 1. Who is the second player for the first two-PC test, and when? (Both need the same mod zip; Denuvo 5 PCs/day.)
-2. Hotkeys: Ctrl+F1 = invite, Ctrl+F2 = leave, F8 = panel. OK, or do you prefer others?
+2. Hotkeys: Ctrl+F1 = invite, Ctrl+F2 = leave, F8 = panel, Ctrl+F8 = nameplate. OK, or do you prefer others?
 3. The GitHub repo is private. GPL needs the source to travel with the binaries: the package includes
    source.zip, so private is fine for friends. Make it public before a Nexus release? (Your call, later.)
 4. OK to post a courtesy GitHub issue to nouzert1 (cd-coop-3446) saying we build on the port and offering patches?

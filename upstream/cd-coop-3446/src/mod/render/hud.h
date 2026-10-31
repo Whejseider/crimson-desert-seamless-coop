@@ -47,6 +47,7 @@ struct HudData {
 struct HudOptions {
     bool self_marker = false;  // dev aid: draw a cross on our own character
     bool english = true;       // the panel's texts in English (else Spanish)
+    bool nameplates = true;    // Co-op+: name over the other player (Ctrl+F8 toggles in game)
 };
 
 void hud_configure(const HudOptions& options);

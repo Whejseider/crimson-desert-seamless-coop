@@ -40,6 +40,7 @@ struct Config {
     bool overlay_enabled = true;  // kill switch for the DX12 hook
     bool overlay_self_marker = true;  // dev aid while validating the projection
     bool overlay_english = true;      // [overlay] language = en | es: the panel's texts
+    bool overlay_nameplates = true;   // [overlay] nameplates (Co-op+): the other player's name over their head
 
     bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
     bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
