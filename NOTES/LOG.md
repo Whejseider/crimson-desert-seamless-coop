@@ -23,3 +23,4 @@
 - Wrote docs/integration-plan.md, CREDITS.md, README.md, D10-D12; CI job for upstream MSVC build.
 - User: Crimson Desert installed via Steam on D: drive. list_computer_folders still empty (PC not attached yet). Recorded in STATE.
 - User reconnected GitHub and asked for a fully separate repo (nothing in Elden Force). create_repository -> 403 "Resource not accessible by integration"; list_repos finds no crimson repo. Split history with `git subtree split --prefix=CrimsonDesert-SeamlessCoop` into /home/user/crimson-desert-seamless-coop (main, 4 commits, no Elden Force history). Moved CI workflow to .github/workflows/build.yml (root paths), fixed patch paths (-p1). Reset the local elden-force-source branch to c48f916 (its original state; nothing had been pushed).
+- User created the repo via the browser; it then appeared to the GitHub App. add_repo OK, remote was empty, pushed main (02ca593). Repo private.

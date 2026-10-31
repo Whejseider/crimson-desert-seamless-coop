@@ -17,9 +17,8 @@
 - Crimson Desert is installed through Steam on the **D: drive** (likely `D:\SteamLibrary\steamapps\common\Crimson Desert\bin64\CrimsonDesert.exe`, the same default cdmp's deploy script uses; confirm the exact path once the PC is attached). Before GO: read-only access only (file version, folder listing, hashing the exe for signature work); nothing installed, game not launched.
 
 ## Blockers / waiting on the user
-1. **Own repo (D13)**: project lives in its own repo `crimson-desert-seamless-coop` (local `main`). The GitHub
-   integration can't create repos, so the user creates it empty (private) on GitHub; then add_repo + push `main`.
-   Never put Co-op+ files in the Elden Force repo.
+1. Done: own repo https://github.com/ashersheets-jpg/crimson-desert-seamless-coop (private), `main` pushed. Never put
+   Co-op+ files in the Elden Force repo.
 2. **PC not attached yet**: list_computer_folders returned nothing. User: Claude desktop app > Settings > Claude Code >
    Remote Control, add a folder (e.g. a new `crimson-desert-seamless-coop` dev folder, NOT the Elden Ring project).
 3. **GO** for game testing.
