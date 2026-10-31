@@ -95,6 +95,7 @@ foreach ($f in 'install.ps1', 'uninstall.ps1', 'diagnose.ps1', 'vanilla.ps1', 'c
 (Get-Content (Join-Path $kit 'README.txt') -Raw).Replace('@VERSION@', $version) |
     Set-Content -Encoding ascii (Join-Path $stage 'README.txt')
 Copy-Item (Join-Path $root 'CREDITS.md') $stage
+Copy-Item (Join-Path $root 'CHANGELOG.md') $stage
 Copy-Item (Join-Path $root 'LICENSE') (Join-Path $stage 'LICENSE.txt')
 Copy-Item (Join-Path $up 'kit\public\THIRD-PARTY-NOTICES.txt') $stage
 Invoke-Git archive --format=zip -o (Join-Path $stage 'source.zip') HEAD

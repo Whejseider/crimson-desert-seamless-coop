@@ -123,3 +123,4 @@
   no Join Game), panel shows a red 'Co-op+ is off: made for 1.0.0.3446, not X' line. README section added.
 - 06:04 Correction: entries above stamped 06:20 ... 08:45 were estimates written without checking the clock; they are
   now the real commit times (git log). Times in this log come from `date` / commit times from here on.
+- 06:03 CHANGELOG.md (in the package) and docs/drafts/nexus-page.md (M7 draft, not posted).
