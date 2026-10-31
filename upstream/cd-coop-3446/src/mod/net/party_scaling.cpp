@@ -29,6 +29,7 @@ std::mutex g_mutex;
 scaling::Settings g_settings;
 scaling::InjectedLedger g_ledger;
 std::deque<GiveBack> g_pending;
+std::atomic<bool> g_enabled{false};  // fast path for the sniffer thread
 std::atomic<int> g_players{1};
 std::atomic<bool> g_host{false};
 uint64_t g_given = 0, g_given_hp = 0, g_skipped_ours = 0, g_dropped = 0, g_failed = 0;
@@ -57,6 +58,7 @@ std::vector<uint8_t> cheat_packet(uint32_t enemy, int32_t delta) {
 void scaling_configure(const scaling::Settings& s) {
     std::lock_guard lock(g_mutex);
     g_settings = s;
+    g_enabled = s.enabled;
     log::info("Scaling: enemy toughness with a guest {} (health x{:.2f}, bosses x{:.2f}; experimental)",
               s.enabled ? "ON" : "off", scaling::health_multiplier(s, 2),
               scaling::health_multiplier(scaling::for_boss(s, true), 2));
@@ -92,7 +94,7 @@ void scaling_note_injected(uint32_t enemy, int32_t loss_hp) {
 }
 
 void scaling_observe_hp(uint32_t enemy, int64_t before_x1000, int64_t after_x1000, bool by_us) {
-    if (!by_us || before_x1000 <= after_x1000) return;
+    if (!by_us || before_x1000 <= after_x1000 || !g_enabled || !g_host || g_players < 2) return;
     const bool boss = boss_is_boss(enemy);  // boss_safe's own lock, never ours
     std::lock_guard lock(g_mutex);
     const float k = multiplier_locked(boss);
