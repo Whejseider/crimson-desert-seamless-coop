@@ -1,0 +1,303 @@
+CONTAINMENT HOOKS ON 1.0.0.3446 - measurement log
+================================================
+
+Goal: the four `Site` entries in src/mod/net/horse_diag.cpp that must ALL match for the
+crash containment to install. On 3446 one of them fails, the containment is skipped, and
+the host's game dies 0.4 s after the other player's character is injected.
+
+Sites as they stand (image-relative, from the 3424 port):
+  kCcUpdate  0x85FBA0   "CC update"
+  kCcPost    0x860D30   "CC post-update"
+  kRestore   0x8646D0   "restore actions"
+  kPending   0x2329D70  "pending actions"
+
+
+RESULT SO FAR
+-------------
+
+kCcUpdate = exe+0x941D40   MEASURED, three independent agreeing measurements.
+
+Method: the four Site byte signatures are useless as a search key. The 16-byte prologue
+of kCcUpdate matches 500+ places in a 332 MB binary, and kCcPost / kRestore / kPending
+match 18-30+ each. A scan returns a haystack, not an answer.
+
+What works is behaviour. The component struct the mod reads has a distinctive field layout
+(read_state in horse_diag.cpp):
+
+  cc+0x08  -> actor (read_key pulls the actor key from here)
+  cc+0x40  -> state object; +0x30 of it is `restore`
+  cc+0x80  -> pending_list
+  cc+0x88  -> layer[0]
+  cc+0x90  -> layer[1]
+  cc+0xA8  -> pending
+
+PROOF 1 - static, struct offsets. A function that touches most of those IS the update.
+exe+0x941D40 contains four of them:
+
+  exe+0x941D52   mov rax, [rcx+0x08]      -> actor
+  exe+0x941D84   mov rax, [rbx+0x40]      -> state
+  exe+0x941D88   cmp [rax+0x30], sil      -> restore
+  exe+0x941D8E   cmp [rbx+0xA8], sil      -> pending
+  exe+0x941DE9   mov rax, [rbx+0x88]      -> layer[0]
+
+PROOF 2 - static, vtable slot. exe+0x941D40 is slot 16 of the vtable of
+.?AVClientCharacterControlActorComponent@pa@@ at exe+0x59388D0 - the same vtable the port
+already uses as kVtCharacterControl. Slot identity is not proof on its own, but it agrees
+with Proof 1.
+
+PROOF 3 - live, the object itself. This is the one that settles it. findptr located live
+instances of the vtable in the running game, and the object at one of them reads:
+
+  +0x00  exe+0x59388D0      vtable -> .?AVClientCharacterControlActorComponent@pa@@
+  +0x08  0x2A0FC82A380      -> .?AVClientNormalInGameActor@pa@@   (actor)
+  +0x40  0x2A131F1ACD0      (state)
+  +0x80  0x2A1F6B7B800      (pending_list)
+  +0x88  0x2A1F772B400      (layer[0])
+  +0x90  0x2A1F772A8C0      (layer[1])
+  +0xA8  0                  (pending)
+
+All six fields read_state touches exist and are populated, on a real object, in a live
+process. And actor+0x60 - kActor_Key - reads 0xB01017E1: the 0xB0 prefix is the PLAYER
+actor key family (in the crash session the other player appears as player 0xA0100001).
+So the object found is a player's character control, which is exactly what the hook guards.
+
+Prologue for the new Site (16 bytes as the struct wants them):
+
+  48 89 5C 24 10 48 89 74 24 18 57 48 83 EC 20 48
+
+Note it is NOT the 3424 prologue (48 89 5C 24 10 55 56 57 41 54 41 55 41 56 41 57): the
+compiler emitted a different register set this build. Offsets are not portable across
+patches and neither are prologues; both must be re-measured every time.
+
+
+MEASURED SECOND: kRestore = exe+0x948240
+--------------------------------------
+
+Found by the same behaviour method, two measurements:
+
+  1. Struct fields. The body reads exactly the set on_restore walks:
+
+       exe+0x94828C   mov rax, [r13+0x08]     -> actor
+       exe+0x9482AF   mov rax, [r13+0x40]     -> state
+       exe+0x9482B3   cmp [rax+0x30], r14b    -> restore
+       exe+0x94835D   mov rcx, [r13+0x88]     -> layer[0]
+       exe+0x9483D2   mov rcx, [r13+0x90]     -> layer[1]
+
+     Note `this` is in r13 here, not rbx as in kCcUpdate. The register holding `this` is
+     not stable across functions and must not be assumed; the offsets are what identify it.
+     The function runs 290 instructions to its ret at exe+0x9486B6, which fits a restore
+     routine that copies the saved bytes back.
+
+  2. Its 16-byte prologue is byte-identical to the 3424 value
+     (48 8B C4 48 89 58 20 48 89 50 10 55 56 57 41 54). This is corroboration, NOT the
+     basis: kCcUpdate's prologue did NOT survive the patch, so a matching prologue is luck,
+     and treating it as evidence would be the same mistake that made the byte-signature
+     approach useless. The behaviour above is what identifies the function; the prologue
+     merely agrees.
+
+It was found by scanning the prologues from the 3424 value's own signature: an 18-match
+scan whose only hit inside the CC code region was exe+0x948240. Proximity to kCcUpdate is
+not evidence by itself, but it narrowed 18 candidates to one, and the struct fields then
+decided it.
+
+THE DELTA CHANGED, WHICH IS WHY (2) BELOW IS DEAD
+-------------------------------------------------
+
+  kCcUpdate -> kRestore:  3424 = 0x4B30    3446 = 0x6500
+
+This is measured, not inferred. It is a second, independent reason a fixed delta cannot
+port these addresses, on top of the 0x35 spread already measured across the globals. The
+idea is attractive because it is cheap; it has now been falsified twice, and is written
+down so it is not reached for a third time.
+
+kCcPost, kRestore and kPending are still unresolved.
+
+What was tried and failed, recorded so it is not repeated:
+
+  1. Byte signatures - 18-30+ matches each. No discrimination.
+  2. Fixed delta from kCcUpdate. WRONG twice over: the delta between builds is not
+     constant (0x35 spread across the globals, and 0x4B30 -> 0x6500 measured directly
+     between kCcUpdate and kRestore), and kCcUpdate is only 311 bytes on 3446, so the 3424
+     gap to kCcPost (0x1190) cannot fit inside it at all.
+  3. Scoring every vtable method by how many struct offsets it touches. This DOES
+     surface kCcUpdate correctly, so the metric is valid, but the runner-up candidates
+     (slots 45, 56, 59) each turned out to touch only one or two offsets on inspection -
+     they were false positives, and slot 56 in particular is a short function that ends
+     at exe+0x94A26C.
+  4. xrefs on exe+0x941D40: no RIP-relative reference, as expected for a virtual method
+     reached through the vtable.
+  5. Scanning for the kPending prologue (48 89 5C 24 10 48 89 6C 24 18 48 89 74 24 20 57):
+     30+ matches, none in the 0x23xxxx region the 3424 address came from. kPending's
+     prologue did not survive the patch either.
+  6. Scanning for `movzx [reg+0xA8]` (the pending byte read_state touches): 8 hits; the
+     three in the 0x23xxxx range (exe+0x238C4DF and neighbours) do not belong to a function
+     touching the other struct offsets - exe+0x238C3C0 reads none of +0x08/+0x40/+0x80/
+     +0x88/+0x90/+0xA8. False positive.
+  7. Walking the CC vtable for entries outside the CC code range: ~50 candidates
+     (slots 1, 8-14, 17, 20, 21, 23, 26-39, 42, 57, 60, 64, 73-78, 90-100, 165, 181,
+     183-195), which is not a narrowing. kPending appears NOT to be a
+     ClientCharacterControl method at all: at 0x2329D70 on 3424 it sits in a different
+     region from every other CC site, so searching the vtable is likely the wrong place.
+
+  8. Chasing callers of kRestore directly. The 3424 report ties the chain together
+     (docs/INFORME-CABALLO-CRASH.md):
+
+       update actor 0x8B56D0 -> CC update 0x85FBA0 -> 0x863E80 -> 0x2329700 (layer) -> 0x1F63F70
+
+     where 0x2329700 advances the two layers and 0x2329D70 (kPending) sits 0x670 past it.
+     Porting that chain means finding 0x8B56D0 and 0x863E80 on 3446, not chasing the two
+     site addresses. The layer walker is the more promising of the two because it has a
+     behaviour nothing else shares: it checks layer+0x110 != 0, dt > 0 and rate > 0, and
+     does NOT check +0x18. A scan for `mov reg, [reg+0x110]` returned 15+ hits, none in
+     the 0x23xxxx region, so the walker moved region too - the chain has to be walked from
+     the actor-update end, or 0x2329700 re-identified by its unique offset set.
+
+A STRUCTURAL NOTE THAT MATTERS FOR kCcPost
+------------------------------------------
+
+kCcUpdate is 311 bytes and ends at a `ret` that is NOT the end of its logical body: three
+`jnz` target exe+0x941DB6, PAST the ret, and that region jumps back to exe+0x941DA4. The
+compiler split the function in two. So kCcPost may not be "the next function along" at
+all - it may be a point INSIDE a larger body, which is exactly what a mid-hook expects,
+and would explain why searching for the next prologue keeps failing.
+
+Two more approaches tried and failed since, bringing the list to ten:
+
+  9. Searching for the layer walker by its chart read. The 3424 crash report says
+     0x2329700 advances the two layers and is identified by checking layer+0x110 != 0,
+     dt > 0 and rate > 0 while NOT checking +0x18. Scanning for `cmp qword ptr
+     [reg+0x110], 0` gives two hits in the 0x2xxxxxx range (exe+0x20EEC86,
+     exe+0x216E299); the nearest function start is exe+0x216D0A0, a very large body
+     (past 0x216FF6A) whose calls resolve to instrumented allocator helpers
+     (exe+0x4AF7A0C, exe+0x4AF790C, exe+0x4AF70C8) and TLS guards. It contains exactly
+     ONE chart test, so it is a much larger routine that happens to touch the field, not
+     a layer walker. False positive.
+
+ 10. Fixed distance 0x1190 from kCcUpdate (the 3424 gap to kCcPost): exe+0x942ED0 is
+     unrelated code. This is the third independent confirmation that a fixed delta is
+     unusable - alongside the 0x35 spread across the globals and the 0x4B30 -> 0x6500
+     change measured directly between kCcUpdate and kRestore.
+
+Why the chart-read route keeps failing, and what it implies: scanning the WHOLE CC code
+region (0x94xxxx) for any load of [reg+0x110] returns exactly ONE hit, exe+0x947DD9, and
+that one belongs to the instrumented function above rather than to a CC method. If
+kCcPost genuinely read the chart the way on_cc_post does, a load of +0x110 should appear
+in the CC region. It does not. That is weak evidence that kCcPost is NOT in the CC code
+region at all - the same conclusion kPending already forced, since 0x2329D70 on 3424 sits
+in a different region from every other site. Both may belong to the caller that drives
+the component, which is the actor-update side of the chain, not the component itself.
+
+
+WHAT THIS DOES AND DOES NOT BUY
+-------------------------------
+
+Resolving kCcUpdate alone is not enough to enable containment: horse_diag_install hooks
+all four in one `&&` chain and installs none if any fails. So the crash is not fixed yet.
+
+It does mean the hardest of the four is now identified, and the method that found it is
+written down and reproducible.
+
+THE CONSTRUCTOR, AND A FIELD THE UPDATE USES
+-------------------------------------------
+
+Worth recording because it is new and it constrains where the remaining two can be.
+
+The CC vtable at exe+0x59388D0 is referenced from exactly two places:
+
+  exe+0x940702   inside the constructor, which starts at exe+0x9406E0 (the function
+                 right after the CC padding at exe+0x9406D0)
+  exe+0x9528E3D  a second constructor-like body, which also writes the vtable to [rcx]
+                 and then chains into exe+0x3D7240 twice
+
+The constructor writes the vtable to [rdi] and then zeroes [rdi+0xB8] and [rdi+0xC0]. It
+does NOT touch +0x08, +0x40, +0x80, +0x88, +0x90 or +0xA8 -- so the read_state fields are
+established later, not at construction, consistent with the layers being created once the
+actor is attached.
+
+Then the observation that matters: kCcUpdate reads [rbx+0xB8] twice (`mov rdi, [rbx+0xB8]`
+at exe+0x941DC3 and again in its second block). So +0xB8 is a member the constructor zeroes
+and the update dereferences -- a pointer the update expects to be valid once the component
+is live. That makes +0xB8 the best remaining discriminator for the two missing sites: a
+function reading BOTH [this+0xB8] and the read_state offsets is operating on the same
+component at the same stage, which is what kCcPost should look like.
+
+Not enough on its own this session. Written down as the next thing to try, not as a result.
+
+THE BREAKTHROUGH: A 3424 EXECUTABLE SURVIVED ON DISK
+----------------------------------------------------
+
+The whole session had been treating the 3424 addresses as known points and their bytes as
+the only anchor. That was the hard way round. A copy of the old executable was sitting at
+
+  C:\Users\ACER\Downloads\Mods\CD-ref\_scan\CrimsonDesert.exe   (320.7 MB)
+  PE timestamp 0x6AE387F2 -> build 1.0.0.3424
+
+so the two builds can be DIFFED instead of guessed at. Everything below came from that.
+
+kCcPost = exe+0x860D60, SOLVED
+
+The 3424 site is a MID-HOOK, not a function entry: 0x860D30 sits +0x110 into a body that
+starts at 0x860C20. Reading only the 16 prologue bytes in Site therefore told us far less
+than it appeared to - the bytes at that address are the middle of a function, and the
+"prologue" recorded for the 3424 was really an interior fragment.
+
+Diffing the bodies instruction by instruction shows the function barely moved:
+
+  3424 exe+0x860C20   push rbp / push rsi / push rdi / push r12 ... sub rsp, 0x50
+  3446 exe+0x860C50   identical, shifted by exactly 0x30
+
+Same pushes in the same order, same `sub rsp, 0x50`, same `mov rbx, r9`, same
+`mov dword ptr [r14+0x08], 0`, same `[rdx+0x108]` load, same `test dword ptr [rax+0x68],
+0x2000`. Only the branch displacements differ (the jz target is 0x860DEB here against
+0x860DBB there), which is what a 0x30 shift does to relative jumps.
+
+The mid-hook point is +0x110 into the body in BOTH builds, and its 16 bytes are IDENTICAL:
+
+  0F 85 B6 00 00 00 4C 89 6C 24 28 80 7C 24 38 00
+
+That is what goes in the Site, and the per-site prologue check verifies it at install
+time. Where a function moved but its interior did not, the interior bytes are the better
+anchor than any prologue - the opposite of what this file assumed for most of the session.
+
+It also corrects a wrong assumption: kCcPost was assumed to read the layer chart (+0x110)
+because on_cc_post does. It does not. The mod reproduces that logic in C++; the game is
+under no obligation to read the field the same way. kCcUpdate - the function this pass
+follows - never touches +0x110 at all. Time was spent scanning for a chart read that was
+never there, and the negative result that "no CC function reads +0x110" was read as
+evidence about where kCcPost lives, when it was evidence about a wrong premise.
+
+kPending - NOT SOLVED, and now understood differently
+
+The 3424 site 0x2329D70 is also a mid-hook (the `jz` at the end of a `cmp [rsi], r15b`) in
+a body starting at exe+0x2329D20. Two things are now measured about it:
+
+  * It does NOT touch the component struct at all. Over 300 instructions it reads none of
+    +0x80, +0x88, +0x90, +0xA8 or +0x60 - the fields every other site is built around,
+    and the fields read_key and read_state need. Whatever this function is, it is not
+    operating on a ClientCharacterControl.
+  * It is referenced twice, both by `lea` rather than `call`:
+
+      exe+0x163CEF8   lea rdx, [kPending] ; lea rcx, [rbp+0x568] ; call 0x1659140
+      exe+0xB194D53   lea rax, [kPending] ; mov [rbx+0x20], rax
+
+    so it is installed into a vtable-like structure, not invoked virtually by the
+    component. At 0xB194D49 the enclosing code writes a vtable (0x5ABAFC0) to [rbx] and
+    then the function to [rbx+0x20].
+
+  Its 32-byte prologue is NOT distinctive: scanning it in 3446 returns 10 matches, and
+  the interior pattern `4C 8D 85 90 00 00 00 48 8B D1 E8` returns 20+ spread at regular
+  intervals (0x231D602, 0x231DAC2, 0x231DDF2, ...) - a family of compiler-generated
+  siblings from one template. Neither narrows to the right one.
+
+  IMPORTANT: on this evidence the kPending site as recorded is probably WRONG for what
+  horse_diag.cpp wants. The hook calls read_key(ctx.rcx) and read_state(ctx.rcx), which
+  require rcx to be a ClientCharacterControl - but the 3424 function at 0x2329D20 does not
+  touch that struct. Either the 3424 address was never observing what was assumed, or the
+  function's signature changed shape entirely. This needs resolving before installing a
+  hook there, because a mid-hook on a function that does not take a CC would read garbage
+  through read_state. It fails safe only by luck (safe_read is guarded), not by design.
+
+  The way to finish it: the two `lea` references are the thread. Find the 3446 code that
+  writes a vtable to [rbx] and then a function pointer to [rbx+0x20], and read the
+  function it installs - the diff method that solved kCcPost should work here too, since
+  it is a data reference rather than a prologue.

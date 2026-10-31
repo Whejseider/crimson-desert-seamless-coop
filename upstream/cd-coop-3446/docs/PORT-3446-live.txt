@@ -1,0 +1,158 @@
+﻿# Live probe on the UPDATED game (build 1.0.0.3446)
+# Captured: 2026-10-30T14:20:58
+#
+# The game auto-updated while this session was running:
+#   1.0.0.3424  PE 0x6AE387F2  336,264,088 bytes   <- what the port targets
+#   1.0.0.3446  PE 0x6AE46DD0  332,786,072 bytes   <- what is now on disk
+#
+# EVERY address in offsets.h is invalid on 3446. verify-port.ps1 reports 24
+# failures. The mod's PE-timestamp guards refuse to install (troc_sniffer.cpp:607,
+# camera_reader.cpp:48, player_reader.cpp:30), so nothing is corrupted; the mod
+# simply does not activate.
+
+## the addresses that moved (live scan, 3446)
+# kClientPostPacket: 3424 0x3A5570 -> 3446 0x3A55B0  (+0x40)
+# kClientOnRecvPacket: 3424 0x3A5900 -> 3446 0x3A5940 (+0x40)
+4 match(es) (limit reached)
+  exe+0x3A55B0
+  exe+0x4A7450
+  exe+0x4D74A0
+  exe+0x4D77B0
+4 match(es) (limit reached)
+  exe+0x3A5940
+  exe+0x3AAF30
+  exe+0x3BB140
+  exe+0x3C5830
+
+## the clock flag, resolved again from code (4 sites agree)
+# 3424 clock flag 0x70CACAD -> 3446 clock flag 0x70CDCAD  (+0x1000)
+9 match(es)
+  exe+0x561BB5
+  exe+0xA38A46
+  exe+0x15F5550
+  exe+0x2E442A9
+  exe+0x2F0B197
+  exe+0x300B9E2
+  exe+0x3EACE5B
+  exe+0x401B490
+  exe+0x4080CA2
+target exe+0x70CDCAD  value 0x46F07897E0000001
+target exe+0x70CDCAD  value 0x46F07897E0000001
+target exe+0x70CDCAD  value 0x46F07897E0000001
+target exe+0x70CDCAD  value 0x46F07897E0000001
+
+## LIVE PROOF the clock fields are right (not inferred)
+# flag 0x70CDCAD reads 1, stable -> the 'clock ready' flag
+# flag+0x3C advances 134323,135411,136500,137574,138659,139743,140824,141902
+#   over 1.947 s -> a real advancing counter at ~3892 units/s
+# flag+0x34 reads non-zero (0x46F0DF00 as u32)
+exe+0x70CDCAD: 5111718170759004161 (0x46F07897E0000001)
+exe+0x70CDCE1: 13835058069357256448 (0xC000000346F0DF00)
+exe+0x70CDCE9: 5404319552844762609 (0x4B00000000028DF1)
+
+## MEASURED addresses on 3446 (full signatures, all unique matches)
+
+# The 3424 SITES moved as well as the targets, so re-scanning with the original
+# full signatures is what resolves them; re-decoding the old site numbers does not.
+
+# world_system_ref      site 0x0C9B2EB -> 0x0C9B3AB   target 0x71AEA50 -> 0x71B1A40
+# world_system_ref_p3   site 0x03AAA06 -> 0x03AAA46   target 0x71AEA50 -> 0x71B1A40  (AGREES)
+# camera_global_ref     site 0x2FB7047 -> 0x2FB8997   target 0x70CAEB0 -> 0x70CDEA8
+# player_static_pos     site 0x0A2F53A -> 0x0A2F5FA   target 0x71BDC10 -> 0x71C0C20
+# world_offset_sub      site 0x3971DF1 -> 0x39736F1   target 0x719ACB0 -> 0x719DC8B
+
+# Two independent signatures for WorldSystem agree on 0x71B1A40, which is the
+# strongest single piece of evidence here. WorldSystem and Camera both read as
+# non-null pointers on the live process.
+
+# Clock (resolved from code, four agreeing cmp sites):
+#   flag 3424 0x70CACAD -> 3446 0x70CDCAD   fields +0x34 and +0x3C
+exe+0x71B1A40: 0x3470C44E100
+exe+0x70CDEA8: 0x346F1725000
+exe+0x71C0C20: 0x0
+exe+0x719DC8B: 0x0
+
+## TROC HANDLER RANGE on 3446 (measured by running the mod's own walk)
+
+# probe troc exe+6E00000 exe+6F80000
+#   -> 1175 handlers, first 0x6E82D10, last 0x6EB6370, span 0x33660
+# probe troc exe+6E00000 exe+6E82D10   -> 0 handlers   (nothing below)
+# probe troc exe+6EB6370 exe+6F80000   -> 1 handler    (the last one)
+#
+#   kTrocInstancesBegin = 0x6E82D10
+#   kTrocInstancesEnd   = 0x6EB6378   (last + 8)
+#   span 0x33668
+#
+# The 3424 values (0x6E973A0 .. 0x6EC8540) are NOT merely shifted: begin sits
+# 0x14690 bytes INSIDE the real range. Using them would silently skip every
+# handler from 0x6E82D10 to 0x6E973A0, which includes TrocTrStartActionAck and
+# the PostProcessAttackResult family -- the messages co-op depends on to relay
+# combat. A silently short range is worse than a wrong address, because the walk
+# still "works" and just finds fewer types. This is why the range is now measured
+# with the mod's own walk rather than carried over.
+#
+# Both edges were confirmed by running the walk on the discard side of each:
+# zero handlers below the first, zero above the last.
+
+first few (in order):
+  exe+0x6E82D10  .?AVTrocTrStartActionAck@pa@@
+  exe+0x6E82DA0  .?AVTrocTrStartSpawnActionAck@pa@@
+  exe+0x6E82E30  .?AVTrocTrStartActionNak@pa@@
+  exe+0x6E82EC0  .?AVTrocTrCatchActionResultAck@pa@@
+  exe+0x6E82F50  .?AVTrocTrCatchNak@pa@@
+  exe+0x6E82FE0  .?AVTrocTrPostProcessAttackResult_AttackerAck@pa@@
+last:
+  exe+0x6EB6370  .?AVTrocTrOnLogoutXxxToServerReq@pa@@
+  exe+0x6E82D10      rva 0x6E82D10  .?AVTrocTrStartActionAck@pa@@
+  exe+0x6E82DA0      rva 0x6E82DA0  .?AVTrocTrStartSpawnActionAck@pa@@
+  exe+0x6E82E30      rva 0x6E82E30  .?AVTrocTrStartActionNak@pa@@
+  exe+0x6E82EC0      rva 0x6E82EC0  .?AVTrocTrCatchActionResultAck@pa@@
+  exe+0x6E82F50      rva 0x6E82F50  .?AVTrocTrCatchNak@pa@@
+  exe+0x6E82FE0      rva 0x6E82FE0  .?AVTrocTrPostProcessAttackResult_AttackerAck@pa@@
+34 TrocTr handler(s) in [exe+0x6E82000, exe+0x6E84000)
+first rva 0x6E82D10   last rva 0x6E83FA0   span 0x1290
+  exe+0x6EB6010      rva 0x6EB6010  .?AVTrocTrAutoCreateItemRepeatTimer@pa@@
+  exe+0x6EB60A0      rva 0x6EB60A0  .?AVTrocTrUpdateRegenerateServerStatRepeatTimer@pa@@
+  exe+0x6EB6130      rva 0x6EB6130  .?AVTrocTrCheckChangeAnimationSpeedRepeatTimer@pa@@
+  exe+0x6EB61C0      rva 0x6EB61C0  .?AVTrocTrUpdateFieldNightAndDay@pa@@
+  exe+0x6EB6250      rva 0x6EB6250  .?AVTrocTrUpdateFieldGimmickSaveDataToResetRepeatTimer@pa@@
+  exe+0x6EB62E0      rva 0x6EB62E0  .?AVTrocTrLogoutSessionToServerReq@pa@@
+7 TrocTr handler(s) in [exe+0x6EB6000, exe+0x6EBA000)
+first rva 0x6EB6010   last rva 0x6EB6370   span 0x360
+
+## FINAL VERIFICATION: the mod's exact read path, live, on 3446
+
+# The mod's walk (troc_sniffer.cpp:load_troc_names) does, for each 8-byte slot in
+# [kTrocInstancesBegin, kTrocInstancesEnd):
+#     vtable = *slot
+#     name   = RTTI(vtable)     -> keep if it starts ".?AVTrocTr"
+#     kind   = *(u32*)(slot + kTroc_Kind)     (+0x08)
+#     opcode = *(u16*)(slot + kTroc_Opcode)   (+0x10)
+#
+# All four reads performed against the live 3446 game at the first slot:
+
+#   *slot        exe+0x6E82D10 -> exe+0x598EC58        (a valid in-image vtable)
+#   RTTI         .?AVTrocTrStartActionAck@pa@@         (accepted by the walk)
+#   +0x08 kind   1
+#   +0x10 opcode 1
+#
+# Full range: probe troc exe+6E82D10 exe+6EB6378 -> 1175 handlers, first
+# 0x6E82D10, last 0x6EB6370.
+
+## the co-op relay handlers are inside the ported range
+
+#   exe+0x6E82D10  TrocTrStartActionAck
+#   exe+0x6E82FE0  TrocTrPostProcessAttackResult_AttackerAck
+#   exe+0x6E840C0  TrocTrMoveActorAck
+#   exe+0x6E841E0  TrocTrRemoveActorAck
+#   exe+0x6E86DC0  TrocTrSetFieldTimeAck
+#   exe+0x6E8CF10  TrocTrOtherEquipItemAck
+
+## what reusing the 3424 values would have cost
+
+# 3424 begin was 0x6E973A0, which sits 0x14690 bytes INSIDE the true range.
+# Counting the handlers below it: 576 of 1175 (49%), including every
+# TrocTrStartActionAck / PostProcessAttackResult_* / CatchResult* that co-op
+# relays combat through. The walk would have run, found 599 types instead of
+# 1175, and logged no error -- co-op would have loaded and then failed to relay
+# combat, with nothing in the log pointing at the range.
