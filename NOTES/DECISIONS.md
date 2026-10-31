@@ -1,6 +1,6 @@
 # Decisions
 
-## 2026-10-31 D1: Project location
+## 2026-10-31 D1: Project location (superseded by D13)
 - Options: (a) new standalone repo, (b) `CrimsonDesert-SeamlessCoop/` folder inside `ashersheets-jpg/elden-force-source` on branch `claude/seamless-coop-mod-t4lqdd`.
 - Chosen: (b) for now. This session runs in a cloud container whose GitHub access is scoped to that repo and branch. Nothing in the Elden Force project is touched (only a new top-level folder and a new, path-filtered workflow `.github/workflows/cdcoop.yml`).
 - Revisit: moving it to its own repo (history can be split with `git subtree split`) before a public release. Suggested to the user.
@@ -47,3 +47,11 @@
 ## 2026-10-31 D12: Upstream portability patch
 - `EnemyZoneMachine(Settings s = {})` fails on GCC/Clang. Split into two constructors
   (`upstream/patches/0001-...`) so upstream's unit tests run on Linux and in CI. No behaviour change.
+
+## 2026-10-31 D13: Own repository, fully separate from Elden Force (user instruction)
+- The user wants Co-op+ entirely separate from the Elden Force repo and from any Elden Ring work.
+- Moved the project to its own repository `crimson-desert-seamless-coop` with its history (git subtree split of the
+  four Co-op+ commits; no Elden Force commits or files in it). CI workflow moved to `.github/workflows/build.yml`.
+- The Co-op+ commits were never pushed to elden-force-source (push was refused), and the local Elden Force branch was
+  reset to its original commit, so the Elden Force repo is untouched on GitHub and locally.
+- The integration cannot create repositories (403), so the user creates the empty repo; then we push `main`.

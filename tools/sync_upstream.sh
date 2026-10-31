@@ -9,7 +9,7 @@ git -C "$TMP/src" checkout -q "$REF"
 rm -rf upstream/cd-coop-3446 && mkdir -p upstream/cd-coop-3446
 git -C "$TMP/src" archive HEAD | tar -x -C upstream/cd-coop-3446
 rm -f upstream/cd-coop-3446/third_party/ultimate-asi-loader/*/*.dll
-for p in upstream/patches/*.patch; do git apply -p2 "$p" || echo "PATCH FAILED: $p"; done
+for p in upstream/patches/*.patch; do git apply "$p" || echo "PATCH FAILED: $p"; done
 echo "Upstream now at $(git -C "$TMP/src" log -1 --format='%h %ad %s')"
 git status --short upstream | head -40
 rm -rf "$TMP"
