@@ -87,6 +87,7 @@ configure_file(cmake/build_id.h.in ${CMAKE_BINARY_DIR}/generated/build_id.h)
 add_library(cdmp_mod SHARED
     src/mod/dllmain.cpp
     src/mod/mod.cpp
+    src/mod/crash_log.cpp
     src/mod/log.cpp
     src/mod/config.cpp
     src/mod/game/safe_memory.cpp

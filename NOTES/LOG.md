@@ -131,3 +131,19 @@
 ## 2026-10-31 11:01 — upstream watch ended
 - Polled nouzert1/cd-coop-3446 every 5 min until 11:00: no new commits (still b7ae1337). Nothing to integrate;
   package 0.1.0-alpha+22202d0f stays current. Waiting for "GO: game testing is clear." to start M0.
+
+## 2026-10-31 ~14:10-14:45 — GO received; game had updated to 1.0.0.3460; port done
+- User said "GO: game testing is clear" (11:3x). Installer run on the real game folder: worked (game found via
+  Steam, 15 save files backed up to Documents\CrimsonDesert-CoopPlus-SaveBackups\2026-10-31_14-13-51).
+- The exe was 1.0.0.3460 (Steam update 08:54). Ported every address offline (D22): offsets_3460.h, horse_diag sites,
+  verify-port retargeted -> ALL OFFLINE CHECKS PASSED on 3460. Build + unit tests + loopback e2e green.
+- Live (read-only probe, vanilla game at the title screen): Troc handlers 1175 at 0x6E86D10..0x6EBA370 (3446 +0x4000),
+  clock flag 0x70D1DB5 = 1, WorldSystem/Camera slots non-null.
+- Launch 1 with the mod: the game closed ~2 s after start, no crash dialog, empty sentry event, log ended after
+  "relay network status 2". Vanilla (loader only): stays up. Mod with net off: stays up and EVERY hook installs
+  (sniffer 1175 types, PostPacket/OnRecv, wall-climb fix, horse containment, action-layer guard, minimap icon). udp:
+  up. Steam (as shipped) twice more with the new crash logger: up, relay 100, overlay drawing, no exceptions logged.
+  Launch 1 stays unexplained (first start after the update?); watch for it.
+- Expected WRNs: "Game errors: logger not recognised" (stale since 3446) and "OtherEquipItemAck writer not recognised"
+  (not ported, D22).
+- No desktop computer-use tools in this session (only browser tools), so loading a save / in-world checks are next.

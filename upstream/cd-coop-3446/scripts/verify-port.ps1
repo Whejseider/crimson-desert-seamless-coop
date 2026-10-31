@@ -115,7 +115,7 @@ _hdr_src = _read_header('offsets.h') + '\n' + ''.join(_read_header(h) for h in _
 # head array can legitimately live in either file. Both are searched, with the
 # ACTIVE build's text FIRST: a name defined in both must resolve to the active one,
 # and the lookup below takes the first match for that reason.
-_hdr_search = _hdr_src + '\n' + _read_header('offsets_3424.h')
+_hdr_search = _hdr_src + '\n' + _read_header('offsets_3446.h') + '\n' + _read_header('offsets_3424.h')
 print('  active build header: %s' % (_hdr_names[0] if _hdr_names else '(none found)'))
 ok('offsets.h includes exactly one build header', len(_hdr_names) == 1,
    'found %d' % len(_hdr_names))
@@ -165,20 +165,20 @@ ok('kImageSize matches the image SizeOfImage', _hdr_size == _img_size,
 # +0x18 rather than at the +0x19 the 2976 note gives from a different anchor.
 # (site rva, offset of the disp32 inside it, expected global)
 measured = [
-    ('WorldSystem  (world_system_ref)',    0x0C9B3AB, 3, 0x71B1A40),
-    ('WorldSystem  (world_system_ref_p3)', 0x03AAA46, 3, 0x71B1A40),
-    ('Camera       (camera_global_ref)',   0x2FB8997, 3, 0x70CDEA8),
+    ('WorldSystem  (world_system_ref)',    0x0C9C6DB, 3, 0x71B5CA0),
+    ('WorldSystem  (world_system_ref_p3)', 0x03AAEC6, 3, 0x71B5CA0),
+    ('Camera       (camera_global_ref)',   0x2FBC4E7, 3, 0x70D1FB0),
     # C5 FB 11 3D <disp32>  = vmovsd [rip+disp], xmm0
-    ('StaticPos XY (player_static_pos)',   0x0A2F5FA, 4, 0x71C0C20),
+    ('StaticPos XY (player_static_pos)',   0x0A3014A, 4, 0x71C4E40),
     # 44 89 3D <disp32>     = mov [rip+disp], r15d   (the Z component, +8)
-    ('StaticPos Z  (player_static_pos+8)', 0x0A2F5FA, 11, 0x71C0C28),
+    ('StaticPos Z  (player_static_pos+8)', 0x0A3014A, 11, 0x71C4E48),
     # C5 F8 5C 05 <disp32>  = vsubps xmm0, xmm0, [rip+disp]  (chunk world offset)
     # The signature anchors on the preceding `mov rcx,[rbx+0x2C0]`, and the vsubps
     # opcode sits at +0x15 from there with its disp32 at +0x19 -- the same +0x19 the
     # 2976 note gives. (An earlier edit "corrected" this to +0x18 by reasoning about
     # it instead of reading the bytes, which produced a misaligned Vec4 and a
     # garbled target. The bytes above were read out of the image to settle it.)
-    ('ChunkOrigin  (world_offset_sub)',    0x39736F1, 25, 0x719DCA0),
+    ('ChunkOrigin  (world_offset_sub)',    0x3977221, 25, 0x71A1F00),
 ]
 print()
 print('== measured globals (independent re-decode of the signature site) ==')
@@ -196,14 +196,14 @@ for name, site, dispoff, want in measured:
 # are asserted against a proven neighbour; the rest are asserted to be reachable by
 # code and to sit in the right section.
 inferred = [
-    ('kClientFrameClockMs', 0x70CACAD + 0x34, 0x70CDCAD + 0x34),
-    ('kClientFrameClockUs', 0x70CACAD + 0x3C, 0x70CDCAD + 0x3C),
-    ('kClientClockBias',    0x71AECF8, 0x71B1CE8),
+    ('kClientFrameClockMs', 0x70CDCAD + 0x34, 0x70D1DB5 + 0x34),
+    ('kClientFrameClockUs', 0x70CDCAD + 0x3C, 0x70D1DB5 + 0x3C),
+    ('kClientClockBias',    0x71B1CE8, 0x71B5F48),
     ('kFieldTimeClient',    0x6EB2AD8, 0x6EB2AD8),
-    ('kTrocInstancesBegin', 0x6E973A0, 0x6E82D10),
-    ('kTrocInstancesEnd',   0x6EC8540, 0x6EB6378),
-    ('kMinimapIconRoot',    0x71AEDE8, 0x71B1DD8),
-    ('kMinimapIconRootAlt', 0x71AEDF0, 0x71B1DE0),
+    ('kTrocInstancesBegin', 0x6E82D10, 0x6E86D10),
+    ('kTrocInstancesEnd',   0x6EB6378, 0x6EBA378),
+    ('kMinimapIconRoot',    0x71B1DD8, 0x71B6038),
+    ('kMinimapIconRootAlt', 0x71B1DE0, 0x71B6040),
 ]
 print()
 print('== inferred globals (per-region anchors, not one constant) ==')
@@ -295,7 +295,7 @@ for name, old, new in inferred:
     # exactly backwards; the flag is proven by four cmp sites in the image.
     if name.startswith('kClientFrameClock'):
         ok('%s sits where the proven flag puts it' % name,
-           (new - 0x70CDCAD) in (0x34, 0x3C), 'flag+0x%X' % (new - 0x70CDCAD))
+           (new - 0x70D1DB5) in (0x34, 0x3C), 'flag+0x%X' % (new - 0x70D1DB5))
     else:
         ok('%s pointer-aligned' % name, new % 8 == 0, 'rva=0x%X' % new)
 
@@ -313,8 +313,8 @@ for name, old, new in inferred:
 print()
 print('== is the resolved clock global really tested by code? ==')
 import struct as _struct
-_clock_target = 0x70CDCAD
-_clock_sites = [0x561BB5, 0x2F0B197, 0x15F5550, 0x2E442A9]
+_clock_target = 0x70D1DB5
+_clock_sites = [0x562575, 0x2F0ECE7, 0x15F8660, 0x2E47DF9]  # 3446: 0x561BB5 0x2F0B197 0x15F5550 0x2E442A9
 _hits = 0
 for _site in _clock_sites:
     _off = doff(_site)
@@ -329,10 +329,10 @@ ok('the clock flag is tested at the expected sites', _hits == len(_clock_sites),
 # -> 0x6C8CD68/0x6C8CD70). These gaps are ASSUMED, not verified -- the region is
 # zero-filled in the file, so only a live game can confirm them. Asserted here so
 # that a later edit to the offsets has to keep the layout deliberate.
-ok('kClientFrameClockMs sits 0x34 past the flag', 0x70CDCE1 - _clock_target == 0x34,
-   'gap 0x%X' % (0x70CDCE1 - _clock_target))
-ok('kClientFrameClockUs sits 0x3C past the flag', 0x70CDCE9 - _clock_target == 0x3C,
-   'gap 0x%X' % (0x70CDCE9 - _clock_target))
+ok('kClientFrameClockMs sits 0x34 past the flag', 0x70D1DE9 - _clock_target == 0x34,
+   'gap 0x%X' % (0x70D1DE9 - _clock_target))
+ok('kClientFrameClockUs sits 0x3C past the flag', 0x70D1DF1 - _clock_target == 0x3C,
+   'gap 0x%X' % (0x70D1DF1 - _clock_target))
 
 # The same question for the other INFERRED globals: does any code actually reach
 # them? x64 reads data RIP-relatively, so a global that is real and used has a
@@ -351,9 +351,9 @@ print()
 print('== do predicted globals have code reaching them? ==')
 _referenced = [
     # name, predicted rva, must-have-references
-    ('kClientClockBias',    0x71B1CE8, True),
-    ('kMinimapIconRoot',    0x71B1DD8, True),
-    ('kMinimapIconRootAlt', 0x71B1DE0, True),
+    ('kClientClockBias',    0x71B5F48, True),
+    ('kMinimapIconRoot',    0x71B6038, True),
+    ('kMinimapIconRootAlt', 0x71B6040, True),
     # The Troc range edges are now advisory rather than required. They were True on
     # 3424 because that range was inherited and the walk's correctness depended on
     # it; on 3446 the range was produced by running the walk itself and bracketing
@@ -362,8 +362,8 @@ _referenced = [
     # principle: an array base is reached by a computed lea far more often than by
     # a load landing exactly on the first element, and the ability of this scan to
     # see `lea` is what the TrocInstancesBegin note below established the hard way.
-    ('kTrocInstancesBegin', 0x6E82D10, False),
-    ('kTrocInstancesEnd',   0x6EB6378, False),
+    ('kTrocInstancesBegin', 0x6E86D10, False),
+    ('kTrocInstancesEnd',   0x6EBA378, False),
     ('kFieldTimeClient',    0x6EB2AD8, False),
 ]
 
@@ -383,7 +383,11 @@ _referenced = [
 # the readers interpret as "skip the check", so there is no address to verify.
 vt_expect = [
     # class name (RTTI string), expected rva, note
-    ('WallUpMovementMethod', 0x5918F78, 'has_vtable guard in read_player_wallup'),
+    ('WallUpMovementMethod', 0x591CF78, 'has_vtable guard in read_player_wallup'),
+    ('ClientActorManager', 0x593DCF0, 'kVtClientActorManager'),
+    ('ClientChildOnlyInGameActor', 0x590BCA0, 'kVtControlledActor'),
+    ('ClientCharacterControlActorComponent', 0x593C8E0, 'kVtCharacterControl'),
+    ('ClientStatusActorComponent', 0x59136E0, 'kVtStatusComponent'),
 ]
 
 # Code sites whose HEAD ARRAY is checked against the executable at the same address the mod
@@ -401,22 +405,20 @@ vt_expect = [
 # after being recorded one byte early with a head written from the same wrong address.
 site_expect = [
     # name, rva on the CURRENT build, head bytes as written in offsets_3446.h, note
-    ('kActionLayerAdvance',  0x2148D50,
+    ('kActionLayerAdvance',  0x214C0C0,
      '48 8B C4 57 48 81 EC 80 00 00 00 C5 F8 29 78 D8',
      'puppet_install_layer_guards; guard for the enemy relay'),
-    ('kActionLayersAdvance', 0x232A8B0,
+    ('kActionLayersAdvance', 0x232DFE0,
      '74 51 4C 89 3F 44 38 3E 74 32 48 C7 C3 FF FF FF',
      'puppet_install_layer_guards; guard for the enemy relay'),
-    ('kMinimapIconDecide', 0x9E8A7D,
-     '80 7C 24 48 00 75 6F 8B 05 46 3D 75 06 41 89 06',
+    ('kMinimapIconDecide', 0x9E95CD,
+     '80 7C 24 48 00 75 6F 8B 05 56 74 75 06 41 89 06',
      'minimap icon decision (mid-hook)'),
-    ('kServerOtherEquipWriter', 0x29EDD11,
-     '48 8B 84 24 E0 10 00 00 48 8B 10 48 85 D2 74 0A',
-     'other-player equipment writer (was one byte early on 3424)'),
-    ('kClientPostPacket', 0x3A55B0,
+    # kServerOtherEquipWriter: not ported to 3460 (0 in offsets_3460.h); checked below as disabled.
+    ('kClientPostPacket', 0x3A5A30,
      '48 89 5C 24 10 4C 89 4C 24 20 55 56 57 41 54 41',
      'packet send path'),
-    ('kClientOnRecvPacket', 0x3A5940,
+    ('kClientOnRecvPacket', 0x3A5DC0,
      '48 89 5C 24 08 48 89 74 24 10 48 89 7C 24 18 55',
      'packet receive path'),
 ]
@@ -527,13 +529,13 @@ for name, rva, must in _referenced:
 # These four are the 3424 -> 3446 deltas. What matters is the spread: 0x35 between
 # the closest pair, and the clock flag is a different region entirely (+0x1000, not
 # ~+0x2FF0), so no single constant covers this port either.
-measured_deltas = [('Camera', 0x2FF8), ('ChunkOrigin', 0x2FDB),
-                   ('WorldSystem', 0x2FF0), ('StaticPos', 0x3010)]
+measured_deltas = [('Camera', 0x4108), ('ChunkOrigin', 0x4260),
+                   ('WorldSystem', 0x4260), ('StaticPos', 0x4220)]
 spread = max(d for _, d in measured_deltas) - min(d for _, d in measured_deltas)
 print()
 print('== is the port delta actually constant? ==')
-print('   measured 3424->3446 deltas: ' + ', '.join('%s +0x%X' % (n, d) for n, d in measured_deltas))
-print('   spread: 0x%X (%d bytes); the clock flag sits at +0x1000, a different region'
+print('   measured 3446->3460 deltas: ' + ', '.join('%s +0x%X' % (n, d) for n, d in measured_deltas))
+print('   spread: 0x%X (%d bytes); the clock flag moved with the camera region (+0x4108)'
       % (spread, spread))
 ok('delta spread is measured, not assumed', spread >= 0,
    'a flat constant is off by up to 0x%X across the measured slots' % spread)
@@ -551,9 +553,9 @@ print('  deltas seen:', ', '.join('0x%X' % x for x in sorted(deltas)))
 print()
 print('== preserved gaps and range sanity ==')
 ok('Troc instances span is 0x33668',
-   (0x6EB6378 - 0x6E82D10) == 0x33668, 'span 0x%X' % (0x6EB6378 - 0x6E82D10))
+   (0x6EBA378 - 0x6E86D10) == 0x33668, 'span 0x%X' % (0x6EBA378 - 0x6E86D10))
 ok('Troc span is one contiguous writable region',
-   sec_of(0x6E82D10) in _rw and sec_of(0x6EB6378 - 1) == sec_of(0x6E82D10))
+   sec_of(0x6E86D10) in _rw and sec_of(0x6EBA378 - 1) == sec_of(0x6E86D10))
 
 # ---- code addresses: do their prologue heads still match? ----
 # The heads live in the per-build header as byte arrays. Rather than restating them
@@ -582,16 +584,17 @@ def head_bytes(name):
 
 # (label, rva, head array name, whether it must match for co-op to work)
 code_addrs = [
-    ('kClientPostPacket        (injection: sends)', 0x3A55B0,  'kClientPostPacketHead',       True),
-    ('kClientOnRecvPacket      (capture: receives)', 0x3A5940, 'kClientOnRecvPacketHead',     True),
+    ('kClientPostPacket        (injection: sends)', 0x3A5A30,  'kClientPostPacketHead',       True),
+    ('kClientOnRecvPacket      (capture: receives)', 0x3A5DC0, 'kClientOnRecvPacketHead',     True),
     ('kClientClock             (time sync)',        0x1416B80, 'kClientClockHead',            False),
-    ('kMinimapIconDecide       (minimap icon)',     0x9E8A7D,  'kMinimapIconDecideHead',      True),
-    ('kServerOtherEquipWriter  (equip relay)',      0x29EDD11, 'kServerOtherEquipWriterHead', True),
+    ('kMinimapIconDecide       (minimap icon)',     0x9E95CD,  'kMinimapIconDecideHead',      True),
+    # Not ported to 3460: the address is 0, so the guard reads the PE header and refuses.
+    ('kServerOtherEquipWriter  (equip relay)',      0,         'kServerOtherEquipWriterHead', False),
     # Co-op+: the puppet's wall-climb and mount fixes (remote_puppet.cpp). They were 0x10 off
     # on 3446 and nothing checked them; a wrong one disables the fix with a warning.
-    ('kPointClimbEnter         (wall-climb fix)',   0x75F620,  'kPointClimbEnterHead',        True),
-    ('kRideOnEnter             (mount fix)',        0x74E8D0,  'kRideEnterHead',              True),
-    ('kRideOffEnter            (dismount fix)',     0x74F8A0,  'kRideEnterHead',              True),
+    ('kPointClimbEnter         (wall-climb fix)',   0x75FFC0,  'kPointClimbEnterHead',        True),
+    ('kRideOnEnter             (mount fix)',        0x74F270,  'kRideEnterHead',              True),
+    ('kRideOffEnter            (dismount fix)',     0x750240,  'kRideEnterHead',              True),
 ]
 for label, rva, hname, must_match in code_addrs:
     sig = head_bytes(hname)
@@ -669,10 +672,10 @@ print()
 # search: two of the four are MID-HOOKS, so the bytes recorded for them are interior
 # fragments of functions and will never be found by scanning for "the prologue".
 containment = [
-    ('kCcUpdate', 0x941D40,  bytes([0x48,0x89,0x5C,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57,0x48,0x83,0xEC,0x20,0x48])),
-    ('kCcPost',   0x860D60,  bytes([0x0F,0x85,0xB6,0x00,0x00,0x00,0x4C,0x89,0x6C,0x24,0x28,0x80,0x7C,0x24,0x38,0x00])),
-    ('kRestore',  0x948240,  bytes([0x48,0x8B,0xC4,0x48,0x89,0x58,0x20,0x48,0x89,0x50,0x10,0x55,0x56,0x57,0x41,0x54])),
-    ('kPending',  0x232AF20, bytes([0x74,0x51,0x4C,0x89,0x3F,0x44,0x38,0x3E,0x74,0x32,0x48,0xC7,0xC3,0xFF,0xFF,0xFF])),
+    ('kCcUpdate', 0x942880,  bytes([0x48,0x89,0x5C,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57,0x48,0x83,0xEC,0x20,0x48])),
+    ('kCcPost',   0x861700,  bytes([0x0F,0x85,0xB6,0x00,0x00,0x00,0x4C,0x89,0x6C,0x24,0x28,0x80,0x7C,0x24,0x38,0x00])),
+    ('kRestore',  0x948D80,  bytes([0x48,0x8B,0xC4,0x48,0x89,0x58,0x20,0x48,0x89,0x50,0x10,0x55,0x56,0x57,0x41,0x54])),
+    ('kPending',  0x232E650, bytes([0x74,0x51,0x4C,0x89,0x3F,0x44,0x38,0x3E,0x74,0x32,0x48,0xC7,0xC3,0xFF,0xFF,0xFF])),
 ]
 print('  (all four MUST match: one bad address disables the whole containment)')
 for name, rva, sig in containment:

@@ -119,3 +119,16 @@
 - `join=invite`: the lobby is created private (k_ELobbyTypePrivate, joinable only through an invite), rich presence
   has no "connect" (no Join Game button), and the host locks only onto a Hello from a member of its lobby
   (GetNumLobbyMembers / GetLobbyMemberByIndex, exports checked). Room codes do not work in this mode (by design).
+
+## 2026-10-31 D22: Port to game 1.0.0.3460 ourselves, without the old exe
+- Steam updated the game 3446 -> 3460 at 08:54 (PE 0x6AE58024). The 3446 exe was overwritten, so the upstream method
+  (diff the two builds) was not available, and nouzert1 had not ported yet (watched until 11:00).
+- Each address was re-found by an identity that does not need the old bytes: upstream signatures (globals, packet
+  hooks), RTTI class names (vtables, movement-method Enters at slot +0x38), recorded heads/context (layers: a call
+  whose rel32 is identical in 3424/3446/3460 picks one of ~230 template instances), and a live read-only probe for
+  the runtime Troc range (+0x4000, same 1175 handlers). offsets_3460.h builds on offsets_3446.h; verify-port checks
+  all of it; the mod targets 3460 only (Steam auto-updates every player).
+- Left at 0 (fails closed): kServerOtherEquipWriter -- its site bytes and prologue are shared by ~40 item-list
+  writers and nothing offline tells them apart. Live gear changes are not relayed; gear at spawn still matches.
+- Added a crash logger (vectored handler, logs only; process exit noted in DllMain) after the first launch closed
+  the game with no trace. It did not recur in four launches.

@@ -17,6 +17,7 @@
 #include "mod/game/offsets.h"
 #include "mod/game/player_reader.h"
 #include "mod/game/safe_memory.h"
+#include "mod/crash_log.h"
 #include "mod/log.h"
 #include "mod/net/coop.h"
 #include "mod/net/aggro_test.h"
@@ -114,7 +115,7 @@ bool game_build_supported() {
     const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
     const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
-    return base == game::build_3446::kImageBase && nt->FileHeader.TimeDateStamp == game::build_3446::kPeTimestamp;
+    return base == game::build_3460::kImageBase && nt->FileHeader.TimeDateStamp == game::build_3460::kPeTimestamp;
 }
 
 bool log_process_info() {
@@ -872,7 +873,7 @@ void minimap_cycle_loop() {
         if (down && !was_down) {
             const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
             int at = net::puppet_minimap_offset();
-            if (at < 0xEA || at > 0x16C) at = game::build_3446::kMinimapIconPlayerArrow;
+            if (at < 0xEA || at > 0x16C) at = game::build_3460::kMinimapIconPlayerArrow;
             else at += back ? -2 : 2;
             if (at > 0x16C) at = 0xEA;
             if (at < 0xEA) at = 0x16C;
@@ -1009,7 +1010,7 @@ DWORD WINAPI late_init(LPVOID param) {
     if (init->in_game) {
         log::info("Late init: waiting for the game to finish starting up");
         const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
-                                game::build_3446::kWorldSystemSlot;
+                                game::build_3460::kWorldSystemSlot;
         // WorldSystem exists from the title screen on, i.e. after the game
         // created its device and swap chain and started presenting.
         while (!stop_requested(500)) {
@@ -1198,6 +1199,7 @@ scaling::Settings scaling_settings(const Config& cfg, const std::wstring& dir) {
 DWORD WINAPI worker(LPVOID) {
     const std::wstring dir = dir_of(module_path(g_self));
     log::open(dir + L"cdmp.log");
+    crash_log::install();
     log::info("=== Crimson Desert Multiplayer {} (build {:08X}{}, protocol {}) ===", CDMP_VERSION, kModBuild,
               CDMP_BUILD_DIRTY ? " + local changes" : "", proto::kVersion);
     log::info("Mod file: {}", narrow(module_path(g_self)));
@@ -1208,7 +1210,7 @@ DWORD WINAPI worker(LPVOID) {
         const bool build_ok = !in_game || game_build_supported();
         std::string build_problem;
         if (!build_ok) {
-            build_problem = std::format("Co-op+ is off: this mod was made for game version 1.0.0.3446, not {}. "
+            build_problem = std::format("Co-op+ is off: this mod was made for game version 1.0.0.3460, not {}. "
                                         "The game runs normally; update Co-op+ to play together.",
                                         file_version(module_path(nullptr)));
             log::warn("{}", build_problem);

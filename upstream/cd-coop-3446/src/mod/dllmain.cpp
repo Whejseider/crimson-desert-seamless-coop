@@ -6,6 +6,7 @@
 
 #include <cwchar>
 
+#include "mod/crash_log.h"
 #include "mod/mod.h"
 
 namespace {
@@ -32,7 +33,7 @@ extern "C" __declspec(dllexport) void cdmp_shutdown() {
     if (g_started) cdmp::stop();
 }
 
-BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID) {
+BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID reserved) {
     if (reason == DLL_PROCESS_ATTACH) {
         DisableThreadLibraryCalls(module);
         if (is_allowed_host()) {
@@ -40,7 +41,9 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID) {
             cdmp::start(module);
         }
     }
-    // On DLL_PROCESS_DETACH we do nothing: during process exit our thread is
+    // On DLL_PROCESS_DETACH we only log: during process exit our thread is
     // already gone, and waiting on it under the loader lock would deadlock.
+    // (TerminateProcess never gets here, which is itself a clue in cdmp.log.)
+    if (reason == DLL_PROCESS_DETACH && g_started) cdmp::crash_log::note_detach(reserved != nullptr);
     return TRUE;
 }
