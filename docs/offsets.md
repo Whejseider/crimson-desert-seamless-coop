@@ -28,3 +28,6 @@ Method: `scripts/verify-port.ps1` plus `cdmp_probe --image` (RTTI `vtables`, `du
 | game_errors kErrorLogger 0x35D8D0 | stale (byte 0x00, expected jmp) | the game's own error lines are not copied into cdmp.log; nothing else |
 | aggro_test kIsTargetable / kSetCurrentTarget / kCheckAIBattleType | stale 2976 values, head checks fail | only `[dev] aggro_test` and `[coop] enemies_target_copy` (both off by default) |
 | remote_puppet rope lookup / bend (0x6D69190, 0x1851010, 0x86A576, 0x59D89A ...) | 2976 values | only `[dev] rope_piece_lookup` / `rope_bend` (off by default); the bend hook has a head check |
+| kServerDockingWriter (inherited from 3424) | stale, but the docking relay is compiled out (kDockingRelay = false) | none |
+| Camera block offsets kCamera_Block 0x428, sentinel 0xAC0 (inherited from 3424) | **unverified on 3446**; only checkable live | if wrong: panel shows "Camera: camera block sentinel mismatch" and nameplates cannot be drawn (M0 step 3) |
+| Everything else inherited from 3424 (struct field offsets, opcodes, stat ids) | not address-like; opcodes spot-checked equal | - |

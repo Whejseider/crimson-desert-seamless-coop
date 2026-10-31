@@ -113,3 +113,6 @@
   +0x38 hold 0x75F620/0x74E8D0/0x74F8A0, whose bytes match the expected heads; the old values point mid-function).
   Fixed + added to verify-port (PASS). Other stale addresses fail closed (error logger, aggro_test, rope dev) - see
   docs/offsets.md audit table.
+- Audit cont.: every head array in src/mod is now covered by verify-port or belongs to a dev feature that is off by
+  default; values inherited from 3424 are field offsets/opcodes except kServerDockingWriter (compiled out) and the
+  camera block offsets (unverifiable offline; added as an explicit M0 check because nameplates depend on it).
