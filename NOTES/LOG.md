@@ -107,3 +107,5 @@
 - 07:45 Self-review of the mod.cpp/steam_join/room_code diff: session end now clears rich presence on every end
   (a Join left a stale 'Join Game' on the old lobby) and drops party scaling to 1 player right away. Locking reviewed:
   callbacks lock-free, fail() never re-locks. Build/tests/loopback OK.
+- Review: scaling ledger now records guest blows whenever scaling is active (a boss-only multiplier would have
+  scaled a guest's boss blow twice). save_guard reviewed, no change.

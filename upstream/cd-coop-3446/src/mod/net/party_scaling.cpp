@@ -88,8 +88,10 @@ int32_t scaling_guest_damage(uint32_t enemy, int32_t damage) {
 }
 
 void scaling_note_injected(uint32_t enemy, int32_t loss_hp) {
+    // Whenever scaling could apply at all: the regular and boss multipliers differ, so
+    // "regular is x1" must not keep a boss's guest blow out of the ledger.
+    if (!g_enabled || !g_host || g_players < 2) return;
     std::lock_guard lock(g_mutex);
-    if (multiplier_locked() <= 1.0f) return;
     g_ledger.note(enemy, loss_hp, now_ms());
 }
 

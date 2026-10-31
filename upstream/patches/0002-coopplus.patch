@@ -973,10 +973,10 @@ index 22b77f6..1e90403 100644
      std::memcpy(&op, packet, 2);
 diff --git a/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp b/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp
 new file mode 100644
-index 0000000..5b09b27
+index 0000000..53323e4
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,153 @@
 +#include "mod/net/party_scaling.h"
 +
 +#include <atomic>
@@ -1067,8 +1067,10 @@ index 0000000..5b09b27
 +}
 +
 +void scaling_note_injected(uint32_t enemy, int32_t loss_hp) {
++    // Whenever scaling could apply at all: the regular and boss multipliers differ, so
++    // "regular is x1" must not keep a boss's guest blow out of the ledger.
++    if (!g_enabled || !g_host || g_players < 2) return;
 +    std::lock_guard lock(g_mutex);
-+    if (multiplier_locked() <= 1.0f) return;
 +    g_ledger.note(enemy, loss_hp, now_ms());
 +}
 +
