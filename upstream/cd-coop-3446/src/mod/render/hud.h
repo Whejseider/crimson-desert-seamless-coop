@@ -34,6 +34,8 @@ struct HudData {
     std::string coop_hint;
     // Co-op+ party scaling, e.g. "Enemies: health x1.7 (2 players)" ("" = off).
     std::string scaling;
+    // Co-op+ save guard: "the game saved during co-op" notice ("" = none).
+    std::string save_notice;
     // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
     // copy. The guest has no native boss bar -- the stage that draws it exists
     // only in the host's world -- so we draw our own.

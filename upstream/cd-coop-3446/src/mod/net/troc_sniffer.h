@@ -35,10 +35,11 @@ bool sniffer_world_loading();
 // opcode should ask for it by NAME and use the compiled-in number only as a
 // fallback:
 //
-//     const uint16_t op = net::opcode_for("TrocTrMoveActorReq", off::kOpMoveActorReq);
+//     const uint16_t op = net::opcode_for("MoveActorReq", off::kOpMoveActorReq);
 //
-// `name` is the Troc class name without the ".?AV" decoration and without the
-// trailing "@@", e.g. "TrocTrMoveActorReq". Returns `fallback` when the table
+// `name` is the Troc class name without the ".?AVTrocTr" prefix and without the
+// trailing "@@", e.g. "MoveActorReq" (load_troc_names strips "TrocTr"; the
+// call sites in the sniffer use these short names). Returns `fallback` when the table
 // has not been read yet or the name is not there, so behaviour is identical to
 // before on a build where resolution is unavailable.
 uint16_t opcode_for(const char* name, uint16_t fallback);

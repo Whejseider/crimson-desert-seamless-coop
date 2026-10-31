@@ -32,6 +32,7 @@
   - **M3 prep: party scaling** (D18): host's enemies take 1/k damage with a guest in (guest blows scaled, host blows
     partly given back). Unit-tested; `[scaling] enabled=0` until a live test.
   - Nameplates: the Steam name over the other player fades with distance; Ctrl+F8 toggles it (F8 = panel).
+  - Save guard (D19): saves copied to Documents when a co-op session starts; panel warning if the game saves during it.
 
 ## Questions for the user (ask when they wake up; work continues meanwhile)
 1. Who is the second player for the first two-PC test, and when? (Both need the same mod zip; Denuvo 5 PCs/day.)

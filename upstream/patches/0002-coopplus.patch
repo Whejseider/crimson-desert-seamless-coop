@@ -1,13 +1,14 @@
 diff --git a/upstream/cd-coop-3446/CMakeLists.txt b/upstream/cd-coop-3446/CMakeLists.txt
-index c83acf3..79294e6 100644
+index c83acf3..c258953 100644
 --- a/upstream/cd-coop-3446/CMakeLists.txt
 +++ b/upstream/cd-coop-3446/CMakeLists.txt
-@@ -113,6 +113,8 @@ add_library(cdmp_mod SHARED
+@@ -113,6 +113,9 @@ add_library(cdmp_mod SHARED
      src/mod/game/game_clock.cpp
      src/mod/net/steam_transport.cpp
      src/mod/net/room_code.cpp
 +    src/mod/net/steam_join.cpp
 +    src/mod/net/party_scaling.cpp
++    src/mod/net/save_guard.cpp
      src/mod/net/boss_safe.cpp
      src/mod/net/time_sync.cpp
      src/mod/render/dx12_hook.cpp
@@ -156,7 +157,7 @@ index 0000000..4e45eff
 +
 +}  // namespace cdmp::scaling
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..f780dfe 100644
+index e89d220..5fcbd41 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,6 +21,8 @@ constexpr wchar_t kDefaultIni[] =
@@ -177,12 +178,15 @@ index e89d220..f780dfe 100644
      L"\r\n"
      L"[sniffer]\r\n"
      L"; Needed for co-op (reads and sends the game's internal messages)\r\n"
-@@ -95,7 +99,14 @@ constexpr wchar_t kDefaultIni[] =
+@@ -95,7 +99,17 @@ constexpr wchar_t kDefaultIni[] =
      L"; same kill, and your own quests and XP are untouched.\r\n"
      L"; It only ever fires for an enemy you actually helped kill, close to you\r\n"
      L"; (30 m), and rate-limited. Hosts do not need it (it is the host's own world).\r\n"
 -    L"guest_loot=0\r\n";
 +    L"guest_loot=0\r\n"
++    L"; Co-op+: copy your saves to Documents\\CrimsonDesert-CoopPlus-SaveBackups when a\r\n"
++    L"; co-op session starts, and warn on the panel if the game saves during one.\r\n"
++    L"save_guard=1\r\n"
 +    L"\r\n"
 +    L"[scaling]\r\n"
 +    L"; Co-op+: with a guest in the HOST's world, the host's enemies are tougher:\r\n"
@@ -193,7 +197,7 @@ index e89d220..f780dfe 100644
  
  std::wstring read_string(const std::wstring& path, const wchar_t* section, const wchar_t* key,
                           const std::string& fallback) {
-@@ -164,13 +175,18 @@ Config load_config(const std::wstring& ini_path) {
+@@ -164,13 +178,18 @@ Config load_config(const std::wstring& ini_path) {
      c.peer_port = static_cast<uint16_t>(read_uint(ini_path, L"net", L"peer_port", c.peer_port));
      c.send_rate_hz = std::clamp(read_uint(ini_path, L"net", L"send_rate_hz", c.send_rate_hz), 1u, 60u);
      c.net_transport_steam = read_string(ini_path, L"net", L"transport", "udp") == L"steam";
@@ -213,17 +217,18 @@ index e89d220..f780dfe 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -226,6 +242,8 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +245,9 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
 +        c.scaling_enabled = read_uint(ini_path, L"scaling", L"enabled", 0) != 0;
++        c.coop_save_guard = read_uint(ini_path, L"coop", L"save_guard", 1) != 0;
 +        c.scaling_health_2p = read_float(ini_path, L"scaling", L"health_2p", 1.7f, 1.0f, 4.0f);
      }
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..376c684 100644
+index 3cd2ce2..64cc9d5 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,12 @@ struct Config {
@@ -247,26 +252,30 @@ index 3cd2ce2..376c684 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -146,6 +153,10 @@ struct Config {
+@@ -146,6 +153,13 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
 +    // [scaling] (Co-op+, party_scaling.h): with a guest in the host's world the
 +    // host's enemies take 1/health_2p of every blow. Experimental: off by default.
 +    bool scaling_enabled = false;
++    // [coop] save_guard (Co-op+, save_guard.h): back up the saves when a session
++    // starts and warn when the game saves during one.
++    bool coop_save_guard = true;
 +    float scaling_health_2p = 1.7f;
      float coop_suppress_lab_radius_m = 60.0f;
  };
  
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..c3fdafe 100644
+index 79ccd06..e08cc58 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
-@@ -31,9 +31,11 @@
+@@ -31,9 +31,12 @@
  #include "mod/net/player_hits.h"
  #include "mod/net/puppet_minimap.h"
  #include "mod/net/remote_puppet.h"
 +#include "mod/net/party_scaling.h"
++#include "mod/net/save_guard.h"
  #include "mod/net/boss_safe.h"
  #include "mod/net/steam_transport.h"
  #include "mod/net/room_code.h"
@@ -274,7 +283,7 @@ index 79ccd06..c3fdafe 100644
  #include "mod/net/time_sync.h"
  #include "mod/net/troc_sniffer.h"
  #include "mod/render/dx12_hook.h"
-@@ -188,10 +190,37 @@ private:
+@@ -188,10 +191,37 @@ private:
      std::string status_;
  };
  
@@ -314,7 +323,7 @@ index 79ccd06..c3fdafe 100644
      }
  
      // A guest knows whom to talk to; a host learns it from the first Hello.
-@@ -203,6 +232,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -203,6 +233,8 @@ void run_network(const Config& cfg, LocalSource& local) {
      // needs a moment to join the lobby and see the host field).
      bool room_code_pending = false;
      std::string room_code_text;
@@ -323,7 +332,7 @@ index 79ccd06..c3fdafe 100644
      bool room_failed_logged = false;
      // The host's lobby creation is retried in the loop for the same reason: this
      // point in startup is reached BEFORE the save finishes loading (the mod loads
-@@ -216,7 +247,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -216,7 +248,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          if (!local.in_game()) {
              log::error("The Steam transport only works inside the game");
              net::cleanup();
@@ -332,7 +341,7 @@ index 79ccd06..c3fdafe 100644
          }
          auto st = std::make_unique<net::SteamTransport>(cfg.steam_channel, host, cfg.steam_peer_id);
          steam = st.get();
-@@ -225,7 +256,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -225,7 +257,14 @@ void run_network(const Config& cfg, LocalSource& local) {
          // creates the lobby and reads the code out; the guest resolves the
          // host's SteamID64 from it. If anything fails, the old paths
          // (peer_steamid, then the "only friend playing" scan) still work.
@@ -348,7 +357,7 @@ index 79ccd06..c3fdafe 100644
              if (host) {
                  // One attempt now, and the loop retries if it does not take.
                  //
-@@ -278,19 +316,19 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -278,19 +317,19 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!ep->is_loopback()) {
                  log::error("UDP only connects within this PC (tests); to play with someone use transport=steam");
                  net::cleanup();
@@ -371,7 +380,7 @@ index 79ccd06..c3fdafe 100644
          }
          transport = std::move(udp);
      }
-@@ -327,10 +365,77 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -327,10 +366,77 @@ void run_network(const Config& cfg, LocalSource& local) {
      bool mark_was_down = false;
      int marks = 0;
      std::vector<uint8_t> buf(proto::kMaxPacketSize);
@@ -449,7 +458,7 @@ index 79ccd06..c3fdafe 100644
          // The host's lobby, retried until it takes. Startup runs before the save is
          // loaded, so the first attempt reliably fails on a cold start; without this
          // the host never gets a room code at all and the guest has nothing to type.
-@@ -363,7 +468,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -363,7 +469,8 @@ void run_network(const Config& cfg, LocalSource& local) {
              last_friend_scan = now_ms();
              // A room code wins over the friends scan: it names one host exactly.
              if (room_code_pending) {
@@ -459,7 +468,7 @@ index 79ccd06..c3fdafe 100644
                  if (host_id) {
                      peer = net::PeerAddr::steam(host_id);
                      steam->set_peer(host_id);
-@@ -427,6 +533,11 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -427,6 +534,13 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (steam) steam->set_peer(0);
          }
          was_connected = connected;
@@ -467,19 +476,22 @@ index 79ccd06..c3fdafe 100644
 +            // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
 +            net::scaling_set_party(host && connected ? 2 : 1, host);
 +            net::scaling_tick();
++            // Co-op+ save safety: a backup when a session starts, a warning on saves during it.
++            net::save_guard_set_connected(connected, session.peer_name());
 +        }
          if (coop) {
              std::optional<proto::Vec3> pos;
              proto::Quat rot;
-@@ -455,6 +566,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -455,6 +569,8 @@ void run_network(const Config& cfg, LocalSource& local) {
                  if (auto pos = net::puppet_position()) hud.remote->pos = *pos;
              }
              if (coop) hud.enemy_zone = net::suppress_hud_text();
 +            if (coop) hud.scaling = net::scaling_hud_text();
++            if (coop) hud.save_notice = net::save_guard_hud_text();
              // Boss bar (boss_safe.h): the guest has no native one.
              if (const net::BossHud b = net::boss_hud(); b.active) {
                  hud.boss_active = true;
-@@ -475,6 +587,16 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +591,16 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -496,7 +508,7 @@ index 79ccd06..c3fdafe 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -499,6 +621,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -499,6 +625,7 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
              if (coop) log::info("{}", coop->describe());
@@ -504,7 +516,12 @@ index 79ccd06..c3fdafe 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -513,7 +636,95 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +636,100 @@ void run_network(const Config& cfg, LocalSource& local) {
+         }
+     }
+ 
++    net::save_guard_set_connected(false, {});
+     coop.reset();
      session.disconnect(now_ms());
      transport.reset();
      net::cleanup();
@@ -601,7 +618,7 @@ index 79ccd06..c3fdafe 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -925,7 +1136,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1141,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -610,15 +627,16 @@ index 79ccd06..c3fdafe 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -969,6 +1180,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1185,8 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
 +        net::scaling_configure({cfg.scaling_enabled, cfg.scaling_health_2p});
++        net::save_guard_configure(cfg.coop_save_guard);
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1232,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1238,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -651,7 +669,7 @@ index 79ccd06..c3fdafe 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1255,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1261,7 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -660,7 +678,7 @@ index 79ccd06..c3fdafe 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1277,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1283,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -797,18 +815,19 @@ index 0000000..ae0d050
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-index 22b77f6..f5b80b7 100644
+index 22b77f6..1e90403 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-@@ -27,6 +27,7 @@
+@@ -27,6 +27,8 @@
  #include "mod/net/guest_hits.h"
  #include "mod/net/loot_twin.h"
  #include "mod/net/native_suppress.h"
 +#include "mod/net/party_scaling.h"
++#include "mod/net/save_guard.h"
  #include "common/keys.h"
  #include "mod/net/piece4_test.h"
  #include "mod/net/player_hits.h"
-@@ -560,6 +561,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -560,6 +562,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
                  e.hp_max = hp_max;
                  // Damage dealt by the local player: mirror it to the other world.
                  const uint32_t own = g_equip_key.load();
@@ -818,6 +837,14 @@ index 22b77f6..f5b80b7 100644
                  if (own && source == own && hp < before && e.type && g_damage_enabled) {
                      Bytes b(proto::kDamageEventSize);
                      // Where it spawned (same in both worlds); else where it is.
+@@ -701,6 +706,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+     loot_observe_c2s(packet, size);
+     piece4_observe_c2s(packet, size);
+     attack_probe_observe_c2s(packet, size);
++    save_guard_observe_c2s(packet, size);  // Co-op+
+     if (size < 5 + 4) return;
+     uint16_t op = 0;
+     std::memcpy(&op, packet, 2);
 diff --git a/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp b/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp
 new file mode 100644
 index 0000000..8a1b268
@@ -1056,6 +1083,214 @@ index 50a62fa..3f61ef6 100644
  
  // The lobby we are in (0 if none).
  uint64_t room_lobby_id();
+diff --git a/upstream/cd-coop-3446/src/mod/net/save_guard.cpp b/upstream/cd-coop-3446/src/mod/net/save_guard.cpp
+new file mode 100644
+index 0000000..b769fb2
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/save_guard.cpp
+@@ -0,0 +1,162 @@
++#include "mod/net/save_guard.h"
++
++#include <windows.h>
++#include <shlobj.h>
++
++#include <algorithm>
++#include <atomic>
++#include <cstring>
++#include <filesystem>
++#include <format>
++#include <mutex>
++#include <system_error>
++#include <vector>
++
++#include "common/clock.h"
++#include "mod/log.h"
++#include "mod/net/troc_sniffer.h"
++
++#pragma comment(lib, "shell32.lib")
++#pragma comment(lib, "ole32.lib")
++
++namespace cdmp::net {
++namespace {
++
++namespace fs = std::filesystem;
++
++// Fallbacks from the 2976 message table (docs/research/data/troc_messages_2976.csv);
++// resolved by name at runtime (opcode_for), so a patch that renumbers them is fine.
++constexpr uint16_t kOpSaveAutoReq = 3037;
++constexpr uint16_t kOpSaveToFileCurrentPlayerReq = 2910;
++constexpr uint64_t kBackupEveryMs = 10 * 60 * 1000;
++constexpr size_t kKeepBackups = 10;
++constexpr uint64_t kNoticeMs = 20000;
++
++std::atomic<bool> g_enabled{true};
++std::atomic<bool> g_connected{false};
++std::atomic<uint64_t> g_saves_in_coop{0};
++std::atomic<uint64_t> g_last_save_ms{0};
++std::mutex g_mutex;
++std::string g_peer;
++std::string g_last_backup;  // folder name of the newest backup
++uint64_t g_last_backup_ms = 0;
++
++// Paths in the log as UTF-8 (a user name may hold characters the ANSI code page lacks).
++std::string utf8(const fs::path& p) {
++    const auto u = p.u8string();
++    return std::string(u.begin(), u.end());
++}
++
++// The save opcodes, by name once the sniffer has read the game's message table.
++std::atomic<uint32_t> g_ops{0};  // auto | file << 16, 0 = not resolved yet
++void save_ops(uint16_t& auto_op, uint16_t& file_op) {
++    uint32_t v = g_ops.load();
++    if (!v) {
++        auto_op = opcode_for("SaveAutoReq", kOpSaveAutoReq);
++        file_op = opcode_for("SaveToFileCurrentPlayerReq", kOpSaveToFileCurrentPlayerReq);
++        if (opcodes_resolved()) g_ops = static_cast<uint32_t>(auto_op) | (static_cast<uint32_t>(file_op) << 16);
++        return;
++    }
++    auto_op = static_cast<uint16_t>(v & 0xFFFF);
++    file_op = static_cast<uint16_t>(v >> 16);
++}
++
++fs::path known_folder(REFKNOWNFOLDERID id) {
++    PWSTR p = nullptr;
++    fs::path out;
++    if (SUCCEEDED(SHGetKnownFolderPath(id, 0, nullptr, &p)) && p) out = p;
++    CoTaskMemFree(p);
++    return out;
++}
++
++// Copies the save folder; returns the backup's folder name ("" on failure).
++std::string backup_saves() {
++    const fs::path local = known_folder(FOLDERID_LocalAppData);
++    const fs::path docs = known_folder(FOLDERID_Documents);
++    if (local.empty() || docs.empty()) return {};
++    const fs::path src = local / L"Pearl Abyss" / L"CD" / L"save";
++    std::error_code ec;
++    if (!fs::exists(src, ec)) {
++        log::warn("Save guard: no save folder at {}; nothing to back up", utf8(src));
++        return {};
++    }
++    SYSTEMTIME t;
++    GetLocalTime(&t);
++    const std::string name = std::format("auto-{:04}-{:02}-{:02}_{:02}-{:02}-{:02}-before-coop", t.wYear, t.wMonth,
++                                         t.wDay, t.wHour, t.wMinute, t.wSecond);
++    const fs::path root = docs / L"CrimsonDesert-CoopPlus-SaveBackups";
++    const fs::path dst = root / name;
++    fs::create_directories(dst, ec);
++    if (ec) {
++        log::warn("Save guard: cannot create {}: {}", utf8(dst), ec.message());
++        return {};
++    }
++    fs::copy(src, dst, fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
++    if (ec) {
++        log::warn("Save guard: backup to {} failed: {}", utf8(dst), ec.message());
++        return {};
++    }
++    // Keep the newest automatic backups only; the installer's own backups are not touched.
++    std::vector<fs::path> autos;
++    for (const auto& e : fs::directory_iterator(root, ec)) {
++        if (e.is_directory(ec) && e.path().filename().string().rfind("auto-", 0) == 0) autos.push_back(e.path());
++    }
++    std::sort(autos.begin(), autos.end());  // names start with the date: oldest first
++    while (autos.size() > kKeepBackups) {
++        fs::remove_all(autos.front(), ec);
++        autos.erase(autos.begin());
++    }
++    log::info("Save guard: saves backed up to {}", utf8(dst));
++    return name;
++}
++
++}  // namespace
++
++void save_guard_configure(bool enabled) {
++    g_enabled = enabled;
++    log::info("Save guard: {}", enabled ? "on (backup when a co-op session starts, warning on saves during co-op)"
++                                        : "off");
++}
++
++void save_guard_set_connected(bool connected, const std::string& peer_name) {
++    const bool was = g_connected.exchange(connected);
++    if (!connected || was || !g_enabled) return;
++    {
++        std::lock_guard lock(g_mutex);
++        g_peer = peer_name;
++        if (g_last_backup_ms && now_ms() - g_last_backup_ms < kBackupEveryMs) return;
++    }
++    // A few MB of files: fine on the mod's network thread, never the game's.
++    const std::string name = backup_saves();
++    std::lock_guard lock(g_mutex);
++    if (!name.empty()) {
++        g_last_backup = name;
++        g_last_backup_ms = now_ms();
++    }
++}
++
++void save_guard_observe_c2s(const uint8_t* packet, size_t size) {
++    if (!g_enabled || !g_connected || size < 5) return;
++    uint16_t op = 0;
++    std::memcpy(&op, packet, 2);
++    uint16_t auto_op = 0, file_op = 0;
++    save_ops(auto_op, file_op);
++    if (op != auto_op && op != file_op) return;
++    const uint64_t n = ++g_saves_in_coop;
++    g_last_save_ms = now_ms() ? now_ms() : 1;
++    std::lock_guard lock(g_mutex);
++    log::warn("Save guard: the game saved ({}) while '{}' is in the session [{} so far]; if this save misbehaves, "
++              "restore Documents\\CrimsonDesert-CoopPlus-SaveBackups\\{}",
++              op == auto_op ? "autosave" : "manual save", g_peer, n,
++              g_last_backup.empty() ? "(no backup this session)" : g_last_backup);
++}
++
++std::string save_guard_hud_text() {
++    const uint64_t at = g_last_save_ms.load();
++    if (!at || now_ms() - at > kNoticeMs) return {};
++    std::lock_guard lock(g_mutex);
++    return g_last_backup.empty() ? "The game saved during co-op (no backup yet)"
++                                 : "The game saved during co-op. Backup: " + g_last_backup;
++}
++
++}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/save_guard.h b/upstream/cd-coop-3446/src/mod/net/save_guard.h
+new file mode 100644
+index 0000000..fc3767e
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/save_guard.h
+@@ -0,0 +1,34 @@
++#pragma once
++// Save safety for co-op (Co-op+, brief 6.3: "always back up saves").
++//
++// Upstream's rule is "do not save while the other player is in your world": the
++// other player's character is an actor our own server did not create, and a save
++// taken then may reference it. Players forget, and the game autosaves on its own.
++// The sniffer only observes, so saves cannot (and should not) be blocked. Instead:
++//   - when a co-op session connects, the save folder is copied to
++//     Documents\CrimsonDesert-CoopPlus-SaveBackups\auto-<date>-<time> (at most
++//     every 10 minutes, the newest 10 kept), so there is always a copy from
++//     before the other player arrived;
++//   - a save request (SaveAutoReq / SaveToFileCurrentPlayerReq) seen while the
++//     other player is connected is logged and shown on the panel, naming the
++//     backup to restore if the save turns out damaged.
++
++#include <cstddef>
++#include <cstdint>
++#include <string>
++
++namespace cdmp::net {
++
++void save_guard_configure(bool enabled);
++
++// Network thread: the co-op session is (still) connected or not. A new
++// connection triggers the backup.
++void save_guard_set_connected(bool connected, const std::string& peer_name);
++
++// Sniffer thread (capture_observe_c2s).
++void save_guard_observe_c2s(const uint8_t* packet, size_t size);
++
++// Panel line ("" when nothing to say).
++std::string save_guard_hud_text();
++
++}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/steam_join.cpp b/upstream/cd-coop-3446/src/mod/net/steam_join.cpp
 new file mode 100644
 index 0000000..0607db5
@@ -1441,8 +1676,52 @@ index 0000000..7bca83f
 +std::string join_status();
 +
 +}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
+index 82b334d..5bfc9e9 100644
+--- a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
++++ b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
+@@ -379,8 +379,6 @@ const std::string& name_for(uint16_t op) {
+     return it == g_name_by_opcode.end() ? unknown : it->second;
+ }
+ 
+-bool opcodes_resolved() { return !g_name_by_opcode.empty(); }
+-
+ // ---------------------------------------------------------------- writer
+ 
+ // cdmp_packets_*.bin: "CDPK" u32 version u32 pe_timestamp, then records:
+@@ -614,6 +612,11 @@ uint16_t opcode_for(const char* name, uint16_t fallback) {
+     return found;
+ }
+ 
++// Outside the anonymous namespace for the same reason as opcode_for: the header
++// declares it as cdmp::net::opcodes_resolved (Co-op+ fix: it was defined inside the
++// anonymous namespace, so any caller failed to link; nobody had called it before).
++bool opcodes_resolved() { return !g_name_by_opcode.empty(); }
++
+ bool sniffer_world_loading() { return world_loading(); }
+ 
+ bool sniffer_inject_c2s(std::vector<uint8_t> packet) {
+diff --git a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.h b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.h
+index b6efad7..b358264 100644
+--- a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.h
++++ b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.h
+@@ -35,10 +35,11 @@ bool sniffer_world_loading();
+ // opcode should ask for it by NAME and use the compiled-in number only as a
+ // fallback:
+ //
+-//     const uint16_t op = net::opcode_for("TrocTrMoveActorReq", off::kOpMoveActorReq);
++//     const uint16_t op = net::opcode_for("MoveActorReq", off::kOpMoveActorReq);
+ //
+-// `name` is the Troc class name without the ".?AV" decoration and without the
+-// trailing "@@", e.g. "TrocTrMoveActorReq". Returns `fallback` when the table
++// `name` is the Troc class name without the ".?AVTrocTr" prefix and without the
++// trailing "@@", e.g. "MoveActorReq" (load_troc_names strips "TrocTr"; the
++// call sites in the sniffer use these short names). Returns `fallback` when the table
+ // has not been read yet or the name is not there, so behaviour is identical to
+ // before on a build where resolution is unavailable.
+ uint16_t opcode_for(const char* name, uint16_t fallback);
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..903f0ee 100644
+index 14edc91..de77b4b 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 @@ -11,6 +11,7 @@
@@ -1556,7 +1835,7 @@ index 14edc91..903f0ee 100644
      // ---- status panel
      ImGui::SetNextWindowPos(ImVec2(20, 20));
      ImGui::SetNextWindowBgAlpha(0.55f);
-@@ -153,14 +125,13 @@ void hud_draw(float width, float height) {
+@@ -153,14 +125,14 @@ void hud_draw(float width, float height) {
      } else {
          ImGui::TextDisabled(en ? "You: %s" : "Tú: %s", d.local_status.c_str());
      }
@@ -1569,11 +1848,12 @@ index 14edc91..903f0ee 100644
      if (!d.enemy_zone.empty()) ImGui::TextColored(ImVec4(0.75f, 0.85f, 1, 1), "%s", d.enemy_zone.c_str());
 -    if (!cam) ImGui::TextDisabled(en ? "Camera: %s" : "Cámara: %s", camera.last_failure().c_str());
 +    if (!d.scaling.empty()) ImGui::TextColored(ImVec4(0.75f, 0.85f, 1, 1), "%s", d.scaling.c_str());
++    if (!d.save_notice.empty()) ImGui::TextColored(ImVec4(1, 0.8f, 0.3f, 1), "%s", d.save_notice.c_str());
 +    if (!camera_failure.empty()) ImGui::TextDisabled(en ? "Camera: %s" : "Cámara: %s", camera_failure.c_str());
  
      // The room code, ALWAYS shown -- with the code when we have one, and an explicit
      // "no code" plus the reason when we do not.
-@@ -189,13 +160,65 @@ void hud_draw(float width, float height) {
+@@ -189,13 +161,65 @@ void hud_draw(float width, float height) {
          // read a file to find out what went wrong.
          ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
      }
@@ -1641,10 +1921,10 @@ index 14edc91..903f0ee 100644
          if (auto p = game::project(*cam, *cam_world, head, width, height)) {
              draw_remote_marker(dl, *p, d, remote_distance);
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.h b/upstream/cd-coop-3446/src/mod/render/hud.h
-index 532564a..1b1e8ba 100644
+index 532564a..b23ad44 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.h
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.h
-@@ -29,6 +29,11 @@ struct HudData {
+@@ -29,6 +29,13 @@ struct HudData {
      // where the code would be, so a missing code explains itself on screen instead
      // of only in the log.
      std::string room_status;
@@ -1653,10 +1933,12 @@ index 532564a..1b1e8ba 100644
 +    std::string coop_hint;
 +    // Co-op+ party scaling, e.g. "Enemies: health x1.7 (2 players)" ("" = off).
 +    std::string scaling;
++    // Co-op+ save guard: "the game saved during co-op" notice ("" = none).
++    std::string save_notice;
      // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
      // copy. The guest has no native boss bar -- the stage that draws it exists
      // only in the host's world -- so we draw our own.
-@@ -42,6 +47,7 @@ struct HudData {
+@@ -42,6 +49,7 @@ struct HudData {
  struct HudOptions {
      bool self_marker = false;  // dev aid: draw a cross on our own character
      bool english = true;       // the panel's texts in English (else Spanish)

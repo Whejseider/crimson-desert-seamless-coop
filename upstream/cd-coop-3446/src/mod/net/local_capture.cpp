@@ -28,6 +28,7 @@
 #include "mod/net/loot_twin.h"
 #include "mod/net/native_suppress.h"
 #include "mod/net/party_scaling.h"
+#include "mod/net/save_guard.h"
 #include "common/keys.h"
 #include "mod/net/piece4_test.h"
 #include "mod/net/player_hits.h"
@@ -705,6 +706,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
     loot_observe_c2s(packet, size);
     piece4_observe_c2s(packet, size);
     attack_probe_observe_c2s(packet, size);
+    save_guard_observe_c2s(packet, size);  // Co-op+
     if (size < 5 + 4) return;
     uint16_t op = 0;
     std::memcpy(&op, packet, 2);

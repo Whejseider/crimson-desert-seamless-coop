@@ -100,6 +100,9 @@ constexpr wchar_t kDefaultIni[] =
     L"; It only ever fires for an enemy you actually helped kill, close to you\r\n"
     L"; (30 m), and rate-limited. Hosts do not need it (it is the host's own world).\r\n"
     L"guest_loot=0\r\n"
+    L"; Co-op+: copy your saves to Documents\\CrimsonDesert-CoopPlus-SaveBackups when a\r\n"
+    L"; co-op session starts, and warn on the panel if the game saves during one.\r\n"
+    L"save_guard=1\r\n"
     L"\r\n"
     L"[scaling]\r\n"
     L"; Co-op+: with a guest in the HOST's world, the host's enemies are tougher:\r\n"
@@ -243,6 +246,7 @@ Config load_config(const std::wstring& ini_path) {
         c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
         c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
         c.scaling_enabled = read_uint(ini_path, L"scaling", L"enabled", 0) != 0;
+        c.coop_save_guard = read_uint(ini_path, L"coop", L"save_guard", 1) != 0;
         c.scaling_health_2p = read_float(ini_path, L"scaling", L"health_2p", 1.7f, 1.0f, 4.0f);
     }
     {

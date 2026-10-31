@@ -156,6 +156,9 @@ struct Config {
     // [scaling] (Co-op+, party_scaling.h): with a guest in the host's world the
     // host's enemies take 1/health_2p of every blow. Experimental: off by default.
     bool scaling_enabled = false;
+    // [coop] save_guard (Co-op+, save_guard.h): back up the saves when a session
+    // starts and warn when the game saves during one.
+    bool coop_save_guard = true;
     float scaling_health_2p = 1.7f;
     float coop_suppress_lab_radius_m = 60.0f;
 };

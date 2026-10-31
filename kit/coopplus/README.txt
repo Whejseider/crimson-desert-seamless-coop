@@ -60,7 +60,11 @@ WHAT WORKS / WHAT DOESN'T (YET)
 
 IMPORTANT: do not save while the other player is in your world. Quit without
 saving, or wait until they leave. Saving during a session is the most likely way to
-damage a save.
+damage a save. As a safety net the mod copies your saves to
+Documents\CrimsonDesert-CoopPlus-SaveBackups (folders named auto-...) each time a
+co-op session starts, keeps the newest 10, and tells you on the panel if the game
+saved during co-op (the game also autosaves on its own). To restore one: game closed,
+copy that folder's contents back into %LOCALAPPDATA%\Pearl Abyss\CD\save.
 
 
 PROBLEMS?

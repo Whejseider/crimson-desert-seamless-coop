@@ -379,8 +379,6 @@ const std::string& name_for(uint16_t op) {
     return it == g_name_by_opcode.end() ? unknown : it->second;
 }
 
-bool opcodes_resolved() { return !g_name_by_opcode.empty(); }
-
 // ---------------------------------------------------------------- writer
 
 // cdmp_packets_*.bin: "CDPK" u32 version u32 pe_timestamp, then records:
@@ -613,6 +611,11 @@ uint16_t opcode_for(const char* name, uint16_t fallback) {
     }
     return found;
 }
+
+// Outside the anonymous namespace for the same reason as opcode_for: the header
+// declares it as cdmp::net::opcodes_resolved (Co-op+ fix: it was defined inside the
+// anonymous namespace, so any caller failed to link; nobody had called it before).
+bool opcodes_resolved() { return !g_name_by_opcode.empty(); }
 
 bool sniffer_world_loading() { return world_loading(); }
 

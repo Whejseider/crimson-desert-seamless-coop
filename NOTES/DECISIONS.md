@@ -98,3 +98,10 @@
 - Risk: a positive VaryStatCheatReq delta (a heal) has never been sent in a live test. So `[scaling] enabled=0` by
   default, including in the package, until the M3 test shows it works (HP bar dips then recovers a little).
 - Two players only for now: one value `health_2p` in cdmp.ini; config/scaling.toml takes over with integration step 2.
+
+## 2026-10-31 D19: Save guard = automatic backup + warning, not blocking saves
+- The sniffer is passive by design (it can observe and inject, not drop), and dropping SaveAutoReq could leave the
+  game's save timers waiting. So: copy %LOCALAPPDATA%\Pearl Abyss\CD\save (5.4 MB here) to
+  Documents\CrimsonDesert-CoopPlus-SaveBackups\auto-<time>-before-coop when a co-op session connects (at most every
+  10 min, newest 10 kept), and log + show a panel notice when SaveAutoReq / SaveToFileCurrentPlayerReq goes out while
+  connected. On by default ([coop] save_guard=1): it only copies files.

@@ -80,3 +80,10 @@
 - Diagnose Co-op+.cmd (diagnose.ps1): report to the Desktop (versions, mod files + hashes, ini settings, log tail);
   tested on a fake install with -OutDir. Comfort Pack plan in docs/comfort-pack.md (CDUMM .field.json, companions
   now, our own field.json after GO). README rewritten. Draft courtesy issue in docs/drafts/ (not posted).
+- 06:20 Save guard (D19): save_guard.{h,cpp}, hook in capture_observe_c2s, backup on connect, panel notice.
+  First link failed: upstream declares cdmp::net::opcodes_resolved() but defined it inside the anonymous namespace
+  (never called before) -> moved out. Upstream's opcode_for comment says "TrocTrMoveActorReq" but names are stored
+  without the TrocTr prefix (call sites use "MoveActorReq"); comment fixed, our names "SaveAutoReq" /
+  "SaveToFileCurrentPlayerReq" (2976 table: 3037 / 2910 as fallbacks; opcodes checked equal 2976 vs 3446 for
+  VaryHPAck 2147, DoFrameEventReq 2380, VaryStatCheatReq 2703, NotifyHandleDeadAck 2530). Build/tests/loopback OK;
+  no backup folder created by the loopback (co-op hooks only run in the game).

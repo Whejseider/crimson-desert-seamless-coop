@@ -32,6 +32,7 @@
 #include "mod/net/puppet_minimap.h"
 #include "mod/net/remote_puppet.h"
 #include "mod/net/party_scaling.h"
+#include "mod/net/save_guard.h"
 #include "mod/net/boss_safe.h"
 #include "mod/net/steam_transport.h"
 #include "mod/net/room_code.h"
@@ -537,6 +538,8 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
             net::scaling_set_party(host && connected ? 2 : 1, host);
             net::scaling_tick();
+            // Co-op+ save safety: a backup when a session starts, a warning on saves during it.
+            net::save_guard_set_connected(connected, session.peer_name());
         }
         if (coop) {
             std::optional<proto::Vec3> pos;
@@ -567,6 +570,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             }
             if (coop) hud.enemy_zone = net::suppress_hud_text();
             if (coop) hud.scaling = net::scaling_hud_text();
+            if (coop) hud.save_notice = net::save_guard_hud_text();
             // Boss bar (boss_safe.h): the guest has no native one.
             if (const net::BossHud b = net::boss_hud(); b.active) {
                 hud.boss_active = true;
@@ -632,6 +636,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         }
     }
 
+    net::save_guard_set_connected(false, {});
     coop.reset();
     session.disconnect(now_ms());
     transport.reset();
@@ -1181,6 +1186,7 @@ DWORD WINAPI worker(LPVOID) {
         // host's quest stuck behind the arena barrier.
         net::boss_set_safe_mode(cfg.coop_boss_safe);
         net::scaling_configure({cfg.scaling_enabled, cfg.scaling_health_2p});
+        net::save_guard_configure(cfg.coop_save_guard);
         log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
         // Shared loot is the guest's, and only means anything with co-op on.
         //
