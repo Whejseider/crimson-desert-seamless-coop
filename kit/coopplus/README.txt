@@ -74,6 +74,12 @@ saved during co-op (the game also autosaves on its own). To restore one: game cl
 copy that folder's contents back into %LOCALAPPDATA%\Pearl Abyss\CD\save.
 
 
+AFTER A GAME UPDATE
+-------------------
+Co-op+ is made for one exact game version. When Steam updates the game, the panel
+(F8) says "Co-op+ is off: this mod was made for game version ..." and the game simply
+runs without it. Nothing breaks; wait for a Co-op+ update, and both players install it.
+
 PROBLEMS?
 ---------
 The mod writes cdmp.log in the game's bin64 folder. Send that file (and say what

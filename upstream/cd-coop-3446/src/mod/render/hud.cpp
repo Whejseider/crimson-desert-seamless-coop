@@ -88,6 +88,14 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
     ImGui::TextDisabled("[F8]");
     // GPL credit, always visible with the panel: the co-op engine is theirs.
     ImGui::TextDisabled("built on cdmp %s by ByJunter, port by nouzert1", CDMP_VERSION);
+    if (!opt.build_problem.empty()) {
+        // Co-op+: an unsupported game build. Nothing else on the panel matters.
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 30.0f);
+        ImGui::TextColored(ImVec4(1, 0.35f, 0.3f, 1), "%s", opt.build_problem.c_str());
+        ImGui::PopTextWrapPos();
+        ImGui::End();
+        return;
+    }
     const bool en = opt.english;
     if (d.connected) {
         ImGui::Text(en ? "Network: connected to '%s' (%.1f ms)" : "Red: conectado a '%s' (%.1f ms)",

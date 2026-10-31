@@ -107,6 +107,16 @@ std::string file_version(const std::wstring& path) {
 
 // Facts that identify the exact game build. Every offset/signature we find
 // later is only valid for one build, so the log must always say which one.
+// Co-op+: the game build this mod was made for (the same PE timestamp guard the
+// readers and the sniffer use). On any other build co-op cannot work, so the
+// network side does not start either, and the panel says why.
+bool game_build_supported() {
+    const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+    const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+    return base == game::build_3446::kImageBase && nt->FileHeader.TimeDateStamp == game::build_3446::kPeTimestamp;
+}
+
 bool log_process_info() {
     const std::wstring exe = module_path(nullptr);
     const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
@@ -1194,6 +1204,15 @@ DWORD WINAPI worker(LPVOID) {
 
     try {
         const bool in_game = log_process_info();
+        // Co-op+: after a game update the mod must stay out of the way, visibly.
+        const bool build_ok = !in_game || game_build_supported();
+        std::string build_problem;
+        if (!build_ok) {
+            build_problem = std::format("Co-op+ is off: this mod was made for game version 1.0.0.3446, not {}. "
+                                        "The game runs normally; update Co-op+ to play together.",
+                                        file_version(module_path(nullptr)));
+            log::warn("{}", build_problem);
+        }
         const Config cfg = load_config(dir + L"cdmp.ini");
         log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                   cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
@@ -1326,7 +1345,10 @@ DWORD WINAPI worker(LPVOID) {
         if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
         if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
         if (overlay || sniffer) {
-            if (overlay) render::hud_configure({cfg.overlay_self_marker, cfg.overlay_english, cfg.overlay_nameplates});
+            if (overlay) {
+                render::hud_configure(
+                    {cfg.overlay_self_marker, cfg.overlay_english, cfg.overlay_nameplates, build_problem});
+            }
             g_late_thread = CreateThread(nullptr, 0, late_init,
                                          new LateInit{in_game, overlay, sniffer,
                                                       in_game && cfg.dev_clone_hotkeys,
@@ -1348,7 +1370,7 @@ DWORD WINAPI worker(LPVOID) {
                                          0, nullptr);
         }
 
-        if (cfg.net_enabled) run_coop(cfg, local, in_game);
+        if (cfg.net_enabled && build_ok) run_coop(cfg, local, in_game);
         // Our Steam callbacks must be gone before the mod's code can be unloaded.
         net::join_shutdown();
     } catch (const std::exception& e) {

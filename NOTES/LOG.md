@@ -119,3 +119,5 @@
 - Camera block: only 2 plain-code xrefs to the camera global (0x2FB8997 reads +0xC8/+0xD0; 0x3E1C8D3 writes it);
   the +0x428 block access is not in plain code. Not determinable offline; M0 check stays.
 - 08:30 Join/leave toasts (top centre, independent of F8). Build/tests/loopback OK.
+- 08:45 Unsupported game build (any PE timestamp but 0x6AE46DD0, in the game only): networking not started (no lobby,
+  no Join Game), panel shows a red 'Co-op+ is off: made for 1.0.0.3446, not X' line. README section added.
