@@ -83,9 +83,11 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
                      ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
-    ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.25f, 1), "Crimson Desert Multiplayer %s", CDMP_VERSION);
+    ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.25f, 1), "Crimson Desert Seamless Co-op+ (alpha)");
     ImGui::SameLine();
     ImGui::TextDisabled("[F8]");
+    // GPL credit, always visible with the panel: the co-op engine is theirs.
+    ImGui::TextDisabled("built on cdmp %s by ByJunter, port by nouzert1", CDMP_VERSION);
     const bool en = opt.english;
     if (d.connected) {
         ImGui::Text(en ? "Network: connected to '%s' (%.1f ms)" : "Red: conectado a '%s' (%.1f ms)",

@@ -1721,7 +1721,7 @@ index b6efad7..b358264 100644
  // before on a build where resolution is unavailable.
  uint16_t opcode_for(const char* name, uint16_t fallback);
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..de77b4b 100644
+index 14edc91..de2c0a1 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 @@ -11,6 +11,7 @@
@@ -1835,7 +1835,20 @@ index 14edc91..de77b4b 100644
      // ---- status panel
      ImGui::SetNextWindowPos(ImVec2(20, 20));
      ImGui::SetNextWindowBgAlpha(0.55f);
-@@ -153,14 +125,14 @@ void hud_draw(float width, float height) {
+@@ -111,9 +83,11 @@ void hud_draw(float width, float height) {
+                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+                      ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                      ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
+-    ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.25f, 1), "Crimson Desert Multiplayer %s", CDMP_VERSION);
++    ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.25f, 1), "Crimson Desert Seamless Co-op+ (alpha)");
+     ImGui::SameLine();
+     ImGui::TextDisabled("[F8]");
++    // GPL credit, always visible with the panel: the co-op engine is theirs.
++    ImGui::TextDisabled("built on cdmp %s by ByJunter, port by nouzert1", CDMP_VERSION);
+     const bool en = opt.english;
+     if (d.connected) {
+         ImGui::Text(en ? "Network: connected to '%s' (%.1f ms)" : "Red: conectado a '%s' (%.1f ms)",
+@@ -153,14 +127,14 @@ void hud_draw(float width, float height) {
      } else {
          ImGui::TextDisabled(en ? "You: %s" : "Tú: %s", d.local_status.c_str());
      }
@@ -1853,7 +1866,7 @@ index 14edc91..de77b4b 100644
  
      // The room code, ALWAYS shown -- with the code when we have one, and an explicit
      // "no code" plus the reason when we do not.
-@@ -189,13 +161,65 @@ void hud_draw(float width, float height) {
+@@ -189,13 +163,65 @@ void hud_draw(float width, float height) {
          // read a file to find out what went wrong.
          ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
      }

@@ -87,3 +87,6 @@
   "SaveToFileCurrentPlayerReq" (2976 table: 3037 / 2910 as fallbacks; opcodes checked equal 2976 vs 3446 for
   VaryHPAck 2147, DoFrameEventReq 2380, VaryStatCheatReq 2703, NotifyHandleDeadAck 2530). Build/tests/loopback OK;
   no backup folder created by the loopback (co-op hooks only run in the game).
+- 06:35 Panel title: Co-op+ with a GPL credit line (cdmp by ByJunter, port by nouzert1). docs/progression-sync.md (M5
+  design: discovery/knowledge first via ShareKnowledgeDataListReq / LearnKnowledgeByCheatReq, quests last and opt-in).
+  M0 gains an optional capture step for M5 payloads.
