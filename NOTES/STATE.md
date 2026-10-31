@@ -7,8 +7,7 @@
   load-packet transform end-158. Mod loads, Steam room/relay up, panel + room code + Ctrl+F1 hint draw, local
   player read exact (0.05 m), hooks all install, saves untouched (the game never saved during tests).
 - Single-PC echo: the copy spawns at the right spot with name plate + HP bar, movement events flow.
-- **BLOCKER:** the copy's player actor stays at load state [actor+0x5E] = 0x08 / [actor+0xCF] = 0 (needs 0x10 / 1),
-  so the client queues its moves and it is invisible. Details + next step: docs/research/port-3460.md.
+- **FIXED (09b498a):** the copy now loads (state 0x10) and follows; **NEXT:** it is not drawn, and its spawn must wait until our own world is loaded (else our control drops).
 - Upstream (nouzert1) started their own 3460 port today (commit 4922f596, addresses only; agrees with ours).
 - Test helpers (not in the package): build/port3460/{trial,keys,shot}.ps1, live.py/actor.py (read-only probes),
   captures in build/port3460/captures. The installed cdmp.asi is the current dev build with the shipped cdmp.ini.

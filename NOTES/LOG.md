@@ -161,3 +161,13 @@
 ## 2026-10-31 — 3460 findings posted upstream
 - With the user's OK, posted docs/drafts/upstream-3460-findings.md (+ full 3460 Troc table) as
   https://github.com/nouzert1/cd-coop-3446/issues/1. Watch it for a reply about the 0x08 -> 0x10 load step.
+
+## 2026-10-31 evening — copy load fixed; copy not drawn yet
+- Dev load trace found the copy stuck at load state 8 because HorseDiag's containment skipped
+  ClientCharacterControlActorComponent vf 0x80 (= the loader's "still loading?" query) with a bare ret. Fixed
+  (commit 09b498a): copy reaches 0x10, injected moves apply, it follows 2 m away (verified in memory + panel).
+- Spawning the copy while our own world is still loading drops our control mode 2 -> 1 and the game stays on its
+  loading scene; spawned after our world is up, all normal. TODO: hold the spawn until we are in control.
+- Copy still not drawn: name plate floats over empty ground at its position (camera turned to check). Same 48/23
+  components as ours; status flags +0x390/+0x394 are 0. Visibility path in 3460 is the next investigation.
+- Game closed without saving after every test; shipped cdmp.ini restored; saves still dated 2026-05-13.
