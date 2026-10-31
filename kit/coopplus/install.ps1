@@ -21,7 +21,9 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $payload = Join-Path $here 'mod'
 . (Join-Path $here 'coopplus-common.ps1')
 $expectedExeVersion = '1.0.0.3446'
-$files = @('winmm.dll', 'cdmp.asi', 'cdmp.ini')
+$files = @('winmm.dll', 'cdmp.asi', 'cdmp.ini', 'cdcoop\config\scaling.toml')
+# Files players edit: an update keeps theirs and puts the new defaults next to them.
+$settingsFiles = @('cdmp.ini', 'cdcoop\config\scaling.toml')
 
 function Done([int]$code) {
     if (-not $NoPause) { Write-Host ''; Read-Host 'Press Enter to close' | Out-Null }
@@ -96,14 +98,15 @@ foreach ($f in $files) {
             Copy-Item $target $kept
             Write-Host "Kept your existing $f as $f.before-coopplus"
         }
-        if ($f -eq 'cdmp.ini' -and $ours) {
+        if ($settingsFiles -contains $f -and $ours -and -not $same) {
             # An update keeps the player's own settings; the new defaults go next to them.
-            Copy-Item $source (Join-Path $GameDir 'cdmp.ini.new') -Force
-            Write-Host 'Kept your cdmp.ini settings (new defaults saved as cdmp.ini.new)'
-            $installed += 'cdmp.ini.new'
+            Copy-Item $source "$target.new" -Force
+            Write-Host "Kept your $f settings (new defaults saved as $f.new)"
+            $installed += $f, "$f.new"
             continue
         }
     }
+    New-Item -ItemType Directory -Force (Split-Path -Parent $target) | Out-Null
     Copy-Item $source $target -Force
     $installed += $f
 }

@@ -160,6 +160,7 @@ struct Config {
     // starts and warn when the game saves during one.
     bool coop_save_guard = true;
     float scaling_health_2p = 1.7f;
+    float scaling_boss_health_2p = 1.7f;  // from cdcoop\config\scaling.toml when present (Co-op+)
     float coop_suppress_lab_radius_m = 60.0f;
 };
 

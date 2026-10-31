@@ -248,6 +248,7 @@ Config load_config(const std::wstring& ini_path) {
         c.scaling_enabled = read_uint(ini_path, L"scaling", L"enabled", 0) != 0;
         c.coop_save_guard = read_uint(ini_path, L"coop", L"save_guard", 1) != 0;
         c.scaling_health_2p = read_float(ini_path, L"scaling", L"health_2p", 1.7f, 1.0f, 4.0f);
+        c.scaling_boss_health_2p = c.scaling_health_2p;
     }
     {
         // Decimal or 0x-hex; "-1" diagnostic.

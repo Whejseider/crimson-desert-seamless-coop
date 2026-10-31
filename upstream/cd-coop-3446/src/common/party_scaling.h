@@ -22,8 +22,16 @@ namespace cdmp::scaling {
 
 struct Settings {
     bool enabled = false;
-    float health_2p = 1.7f;  // brief 6.5 starting curve: x1.0 / 1.7 / 2.3 / 2.8 for 1-4 players
+    float health_2p = 1.7f;       // regular enemies; brief 6.5 starting curve x1.0 / 1.7 / 2.3 / 2.8
+    float boss_health_2p = 1.7f;  // stage bosses (Co-op+ config/scaling.toml [boss] health[1])
 };
+
+// The settings for one kind of enemy.
+inline Settings for_boss(const Settings& s, bool boss) {
+    Settings out = s;
+    if (boss) out.health_2p = s.boss_health_2p;
+    return out;
+}
 
 inline constexpr float kMinMultiplier = 1.0f;
 inline constexpr float kMaxMultiplier = 4.0f;

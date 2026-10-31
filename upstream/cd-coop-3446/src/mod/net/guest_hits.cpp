@@ -756,7 +756,7 @@ void apply_hit(const proto::GameEvent& ev) {
     // Co-op+ party scaling: with a guest in our world our enemies take 1/k of every
     // blow (party_scaling.h); the guest's blows are scaled here, ours by the give-back.
     const int32_t damage = no_damage ? 0
-                                     : scaling_guest_damage(std::max(
+                                     : scaling_guest_damage(enemy, std::max(
                                            1, static_cast<int32_t>(std::lround(std::min(base * factor, kMaxHitHp)))));
     // Boss safety (boss_safe.h, pendiente-jefes.md plan J1). Against a stage boss
     // the guest must never land the killing blow: the boss's death has to come

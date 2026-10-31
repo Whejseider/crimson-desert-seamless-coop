@@ -125,6 +125,22 @@ cdmp_strict(cdmp_mod)
 target_link_libraries(cdmp_mod PRIVATE cdmp_common imgui safetyhook::safetyhook)
 target_include_directories(cdmp_mod PRIVATE ${CMAKE_BINARY_DIR}/generated)
 set_target_properties(cdmp_mod PROPERTIES OUTPUT_NAME "cdmp" PREFIX "" SUFFIX ".asi")
+
+# Co-op+: our own pure, unit-tested layers (party scaling curves, TOML settings) from
+# the repository this tree is vendored in. Skipped when built on its own.
+set(COOPPLUS_ROOT ${CMAKE_SOURCE_DIR}/../..)
+if(EXISTS ${COOPPLUS_ROOT}/src/sim/config.cpp AND EXISTS ${COOPPLUS_ROOT}/third_party/tomlplusplus/toml.hpp)
+    add_library(coopplus_sim STATIC
+        ${COOPPLUS_ROOT}/src/sim/scaling.cpp
+        ${COOPPLUS_ROOT}/src/sim/loot.cpp
+        ${COOPPLUS_ROOT}/src/sim/progression.cpp
+        ${COOPPLUS_ROOT}/src/sim/config.cpp
+    )
+    target_include_directories(coopplus_sim PUBLIC ${COOPPLUS_ROOT}/src)
+    target_include_directories(coopplus_sim SYSTEM PUBLIC ${COOPPLUS_ROOT}/third_party/tomlplusplus)
+    target_compile_definitions(coopplus_sim PUBLIC TOML_EXCEPTIONS=0 CDMP_COOPPLUS_SIM=1)
+    target_link_libraries(cdmp_mod PRIVATE coopplus_sim)
+endif()
 # Only the symbol file's name goes into cdmp.asi, not the path of the PC that
 # built it (it named the user's folders).
 target_link_options(cdmp_mod PRIVATE "/PDBALTPATH:cdmp.pdb")

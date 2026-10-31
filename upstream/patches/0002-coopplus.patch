@@ -1,5 +1,5 @@
 diff --git a/upstream/cd-coop-3446/CMakeLists.txt b/upstream/cd-coop-3446/CMakeLists.txt
-index c83acf3..c258953 100644
+index c83acf3..f88c811 100644
 --- a/upstream/cd-coop-3446/CMakeLists.txt
 +++ b/upstream/cd-coop-3446/CMakeLists.txt
 @@ -113,6 +113,9 @@ add_library(cdmp_mod SHARED
@@ -12,6 +12,29 @@ index c83acf3..c258953 100644
      src/mod/net/boss_safe.cpp
      src/mod/net/time_sync.cpp
      src/mod/render/dx12_hook.cpp
+@@ -122,6 +125,22 @@ cdmp_strict(cdmp_mod)
+ target_link_libraries(cdmp_mod PRIVATE cdmp_common imgui safetyhook::safetyhook)
+ target_include_directories(cdmp_mod PRIVATE ${CMAKE_BINARY_DIR}/generated)
+ set_target_properties(cdmp_mod PROPERTIES OUTPUT_NAME "cdmp" PREFIX "" SUFFIX ".asi")
++
++# Co-op+: our own pure, unit-tested layers (party scaling curves, TOML settings) from
++# the repository this tree is vendored in. Skipped when built on its own.
++set(COOPPLUS_ROOT ${CMAKE_SOURCE_DIR}/../..)
++if(EXISTS ${COOPPLUS_ROOT}/src/sim/config.cpp AND EXISTS ${COOPPLUS_ROOT}/third_party/tomlplusplus/toml.hpp)
++    add_library(coopplus_sim STATIC
++        ${COOPPLUS_ROOT}/src/sim/scaling.cpp
++        ${COOPPLUS_ROOT}/src/sim/loot.cpp
++        ${COOPPLUS_ROOT}/src/sim/progression.cpp
++        ${COOPPLUS_ROOT}/src/sim/config.cpp
++    )
++    target_include_directories(coopplus_sim PUBLIC ${COOPPLUS_ROOT}/src)
++    target_include_directories(coopplus_sim SYSTEM PUBLIC ${COOPPLUS_ROOT}/third_party/tomlplusplus)
++    target_compile_definitions(coopplus_sim PUBLIC TOML_EXCEPTIONS=0 CDMP_COOPPLUS_SIM=1)
++    target_link_libraries(cdmp_mod PRIVATE coopplus_sim)
++endif()
+ # Only the symbol file's name goes into cdmp.asi, not the path of the PC that
+ # built it (it named the user's folders).
+ target_link_options(cdmp_mod PRIVATE "/PDBALTPATH:cdmp.pdb")
 diff --git a/upstream/cd-coop-3446/src/common/nameplate.h b/upstream/cd-coop-3446/src/common/nameplate.h
 new file mode 100644
 index 0000000..56fdd51
@@ -50,10 +73,10 @@ index 0000000..56fdd51
 +}  // namespace cdmp::nameplate
 diff --git a/upstream/cd-coop-3446/src/common/party_scaling.h b/upstream/cd-coop-3446/src/common/party_scaling.h
 new file mode 100644
-index 0000000..4e45eff
+index 0000000..cffff01
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/common/party_scaling.h
-@@ -0,0 +1,102 @@
+@@ -0,0 +1,110 @@
 +#pragma once
 +// Party-size enemy toughness (Co-op+, brief 6.5): with a guest in the host's
 +// world, the host's enemies take only 1/k of the damage dealt to them, which is
@@ -78,8 +101,16 @@ index 0000000..4e45eff
 +
 +struct Settings {
 +    bool enabled = false;
-+    float health_2p = 1.7f;  // brief 6.5 starting curve: x1.0 / 1.7 / 2.3 / 2.8 for 1-4 players
++    float health_2p = 1.7f;       // regular enemies; brief 6.5 starting curve x1.0 / 1.7 / 2.3 / 2.8
++    float boss_health_2p = 1.7f;  // stage bosses (Co-op+ config/scaling.toml [boss] health[1])
 +};
++
++// The settings for one kind of enemy.
++inline Settings for_boss(const Settings& s, bool boss) {
++    Settings out = s;
++    if (boss) out.health_2p = s.boss_health_2p;
++    return out;
++}
 +
 +inline constexpr float kMinMultiplier = 1.0f;
 +inline constexpr float kMaxMultiplier = 4.0f;
@@ -157,7 +188,7 @@ index 0000000..4e45eff
 +
 +}  // namespace cdmp::scaling
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..5fcbd41 100644
+index e89d220..e528ea4 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,6 +21,8 @@ constexpr wchar_t kDefaultIni[] =
@@ -217,18 +248,19 @@ index e89d220..5fcbd41 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -226,6 +245,9 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +245,10 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
 +        c.scaling_enabled = read_uint(ini_path, L"scaling", L"enabled", 0) != 0;
 +        c.coop_save_guard = read_uint(ini_path, L"coop", L"save_guard", 1) != 0;
 +        c.scaling_health_2p = read_float(ini_path, L"scaling", L"health_2p", 1.7f, 1.0f, 4.0f);
++        c.scaling_boss_health_2p = c.scaling_health_2p;
      }
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..64cc9d5 100644
+index 3cd2ce2..9fe7e63 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,12 @@ struct Config {
@@ -252,7 +284,7 @@ index 3cd2ce2..64cc9d5 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -146,6 +153,13 @@ struct Config {
+@@ -146,6 +153,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -263,14 +295,23 @@ index 3cd2ce2..64cc9d5 100644
 +    // starts and warn when the game saves during one.
 +    bool coop_save_guard = true;
 +    float scaling_health_2p = 1.7f;
++    float scaling_boss_health_2p = 1.7f;  // from cdcoop\config\scaling.toml when present (Co-op+)
      float coop_suppress_lab_radius_m = 60.0f;
  };
  
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..e08cc58 100644
+index 79ccd06..4191723 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
-@@ -31,9 +31,12 @@
+@@ -1,6 +1,7 @@
+ #include "mod/mod.h"
+ 
+ #include <cmath>
++#include <filesystem>
+ #include <exception>
+ #include <memory>
+ #include <string>
+@@ -31,13 +32,19 @@
  #include "mod/net/player_hits.h"
  #include "mod/net/puppet_minimap.h"
  #include "mod/net/remote_puppet.h"
@@ -283,7 +324,14 @@ index 79ccd06..e08cc58 100644
  #include "mod/net/time_sync.h"
  #include "mod/net/troc_sniffer.h"
  #include "mod/render/dx12_hook.h"
-@@ -188,10 +191,37 @@ private:
+ #include "mod/render/hud.h"
++#ifdef CDMP_COOPPLUS_SIM
++#include "sim/config.hpp"
++#endif
+ 
+ #pragma comment(lib, "version.lib")
+ 
+@@ -188,10 +195,37 @@ private:
      std::string status_;
  };
  
@@ -323,7 +371,7 @@ index 79ccd06..e08cc58 100644
      }
  
      // A guest knows whom to talk to; a host learns it from the first Hello.
-@@ -203,6 +233,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -203,6 +237,8 @@ void run_network(const Config& cfg, LocalSource& local) {
      // needs a moment to join the lobby and see the host field).
      bool room_code_pending = false;
      std::string room_code_text;
@@ -332,7 +380,7 @@ index 79ccd06..e08cc58 100644
      bool room_failed_logged = false;
      // The host's lobby creation is retried in the loop for the same reason: this
      // point in startup is reached BEFORE the save finishes loading (the mod loads
-@@ -216,7 +248,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -216,7 +252,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          if (!local.in_game()) {
              log::error("The Steam transport only works inside the game");
              net::cleanup();
@@ -341,7 +389,7 @@ index 79ccd06..e08cc58 100644
          }
          auto st = std::make_unique<net::SteamTransport>(cfg.steam_channel, host, cfg.steam_peer_id);
          steam = st.get();
-@@ -225,7 +257,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -225,7 +261,14 @@ void run_network(const Config& cfg, LocalSource& local) {
          // creates the lobby and reads the code out; the guest resolves the
          // host's SteamID64 from it. If anything fails, the old paths
          // (peer_steamid, then the "only friend playing" scan) still work.
@@ -357,7 +405,7 @@ index 79ccd06..e08cc58 100644
              if (host) {
                  // One attempt now, and the loop retries if it does not take.
                  //
-@@ -278,19 +317,19 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -278,19 +321,19 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!ep->is_loopback()) {
                  log::error("UDP only connects within this PC (tests); to play with someone use transport=steam");
                  net::cleanup();
@@ -380,7 +428,7 @@ index 79ccd06..e08cc58 100644
          }
          transport = std::move(udp);
      }
-@@ -327,10 +366,77 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -327,10 +370,77 @@ void run_network(const Config& cfg, LocalSource& local) {
      bool mark_was_down = false;
      int marks = 0;
      std::vector<uint8_t> buf(proto::kMaxPacketSize);
@@ -458,7 +506,7 @@ index 79ccd06..e08cc58 100644
          // The host's lobby, retried until it takes. Startup runs before the save is
          // loaded, so the first attempt reliably fails on a cold start; without this
          // the host never gets a room code at all and the guest has nothing to type.
-@@ -363,7 +469,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -363,7 +473,8 @@ void run_network(const Config& cfg, LocalSource& local) {
              last_friend_scan = now_ms();
              // A room code wins over the friends scan: it names one host exactly.
              if (room_code_pending) {
@@ -468,7 +516,7 @@ index 79ccd06..e08cc58 100644
                  if (host_id) {
                      peer = net::PeerAddr::steam(host_id);
                      steam->set_peer(host_id);
-@@ -427,6 +534,13 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -427,6 +538,13 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (steam) steam->set_peer(0);
          }
          was_connected = connected;
@@ -482,7 +530,7 @@ index 79ccd06..e08cc58 100644
          if (coop) {
              std::optional<proto::Vec3> pos;
              proto::Quat rot;
-@@ -455,6 +569,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -455,6 +573,8 @@ void run_network(const Config& cfg, LocalSource& local) {
                  if (auto pos = net::puppet_position()) hud.remote->pos = *pos;
              }
              if (coop) hud.enemy_zone = net::suppress_hud_text();
@@ -491,7 +539,7 @@ index 79ccd06..e08cc58 100644
              // Boss bar (boss_safe.h): the guest has no native one.
              if (const net::BossHud b = net::boss_hud(); b.active) {
                  hud.boss_active = true;
-@@ -475,6 +591,16 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +595,16 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -508,7 +556,7 @@ index 79ccd06..e08cc58 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -499,6 +625,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -499,6 +629,7 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
              if (coop) log::info("{}", coop->describe());
@@ -516,7 +564,7 @@ index 79ccd06..e08cc58 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +636,100 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +640,100 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -618,7 +666,44 @@ index 79ccd06..e08cc58 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -925,7 +1141,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -908,6 +1128,36 @@ DWORD WINAPI late_init(LPVOID param) {
+     return 0;
+ }
+ 
++// Party scaling settings (Co-op+): the switch is [scaling] enabled in cdmp.ini; the curves
++// come from cdcoop\config\scaling.toml next to the mod when it is there (our unit-tested
++// sim layer, brief 6.5), else from [scaling] health_2p. The TOML can turn scaling off,
++// never on: the give-back is experimental until a live test.
++scaling::Settings scaling_settings(const Config& cfg, const std::wstring& dir) {
++    scaling::Settings s{cfg.scaling_enabled, cfg.scaling_health_2p, cfg.scaling_boss_health_2p};
++#ifdef CDMP_COOPPLUS_SIM
++    std::error_code ec;
++    const std::filesystem::path toml_dir = std::filesystem::path(dir) / L"cdcoop" / L"config";
++    if (!std::filesystem::exists(toml_dir / L"scaling.toml", ec)) return s;
++    const cdcoop::sim::CoopConfig cc = cdcoop::sim::load_config(toml_dir);
++    for (const auto& e : cc.errors) log::warn("Co-op+ config: {}", e);
++    if (!cc.scaling.enabled) {
++        s.enabled = false;
++        log::info("Co-op+ config: scaling.toml says enabled = false");
++        return s;
++    }
++    const auto qol = cc.comfort.qol_state();
++    s.health_2p = static_cast<float>(
++        cdcoop::sim::compute(cc.scaling, 2, cdcoop::sim::EnemyTier::Regular, qol).health);
++    s.boss_health_2p =
++        static_cast<float>(cdcoop::sim::compute(cc.scaling, 2, cdcoop::sim::EnemyTier::Boss, qol).health);
++    log::info("Co-op+ config: scaling.toml for 2 players: regular x{:.2f}, bosses x{:.2f}", s.health_2p,
++              s.boss_health_2p);
++#else
++    (void)dir;
++#endif
++    return s;
++}
++
+ DWORD WINAPI worker(LPVOID) {
+     const std::wstring dir = dir_of(module_path(g_self));
+     log::open(dir + L"cdmp.log");
+@@ -925,7 +1175,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -627,16 +712,16 @@ index 79ccd06..e08cc58 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -969,6 +1185,8 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1219,8 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
-+        net::scaling_configure({cfg.scaling_enabled, cfg.scaling_health_2p});
++        net::scaling_configure(scaling_settings(cfg, dir));
 +        net::save_guard_configure(cfg.coop_save_guard);
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1238,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1272,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -669,7 +754,7 @@ index 79ccd06..e08cc58 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1261,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1295,7 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -678,7 +763,7 @@ index 79ccd06..e08cc58 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1283,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1317,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -690,7 +775,7 @@ index 79ccd06..e08cc58 100644
          log::error("Unhandled exception in worker: {}", e.what());
      } catch (...) {
 diff --git a/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp b/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
-index 8411baa..f75c4ff 100644
+index 8411baa..e885858 100644
 --- a/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
 @@ -21,6 +21,7 @@
@@ -710,7 +795,7 @@ index 8411baa..f75c4ff 100644
 +    // Co-op+ party scaling: with a guest in our world our enemies take 1/k of every
 +    // blow (party_scaling.h); the guest's blows are scaled here, ours by the give-back.
 +    const int32_t damage = no_damage ? 0
-+                                     : scaling_guest_damage(std::max(
++                                     : scaling_guest_damage(enemy, std::max(
 +                                           1, static_cast<int32_t>(std::lround(std::min(base * factor, kMaxHitHp)))));
      // Boss safety (boss_safe.h, pendiente-jefes.md plan J1). Against a stage boss
      // the guest must never land the killing blow: the boss's death has to come
@@ -847,10 +932,10 @@ index 22b77f6..1e90403 100644
      std::memcpy(&op, packet, 2);
 diff --git a/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp b/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp
 new file mode 100644
-index 0000000..8a1b268
+index 0000000..5fa08d3
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,149 @@
 +#include "mod/net/party_scaling.h"
 +
 +#include <atomic>
@@ -862,6 +947,7 @@ index 0000000..8a1b268
 +
 +#include "common/clock.h"
 +#include "mod/log.h"
++#include "mod/net/boss_safe.h"
 +#include "mod/net/enemy_relay.h"
 +#include "mod/net/troc_sniffer.h"
 +
@@ -885,8 +971,8 @@ index 0000000..8a1b268
 +std::atomic<bool> g_host{false};
 +uint64_t g_given = 0, g_given_hp = 0, g_skipped_ours = 0, g_dropped = 0, g_failed = 0;
 +
-+float multiplier_locked() {
-+    return g_host.load() ? scaling::health_multiplier(g_settings, g_players.load()) : 1.0f;
++float multiplier_locked(bool boss = false) {
++    return g_host.load() ? scaling::health_multiplier(scaling::for_boss(g_settings, boss), g_players.load()) : 1.0f;
 +}
 +
 +std::vector<uint8_t> cheat_packet(uint32_t enemy, int32_t delta) {
@@ -909,8 +995,9 @@ index 0000000..8a1b268
 +void scaling_configure(const scaling::Settings& s) {
 +    std::lock_guard lock(g_mutex);
 +    g_settings = s;
-+    log::info("Scaling: enemy toughness with a guest {} (health x{:.2f}; experimental)",
-+              s.enabled ? "ON" : "off", scaling::health_multiplier(s, 2));
++    log::info("Scaling: enemy toughness with a guest {} (health x{:.2f}, bosses x{:.2f}; experimental)",
++              s.enabled ? "ON" : "off", scaling::health_multiplier(s, 2),
++              scaling::health_multiplier(scaling::for_boss(s, true), 2));
 +}
 +
 +void scaling_set_party(int players, bool host) {
@@ -927,13 +1014,13 @@ index 0000000..8a1b268
 +    }
 +}
 +
-+float scaling_multiplier() {
++float scaling_multiplier(bool boss) {
 +    std::lock_guard lock(g_mutex);
-+    return multiplier_locked();
++    return multiplier_locked(boss);
 +}
 +
-+int32_t scaling_guest_damage(int32_t damage) {
-+    return scaling::scale_damage(damage, scaling_multiplier());
++int32_t scaling_guest_damage(uint32_t enemy, int32_t damage) {
++    return scaling::scale_damage(damage, scaling_multiplier(boss_is_boss(enemy)));
 +}
 +
 +void scaling_note_injected(uint32_t enemy, int32_t loss_hp) {
@@ -944,8 +1031,9 @@ index 0000000..8a1b268
 +
 +void scaling_observe_hp(uint32_t enemy, int64_t before_x1000, int64_t after_x1000, bool by_us) {
 +    if (!by_us || before_x1000 <= after_x1000) return;
++    const bool boss = boss_is_boss(enemy);  // boss_safe's own lock, never ours
 +    std::lock_guard lock(g_mutex);
-+    const float k = multiplier_locked();
++    const float k = multiplier_locked(boss);
 +    if (k <= 1.0f) return;
 +    if (g_ledger.consume(enemy, before_x1000 - after_x1000, now_ms())) {
 +        ++g_skipped_ours;  // the guest's blow, already scaled
@@ -999,7 +1087,7 @@ index 0000000..8a1b268
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/party_scaling.h b/upstream/cd-coop-3446/src/mod/net/party_scaling.h
 new file mode 100644
-index 0000000..09cbd37
+index 0000000..37a4982
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/party_scaling.h
 @@ -0,0 +1,41 @@
@@ -1024,12 +1112,12 @@ index 0000000..09cbd37
 +// 2 with a guest connected) and whether this PC is the host.
 +void scaling_set_party(int players, bool host);
 +
-+// k for the current party (1 when off, alone, or not the host).
-+float scaling_multiplier();
++// k for the current party and kind of enemy (1 when off, alone, or not the host).
++float scaling_multiplier(bool boss = false);
 +
 +// guest_hits (host side): the guest's blow after scaling, and a note of the HP
 +// loss the mod is about to inject so the give-back skips it.
-+int32_t scaling_guest_damage(int32_t damage);
++int32_t scaling_guest_damage(uint32_t enemy, int32_t damage);
 +void scaling_note_injected(uint32_t enemy, int32_t loss_hp);
 +
 +// local_capture (sniffer thread): an enemy's HP changed. `by_us` = the source of

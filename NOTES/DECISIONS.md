@@ -105,3 +105,10 @@
   Documents\CrimsonDesert-CoopPlus-SaveBackups\auto-<time>-before-coop when a co-op session connects (at most every
   10 min, newest 10 kept), and log + show a panel notice when SaveAutoReq / SaveToFileCurrentPlayerReq goes out while
   connected. On by default ([coop] save_guard=1): it only copies files.
+
+## 2026-10-31 D20: Integration step 2, first slice: our sim layer inside cdmp.asi for scaling curves
+- Upstream's CMake builds our src/sim (+ toml++) into the mod when the tree sits inside Co-op+ (CDMP_COOPPLUS_SIM).
+- The mod reads bin64\cdcoop\config\scaling.toml (our format, unit-tested loader); 2-player health for regular enemies
+  and for bosses (boss_is_boss) via sim::compute (clamps, QoL compensation). cdmp.ini [scaling] enabled stays the
+  master switch; the TOML can only turn scaling off. Other TOML files (loot, progression, comfort) wait for the
+  features that use them.

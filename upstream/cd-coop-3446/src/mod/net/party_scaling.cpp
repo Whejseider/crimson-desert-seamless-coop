@@ -9,6 +9,7 @@
 
 #include "common/clock.h"
 #include "mod/log.h"
+#include "mod/net/boss_safe.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/troc_sniffer.h"
 
@@ -32,8 +33,8 @@ std::atomic<int> g_players{1};
 std::atomic<bool> g_host{false};
 uint64_t g_given = 0, g_given_hp = 0, g_skipped_ours = 0, g_dropped = 0, g_failed = 0;
 
-float multiplier_locked() {
-    return g_host.load() ? scaling::health_multiplier(g_settings, g_players.load()) : 1.0f;
+float multiplier_locked(bool boss = false) {
+    return g_host.load() ? scaling::health_multiplier(scaling::for_boss(g_settings, boss), g_players.load()) : 1.0f;
 }
 
 std::vector<uint8_t> cheat_packet(uint32_t enemy, int32_t delta) {
@@ -56,8 +57,9 @@ std::vector<uint8_t> cheat_packet(uint32_t enemy, int32_t delta) {
 void scaling_configure(const scaling::Settings& s) {
     std::lock_guard lock(g_mutex);
     g_settings = s;
-    log::info("Scaling: enemy toughness with a guest {} (health x{:.2f}; experimental)",
-              s.enabled ? "ON" : "off", scaling::health_multiplier(s, 2));
+    log::info("Scaling: enemy toughness with a guest {} (health x{:.2f}, bosses x{:.2f}; experimental)",
+              s.enabled ? "ON" : "off", scaling::health_multiplier(s, 2),
+              scaling::health_multiplier(scaling::for_boss(s, true), 2));
 }
 
 void scaling_set_party(int players, bool host) {
@@ -74,13 +76,13 @@ void scaling_set_party(int players, bool host) {
     }
 }
 
-float scaling_multiplier() {
+float scaling_multiplier(bool boss) {
     std::lock_guard lock(g_mutex);
-    return multiplier_locked();
+    return multiplier_locked(boss);
 }
 
-int32_t scaling_guest_damage(int32_t damage) {
-    return scaling::scale_damage(damage, scaling_multiplier());
+int32_t scaling_guest_damage(uint32_t enemy, int32_t damage) {
+    return scaling::scale_damage(damage, scaling_multiplier(boss_is_boss(enemy)));
 }
 
 void scaling_note_injected(uint32_t enemy, int32_t loss_hp) {
@@ -91,8 +93,9 @@ void scaling_note_injected(uint32_t enemy, int32_t loss_hp) {
 
 void scaling_observe_hp(uint32_t enemy, int64_t before_x1000, int64_t after_x1000, bool by_us) {
     if (!by_us || before_x1000 <= after_x1000) return;
+    const bool boss = boss_is_boss(enemy);  // boss_safe's own lock, never ours
     std::lock_guard lock(g_mutex);
-    const float k = multiplier_locked();
+    const float k = multiplier_locked(boss);
     if (k <= 1.0f) return;
     if (g_ledger.consume(enemy, before_x1000 - after_x1000, now_ms())) {
         ++g_skipped_ours;  // the guest's blow, already scaled

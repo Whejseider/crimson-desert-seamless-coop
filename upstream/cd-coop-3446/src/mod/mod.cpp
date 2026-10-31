@@ -1,6 +1,7 @@
 #include "mod/mod.h"
 
 #include <cmath>
+#include <filesystem>
 #include <exception>
 #include <memory>
 #include <string>
@@ -41,6 +42,9 @@
 #include "mod/net/troc_sniffer.h"
 #include "mod/render/dx12_hook.h"
 #include "mod/render/hud.h"
+#ifdef CDMP_COOPPLUS_SIM
+#include "sim/config.hpp"
+#endif
 
 #pragma comment(lib, "version.lib")
 
@@ -1124,6 +1128,36 @@ DWORD WINAPI late_init(LPVOID param) {
     return 0;
 }
 
+// Party scaling settings (Co-op+): the switch is [scaling] enabled in cdmp.ini; the curves
+// come from cdcoop\config\scaling.toml next to the mod when it is there (our unit-tested
+// sim layer, brief 6.5), else from [scaling] health_2p. The TOML can turn scaling off,
+// never on: the give-back is experimental until a live test.
+scaling::Settings scaling_settings(const Config& cfg, const std::wstring& dir) {
+    scaling::Settings s{cfg.scaling_enabled, cfg.scaling_health_2p, cfg.scaling_boss_health_2p};
+#ifdef CDMP_COOPPLUS_SIM
+    std::error_code ec;
+    const std::filesystem::path toml_dir = std::filesystem::path(dir) / L"cdcoop" / L"config";
+    if (!std::filesystem::exists(toml_dir / L"scaling.toml", ec)) return s;
+    const cdcoop::sim::CoopConfig cc = cdcoop::sim::load_config(toml_dir);
+    for (const auto& e : cc.errors) log::warn("Co-op+ config: {}", e);
+    if (!cc.scaling.enabled) {
+        s.enabled = false;
+        log::info("Co-op+ config: scaling.toml says enabled = false");
+        return s;
+    }
+    const auto qol = cc.comfort.qol_state();
+    s.health_2p = static_cast<float>(
+        cdcoop::sim::compute(cc.scaling, 2, cdcoop::sim::EnemyTier::Regular, qol).health);
+    s.boss_health_2p =
+        static_cast<float>(cdcoop::sim::compute(cc.scaling, 2, cdcoop::sim::EnemyTier::Boss, qol).health);
+    log::info("Co-op+ config: scaling.toml for 2 players: regular x{:.2f}, bosses x{:.2f}", s.health_2p,
+              s.boss_health_2p);
+#else
+    (void)dir;
+#endif
+    return s;
+}
+
 DWORD WINAPI worker(LPVOID) {
     const std::wstring dir = dir_of(module_path(g_self));
     log::open(dir + L"cdmp.log");
@@ -1185,7 +1219,7 @@ DWORD WINAPI worker(LPVOID) {
         // on a stage boss kills it outside the host's script, which leaves the
         // host's quest stuck behind the arena barrier.
         net::boss_set_safe_mode(cfg.coop_boss_safe);
-        net::scaling_configure({cfg.scaling_enabled, cfg.scaling_health_2p});
+        net::scaling_configure(scaling_settings(cfg, dir));
         net::save_guard_configure(cfg.coop_save_guard);
         log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
         // Shared loot is the guest's, and only means anything with co-op on.

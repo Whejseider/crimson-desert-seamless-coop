@@ -33,8 +33,9 @@ if (-not (Test-Path $list)) {
 foreach ($line in Get-Content $list) {
     $name = $line.Trim()
     if (-not $name -or $name.StartsWith('#')) { continue }
-    # Only plain file names written by the installer; never a path.
-    if ($name -match '[\\/:]' -or $name -eq '..') { continue }
+    # Only names the installer writes: plain file names, or files under cdcoop\config\.
+    if ($name -notmatch '^[A-Za-z0-9_.+ -]+$' -and $name -notmatch '^cdcoop\\config\\[A-Za-z0-9_.-]+$') { continue }
+    if ($name -match '\.\.') { continue }
     $path = Join-Path $GameDir $name
     if ((Test-Path $path) -and $name -ne 'coopplus-installed.txt') {
         Remove-Item $path -Force
@@ -51,6 +52,10 @@ foreach ($log in Get-ChildItem $GameDir -Filter 'cdmp*.log' -ErrorAction Silentl
     Remove-Item $log.FullName -Force
 }
 Remove-Item $list -Force
+# Our settings folder, if it is now empty.
+foreach ($d in (Join-Path $GameDir 'cdcoop\config'), (Join-Path $GameDir 'cdcoop')) {
+    if ((Test-Path $d) -and -not (Get-ChildItem $d -Force)) { Remove-Item $d -Force }
+}
 # Vanilla mode (vanilla.ps1) parks the mod under this name.
 $parked = Join-Path $GameDir 'cdmp.asi.off'
 if (Test-Path $parked) { Remove-Item $parked -Force; Write-Host 'Removed cdmp.asi.off (vanilla mode)' }

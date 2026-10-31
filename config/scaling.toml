@@ -1,5 +1,10 @@
 # Enemy and boss scaling by party size. The HOST's file is used for everyone in a session.
 # Each list is: [1 player, 2 players, 3 players, 4 players]. Values are multipliers on the game's own numbers.
+# Lives in the game's bin64\cdcoop\config\. Today the mod plays with 2 players and scales HEALTH only (regular
+# and boss lists; "elite" counts as regular), and only while the experimental switch in cdmp.ini is on:
+#   [scaling]
+#   enabled=1
+# This file can turn scaling off (enabled = false), never on.
 
 enabled = true
 # Parties bigger than the list: "extrapolate" (continue the last step) or "clamp" (reuse the last value).

@@ -62,6 +62,9 @@ New-Item -ItemType Directory -Force (Join-Path $stage 'mod') | Out-Null
 
 Copy-Item $loader (Join-Path $stage 'mod\winmm.dll')
 Copy-Item (Join-Path $bin 'cdmp.asi') (Join-Path $stage 'mod\cdmp.asi')
+# Co-op+ settings the mod reads from bin64\cdcoop\config (party scaling curves).
+New-Item -ItemType Directory -Force (Join-Path $stage 'mod\cdcoop\config') | Out-Null
+Copy-Item (Join-Path $root 'config\scaling.toml') (Join-Path $stage 'mod\cdcoop\config\scaling.toml')
 
 # One profile for both players, from upstream's tested co-op profile: role=auto (host your
 # world, become a guest on a Steam join), no developer cross on the player. UTF-16 LE with BOM

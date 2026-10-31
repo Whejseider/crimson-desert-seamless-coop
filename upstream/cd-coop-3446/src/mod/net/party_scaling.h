@@ -19,12 +19,12 @@ void scaling_configure(const scaling::Settings& s);
 // 2 with a guest connected) and whether this PC is the host.
 void scaling_set_party(int players, bool host);
 
-// k for the current party (1 when off, alone, or not the host).
-float scaling_multiplier();
+// k for the current party and kind of enemy (1 when off, alone, or not the host).
+float scaling_multiplier(bool boss = false);
 
 // guest_hits (host side): the guest's blow after scaling, and a note of the HP
 // loss the mod is about to inject so the give-back skips it.
-int32_t scaling_guest_damage(int32_t damage);
+int32_t scaling_guest_damage(uint32_t enemy, int32_t damage);
 void scaling_note_injected(uint32_t enemy, int32_t loss_hp);
 
 // local_capture (sniffer thread): an enemy's HP changed. `by_us` = the source of

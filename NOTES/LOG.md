@@ -92,3 +92,7 @@
   M0 gains an optional capture step for M5 payloads.
 - Vanilla mode on-off.cmd (vanilla.ps1): parks cdmp.asi as cdmp.asi.off; install turns it back on, uninstall removes
   it. Tested on a fake bin64: install, toggle x2, vanilla+reinstall, vanilla+uninstall all correct.
+- 06:55 D20: coopplus_sim library in upstream CMake; scaling per tier (bosses via boss_is_boss); scaling.toml read
+  from bin64\cdcoop\config. cdmp_host test with health_2p=1.3 in the ini and scaling.toml present: log 'regular x1.50,
+  bosses x1.70', i.e. the TOML curves win and the ini switch turns it on. Package ships cdcoop\config\scaling.toml;
+  installer keeps a player's edited copy on update (.new), uninstaller removes the folder when empty.
