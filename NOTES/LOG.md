@@ -98,3 +98,7 @@
   installer keeps a player's edited copy on update (.new), uninstaller removes the folder when empty.
 - Package 0.1.0-alpha+5f39326b built (4.2 MB) and tested on a fake bin64: install, update with an edited
   scaling.toml (kept, .new written), uninstall (only the exe left). Root ctest 2/2 pass.
+- 07:10 Comfort Pack generator tools/make_comfort_pack.py (stacks via Format 3 match on iteminfo max_stack_count,
+  field name from CDUMM's public item writer), 4 unittest cases pass; CI runs them. Untested in the game.
+- Push refused: token scopes gist/read:org/repo, no 'workflow'; GitHub rejects commits touching .github/workflows.
+  Rewrote the unpushed commit without the CI change (saved as docs/drafts/ci-tool-tests.patch); question added.

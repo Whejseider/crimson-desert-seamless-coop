@@ -3,3 +3,5 @@ out/
 dist/
 mods/*/
 !mods/README.md
+__pycache__/
+*.pyc

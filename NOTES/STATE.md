@@ -34,12 +34,16 @@
   - Nameplates: the Steam name over the other player fades with distance; Ctrl+F8 toggles it (F8 = panel).
   - Save guard (D19): saves copied to Documents when a co-op session starts; panel warning if the game saves during it.
   - Package extras: Diagnose Co-op+.cmd (report to Desktop), Vanilla mode on-off.cmd (one-click off/on).
+  - Comfort Pack: plan in docs/comfort-pack.md; generator for a stack-size data mod (CDUMM .field.json), untested.
+  - Scaling curves come from bin64coopnfigscaling.toml (our sim layer is now built into cdmp.asi, D20).
 
 ## Questions for the user (ask when they wake up; work continues meanwhile)
 1. Who is the second player for the first two-PC test, and when? (Both need the same mod zip; Denuvo 5 PCs/day.)
 2. Hotkeys: Ctrl+F1 = invite, Ctrl+F2 = leave, F8 = panel, Ctrl+F8 = nameplate. OK, or do you prefer others?
 3. The GitHub repo is private. GPL needs the source to travel with the binaries: the package includes
    source.zip, so private is fine for friends. Make it public before a Nexus release? (Your call, later.)
+5. GitHub CLI token lacks the `workflow` scope, so CI files cannot be pushed from here. To allow it run
+   `gh auth refresh -s workflow` (browser sign-in). Pending CI change: docs/drafts/ci-tool-tests.patch.
 4. OK to post the courtesy GitHub issue to nouzert1 (draft: docs/drafts/upstream-courtesy-issue.md)? It reports
    their UTF-16 ini bug and offers our Steam join code.
 

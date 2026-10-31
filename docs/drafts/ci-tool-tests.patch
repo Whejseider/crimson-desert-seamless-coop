@@ -1,0 +1,10 @@
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+index 9571c2a..f7f0c68 100644
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -52,3 +52,5 @@ jobs:
+       - run: sudo apt-get update && sudo apt-get install -y ninja-build mingw-w64
+       - run: cmake -S . -B build/linux -G Ninja && cmake --build build/linux && ctest --test-dir build/linux --output-on-failure
+       - run: cmake -S . -B build/win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64-x86_64.cmake && cmake --build build/win
++      - name: Tool tests (Comfort Pack generator)
++        run: python3 -m unittest discover -s tests -p "test_*.py"

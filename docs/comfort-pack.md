@@ -34,6 +34,12 @@ Status 2026-10-31: plan; nothing built yet. Permissions: docs/mod-permissions.md
    `CoopPlus-Stacks`, `CoopPlus-Inventory`, `CoopPlus-Cooldowns`, `CoopPlus-Glide`. Ship them in the package's
    `comfort-pack\` folder with a one-click "add to CDUMM" note. Values and toggles are documented in
    `config/comfort.toml` (the single config file the brief asks for); the .field.json files are generated from it.
+   **Started 2026-10-31:** `tools/make_comfort_pack.py` turns `config/comfort.toml` `[inventory]
+   stack_size_multiplier` into `CoopPlus-Stacks.field.json` without any game data: one `match` intent per common
+   stack size on `iteminfo` `max_stack_count` (the field CDUMM's item writer verifies), largest first, capped at
+   999999, non-stackable items untouched. Unit-tested (`tests/test_make_comfort_pack.py`); still to be checked with
+   CDUMM's Inspect Mod on the real data after GO. Inventory slots, cooldowns and gliding follow the same route once
+   their CDUMM field names are confirmed in its Game Data tab.
 3. **v3 (later): runtime toggles in the DLL** where a value can be changed in memory safely (needs live RE), so the
    toggles work without a mod manager.
 
