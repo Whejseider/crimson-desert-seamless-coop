@@ -154,6 +154,23 @@ inline constexpr uint16_t kOpChangeDockingSocketByFrameEventAck = 2907;  // 2976
 inline constexpr uint16_t kOpRemoteCatchResultAck = 2395;  // 2976-era header: 2763
 inline constexpr uint16_t kOpUpdateOnDemandGimmickAck = 2923;  // 2976-era header: 2145
 
+// ---- copies' visibility (Co-op+, measured on 3460) -----------------------------------
+// The status component keeps "hide" flags in two u64 at +0x3B8/+0x3C0. While any is set, the
+// flag-change handler exe+0x6E90A0(status, new combined, old combined, fade s) sets the model
+// alpha ([CC+0xE8]+0x100) to 0 and applies it (exe+0xB62900). Our own character carries bit 2
+// for a moment at the end of its load; a loaded copy keeps bit 20 (0x100000) and stays alpha 0.
+inline constexpr uint32_t kStatus_HideFlags = 0x3B8;  // u64 [2]
+inline constexpr uint64_t kHideFlagsOfCopies = 0x100002;
+inline constexpr uintptr_t kStatusFlagsChanged = 0x6E90A0;
+inline constexpr uint8_t kStatusFlagsChangedHead[] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x6C,
+                                                      0x24, 0x18, 0x56, 0x57, 0x41, 0x54, 0x41, 0x56};
+// ICharacterMovementMethod vf2, slot 2 of NormalMovementMethod's vtable (exe+0x5951BF8): the
+// per-frame step of a movement method, on the game thread; [rcx+0x20] = the actor.
+inline constexpr uintptr_t kVtNormalMovementMethod = 0x5951BF8;
+inline constexpr uintptr_t kMovementMethodStep = 0xBBC5A0;
+inline constexpr uint8_t kMovementMethodStepHead[] = {0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, 0x10, 0x48,
+                                                      0x89, 0x68, 0x18, 0x56, 0x57, 0x41, 0x56, 0x48};
+
 // ---- vtables, by RTTI name -------------------------------------------------
 inline constexpr uintptr_t kVtClientActorManager = 0x593DCF0;    // .?AVClientActorManager@pa@@ (3446:0x5939CD8)
 inline constexpr uintptr_t kVtControlledActor = 0x590BCA0;       // .?AVClientChildOnlyInGameActor@pa@@ (3446:0x5907C90)

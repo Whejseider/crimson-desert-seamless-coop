@@ -23,6 +23,7 @@
 #include "mod/net/aggro_test.h"
 #include "mod/net/attack_probe.h"
 #include "mod/net/load_trace.h"
+#include "mod/net/puppet_visibility.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/horse_diag.h"
 #include "mod/net/local_capture.h"
@@ -1054,6 +1055,7 @@ DWORD WINAPI late_init(LPVOID param) {
         if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
         net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
         net::puppet_install_climb_fix();
+        net::puppet_visibility_install();  // Co-op+: copies are drawn (3460)
         net::puppet_install_rope_bend();
         // Horse and enemy copies (the other player may send theirs at any
         // time) need the crash containment (docs/INFORME-CABALLO-CRASH.md)
@@ -1162,6 +1164,7 @@ DWORD WINAPI late_init(LPVOID param) {
     } else if (init->clone_hotkeys) {
         net::puppet_set_offset(init->mirror_offset_m);
         net::puppet_install_climb_fix();
+        net::puppet_visibility_install();  // Co-op+: copies are drawn (3460)
         net::capture_install_equip_hook();
         mirror_hotkey_loop(init->mirror_delay_ms);
     }

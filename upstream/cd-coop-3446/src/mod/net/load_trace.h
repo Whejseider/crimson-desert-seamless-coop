@@ -9,7 +9,7 @@
 namespace cdmp::net {
 
 void load_trace_enable(bool on);
-// 1 = trace, 2 = trace + clear the copy's hide flag (status +0x260) and set its alpha (experiment).
+// 1 = trace (the visibility fix itself lives in puppet_visibility.cpp).
 void load_trace_set_mode(int mode);
 int load_trace_mode();
 // Late init (before a save loads, so the local player's own load is traced too).

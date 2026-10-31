@@ -118,6 +118,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/party_scaling.cpp
     src/mod/net/save_guard.cpp
     src/mod/net/load_trace.cpp
+    src/mod/net/puppet_visibility.cpp
     src/mod/net/boss_safe.cpp
     src/mod/net/time_sync.cpp
     src/mod/render/dx12_hook.cpp

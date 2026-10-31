@@ -50,6 +50,7 @@ std::atomic<uint64_t> g_step_own{0}, g_step_copy{0};
 SafetyHookMid g_cc18_hook, g_cc24_hook;
 
 std::atomic<bool> g_enabled{false};
+std::atomic<int> g_mode{0};
 SafetyHookMid g_hooks[3];
 SafetyHookMid g_finish_hook;
 SafetyHookMid g_busy_hook;
@@ -127,8 +128,11 @@ void on_method_step(safetyhook::Context& ctx) {
     uintptr_t actor = 0;
     uint32_t key = 0;
     if (!game::safe_read(ctx.rcx + 0x20, &actor, 8) || !game::safe_read(actor + 0x60, &key, 4)) return;
-    if (key == 0xA0100001) g_step_own.fetch_add(1, std::memory_order_relaxed);
-    else if (key == 0xA010F001) g_step_copy.fetch_add(1, std::memory_order_relaxed);
+    if (key == 0xA0100001) {
+        g_step_own.fetch_add(1, std::memory_order_relaxed);
+    } else if (key == 0xA010F001) {
+        g_step_copy.fetch_add(1, std::memory_order_relaxed);
+    }
 }
 
 std::atomic<int> g_busy_lines{0};
@@ -146,7 +150,6 @@ void on_component_busy(safetyhook::Context& ctx) {
 
 // Experiment ([dev] load_trace=2): clear the copy's status flags at ClientStatusActorComponent
 // +0x260 (bit 2 there on the copy, 0 on our own character) once it has loaded, and log it.
-std::atomic<int> g_mode{0};
 uintptr_t status_component(uintptr_t actor) {
     uintptr_t list = 0;
     uint32_t n = 0;
@@ -187,7 +190,7 @@ bool write_u32(uintptr_t at, uint32_t v) {
     }
 }
 DWORD WINAPI unhide_loop(LPVOID) {
-    uint32_t last[4][2] = {};
+    uint64_t last[4][2] = {};
     bool seen[4] = {};
     const uint32_t keys[4] = {0xA0100001u, 0xA010F001u, 0xB010006Cu, 0xB010F001u};
     uint64_t last_report = GetTickCount64();
@@ -201,29 +204,16 @@ DWORD WINAPI unhide_loop(LPVOID) {
             const auto actor = game::find_actor(keys[k]);
             if (!actor) continue;
             const uintptr_t st = status_component(*actor);
-            uint32_t flags[2] = {};
+            uint64_t flags[2] = {};
             uint16_t state = 0;
-            if (!st || !game::safe_read(st + 0x260, flags, sizeof flags)) continue;
+            if (!st || !game::safe_read(st + 0x3B8, flags, sizeof flags)) continue;
             game::safe_read(*actor + 0x5E, &state, 2);
             if (!seen[k] || flags[0] != last[k][0] || flags[1] != last[k][1]) {
-                log::info("LoadTrace: {:08X} status +0x260 {:08X} +0x264 {:08X} (load state {:X})", keys[k], flags[0],
-                          flags[1], state);
+                log::info("LoadTrace: {:08X} status flags +0x3B8 {:X} +0x3C0 {:X} (load state {:X})", keys[k],
+                          flags[0], flags[1], state);
                 seen[k] = true;
                 last[k][0] = flags[0];
                 last[k][1] = flags[1];
-            }
-            if (g_mode == 2 && k == 1 && state == 0x10) {
-                // The hide flag (bit 2) and the model alpha it drives: [CC+0xE8]+0x100 is 1.0
-                // on our own character, 0.0 on the copy.
-                const uintptr_t cc = component_of(*actor, off::kVtCharacterControl);
-                uintptr_t fade = 0;
-                float alpha = -1;
-                if (cc && game::safe_read(cc + 0xE8, &fade, 8) && fade && game::safe_read(fade + 0x100, &alpha, 4) &&
-                    (alpha != 1.0f || flags[0] || flags[1])) {
-                    const bool ok = write_u32(st + 0x260, 0) && write_u32(st + 0x264, 0) && write_f32(fade + 0x100, 1.0f);
-                    log::info("LoadTrace: copy unhidden (flags {:X}/{:X}, alpha {} -> 1) {}", flags[0], flags[1], alpha,
-                              ok ? "ok" : "FAILED");
-                }
             }
         }
     }

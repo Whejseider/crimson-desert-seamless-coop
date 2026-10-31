@@ -1,7 +1,14 @@
 # Changelog
 
-## 0.1.0-alpha (unreleased; not yet tested in the game)
-Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133).
+## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3460)
+Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
+Co-op+ to game 1.0.0.3460.
+
+Game 1.0.0.3460 (Co-op+ port, tested in the game on one PC with the echo peer):
+- Every address re-found for 3460; the movement messages' new layout; all message numbers from the live game.
+- The other player's character now finishes loading, is drawn, and follows (it stayed half-loaded and invisible).
+- The other player is loaded only once our own world has finished loading (it could take our control away).
+- Camera fix for the name plates on 3460.
 
 Added by Co-op+:
 - Steam "Join Game" and overlay invites: everyone hosts their own world (`[net] role=auto`); Ctrl+F1 opens the Steam
