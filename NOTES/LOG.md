@@ -102,3 +102,5 @@
   field name from CDUMM's public item writer), 4 unittest cases pass; CI runs them. Untested in the game.
 - Push refused: token scopes gist/read:org/repo, no 'workflow'; GitHub rejects commits touching .github/workflows.
   Rewrote the unpushed commit without the CI change (saved as docs/drafts/ci-tool-tests.patch); question added.
+- 07:30 D21 invite-only option; build clean, tests + loopback pass. Patch apply check: 0001+0002+0003 apply to the
+  pristine import (cb21b60) and reproduce src/ exactly.

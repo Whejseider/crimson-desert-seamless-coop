@@ -37,6 +37,13 @@ uint64_t room_guest_resolve_lobby(uint64_t lobby);
 uint64_t room_lobby_id();
 // The code we are currently hosting (empty if we are not hosting).
 const std::string& room_current_code();
+// Co-op+ [net] join = invite: the next lobby is private (joinable only through
+// a Steam invite), and the host accepts only players who are in it.
+void room_set_invite_only(bool on);
+bool room_invite_only();
+// True if `steam_id` is a member of the lobby we are in.
+bool room_is_member(uint64_t steam_id);
+
 // Leaves the lobby, if any. Safe to call when not in one.
 void room_leave();
 

@@ -188,19 +188,23 @@ index 0000000..cffff01
 +
 +}  // namespace cdmp::scaling
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..e528ea4 100644
+index e89d220..3346165 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
-@@ -21,6 +21,8 @@ constexpr wchar_t kDefaultIni[] =
+@@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
      L"; steam = play with a Steam friend; udp = tests on this PC only (cdmp_peer.exe)\r\n"
      L"transport=udp\r\n"
      L"; guest connects to the host or to cdmp_peer; host waits for one player\r\n"
 +    L"; auto (Steam only): host your own world, and become a guest when you accept a\r\n"
 +    L";      Steam invite or press \"Join Game\" on a friend (Co-op+)\r\n"
      L"role=guest\r\n"
++    L"; Co-op+: who may join you when you host. friends = any Steam friend playing\r\n"
++    L"; (\"Join Game\"); invite = only friends you invite with Ctrl+F1\r\n"
++    L"join=friends\r\n"
      L"; UDP: address of the host or of cdmp_peer.exe (a UDP host listens on peer_port)\r\n"
      L"peer_host=127.0.0.1\r\n"
-@@ -46,6 +48,8 @@ constexpr wchar_t kDefaultIni[] =
+     L"peer_port=37015\r\n"
+@@ -46,6 +51,8 @@ constexpr wchar_t kDefaultIni[] =
      L"self_marker=1\r\n"
      L"; Language of the panel's texts: en | es\r\n"
      L"language=en\r\n"
@@ -209,7 +213,7 @@ index e89d220..e528ea4 100644
      L"\r\n"
      L"[sniffer]\r\n"
      L"; Needed for co-op (reads and sends the game's internal messages)\r\n"
-@@ -95,7 +99,17 @@ constexpr wchar_t kDefaultIni[] =
+@@ -95,7 +102,17 @@ constexpr wchar_t kDefaultIni[] =
      L"; same kill, and your own quests and XP are untouched.\r\n"
      L"; It only ever fires for an enemy you actually helped kill, close to you\r\n"
      L"; (30 m), and rate-limited. Hosts do not need it (it is the host's own world).\r\n"
@@ -228,7 +232,7 @@ index e89d220..e528ea4 100644
  
  std::wstring read_string(const std::wstring& path, const wchar_t* section, const wchar_t* key,
                           const std::string& fallback) {
-@@ -164,13 +178,18 @@ Config load_config(const std::wstring& ini_path) {
+@@ -164,13 +181,19 @@ Config load_config(const std::wstring& ini_path) {
      c.peer_port = static_cast<uint16_t>(read_uint(ini_path, L"net", L"peer_port", c.peer_port));
      c.send_rate_hz = std::clamp(read_uint(ini_path, L"net", L"send_rate_hz", c.send_rate_hz), 1u, 60u);
      c.net_transport_steam = read_string(ini_path, L"net", L"transport", "udp") == L"steam";
@@ -237,6 +241,7 @@ index e89d220..e528ea4 100644
 +        const std::wstring role = read_string(ini_path, L"net", L"role", "guest");
 +        c.net_role_auto = role == L"auto";
 +        c.net_role_host = role == L"host" || c.net_role_auto;  // auto starts as the host
++        c.net_join_invite_only = read_string(ini_path, L"net", L"join", "friends") == L"invite";
 +    }
      c.steam_peer_id = _wcstoui64(read_string(ini_path, L"steam", L"peer_steamid", "").c_str(), nullptr, 10);
      c.steam_channel = static_cast<int>(read_uint(ini_path, L"steam", L"channel", 67));
@@ -248,7 +253,7 @@ index e89d220..e528ea4 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -226,6 +245,10 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +249,10 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -260,23 +265,27 @@ index e89d220..e528ea4 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..9fe7e63 100644
+index 3cd2ce2..637a627 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
-@@ -19,6 +19,12 @@ struct Config {
+@@ -19,6 +19,16 @@ struct Config {
      // (or to cdmp_peer); a host waits for one player.
      bool net_transport_steam = false;
      bool net_role_host = false;
 +    // [net] role=auto (Co-op+): start as the host of our own world; a Steam invite
 +    // or "Join Game" switches to guest, and leaving switches back.
 +    bool net_role_auto = false;
++    // [net] join = friends | invite (Co-op+): who may join a host. friends = any
++    // Steam friend playing ("Join Game", upstream's behaviour); invite = only
++    // friends we invited through the Steam overlay (Ctrl+F1).
++    bool net_join_invite_only = false;
 +    // Runtime only, never read from the ini: the lobby a Steam join asked for.
 +    // The guest resolves the host from it instead of from [room] code.
 +    uint64_t room_lobby = 0;
      // [steam] peer_steamid: guest = the host's SteamID64 (0 = the only friend
      // playing); host = accept only this friend (0 = any friend playing).
      uint64_t steam_peer_id = 0;
-@@ -34,6 +40,7 @@ struct Config {
+@@ -34,6 +44,7 @@ struct Config {
      bool overlay_enabled = true;  // kill switch for the DX12 hook
      bool overlay_self_marker = true;  // dev aid while validating the projection
      bool overlay_english = true;      // [overlay] language = en | es: the panel's texts
@@ -284,7 +293,7 @@ index 3cd2ce2..9fe7e63 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -146,6 +153,14 @@ struct Config {
+@@ -146,6 +157,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -300,7 +309,7 @@ index 3cd2ce2..9fe7e63 100644
  };
  
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..4191723 100644
+index 79ccd06..8cd33c9 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,7 @@
@@ -428,7 +437,15 @@ index 79ccd06..4191723 100644
          }
          transport = std::move(udp);
      }
-@@ -327,10 +370,77 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -305,6 +348,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+         [](const std::string& text) { log::info("Session: {}", text); },
+         host ? ClientSession::Role::Responder : ClientSession::Role::Initiator);
+     bool was_connected = false;
++    uint64_t refused_uninvited = 0;  // Co-op+ invite-only: Hellos from outside the lobby
+     uint32_t peer_since = 0;  // host: when it locked onto its player
+     uint32_t last_friend_scan = 0;
+     size_t last_friend_count = SIZE_MAX;
+@@ -327,10 +371,78 @@ void run_network(const Config& cfg, LocalSource& local) {
      bool mark_was_down = false;
      int marks = 0;
      std::vector<uint8_t> buf(proto::kMaxPacketSize);
@@ -495,7 +512,8 @@ index 79ccd06..4191723 100644
 +                    if (want.empty()) {
 +                        net::join_presence_clear();
 +                    } else if (host) {
-+                        net::join_presence_hosting(net::room_lobby_id(), linked ? 2 : 1, 2);
++                        net::join_presence_hosting(net::room_lobby_id(), linked ? 2 : 1, 2,
++                                                   !net::room_invite_only());
 +                    } else {
 +                        net::join_presence_guest(net::room_lobby_id(), session.peer_name());
 +                    }
@@ -506,7 +524,7 @@ index 79ccd06..4191723 100644
          // The host's lobby, retried until it takes. Startup runs before the save is
          // loaded, so the first attempt reliably fails on a cold start; without this
          // the host never gets a room code at all and the guest has nothing to type.
-@@ -363,7 +473,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -363,7 +475,8 @@ void run_network(const Config& cfg, LocalSource& local) {
              last_friend_scan = now_ms();
              // A room code wins over the friends scan: it names one host exactly.
              if (room_code_pending) {
@@ -516,7 +534,22 @@ index 79ccd06..4191723 100644
                  if (host_id) {
                      peer = net::PeerAddr::steam(host_id);
                      steam->set_peer(host_id);
-@@ -427,6 +538,13 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -403,7 +516,13 @@ void run_network(const Config& cfg, LocalSource& local) {
+                 // Only a Hello of our protocol: one of another version would
+                 // never connect and would keep the place (security review M2).
+                 auto packet = proto::decode({buf.data(), *n});
+-                if (packet && packet->version == proto::kVersion &&
++                // Co-op+ invite-only: only someone who joined our lobby, i.e. accepted
++                // our invite, may take the place.
++                const bool invited = !steam || !net::room_invite_only() || net::room_is_member(from.value);
++                if (!invited && refused_uninvited++ % 50 == 0) {
++                    log::info("Network: {} is not in our lobby; invite-only, ignored", from.str());
++                }
++                if (invited && packet && packet->version == proto::kVersion &&
+                     std::holds_alternative<proto::Hello>(packet->body)) {
+                     peer = from;
+                     peer_since = now_ms();
+@@ -427,6 +546,13 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (steam) steam->set_peer(0);
          }
          was_connected = connected;
@@ -530,7 +563,7 @@ index 79ccd06..4191723 100644
          if (coop) {
              std::optional<proto::Vec3> pos;
              proto::Quat rot;
-@@ -455,6 +573,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -455,6 +581,8 @@ void run_network(const Config& cfg, LocalSource& local) {
                  if (auto pos = net::puppet_position()) hud.remote->pos = *pos;
              }
              if (coop) hud.enemy_zone = net::suppress_hud_text();
@@ -539,7 +572,7 @@ index 79ccd06..4191723 100644
              // Boss bar (boss_safe.h): the guest has no native one.
              if (const net::BossHud b = net::boss_hud(); b.active) {
                  hud.boss_active = true;
-@@ -475,6 +595,16 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +603,16 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -556,7 +589,7 @@ index 79ccd06..4191723 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -499,6 +629,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -499,6 +637,7 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
              if (coop) log::info("{}", coop->describe());
@@ -564,7 +597,7 @@ index 79ccd06..4191723 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +640,100 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +648,100 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -666,7 +699,7 @@ index 79ccd06..4191723 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -908,6 +1128,36 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -908,6 +1136,36 @@ DWORD WINAPI late_init(LPVOID param) {
      return 0;
  }
  
@@ -703,7 +736,7 @@ index 79ccd06..4191723 100644
  DWORD WINAPI worker(LPVOID) {
      const std::wstring dir = dir_of(module_path(g_self));
      log::open(dir + L"cdmp.log");
-@@ -925,7 +1175,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1183,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -712,16 +745,20 @@ index 79ccd06..4191723 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -969,6 +1219,8 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1227,12 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
 +        net::scaling_configure(scaling_settings(cfg, dir));
 +        net::save_guard_configure(cfg.coop_save_guard);
++        net::room_set_invite_only(cfg.net_join_invite_only);
++        log::info("Config: who can join: {}", cfg.net_join_invite_only
++                                                  ? "invited friends only ([net] join=invite)"
++                                                  : "any Steam friend playing (\"Join Game\")");
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1272,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1284,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -754,7 +791,7 @@ index 79ccd06..4191723 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1295,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1307,7 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -763,7 +800,7 @@ index 79ccd06..4191723 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1317,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1329,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -1135,10 +1172,54 @@ index 0000000..37a4982
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/room_code.cpp b/upstream/cd-coop-3446/src/mod/net/room_code.cpp
-index e5717d3..84427b0 100644
+index e5717d3..9cf5a27 100644
 --- a/upstream/cd-coop-3446/src/mod/net/room_code.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/room_code.cpp
-@@ -275,11 +275,20 @@ uint64_t room_guest_resolve(const std::string& code) {
+@@ -21,6 +21,7 @@ namespace {
+ using SteamAPICall_t = uint64_t;
+ using CSteamID = uint64_t;
+ 
++constexpr int kELobbyTypePrivate = 0;  // Co-op+ invite-only: joinable only through an invite
+ constexpr int kELobbyTypeFriendsOnly = 1;
+ inline constexpr const char* kHostKey = "host";
+ inline constexpr int kCallResultTimeoutMs = 10000;
+@@ -58,6 +59,9 @@ struct Api {
+     bool (*set_lobby_data)(void*, CSteamID, const char*, const char*) = nullptr;
+     const char* (*get_lobby_data)(void*, CSteamID, const char*) = nullptr;
+     bool (*set_lobby_joinable)(void*, CSteamID, bool) = nullptr;
++    // Co-op+ invite-only: who is in our lobby.
++    int (*num_members)(void*, CSteamID) = nullptr;
++    CSteamID (*member_by_index)(void*, CSteamID, int) = nullptr;
+     // The mod has no callback pump of its own: the result of an async call is
+     // polled. (There is no SteamAPI_SteamAPI_GetCallResult export.)
+     bool (*is_call_completed)(void*, SteamAPICall_t, bool*) = nullptr;
+@@ -91,6 +95,7 @@ std::mutex g_resolve_mutex;
+ 
+ std::mutex g_mutex;
+ uint64_t g_lobby = 0;
++bool g_invite_only = false;  // Co-op+: [net] join = invite
+ std::string g_code;
+ std::string g_status = "room: idle";
+ 
+@@ -162,6 +167,8 @@ void resolve() {
+         get(a.set_lobby_data, "SteamAPI_ISteamMatchmaking_SetLobbyData");
+         get(a.get_lobby_data, "SteamAPI_ISteamMatchmaking_GetLobbyData");
+         get(a.set_lobby_joinable, "SteamAPI_ISteamMatchmaking_SetLobbyJoinable");
++        get(a.num_members, "SteamAPI_ISteamMatchmaking_GetNumLobbyMembers");
++        get(a.member_by_index, "SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex");
+         get(a.is_call_completed, "SteamAPI_ISteamUtils_IsAPICallCompleted");
+         get(a.get_call_result, "SteamAPI_ISteamUtils_GetAPICallResult");
+         get(a.get_steam_id, "SteamAPI_ISteamUser_GetSteamID");
+@@ -239,7 +246,7 @@ std::string room_host_open() {
+     if (g_lobby != 0) return g_code;  // already hosting
+ 
+     SteamAPICall_t h = 0;
+-    if (!call(h, g_api.create_lobby, g_api.mm, kELobbyTypeFriendsOnly, 2)) {
++    if (!call(h, g_api.create_lobby, g_api.mm, g_invite_only ? kELobbyTypePrivate : kELobbyTypeFriendsOnly, 2)) {
+         return fail("CreateLobby"), std::string{};
+     }
+     LobbyCreated created{};
+@@ -275,11 +282,20 @@ uint64_t room_guest_resolve(const std::string& code) {
          log::warn("Room: '{}' is not a valid code ({} characters expected)", code, kRoomCodeLen);
          return 0;
      }
@@ -1160,11 +1241,44 @@ index e5717d3..84427b0 100644
          call_void(g_api.join_lobby, g_api.mm, static_cast<CSteamID>(lobby));
      }
      // JoinLobby is asynchronous and there is no call result for it: the lobby
+@@ -304,6 +320,32 @@ uint64_t room_guest_resolve(const std::string& code) {
+ }
+ 
+ uint64_t room_lobby_id() { return g_lobby; }
++
++void room_set_invite_only(bool on) {
++    std::lock_guard lock(g_mutex);
++    g_invite_only = on;
++}
++
++bool room_invite_only() {
++    std::lock_guard lock(g_mutex);
++    return g_invite_only;
++}
++
++bool room_is_member(uint64_t steam_id) {
++    if (!room_available() || steam_id == 0) return false;
++    std::lock_guard lock(g_mutex);
++    if (!g_lobby) return false;
++    int n = 0;
++    if (!call(n, g_api.num_members, g_api.mm, static_cast<CSteamID>(g_lobby))) return fail("GetNumLobbyMembers"), false;
++    for (int i = 0; i < n && i < 16; ++i) {
++        CSteamID m = 0;
++        if (!call(m, g_api.member_by_index, g_api.mm, static_cast<CSteamID>(g_lobby), i)) {
++            return fail("GetLobbyMemberByIndex"), false;
++        }
++        if (m == steam_id) return true;
++    }
++    return false;
++}
+ const std::string& room_current_code() { return g_code; }
+ 
+ void room_leave() {
 diff --git a/upstream/cd-coop-3446/src/mod/net/room_code.h b/upstream/cd-coop-3446/src/mod/net/room_code.h
-index 50a62fa..3f61ef6 100644
+index 50a62fa..1fbfd36 100644
 --- a/upstream/cd-coop-3446/src/mod/net/room_code.h
 +++ b/upstream/cd-coop-3446/src/mod/net/room_code.h
-@@ -30,6 +30,8 @@ std::string room_host_open();
+@@ -30,11 +30,20 @@ std::string room_host_open();
  
  // Joins the lobby of `code` and returns the host's SteamID64 (0 on failure).
  uint64_t room_guest_resolve(const std::string& code);
@@ -1173,6 +1287,18 @@ index 50a62fa..3f61ef6 100644
  
  // The lobby we are in (0 if none).
  uint64_t room_lobby_id();
+ // The code we are currently hosting (empty if we are not hosting).
+ const std::string& room_current_code();
++// Co-op+ [net] join = invite: the next lobby is private (joinable only through
++// a Steam invite), and the host accepts only players who are in it.
++void room_set_invite_only(bool on);
++bool room_invite_only();
++// True if `steam_id` is a member of the lobby we are in.
++bool room_is_member(uint64_t steam_id);
++
+ // Leaves the lobby, if any. Safe to call when not in one.
+ void room_leave();
+ 
 diff --git a/upstream/cd-coop-3446/src/mod/net/save_guard.cpp b/upstream/cd-coop-3446/src/mod/net/save_guard.cpp
 new file mode 100644
 index 0000000..b769fb2
@@ -1383,7 +1509,7 @@ index 0000000..fc3767e
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/steam_join.cpp b/upstream/cd-coop-3446/src/mod/net/steam_join.cpp
 new file mode 100644
-index 0000000..0607db5
+index 0000000..47775d6
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/steam_join.cpp
 @@ -0,0 +1,314 @@
@@ -1617,7 +1743,7 @@ index 0000000..0607db5
 +}
 +}  // namespace
 +
-+void join_presence_hosting(uint64_t lobby, int members, int max_members) {
++void join_presence_hosting(uint64_t lobby, int members, int max_members, bool joinable) {
 +    std::lock_guard lock(g_mutex);
 +    resolve_locked();
 +    if (!g_resolved || g_disabled || !lobby) return;
@@ -1628,7 +1754,7 @@ index 0000000..0607db5
 +    std::snprintf(status, sizeof status, "Co-op+: hosting (%d/%d)", members, max_members);
 +    // "connect" is what puts "Join Game" on us in a friend's list; the group keys
 +    // show the party together there.
-+    set_presence_locked("connect", connect);
++    set_presence_locked("connect", joinable ? connect : "");
 +    set_presence_locked("status", status);
 +    set_presence_locked("steam_player_group", group);
 +    set_presence_locked("steam_player_group_size", size);
@@ -1703,10 +1829,10 @@ index 0000000..0607db5
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/steam_join.h b/upstream/cd-coop-3446/src/mod/net/steam_join.h
 new file mode 100644
-index 0000000..7bca83f
+index 0000000..fa07127
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/steam_join.h
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,60 @@
 +#pragma once
 +// Steam's own ways into a friend's world, on top of the room lobby
 +// (room_code.h): "Join Game" in the friends list, invites from the Steam
@@ -1749,7 +1875,8 @@ index 0000000..7bca83f
 +bool join_open_invite(uint64_t lobby);
 +
 +// Rich presence: what friends see in their list, and the "Join Game" button.
-+void join_presence_hosting(uint64_t lobby, int members, int max_members);
++// `joinable` = friends may use "Join Game" (false for invite-only hosts).
++void join_presence_hosting(uint64_t lobby, int members, int max_members, bool joinable = true);
 +void join_presence_guest(uint64_t lobby, const std::string& host_name);
 +void join_presence_clear();
 +

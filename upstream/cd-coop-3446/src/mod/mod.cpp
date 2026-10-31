@@ -348,6 +348,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         [](const std::string& text) { log::info("Session: {}", text); },
         host ? ClientSession::Role::Responder : ClientSession::Role::Initiator);
     bool was_connected = false;
+    uint64_t refused_uninvited = 0;  // Co-op+ invite-only: Hellos from outside the lobby
     uint32_t peer_since = 0;  // host: when it locked onto its player
     uint32_t last_friend_scan = 0;
     size_t last_friend_count = SIZE_MAX;
@@ -433,7 +434,8 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     if (want.empty()) {
                         net::join_presence_clear();
                     } else if (host) {
-                        net::join_presence_hosting(net::room_lobby_id(), linked ? 2 : 1, 2);
+                        net::join_presence_hosting(net::room_lobby_id(), linked ? 2 : 1, 2,
+                                                   !net::room_invite_only());
                     } else {
                         net::join_presence_guest(net::room_lobby_id(), session.peer_name());
                     }
@@ -514,7 +516,13 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 // Only a Hello of our protocol: one of another version would
                 // never connect and would keep the place (security review M2).
                 auto packet = proto::decode({buf.data(), *n});
-                if (packet && packet->version == proto::kVersion &&
+                // Co-op+ invite-only: only someone who joined our lobby, i.e. accepted
+                // our invite, may take the place.
+                const bool invited = !steam || !net::room_invite_only() || net::room_is_member(from.value);
+                if (!invited && refused_uninvited++ % 50 == 0) {
+                    log::info("Network: {} is not in our lobby; invite-only, ignored", from.str());
+                }
+                if (invited && packet && packet->version == proto::kVersion &&
                     std::holds_alternative<proto::Hello>(packet->body)) {
                     peer = from;
                     peer_since = now_ms();
@@ -1221,6 +1229,10 @@ DWORD WINAPI worker(LPVOID) {
         net::boss_set_safe_mode(cfg.coop_boss_safe);
         net::scaling_configure(scaling_settings(cfg, dir));
         net::save_guard_configure(cfg.coop_save_guard);
+        net::room_set_invite_only(cfg.net_join_invite_only);
+        log::info("Config: who can join: {}", cfg.net_join_invite_only
+                                                  ? "invited friends only ([net] join=invite)"
+                                                  : "any Steam friend playing (\"Join Game\")");
         log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
         // Shared loot is the guest's, and only means anything with co-op on.
         //

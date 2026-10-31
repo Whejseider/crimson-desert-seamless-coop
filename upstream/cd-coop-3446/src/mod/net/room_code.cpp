@@ -21,6 +21,7 @@ namespace {
 using SteamAPICall_t = uint64_t;
 using CSteamID = uint64_t;
 
+constexpr int kELobbyTypePrivate = 0;  // Co-op+ invite-only: joinable only through an invite
 constexpr int kELobbyTypeFriendsOnly = 1;
 inline constexpr const char* kHostKey = "host";
 inline constexpr int kCallResultTimeoutMs = 10000;
@@ -58,6 +59,9 @@ struct Api {
     bool (*set_lobby_data)(void*, CSteamID, const char*, const char*) = nullptr;
     const char* (*get_lobby_data)(void*, CSteamID, const char*) = nullptr;
     bool (*set_lobby_joinable)(void*, CSteamID, bool) = nullptr;
+    // Co-op+ invite-only: who is in our lobby.
+    int (*num_members)(void*, CSteamID) = nullptr;
+    CSteamID (*member_by_index)(void*, CSteamID, int) = nullptr;
     // The mod has no callback pump of its own: the result of an async call is
     // polled. (There is no SteamAPI_SteamAPI_GetCallResult export.)
     bool (*is_call_completed)(void*, SteamAPICall_t, bool*) = nullptr;
@@ -91,6 +95,7 @@ std::mutex g_resolve_mutex;
 
 std::mutex g_mutex;
 uint64_t g_lobby = 0;
+bool g_invite_only = false;  // Co-op+: [net] join = invite
 std::string g_code;
 std::string g_status = "room: idle";
 
@@ -162,6 +167,8 @@ void resolve() {
         get(a.set_lobby_data, "SteamAPI_ISteamMatchmaking_SetLobbyData");
         get(a.get_lobby_data, "SteamAPI_ISteamMatchmaking_GetLobbyData");
         get(a.set_lobby_joinable, "SteamAPI_ISteamMatchmaking_SetLobbyJoinable");
+        get(a.num_members, "SteamAPI_ISteamMatchmaking_GetNumLobbyMembers");
+        get(a.member_by_index, "SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex");
         get(a.is_call_completed, "SteamAPI_ISteamUtils_IsAPICallCompleted");
         get(a.get_call_result, "SteamAPI_ISteamUtils_GetAPICallResult");
         get(a.get_steam_id, "SteamAPI_ISteamUser_GetSteamID");
@@ -239,7 +246,7 @@ std::string room_host_open() {
     if (g_lobby != 0) return g_code;  // already hosting
 
     SteamAPICall_t h = 0;
-    if (!call(h, g_api.create_lobby, g_api.mm, kELobbyTypeFriendsOnly, 2)) {
+    if (!call(h, g_api.create_lobby, g_api.mm, g_invite_only ? kELobbyTypePrivate : kELobbyTypeFriendsOnly, 2)) {
         return fail("CreateLobby"), std::string{};
     }
     LobbyCreated created{};
@@ -313,6 +320,32 @@ uint64_t room_guest_resolve_lobby(uint64_t lobby) {
 }
 
 uint64_t room_lobby_id() { return g_lobby; }
+
+void room_set_invite_only(bool on) {
+    std::lock_guard lock(g_mutex);
+    g_invite_only = on;
+}
+
+bool room_invite_only() {
+    std::lock_guard lock(g_mutex);
+    return g_invite_only;
+}
+
+bool room_is_member(uint64_t steam_id) {
+    if (!room_available() || steam_id == 0) return false;
+    std::lock_guard lock(g_mutex);
+    if (!g_lobby) return false;
+    int n = 0;
+    if (!call(n, g_api.num_members, g_api.mm, static_cast<CSteamID>(g_lobby))) return fail("GetNumLobbyMembers"), false;
+    for (int i = 0; i < n && i < 16; ++i) {
+        CSteamID m = 0;
+        if (!call(m, g_api.member_by_index, g_api.mm, static_cast<CSteamID>(g_lobby), i)) {
+            return fail("GetLobbyMemberByIndex"), false;
+        }
+        if (m == steam_id) return true;
+    }
+    return false;
+}
 const std::string& room_current_code() { return g_code; }
 
 void room_leave() {

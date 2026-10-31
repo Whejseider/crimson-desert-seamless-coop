@@ -228,7 +228,7 @@ void set_presence_locked(const char* key, const char* value) {
 }
 }  // namespace
 
-void join_presence_hosting(uint64_t lobby, int members, int max_members) {
+void join_presence_hosting(uint64_t lobby, int members, int max_members, bool joinable) {
     std::lock_guard lock(g_mutex);
     resolve_locked();
     if (!g_resolved || g_disabled || !lobby) return;
@@ -239,7 +239,7 @@ void join_presence_hosting(uint64_t lobby, int members, int max_members) {
     std::snprintf(status, sizeof status, "Co-op+: hosting (%d/%d)", members, max_members);
     // "connect" is what puts "Join Game" on us in a friend's list; the group keys
     // show the party together there.
-    set_presence_locked("connect", connect);
+    set_presence_locked("connect", joinable ? connect : "");
     set_presence_locked("status", status);
     set_presence_locked("steam_player_group", group);
     set_presence_locked("steam_player_group_size", size);

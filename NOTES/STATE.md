@@ -28,6 +28,8 @@
     source.zip. Tested on a fake game folder only.
   - **Party scaling** (D18, D20): with a guest in, the host's enemies take 1/k damage (k from scaling.toml: regular
     x1.5, bosses x1.7). Experimental, `[scaling] enabled=0` until the M3 live test.
+  - **Who can join** (D21): `[net] join=friends` (default, "Join Game") or `join=invite` (private lobby, only
+    invited friends).
   - **Nameplates**: Steam name over the other player, distance fade; Ctrl+F8 toggles (F8 = panel).
   - **Save guard** (D19): saves copied to Documents when a co-op session starts; warning if the game saves during it.
   - Panel title "Crimson Desert Seamless Co-op+" with the GPL credit line (ByJunter, nouzert1).

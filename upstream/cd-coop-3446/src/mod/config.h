@@ -22,6 +22,10 @@ struct Config {
     // [net] role=auto (Co-op+): start as the host of our own world; a Steam invite
     // or "Join Game" switches to guest, and leaving switches back.
     bool net_role_auto = false;
+    // [net] join = friends | invite (Co-op+): who may join a host. friends = any
+    // Steam friend playing ("Join Game", upstream's behaviour); invite = only
+    // friends we invited through the Steam overlay (Ctrl+F1).
+    bool net_join_invite_only = false;
     // Runtime only, never read from the ini: the lobby a Steam join asked for.
     // The guest resolves the host from it instead of from [room] code.
     uint64_t room_lobby = 0;

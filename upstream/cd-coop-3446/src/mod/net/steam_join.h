@@ -40,7 +40,8 @@ uint64_t join_take_request();
 bool join_open_invite(uint64_t lobby);
 
 // Rich presence: what friends see in their list, and the "Join Game" button.
-void join_presence_hosting(uint64_t lobby, int members, int max_members);
+// `joinable` = friends may use "Join Game" (false for invite-only hosts).
+void join_presence_hosting(uint64_t lobby, int members, int max_members, bool joinable = true);
 void join_presence_guest(uint64_t lobby, const std::string& host_name);
 void join_presence_clear();
 

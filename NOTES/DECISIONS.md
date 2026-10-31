@@ -112,3 +112,10 @@
   and for bosses (boss_is_boss) via sim::compute (clamps, QoL compensation). cdmp.ini [scaling] enabled stays the
   master switch; the TOML can only turn scaling off. Other TOML files (loot, progression, comfort) wait for the
   features that use them.
+
+## 2026-10-31 D21: [net] join = friends (default) | invite
+- role=auto makes every Co-op+ player a host with a friends-only lobby and "Join Game"; upstream's host also accepts
+  any friend who is playing. That is the convenient default (and upstream's behaviour), kept as `join=friends`.
+- `join=invite`: the lobby is created private (k_ELobbyTypePrivate, joinable only through an invite), rich presence
+  has no "connect" (no Join Game button), and the host locks only onto a Hello from a member of its lobby
+  (GetNumLobbyMembers / GetLobbyMemberByIndex, exports checked). Room codes do not work in this mode (by design).

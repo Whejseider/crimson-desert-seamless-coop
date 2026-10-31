@@ -76,7 +76,12 @@ if (-not ($lines -contains 'role=host')) { throw 'The upstream host profile chan
 $lines = $lines | ForEach-Object {
     switch -Regex ($_) {
         '^; Crimson Desert Multiplayer - co-op' { "; Crimson Desert Seamless Co-op+ $version - one profile for both players"; break }
-        '^role=host$' { 'role=auto'; break }
+        '^role=host$' {
+            'role=auto'
+            '; Who may join you: friends = any Steam friend playing ("Join Game"); invite = only friends you invite (Ctrl+F1)'
+            'join=friends'
+            break
+        }
         '^self_marker=1$' { 'self_marker=0'; break }
         default { $_ }
     }
