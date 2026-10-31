@@ -6,53 +6,53 @@
 ## Where the project lives now
 - `C:\Users\asher\CrimsonDesert-SeamlessCoop` (D15; short path because MSVC breaks on deep folders).
 - Work branch: `phase-a/local-pc-setup` (pushed after each milestone). `main` = Phase A from session 1.
-- Build: `upstream\cd-coop-3446\scripts\build.ps1` (cdmp.asi + tools + tests, RelWithDebInfo) and, for our own
-  layers, `cmake -S . -B build\msvc -G Ninja` inside VsDevCmd (PATH needs `...\Microsoft Visual Studio\Installer`).
+- Build: `upstream\cd-coop-3446\scripts\build.ps1` (cdmp.asi + tools + tests, RelWithDebInfo; also builds our
+  `src/sim` into the mod, D20). Our own layers alone: `cmake -S . -B build\msvc -G Ninja` inside VsDevCmd (PATH
+  needs `...\Microsoft Visual Studio\Installer`). Player zip: `tools\package-coopplus.ps1`.
+- All Co-op+ changes to upstream code: `upstream/patches/0002-coopplus.patch` (+0001, 0003), see upstream/README.md.
 
 ## Done
 - Phase A (session 1): skeleton, sim/net/game/compat/core layers, 42 unit tests, research, D10 build on cdmp.
-- Session 2:
+- Session 2 (all offline; the game was never started):
   - Game exe 1.0.0.3446 (`D:\SteamLibrary\steamapps\common\Crimson Desert\bin64`), PE timestamp 0x6AE46DD0 =
-    upstream `offsets_3446.h`. **Upstream's offline verifier passes every check against this exe**, so upstream's
-    addresses hold on the user's current patch.
-  - MSVC builds: ours (`CrimsonDesertCoop.asi`, both test suites pass) and upstream (`cdmp.asi`, tools, unit +
-    20M-id room codec test pass). **Two-instance loopback test passes** (two real mod instances connect).
+    upstream `offsets_3446.h`. **Upstream's offline verifier passes every check against this exe.**
+  - MSVC builds of everything; all unit tests pass; **two-instance loopback test passes** after every change.
   - Nexus permissions verified first-hand (docs/mod-permissions.md, D16).
-  - Steam facts, offline: game's `steam_api64.dll` 09.31.86.04 exports everything we use (SteamFriends_v017,
-    Matchmaking_v009, Apps_v008, RegisterCallback, overlay invite, rich presence). The exe imports
-    `SteamAPI_RunCallbacks` + `SteamAPI_RegisterCallback` (classic dispatch), so callbacks we register will fire.
-  - **M1 code: Steam join** (patch 0002, D17): `[net] role=auto`, "Join Game"/invite via callbacks + `+connect_lobby`
-    launch argument, Ctrl+F1 invite (Steam overlay), Ctrl+F2 leave, rich presence, role switch between sessions.
-    Builds clean, unit-tested parser, loopback still passes. **Needs a live two-PC test.**
-  - **Friend-ready package** (`tools/package-coopplus.ps1` -> `dist/CrimsonDesert-SeamlessCoop-<ver>.zip`):
-    double-click installer (finds the game via Steam, backs up saves, keeps an existing winmm.dll), uninstaller,
-    README, one `role=auto` profile, verified ASI loader v9.7.4, source.zip. Tested on a fake game folder only.
-  - Fixed an upstream bug that garbled the UTF-16 ini profiles on Windows checkouts (patch 0003).
-  - Test plans: docs/tests/M0.md (single PC, after GO) and docs/tests/M1.md (two PCs, Steam join).
-  - **M3 prep: party scaling** (D18): host's enemies take 1/k damage with a guest in (guest blows scaled, host blows
-    partly given back). Unit-tested; `[scaling] enabled=0` until a live test.
-  - Nameplates: the Steam name over the other player fades with distance; Ctrl+F8 toggles it (F8 = panel).
-  - Save guard (D19): saves copied to Documents when a co-op session starts; panel warning if the game saves during it.
-  - Package extras: Diagnose Co-op+.cmd (report to Desktop), Vanilla mode on-off.cmd (one-click off/on).
-  - Comfort Pack: plan in docs/comfort-pack.md; generator for a stack-size data mod (CDUMM .field.json), untested.
-  - Scaling curves come from bin64coopnfigscaling.toml (our sim layer is now built into cdmp.asi, D20).
+  - Steam, offline: the game's `steam_api64.dll` 09.31.86.04 exports everything we use; the exe pumps
+    `SteamAPI_RunCallbacks` itself, so callbacks we register fire.
+  - **M1: Steam join** (D17): `[net] role=auto`, "Join Game" / overlay invites (Ctrl+F1), leave (Ctrl+F2), rich
+    presence, `+connect_lobby` launch argument, Steam name as the player name. Needs the two-PC test (M1.md).
+  - **Package** (`dist/CrimsonDesert-SeamlessCoop-<ver>.zip`): installer (finds the game via Steam, backs up saves,
+    keeps an existing winmm.dll), uninstaller, Diagnose (report to Desktop), Vanilla mode on-off, README, one shared
+    `role=auto` profile, `cdcoop\config\scaling.toml`, Ultimate ASI Loader v9.7.4 (hash-checked, Defender-clean),
+    source.zip. Tested on a fake game folder only.
+  - **Party scaling** (D18, D20): with a guest in, the host's enemies take 1/k damage (k from scaling.toml: regular
+    x1.5, bosses x1.7). Experimental, `[scaling] enabled=0` until the M3 live test.
+  - **Nameplates**: Steam name over the other player, distance fade; Ctrl+F8 toggles (F8 = panel).
+  - **Save guard** (D19): saves copied to Documents when a co-op session starts; warning if the game saves during it.
+  - Panel title "Crimson Desert Seamless Co-op+" with the GPL credit line (ByJunter, nouzert1).
+  - Upstream bugs found and patched: UTF-16 ini profiles garbled by CRLF on Windows (0003); `opcodes_resolved`
+    defined in an anonymous namespace (0002).
+  - Designs: docs/progression-sync.md (M5), docs/comfort-pack.md (M6; stack-size generator tools/make_comfort_pack.py).
+  - Test plans: docs/tests/M0.md (one PC, incl. captures for M5) and docs/tests/M1.md (two PCs).
 
 ## Questions for the user (ask when they wake up; work continues meanwhile)
-1. Who is the second player for the first two-PC test, and when? (Both need the same mod zip; Denuvo 5 PCs/day.)
-2. Hotkeys: Ctrl+F1 = invite, Ctrl+F2 = leave, F8 = panel, Ctrl+F8 = nameplate. OK, or do you prefer others?
-3. The GitHub repo is private. GPL needs the source to travel with the binaries: the package includes
-   source.zip, so private is fine for friends. Make it public before a Nexus release? (Your call, later.)
-5. GitHub CLI token lacks the `workflow` scope, so CI files cannot be pushed from here. To allow it run
+1. Who is the second player for the first two-PC test, and when? (Both need the same zip; Denuvo 5 PCs/day.)
+2. Hotkeys: Ctrl+F1 invite, Ctrl+F2 leave, F8 panel, Ctrl+F8 nameplate. OK, or other keys?
+3. The GitHub repo is private. The package carries source.zip, so private is fine for friends (GPL). Public before a
+   Nexus release? (Later.)
+4. OK to post the courtesy GitHub issue to nouzert1 (draft: docs/drafts/upstream-courtesy-issue.md)? It reports their
+   UTF-16 ini bug and offers our Steam join code.
+5. The GitHub CLI token lacks the `workflow` scope, so CI files cannot be pushed from here. To allow it run
    `gh auth refresh -s workflow` (browser sign-in). Pending CI change: docs/drafts/ci-tool-tests.patch.
-4. OK to post the courtesy GitHub issue to nouzert1 (draft: docs/drafts/upstream-courtesy-issue.md)? It reports
-   their UTF-16 ini bug and offers our Steam join code.
 
 ## Blockers / waiting on the user
 1. **GO** for game testing (another session may be testing Elden Ring on this PC).
 2. Two-player tests need a second PC + Steam account that owns the game.
 
-## Next steps (pre-GO, in order)
-1. (done) Friend-ready package.
-2. (done) Test plans M0/M1.
-3. Integration step 2 (our sim/config layers in the same DLL), starting with party-size scaling data plumbing.
-4. After GO: M0 + live checks (docs/tests/M0.md), then the two-PC session.
+## Next steps
+1. After GO: docs/tests/M0.md (install the package, load, live addresses, one-PC echo, Steam UI, captures).
+2. Then the two-PC session (docs/tests/M1.md) and, with a guest, the M3 scaling check (`[scaling] enabled=1`).
+3. M5 tier 1 (discovery/knowledge sharing) once the captures give the payload layouts.
+4. Comfort Pack: check CoopPlus-Stacks with CDUMM's Inspect Mod; add inventory/cooldown/glide fields.
+5. Pre-GO work still possible: more offline review of the new code paths; keep the package current.
