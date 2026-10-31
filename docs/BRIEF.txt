@@ -1,0 +1,239 @@
+Project Brief: Crimson Desert Seamless Co-op+
+Read this whole file first. It is your standing instruction set for the project.
+
+
+0. Ground rules for this session (read first)
+A second Claude Code session is play-testing an Elden Ring mod on this PC right now.
+To avoid interfering with it:
+
+1. Do NOT launch Crimson Desert or Steam games, and do NOT use computer use /
+    screenshots / mouse / keyboard control until the user says exactly: "GO: game
+    testing is clear." Until then, work only in files, the shell, and the browser tab described
+    below. Heavy builds are fine, but keep them modest.
+2. Use your own Chrome tab. Open a new tab for your work, stay in it, and never touch,
+    navigate, or close tabs you did not open. Close your tabs when done.
+3. Create your own new project folder (suggested: CrimsonDesert-SeamlessCoop/ ) and
+    keep every file you create inside it. Do not touch the Elden Ring project folder or its files.
+4. Save your own work as you go (section 2). You may run out of context at any time.
+
+
+1. Vision
+Crimson Desert Seamless Co-op+ turns the single-player base game (PC/Steam) into a
+co-op adventure that feels like Pearl Abyss shipped it:
+
+    Join a friend with one click through Steam; no IPs or port forwarding.
+    Share story and world progression; every player can pick up loot.
+    Boss and enemy health and damage scale to party size.
+    Steam usernames over players' heads; friends visible on the map.
+    Character customization that syncs between players.
+    A quality-of-life "Comfort Pack": bigger inventories, better gliding/flying, shorter
+    cooldowns, and more, with toggles.
+
+Scope: base game only. The expansion is out of scope, and mods that aren't updated for it
+are fine. The mod should be modular so it stays easy to maintain if an official multiplayer
+update arrives later.
+
+Mindset: optimistic and persistent. Ship a small working thing early, then keep improving it.
+2. Notes and memory (so you never lose work)
+Context can run out without warning. Keep everything needed to resume in files inside the
+project folder:
+
+    NOTES/STATE.md : the single source of truth for resuming. Keep it short and current:
+   current phase and milestone, what is done, what is in progress, the exact next 3-5
+   steps, open questions for the user, blockers, and anything waiting on the "GO" signal.
+   Rewrite it at the end of every meaningful step (after each research batch, each file
+   created, each test, each decision).
+    NOTES/LOG.md : append-only, timestamped log of what you did, commands run, results,
+   and failures. Include dead ends and why they failed.
+    NOTES/DECISIONS.md : each decision, the options considered, the reason, and the date.
+
+    NOTES/RESEARCH/ : one file per topic (see section 4), with source links, dates retrieved,
+   key takeaways, and a confidence level. Save notes right after reading a source; do not
+   wait.
+    NOTES/CLAIMS.md : the "claimed impossible / unverified" register (section 4).
+
+    docs/offsets.md , docs/protocol.md , docs/mod-permissions.md , docs/research.md :
+   the permanent project docs.
+   Use git in the project folder. Commit after each milestone and after any significant notes
+   update, with clear messages, so progress survives crashes.
+   On starting or resuming: read NOTES/STATE.md first, then the last part of LOG.md , then
+   continue from the "next steps" list. Never redo finished work without a reason.
+   Keep a README_FOR_CLAUDE.md at the project root that tells a fresh session in three lines:
+   "Read this brief, then NOTES/STATE.md, then continue."
+
+
+3. Phases (you may start Phase A now; later phases wait for
+GO)
+Phase A: Setup and research (start immediately, no game launch):
+
+1. Create the project folder, git repo, folder skeleton ( NOTES/ , docs/ , src/game/ ,
+    src/net/ , src/sim/ , src/ui/ , src/compat/ , config/ , tests/ , mods/ , tools/ ), a
+   CMake build, and a stub DLL that compiles. Confirm which toolchain is installed
+   (MSVC/Visual Studio Build Tools, CMake) and install what is missing.
+2. Write the initial NOTES/STATE.md and README_FOR_CLAUDE.md .
+3. Conduct the research in section 4 and the Nexus survey in section 5.
+4. Draft architecture and a milestone plan based on what you learn (section 7), and update
+   this plan as you learn more.
+5. Report a short summary to the user and wait for GO before Phase B.
+
+Phase B: Game testing (only after "GO: game testing is clear"): Launch the game, run
+the M0 probe, play-test, reverse engineer, and continue the milestones. You may use
+computer use and screen control from this point.
+
+
+4. Research: thorough, and skeptical of "impossible"
+Research how to build this before writing game code. Go deep, and save notes as you go.
+
+Sources to mine:
+
+   The r/CrimsonDesert co-op prototype by u/No-Context2224 (movement, jumping,
+   gliding, climbing, attacks and skills synced; separate quests/loot/inventory; shared
+   damage experiments; enemy sync unsolved). Read the post, comments, and any linked
+   repos, videos, or Discord. If the author is reachable, consider asking to collaborate, with
+   credit.
+   News coverage (Insider Gaming, Notebookcheck, Tech4Gamers, Vida Extra) and Pearl
+   Abyss statements about exploring official co-op or mod support.
+   Nexus Mods pages, comments, bug reports, and changelogs; Steam discussions;
+   Discord/modding communities; GitHub projects for Crimson Desert (tools, mod
+   managers like the JSON Mod Manager, file format and asset documentation).
+   Other games' co-op mods for proven patterns: Skyrim Together, Elden Ring Seamless
+   Co-op, Dark Souls mods, and others (lobby flow, host-authoritative sync, scaling, save
+   handling, what players loved or hated).
+   Black Desert Online systems that Crimson Desert reuses or resembles.
+   Steamworks documentation (matchmaking, networking sockets, rich presence, invites).
+   Game-engine and reverse engineering resources relevant to Crimson Desert's engine
+   (Pearl Abyss's engine and file formats), plus hooking, signature scanning, and memory
+   tooling.
+
+Do not accept "it's impossible" from the internet at face value. Forum posts, comments,
+and articles are leads, not proof. For every claim that something can't be done (enemy sync,
+save sharing, injecting a DLL, UI hooks, etc.):
+
+1. Record it in NOTES/CLAIMS.md : the claim, source, date, and the reasoning given.
+2. Look for the mechanism: what would have to be true for it to fail? Is the claim about this
+   game, a different game, an old version, or someone's limited skills or tools?
+3. Design the cheapest experiment that could prove or disprove it, and run it (in Phase B if
+   it needs the game).
+4. Mark it VERIFIED POSSIBLE, VERIFIED IMPOSSIBLE (with the evidence and what you
+   tried), or UNTESTED. Only treat something as truly blocked after you have tested it and
+   written down the evidence, and even then look for a workaround or a smaller version of
+   the feature.
+
+
+5. Mods, credit, and permissions
+Mod authors set permissions on their Nexus pages. Treat each page as the source of truth.
+
+   Remix/modify allowed with credit: you may adapt or include their files, following the
+   page's terms, and credit the author (name, link, mod name) in the README, the Nexus
+   description, and a packaged CREDITS.md .
+   Allowed as-is only: do not repackage it; list it as a Requirement/Recommended mod
+   with a link, and make Co-op+ compatible.
+   Unclear or "ask first": use the Nexus comments/contact to ask, then skip it for now
+   and keep going.
+   Track everything in docs/mod-permissions.md : mod, author, link, version, permission
+   summary, what we used, how we credited.
+   Never strip credits or re-upload someone else's work as ours.
+
+Nexus survey (Phase A, from your own Chrome tab): survey Crimson Desert mods by
+most downloaded, most endorsed, and newest. Starting points to verify:
+
+   Character Creator (Female/Male) by Khione95; Barber Unlocked by Aerophus; outfit
+   loadout mods.
+   Inventory Expander, Fat Stacks (stack sizes); Free Gliding and other better gliding/flying
+   mods; Infinite Stamina.
+   Reduced cooldowns, faster skill recharge, ability and combat tweaks, quicker fast travel,
+   camp improvements, weight limits, auto-loot, map and UI improvements, mounts.
+   Visual mods like Visual Redux ReShade (optional).
+
+For each: note what it does, how it is implemented (data edit, DLL, JSON, etc.), whether it
+needs a mod manager, compatibility concerns, and its permission. Decide: integrate with
+credit, recommend as a companion, or reimplement the idea. Build the Comfort Pack from
+the best ones, with toggles in one config file.
+
+Downloading, unzipping, and installing mods into the game folder is part of Phase B testing.
+In Phase A, you may download and unzip mods into the project's mods/ workspace to study
+their structure, but do not install them into the game folder or launch the game until GO. If a
+download needs the user's logged-in Nexus session, use their browser session in your tab,
+and ask the user only for steps that require them.
+6. Feature requirements
+6.1 Steam join and invites: Steam lobbies; join via overlay, friends list "Join Game," or invite
+link. In-game Co-op menu (hotkey and pause menu): Host, Invite, Party list, Leave, Settings.
+Rich presence, version checks with friendly messages, reconnect, host migration where
+feasible. Steamworks only (matchmaking and networking sockets).
+
+6.2 Presence: Fully animated remote players (run, jump, glide, climb, ledge pull-up,
+combat, skills, effects). Steam usernames above heads (distance-faded, occluded
+properly, toggleable). Friends on map and minimap with names; pings and waypoints.
+Optional emotes and a party HUD.
+
+6.3 Shared progression: Shared by default: story/quest progress, region discovery, map
+unlocks, key world events. Personal by default: inventory, equipment, skills, appearance. All
+in config/progression.toml . Always back up saves; never overwrite a guest's single-player
+save without clear consent.
+
+6.4 Loot: Everyone in the session can pick up world loot, chest contents, and drops. Default
+is per-player instanced loot so nobody misses out; configurable alternatives (shared pile,
+round-robin, need/greed). Currency and quest items go to every nearby player.
+
+6.5 Scaling: Enemy and boss health and damage scale with party size via
+config/scaling.toml (starting curve to tune, for example health x1.0 / 1.7 / 2.3 / 2.8 for 1-4
+players). Boss phase and stagger thresholds scale with health. Host-authoritative. Debug
+overlay for multipliers. Unit-test the math in pure sim/ . Account for QoL changes
+(cooldowns, stamina) when tuning.
+
+6.6 Customization: Integrate or recommend character creator mods; sync each player's
+look to friends. Fall back to the default look if a friend lacks the mod, without crashing.
+
+6.7 Polish: Match the game's UI style, fonts, and sounds. Clear messages, a settings
+screen, and a one-click "vanilla mode."
+
+
+7. Architecture and milestones
+C++20, CMake, x64 DLL via an ASI/DLL loader (choose and verify a loader that works with
+the game). Layers: game/ (all hooks and offsets), net/ (Steam, protocol), sim/ (scaling,
+progression, loot rules; pure logic), ui/ (nameplates, map, menu), compat/ (mod
+detection, version checks). Host-authoritative state, versioned binary protocol, ~10-20 Hz
+snapshots with interpolation, reliable channel for events. If any hook fails, the mod disables
+itself and the game runs normally. Use signature scanning rather than fixed addresses and
+record findings in docs/offsets.md .
+Milestones (verify each in a real two-player session during Phase B):
+
+1. M0 Recon: loader works; probe logs player position, health, world time.
+2. M1 Ghosts: Steam lobby and invites; two players see each other as markers.
+3. M2 Avatars: animation sync, nameplates, map markers.
+4. M3 Combat: shared enemies, damage sync, scaling for regular enemies.
+5. M4 Bosses and loot: boss scaling, per-player loot.
+6. M5 Progression: shared quest/discovery state with save safety.
+7. M6 Comfort Pack: QoL integrated, toggles, compat tests.
+8. M7 Release: packaging, credits, README, Nexus page, changelog.
+
+Each milestone ends with a test checklist in docs/tests/ , a note in NOTES/STATE.md , and a
+git commit.
+
+
+8. Anti-cheat and integrity
+Early on (Phase A research, then confirmed in Phase B), find out whether the game runs any
+anti-cheat or integrity protection. Many mods already load for players, so it may be a non-
+issue. If a protection layer does block the mod, report exactly what it is and what it checks,
+and stop there. Do not disable, patch, or bypass it, since that would put every co-op friend's
+account at risk. Use the officially supported launch path (normal Steam launch plus the mod
+loader).
+
+
+9. Release deliverables
+README.md (install, controls, FAQ), CREDITS.md , docs, commented TOML configs, unit
+tests, and a release script that builds, tests, and zips. Nexus page: description, features,
+Requirements (companion mods), credits, install steps, known issues, and a backup-your-
+saves note.
+
+
+10. Your first actions
+1. Create the project folder, git repo, and NOTES/STATE.md ; open your own Chrome tab.
+2. Check the toolchain and set up the CMake skeleton and stub DLL.
+3. Start the research (section 4) and Nexus survey (section 5), saving notes after each
+   source.
+4. Draft the architecture and milestone plan, then summarize for the user and wait for "GO:
+   game testing is clear."
+
+Let's build something great.
+

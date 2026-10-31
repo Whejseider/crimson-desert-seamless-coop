@@ -1,0 +1,16 @@
+# M0 recon probe (read-only). Lists byte signatures to find in the game and pointer chains to read and log.
+# Filled in during Phase B; see docs/offsets.md. Nothing here writes to the game.
+interval_s = 2.0     # log every N seconds
+duration_s = 600.0   # stop after N seconds
+
+# Example (placeholder: not a real Crimson Desert signature yet):
+# [[signature]]
+# name = "world_root"
+# pattern = "48 8B 05 ?? ?? ?? ?? 48 85 C0 74 ??"
+# rip = { disp_offset = 3, instr_len = 7 }   # resolve the RIP-relative operand
+#
+# [[chain]]
+# name = "player.position"
+# base = "world_root"            # a signature name above, or "module"
+# offsets = [0x0, 0x18, 0x90]    # [[base+0x0]+0x18]+0x90
+# type = "f32x3"                 # f32, f32x3, i32, u32, f64, ptr

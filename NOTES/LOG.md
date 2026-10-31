@@ -1,0 +1,16 @@
+# Log (append-only)
+
+## 2026-10-31 (session 1, cloud container, Phase A)
+- 07:58 Read brief (PDF). Environment: Linux cloud container, NOT the user's game PC. No Chrome/computer-use tools in this session. GitHub scope: ashersheets-jpg/elden-force-source, branch claude/seamless-coop-mod-t4lqdd.
+- Created project folder `CrimsonDesert-SeamlessCoop/` in that repo (D1).
+- Toolchain: cmake 3.28, ninja, g++ 13, clang, lld-link present. `apt-get install mingw-w64` -> x86_64-w64-mingw32-g++-posix 13 (OK).
+- Network: www.nexusmods.com, api.nexusmods.com, old.reddit.com -> proxy 403 / DNS fail (blocked by environment network policy). WebSearch works. raw.githubusercontent.com and git clone from github.com work; api.github.com is scoped to the session's repo.
+- Vendored toml++ v3.4.0 (MIT) from raw.githubusercontent.com.
+- Spawned 3 research agents (engine/DRM/loaders; prototype/news/other co-op mods; Nexus survey). News sites also unreachable for them (DNS) -> news content from search snippets only (medium confidence).
+- Wrote sim/ (scaling, loot, progression, config), net/ (protocol, interpolation, steam_runtime), game/ (sigscan, probe_spec, probe), compat/, core/ (dllmain, log, paths, safety), 8 test files, 6 TOML configs.
+- Build: first error `toml::parse(string_view, const char[])` ambiguous -> pass std::string_view. Tests: 41/42; config test caught a real bug (`guest_progress_counts_for_host` placed under `[shared]` in progression.toml) -> moved above the table. 42/42 pass.
+- MinGW cross-build: CrimsonDesertCoop.asi PE32+ DLL, imports KERNEL32/msvcrt/VERSION only, exports InitializeASI. Stripped ~1.3 MB.
+- Added .github/workflows/cdcoop.yml (MSVC build + tests + artifact; Linux tests + MinGW build), tools/release.sh (build, test, zip) -> dist/CrimsonDesert-SeamlessCoop-0.1.0.zip OK.
+- Nexus survey done (search snippets only; all permissions UNVERIFIED). Game now at patch 2.04.00 (~Oct 30).
+- Prototype research done. Big find: ByJunter's cdmp (GPL-3, C++20 ASI, abandoned, invites forks) + nouzert1/cd-coop-3446 (port to build 3446, last commit today). Cloned both read-only to /tmp/claude-0/ext/ (outside the project), read README/ROADMAP/research index/CONTRIBUTING -> NOTES/RESEARCH/cdmp-codebase.md.
+- Wrote CLAIMS.md, docs/offsets.md, docs/protocol.md, docs/architecture.md, docs/tests/M0.md, DECISIONS D1-D9.

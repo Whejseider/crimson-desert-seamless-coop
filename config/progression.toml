@@ -1,0 +1,24 @@
+# What a co-op session shares. true = shared (the party advances together), false = personal (each player's own).
+# Shared progress is merged, never taken away: if either player has it, both get it.
+# Guests finishing shared objectives also advance the host's world.
+guest_progress_counts_for_host = true
+
+[shared]
+story = true
+side_quests = true
+region_discovery = true
+map_unlocks = true
+world_events = true
+inventory = false
+equipment = false
+skills = false
+appearance = false
+
+[saves]
+# Copy every player's save folder to cdcoop/backups/ before a session starts. Strongly recommended.
+backup_before_session = true
+# What happens to a GUEST's own single-player save:
+#   separate_slot - the guest plays on a co-op copy of their character; their single-player save is never touched.
+#   ask_each_time - at the end of a session the guest is asked whether to keep the shared progress in their save.
+#   never_write   - nothing from the session is kept in the guest's save.
+guest_save_mode = "separate_slot"

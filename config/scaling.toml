@@ -1,0 +1,33 @@
+# Enemy and boss scaling by party size. The HOST's file is used for everyone in a session.
+# Each list is: [1 player, 2 players, 3 players, 4 players]. Values are multipliers on the game's own numbers.
+
+enabled = true
+# Parties bigger than the list: "extrapolate" (continue the last step) or "clamp" (reuse the last value).
+overflow = "extrapolate"
+
+[regular]
+health = [1.0, 1.5, 2.0, 2.4]
+damage = [1.0, 1.1, 1.2, 1.3]
+
+[elite]
+health = [1.0, 1.6, 2.2, 2.6]
+damage = [1.0, 1.15, 1.25, 1.35]
+
+[boss]
+health = [1.0, 1.7, 2.3, 2.8]
+damage = [1.0, 1.15, 1.3, 1.4]
+
+# Stagger, posture and phase-break thresholds grow with health ^ this. 1.0 = same as health (bosses take as many
+# hits to stagger per player as solo); 0.5 = gentler; 0 = never scaled. Percent-based phases always follow health.
+stagger_exponent = 1.0
+
+# Only players this close (metres) to an enemy count toward its scaling. 0 = the whole party always counts.
+count_radius_m = 0.0
+
+# The Comfort Pack makes fights easier (shorter cooldowns, infinite stamina). This adds enemy health to compensate:
+# 0.0 = none, 0.25 = up to +25% health with every Comfort combat option at its strongest.
+qol_health_compensation = 0.0
+
+# Safety limits for any multiplier.
+min_multiplier = 0.1
+max_multiplier = 10.0

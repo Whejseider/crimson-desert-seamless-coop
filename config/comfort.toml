@@ -1,0 +1,23 @@
+# Comfort Pack: quality-of-life options. Off by default (vanilla balance).
+# In co-op, the HOST's gameplay values are used for everyone so nobody plays by different rules.
+enabled = false
+use_host_settings_in_coop = true
+
+[inventory]
+extra_slots = 0                  # 0..500 extra inventory slots
+stack_size_multiplier = 1.0      # 2.0 = stacks hold twice as much
+weight_limit_multiplier = 1.0
+
+[gliding]
+stamina_cost_multiplier = 1.0    # 0.5 = gliding costs half the stamina
+speed_multiplier = 1.0
+
+[combat]
+skill_cooldown_multiplier = 1.0  # 0.05..1.0; 0.5 = cooldowns are half as long
+infinite_stamina = false
+
+[travel]
+free_fast_travel = false
+
+[loot]
+auto_loot_radius_m = 0.0         # 0 = off; otherwise pick up nearby loot automatically

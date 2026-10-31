@@ -1,0 +1,13 @@
+# Who gets loot. The HOST's file is used for everyone in a session.
+#   instanced   - everyone nearby gets their own copy of every drop and chest (nobody misses out). Default.
+#   shared_pile - whoever picks it up gets it.
+#   round_robin - drops take turns between players.
+#   need_greed  - everyone rolls Need / Greed / Pass; Need beats Greed, highest roll wins.
+mode = "instanced"
+
+# Currency and quest items go to every nearby player, whatever the mode.
+currency_to_all = true
+quest_items_to_all = true
+
+# "Nearby" means within this many metres of the drop or chest.
+nearby_radius_m = 60.0

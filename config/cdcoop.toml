@@ -1,0 +1,27 @@
+# Crimson Desert Seamless Co-op+ : general settings.
+# Installed to <game folder>/cdcoop/config/cdcoop.toml. Any line can be deleted to use the default.
+
+[general]
+# false = vanilla mode: the mod loads, writes one line to the log and does nothing else.
+# (Creating an empty file named VANILLA in the cdcoop folder does the same, without editing this file.)
+enabled = true
+# Opens the Co-op menu (Host, Invite, Party, Leave, Settings). Also reachable from the pause menu.
+menu_hotkey = "F8"
+# debug, info, warn or error. Logs are in cdcoop/logs/.
+log_level = "info"
+# 2..8. Tested with 4.
+max_players = 4
+# The mod only runs inside this program (ASI loaders can load into other programs too).
+expected_exe = "CrimsonDesert.exe"
+
+[ui]
+# Steam names over players' heads, fading out between these distances (metres).
+nameplates = true
+nameplate_fade_start_m = 40.0
+nameplate_fade_end_m = 80.0
+# false = names are hidden behind walls and terrain.
+nameplates_through_walls = false
+# Friends on the map and minimap.
+map_markers = true
+# Small party panel with names and health.
+party_hud = true
