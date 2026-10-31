@@ -65,7 +65,7 @@
 - Installer test on a fake bin64/save in %TEMP%: backup OK, existing winmm.dll kept and restored, update keeps
   cdmp.ini (writes cdmp.ini.new), uninstall removes exactly the listed files. GetPrivateProfileString reads the
   generated UTF-16 profile: role=auto, transport=steam, coop=1. Find-CrimsonDesertBin64 finds D:\SteamLibrary\...
-- 05:40 Test plans: docs/tests/M0.md rewritten for the cd-coop-3446 base; new docs/tests/M1.md (two-PC Steam join).
+- 05:20 Test plans: docs/tests/M0.md rewritten for the cd-coop-3446 base; new docs/tests/M1.md (two-PC Steam join).
 - Upstream on GitHub: still b7ae133 (our import is current). Their 2026-10-31 two-PC script says the core question
   (does the guest SEE the host's character) is still open; 270e2cc position fix not yet verified live.
 - Party scaling (D18): common/party_scaling.h (pure, tests), net/party_scaling.*, hooks in local_capture (VaryHPAck)
@@ -74,42 +74,42 @@
   Build clean, all unit tests pass, loopback passes, root MSVC build + ctest pass. Our C4701 (protocol.cpp) fixed.
 - Self-review of run_coop: join callbacks now registered during the Steam-name wait; a role change always
   reconfigures the guest's enemy zone (a role=guest player who left kept hiding enemies as host). Build/tests/loopback OK.
-- 06:00 Nameplates (brief 6.2): common/nameplate.h fade (full to 25 m, 35% at 200 m, hidden from 600 m), text shrinks
+- 05:29 Nameplates (brief 6.2): common/nameplate.h fade (full to 25 m, 35% at 200 m, hidden from 600 m), text shrinks
   to 80%; F8 now toggles only the panel, Ctrl+F8 the nameplate; [overlay] nameplates=1. Panel moved into draw_panel().
   Occlusion not done (needs the depth buffer; live work). Build + tests OK. Visual check needs GO.
 - Diagnose Co-op+.cmd (diagnose.ps1): report to the Desktop (versions, mod files + hashes, ini settings, log tail);
   tested on a fake install with -OutDir. Comfort Pack plan in docs/comfort-pack.md (CDUMM .field.json, companions
   now, our own field.json after GO). README rewritten. Draft courtesy issue in docs/drafts/ (not posted).
-- 06:20 Save guard (D19): save_guard.{h,cpp}, hook in capture_observe_c2s, backup on connect, panel notice.
+- 05:36 Save guard (D19): save_guard.{h,cpp}, hook in capture_observe_c2s, backup on connect, panel notice.
   First link failed: upstream declares cdmp::net::opcodes_resolved() but defined it inside the anonymous namespace
   (never called before) -> moved out. Upstream's opcode_for comment says "TrocTrMoveActorReq" but names are stored
   without the TrocTr prefix (call sites use "MoveActorReq"); comment fixed, our names "SaveAutoReq" /
   "SaveToFileCurrentPlayerReq" (2976 table: 3037 / 2910 as fallbacks; opcodes checked equal 2976 vs 3446 for
   VaryHPAck 2147, DoFrameEventReq 2380, VaryStatCheatReq 2703, NotifyHandleDeadAck 2530). Build/tests/loopback OK;
   no backup folder created by the loopback (co-op hooks only run in the game).
-- 06:35 Panel title: Co-op+ with a GPL credit line (cdmp by ByJunter, port by nouzert1). docs/progression-sync.md (M5
+- 05:37 Panel title: Co-op+ with a GPL credit line (cdmp by ByJunter, port by nouzert1). docs/progression-sync.md (M5
   design: discovery/knowledge first via ShareKnowledgeDataListReq / LearnKnowledgeByCheatReq, quests last and opt-in).
   M0 gains an optional capture step for M5 payloads.
 - Vanilla mode on-off.cmd (vanilla.ps1): parks cdmp.asi as cdmp.asi.off; install turns it back on, uninstall removes
   it. Tested on a fake bin64: install, toggle x2, vanilla+reinstall, vanilla+uninstall all correct.
-- 06:55 D20: coopplus_sim library in upstream CMake; scaling per tier (bosses via boss_is_boss); scaling.toml read
+- 05:43 D20: coopplus_sim library in upstream CMake; scaling per tier (bosses via boss_is_boss); scaling.toml read
   from bin64\cdcoop\config. cdmp_host test with health_2p=1.3 in the ini and scaling.toml present: log 'regular x1.50,
   bosses x1.70', i.e. the TOML curves win and the ini switch turns it on. Package ships cdcoop\config\scaling.toml;
   installer keeps a player's edited copy on update (.new), uninstaller removes the folder when empty.
 - Package 0.1.0-alpha+5f39326b built (4.2 MB) and tested on a fake bin64: install, update with an edited
   scaling.toml (kept, .new written), uninstall (only the exe left). Root ctest 2/2 pass.
-- 07:10 Comfort Pack generator tools/make_comfort_pack.py (stacks via Format 3 match on iteminfo max_stack_count,
+- 05:45 Comfort Pack generator tools/make_comfort_pack.py (stacks via Format 3 match on iteminfo max_stack_count,
   field name from CDUMM's public item writer), 4 unittest cases pass; CI runs them. Untested in the game.
 - Push refused: token scopes gist/read:org/repo, no 'workflow'; GitHub rejects commits touching .github/workflows.
   Rewrote the unpushed commit without the CI change (saved as docs/drafts/ci-tool-tests.patch); question added.
-- 07:30 D21 invite-only option; build clean, tests + loopback pass. Patch apply check: 0001+0002+0003 apply to the
+- 05:50 D21 invite-only option; build clean, tests + loopback pass. Patch apply check: 0001+0002+0003 apply to the
   pristine import (cb21b60) and reproduce src/ exactly.
-- 07:45 Self-review of the mod.cpp/steam_join/room_code diff: session end now clears rich presence on every end
+- 05:51 Self-review of the mod.cpp/steam_join/room_code diff: session end now clears rich presence on every end
   (a Join left a stale 'Join Game' on the old lobby) and drops party scaling to 1 player right away. Locking reviewed:
   callbacks lock-free, fail() never re-locks. Build/tests/loopback OK.
 - Review: scaling ledger now records guest blows whenever scaling is active (a boss-only multiplier would have
   scaled a guest's boss blow twice). save_guard reviewed, no change.
-- 08:10 OFFSET AUDIT: kPointClimbEnter/kRideOnEnter/kRideOffEnter were 0x10 too high on 3446 (RTTI vtables slot
+- 05:57 OFFSET AUDIT: kPointClimbEnter/kRideOnEnter/kRideOffEnter were 0x10 too high on 3446 (RTTI vtables slot
   +0x38 hold 0x75F620/0x74E8D0/0x74F8A0, whose bytes match the expected heads; the old values point mid-function).
   Fixed + added to verify-port (PASS). Other stale addresses fail closed (error logger, aggro_test, rope dev) - see
   docs/offsets.md audit table.
@@ -118,6 +118,8 @@
   camera block offsets (unverifiable offline; added as an explicit M0 check because nameplates depend on it).
 - Camera block: only 2 plain-code xrefs to the camera global (0x2FB8997 reads +0xC8/+0xD0; 0x3E1C8D3 writes it);
   the +0x428 block access is not in plain code. Not determinable offline; M0 check stays.
-- 08:30 Join/leave toasts (top centre, independent of F8). Build/tests/loopback OK.
-- 08:45 Unsupported game build (any PE timestamp but 0x6AE46DD0, in the game only): networking not started (no lobby,
+- 06:01 Join/leave toasts (top centre, independent of F8). Build/tests/loopback OK.
+- 06:02 Unsupported game build (any PE timestamp but 0x6AE46DD0, in the game only): networking not started (no lobby,
   no Join Game), panel shows a red 'Co-op+ is off: made for 1.0.0.3446, not X' line. README section added.
+- 06:04 Correction: entries above stamped 06:20 ... 08:45 were estimates written without checking the clock; they are
+  now the real commit times (git log). Times in this log come from `date` / commit times from here on.
