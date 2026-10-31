@@ -79,6 +79,12 @@ $installed = @()
 if (Test-Path $listPath) {
     $installed += Get-Content $listPath | Where-Object { $_ -and -not $_.StartsWith('#') -and $_ -ne 'coopplus-installed.txt' }
 }
+# Vanilla mode (vanilla.ps1) parks the mod as cdmp.asi.off; installing turns it back on.
+$parked = Join-Path $GameDir 'cdmp.asi.off'
+if (Test-Path $parked) {
+    Remove-Item $parked -Force
+    Write-Host 'Vanilla mode was on; this install turns Co-op+ back on.'
+}
 foreach ($f in $files) {
     $target = Join-Path $GameDir $f
     $source = Join-Path $payload $f

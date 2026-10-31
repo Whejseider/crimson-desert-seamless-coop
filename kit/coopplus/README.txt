@@ -30,6 +30,9 @@ INSTALL (each player, game closed)
 3. Start the game from Steam as usual.
 
 To remove it: double-click "Uninstall Co-op+.cmd" (game closed).
+To play without it for a while: "Vanilla mode on-off.cmd" switches Co-op+ off and on
+again, keeping your settings.
+Something wrong? "Diagnose Co-op+.cmd" writes a report to your Desktop to send along.
 
 
 PLAYING TOGETHER

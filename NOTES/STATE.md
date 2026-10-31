@@ -33,6 +33,7 @@
     partly given back). Unit-tested; `[scaling] enabled=0` until a live test.
   - Nameplates: the Steam name over the other player fades with distance; Ctrl+F8 toggles it (F8 = panel).
   - Save guard (D19): saves copied to Documents when a co-op session starts; panel warning if the game saves during it.
+  - Package extras: Diagnose Co-op+.cmd (report to Desktop), Vanilla mode on-off.cmd (one-click off/on).
 
 ## Questions for the user (ask when they wake up; work continues meanwhile)
 1. Who is the second player for the first two-PC test, and when? (Both need the same mod zip; Denuvo 5 PCs/day.)

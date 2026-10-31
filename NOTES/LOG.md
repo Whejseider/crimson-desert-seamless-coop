@@ -90,3 +90,5 @@
 - 06:35 Panel title: Co-op+ with a GPL credit line (cdmp by ByJunter, port by nouzert1). docs/progression-sync.md (M5
   design: discovery/knowledge first via ShareKnowledgeDataListReq / LearnKnowledgeByCheatReq, quests last and opt-in).
   M0 gains an optional capture step for M5 payloads.
+- Vanilla mode on-off.cmd (vanilla.ps1): parks cdmp.asi as cdmp.asi.off; install turns it back on, uninstall removes
+  it. Tested on a fake bin64: install, toggle x2, vanilla+reinstall, vanilla+uninstall all correct.

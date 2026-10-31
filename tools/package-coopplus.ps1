@@ -81,7 +81,7 @@ $lines = $lines | ForEach-Object {
 $ini = ($lines -join "`r`n").TrimEnd() + "`r`n"
 [IO.File]::WriteAllText((Join-Path $stage 'mod\cdmp.ini'), $ini, (New-Object Text.UnicodeEncoding($false, $true)))
 
-foreach ($f in 'install.ps1', 'uninstall.ps1', 'diagnose.ps1', 'coopplus-common.ps1', 'Install Co-op+.cmd', 'Uninstall Co-op+.cmd', 'Diagnose Co-op+.cmd') {
+foreach ($f in 'install.ps1', 'uninstall.ps1', 'diagnose.ps1', 'vanilla.ps1', 'coopplus-common.ps1', 'Install Co-op+.cmd', 'Uninstall Co-op+.cmd', 'Diagnose Co-op+.cmd', 'Vanilla mode on-off.cmd') {
     Copy-Item (Join-Path $kit $f) $stage
 }
 (Get-Content (Join-Path $kit 'README.txt') -Raw).Replace('@VERSION@', $version) |

@@ -51,6 +51,9 @@ foreach ($log in Get-ChildItem $GameDir -Filter 'cdmp*.log' -ErrorAction Silentl
     Remove-Item $log.FullName -Force
 }
 Remove-Item $list -Force
+# Vanilla mode (vanilla.ps1) parks the mod under this name.
+$parked = Join-Path $GameDir 'cdmp.asi.off'
+if (Test-Path $parked) { Remove-Item $parked -Force; Write-Host 'Removed cdmp.asi.off (vanilla mode)' }
 Write-Host ''
 Write-Host 'Co-op+ removed. The game runs as before. Your save backups stay in Documents\CrimsonDesert-CoopPlus-SaveBackups.' -ForegroundColor Green
 Done 0
