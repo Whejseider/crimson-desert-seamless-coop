@@ -37,7 +37,6 @@ using build_3446::kCameraBlock_Position;
 using build_3446::kCameraBlock_Projection;
 using build_3446::kCameraBlock_Sentinel;
 using build_3446::kCameraBlock_View;
-using build_3446::kCamera_Block;
 using build_3446::kClientClock;
 using build_3446::kClientClockHead;
 using build_3446::kClientOnRecvPacketHead;
@@ -55,8 +54,6 @@ using build_3446::kHookArgSizeStackOffset;
 using build_3446::kLayer_Chart;
 using build_3446::kLayer_Playback;
 using build_3446::kLoadKindMount;
-using build_3446::kLoadPositionFromEnd;
-using build_3446::kLoadRotationFromEnd;
 using build_3446::kLoadingParkHeight;
 using build_3446::kLoadingParkRadius;
 using build_3446::kMaxStatEntries;
@@ -67,25 +64,6 @@ using build_3446::kMinimapIconPlayerArrow;
 using build_3446::kMoveController_Method;
 using build_3446::kMoveController_WallUp;
 using build_3446::kMoveMethodWallUp;
-using build_3446::kOpActorLoadDataAck;
-using build_3446::kOpChangeDockingSocketByFrameEventAck;
-using build_3446::kOpCreateOrChangePinMarkerAck;
-using build_3446::kOpMoveActorAck;
-using build_3446::kOpMoveActorReq;
-using build_3446::kOpOtherEquipItemAck;
-using build_3446::kOpOtherUnequipItemAck;
-using build_3446::kOpRemoteCatchResultAck;
-using build_3446::kOpRemoveActorAck;
-using build_3446::kOpRemovePinMarkerAck;
-using build_3446::kOpRotateActorAck;
-using build_3446::kOpRotateActorReq;
-using build_3446::kOpSetFieldTimeAck;
-using build_3446::kOpSetFieldTimeReq;
-using build_3446::kOpStartActionAck;
-using build_3446::kOpStartActionReq;
-using build_3446::kOpUnequipItemAck;
-using build_3446::kOpUpdateOnDemandGimmickAck;
-using build_3446::kOpUpdateWallUpDataAck;
 using build_3446::kPhysics_AxisX;
 using build_3446::kPhysics_AxisY;
 using build_3446::kPhysics_AxisZ;
@@ -138,6 +116,43 @@ inline constexpr uintptr_t kClientFrameClockUs = 0x70D1DF1;  // = flag + 0x3C
 inline constexpr uintptr_t kClientClockBias = 0x71B5F48;     // = kWorldSystemSlot + 0x2A8
 inline constexpr uintptr_t kMinimapIconRoot = 0x71B6038;     // = kWorldSystemSlot + 0x398
 inline constexpr uintptr_t kMinimapIconRootAlt = 0x71B6040;  // = kWorldSystemSlot + 0x3A0
+
+// ---- camera block: the pointer moved 8 bytes inside the camera object ------------
+// Measured live on 3460 (world loaded): [exe+kCameraSlot]+0x428 no longer holds the block;
+// +0x430 does, and in it the 6360000.0f sentinel is still at +0xAC0, the position at +0x80 sits
+// 5 m from the player, the projection reads p00 1.545 / p11 2.747 (16:9) and the view matrix's
+// third axis equals the forward vector. The block's own layout is unchanged.
+inline constexpr uint32_t kCamera_Block = 0x430;  // 2976..3446: 0x428
+
+// ---- ActorLoadDataAck: the actor's transform is 4 bytes further from the end ------------
+// Captured on 3460: in both the player record (13282 B) and the body record (19715 B) the
+// world position sits 158 bytes before the end with the quaternion right after it (3446: 154
+// and 142). The movement messages grew by the same 4 bytes (mod/net/wire_layout.h).
+inline constexpr size_t kLoadPositionFromEnd = 158;  // 3446: 154
+inline constexpr size_t kLoadRotationFromEnd = 146;  // 3446: 142
+
+// ---- message numbers (opcodes), from the live Troc table of 3460 ----------------------
+// The headers carried 2976-era numbers; the sniffer re-resolved eight of them by name at
+// runtime, but everything else compared against the stale constants.
+inline constexpr uint16_t kOpSetFieldTimeReq = 2227;  // 2976-era header: 2125
+inline constexpr uint16_t kOpSetFieldTimeAck = 2952;  // 2976-era header: 2816
+inline constexpr uint16_t kOpActorLoadDataAck = 2005;  // 2976-era header: 2005
+inline constexpr uint16_t kOpRemoveActorAck = 3067;  // 2976-era header: 2516
+inline constexpr uint16_t kOpMoveActorReq = 2833;  // 2976-era header: 2556
+inline constexpr uint16_t kOpMoveActorAck = 3094;  // 2976-era header: 2697
+inline constexpr uint16_t kOpStartActionReq = 2202;  // 2976-era header: 2223
+inline constexpr uint16_t kOpStartActionAck = 2552;  // 2976-era header: 2991
+inline constexpr uint16_t kOpRotateActorReq = 2852;  // 2976-era header: 2828
+inline constexpr uint16_t kOpRotateActorAck = 3078;  // 2976-era header: 2687
+inline constexpr uint16_t kOpUpdateWallUpDataAck = 3024;  // 2976-era header: 2893
+inline constexpr uint16_t kOpUnequipItemAck = 2615;  // 2976-era header: 2280
+inline constexpr uint16_t kOpOtherEquipItemAck = 3136;  // 2976-era header: 2757
+inline constexpr uint16_t kOpOtherUnequipItemAck = 2651;  // 2976-era header: 3073
+inline constexpr uint16_t kOpCreateOrChangePinMarkerAck = 2647;  // 2976-era header: 2824
+inline constexpr uint16_t kOpRemovePinMarkerAck = 2376;  // 2976-era header: 2992
+inline constexpr uint16_t kOpChangeDockingSocketByFrameEventAck = 2907;  // 2976-era header: 2747
+inline constexpr uint16_t kOpRemoteCatchResultAck = 2395;  // 2976-era header: 2763
+inline constexpr uint16_t kOpUpdateOnDemandGimmickAck = 2923;  // 2976-era header: 2145
 
 // ---- vtables, by RTTI name -------------------------------------------------
 inline constexpr uintptr_t kVtClientActorManager = 0x593DCF0;    // .?AVClientActorManager@pa@@ (3446:0x5939CD8)

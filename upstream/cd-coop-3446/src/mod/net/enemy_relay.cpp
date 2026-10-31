@@ -1,4 +1,5 @@
 #include "mod/net/enemy_relay.h"
+#include "mod/net/wire_layout.h"
 
 #include <windows.h>
 
@@ -44,13 +45,15 @@ bool load_is_relayable(uint32_t type, uint32_t key) {
     return is_relayable_record_type(type, boss_is_boss(key));
 }
 
+// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
+// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
 constexpr uint16_t kOpActorLoadDataAck = 2005;
-constexpr uint16_t kOpRemoveActorAck = 2516;
-constexpr uint16_t kOpStartActionReq = 2223;
-constexpr uint16_t kOpRotateActorReq = 2828;
-constexpr uint16_t kOpChangeBattleStateReq = 2257;  // 5 B: u32 actor | u8 state (0 = out of combat)
-constexpr uint16_t kOpDoFrameEventReq = 2380;       // u8 4 | u32 attacker | ... | 665-byte target entries at the end
-constexpr uint16_t kOpCurrentTargetChangeReq = 2984;  // u32 actor | u32 target | u64 seq | u8 | u8 reason
+constexpr uint16_t kOpRemoveActorAck = 3067;
+constexpr uint16_t kOpStartActionReq = 2202;
+constexpr uint16_t kOpRotateActorReq = 2852;
+constexpr uint16_t kOpChangeBattleStateReq = 2453;  // 5 B: u32 actor | u8 state (0 = out of combat)
+constexpr uint16_t kOpDoFrameEventReq = 3030;       // u8 4 | u32 attacker | ... | 665-byte target entries at the end
+constexpr uint16_t kOpCurrentTargetChangeReq = 2820;  // u32 actor | u32 target | u64 seq | u8 | u8 reason
 constexpr uint64_t kEngagedMs = 20000;
 // An enemy that aimed at or struck one of us this long ago still counts as
 // hostile: one locked on us sends no new CurrentTargetChangeReq, and its
@@ -58,20 +61,20 @@ constexpr uint64_t kEngagedMs = 20000;
 constexpr uint64_t kAimedMs = 120000;
 // Server->client messages about an enemy (key at +0), relayed for its copy
 // (enemigos-del-anfitrion.md §3.1): HP and death reliably, hit reactions not.
-constexpr uint16_t kOpVaryHPAck = 2147;               // 92 B; +0x40 per-actor sequence, kept
-constexpr uint16_t kOpNotifyHandleDeadAck = 2530;     // 19 B: dead | killer | reason
+constexpr uint16_t kOpVaryHPAck = 2740;               // 92 B; +0x40 per-actor sequence, kept
+constexpr uint16_t kOpNotifyHandleDeadAck = 2985;     // 19 B: dead | killer | reason
 // What a server sends once a corpse is emptied (botin-invitado.md §1): a dead
 // copy offered the loot prompt, but our server has no such actor and gave
 // nothing (two-PC test, 6 Oct). Sent for it ~1 s after its death.
-constexpr uint16_t kOpLootDropCharacterRewardListAck = 2897;  // u8 4 | u32 dead | n x 37 B
-constexpr uint16_t kOpRemoveLootableAck = 2822;               // u32 dead | u32 player
+constexpr uint16_t kOpLootDropCharacterRewardListAck = 2414;  // u8 4 | u32 dead | n x 37 B
+constexpr uint16_t kOpRemoveLootableAck = 3066;               // u32 dead | u32 player
 constexpr uint64_t kNoLootAfterMs = 1000;
-constexpr uint16_t kOpAttackTargetAck = 2922;         // hit effect on the target at +0
-constexpr uint16_t kOpApplyActionRestrictionAck = 2162;
+constexpr uint16_t kOpAttackTargetAck = 2791;         // hit effect on the target at +0
+constexpr uint16_t kOpApplyActionRestrictionAck = 3059;
 constexpr size_t kRotateActorReqSize = 176;
 constexpr uint64_t kPosIntervalMs = 66;  // ~15 Hz
 constexpr uint64_t kPosKeepAliveMs = 900;  // the remote buffer wants a sample every <= 1 s
-constexpr size_t kStartActionReqSize = 725;
+constexpr size_t kStartActionReqSize = wire::kActionReqSize;
 constexpr uint32_t kPuppetUser = 0x9010F001;
 constexpr uint32_t kPuppetPlayer = 0xA010F001;
 constexpr float kPickRadius = 40.0f;
@@ -571,7 +574,9 @@ void map_field_locked(Bytes& v, size_t off, bool parent64) {
 uint64_t g_dropped_messages = 0;
 bool map_message_locked(uint16_t op, Bytes& v, uint32_t self) {
     switch (op) {
-        case kOpStartActionReq: map_field_locked(v, 0x116, true), map_field_locked(v, 0x16C, false); break;
+        case kOpStartActionReq:
+            map_field_locked(v, wire::kActionParent, true), map_field_locked(v, wire::kActionTarget, false);
+            break;
         case kOpRotateActorReq: map_field_locked(v, 0x54, true); break;
         case kOpVaryHPAck: map_field_locked(v, 0x54, false); break;
         case kOpNotifyHandleDeadAck: map_field_locked(v, 0x04, false); break;
@@ -1611,9 +1616,9 @@ void no_parent(Bytes& v, size_t off) {
 void scrub_message(uint16_t op, Bytes& v, uint32_t copy, uint32_t own) {
     switch (op) {
         case kOpStartActionReq:
-            no_parent(v, 0x116);
-            scrub_field(v, 0x16C, copy, own);
-            scrub_key_shaped(v, 0xAA, copy, own);
+            no_parent(v, wire::kActionParent);
+            scrub_field(v, wire::kActionTarget, copy, own);
+            scrub_key_shaped(v, wire::kActionKeyField, copy, own);
             break;
         case kOpRotateActorReq: no_parent(v, 0x54); break;
         case kOpVaryHPAck: scrub_field(v, 0x54, copy, own); break;

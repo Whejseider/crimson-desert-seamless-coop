@@ -26,8 +26,10 @@ namespace fs = std::filesystem;
 
 // Fallbacks from the 2976 message table (docs/research/data/troc_messages_2976.csv);
 // resolved by name at runtime (opcode_for), so a patch that renumbers them is fine.
-constexpr uint16_t kOpSaveAutoReq = 3037;
-constexpr uint16_t kOpSaveToFileCurrentPlayerReq = 2910;
+// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
+// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
+constexpr uint16_t kOpSaveAutoReq = 3134;
+constexpr uint16_t kOpSaveToFileCurrentPlayerReq = 2122;
 constexpr uint64_t kBackupEveryMs = 10 * 60 * 1000;
 constexpr size_t kKeepBackups = 10;
 constexpr uint64_t kNoticeMs = 20000;

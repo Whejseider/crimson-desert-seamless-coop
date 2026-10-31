@@ -16,7 +16,9 @@
 namespace cdmp::net {
 namespace {
 
-constexpr uint16_t kOpVaryStatCheatReq = 2703;  // u32 key | u32 stat | u8 mode | i32 delta | u8 | u8
+// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
+// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
+constexpr uint16_t kOpVaryStatCheatReq = 2326;  // u32 key | u32 stat | u8 mode | i32 delta | u8 | u8
 constexpr uint32_t kStatHP = 0x000F4240;
 constexpr size_t kMaxPending = 64;
 

@@ -426,6 +426,19 @@ index 0000000..cffff01
 +};
 +
 +}  // namespace cdmp::scaling
+diff --git a/upstream/cd-coop-3446/src/common/protocol.h b/upstream/cd-coop-3446/src/common/protocol.h
+index e7d51fb..c511de8 100644
+--- a/upstream/cd-coop-3446/src/common/protocol.h
++++ b/upstream/cd-coop-3446/src/common/protocol.h
+@@ -74,7 +74,7 @@ enum class Type : uint8_t {
+ // actor key. The receiver turns it into the matching Ack for its copy of the
+ // sender. Formats: docs/research/mirror-ack-formats.md.
+ enum class EventKind : uint8_t {
+-    Move = 1,         // MoveActorReq, 514 bytes
++    Move = 1,         // MoveActorReq, 518 bytes on 3460 (mod/net/wire_layout.h)
+     StartAction = 2,  // StartActionReq, 725 bytes
+     Rotate = 3,       // RotateActorReq, 176 bytes
+     WallUp = 4,       // UpdateWallUpData, 132 bytes (built from memory)
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
 index e89d220..3346165 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
@@ -847,10 +860,10 @@ index 072e9a3..04afd07 100644
  
 diff --git a/upstream/cd-coop-3446/src/mod/game/offsets_3460.h b/upstream/cd-coop-3446/src/mod/game/offsets_3460.h
 new file mode 100644
-index 0000000..c60709f
+index 0000000..250d342
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/game/offsets_3460.h
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,204 @@
 +#pragma once
 +// Addresses for CrimsonDesert.exe 1.0.0.3460 (Co-op+ port, 2026-10-31).
 +//
@@ -890,7 +903,6 @@ index 0000000..c60709f
 +using build_3446::kCameraBlock_Projection;
 +using build_3446::kCameraBlock_Sentinel;
 +using build_3446::kCameraBlock_View;
-+using build_3446::kCamera_Block;
 +using build_3446::kClientClock;
 +using build_3446::kClientClockHead;
 +using build_3446::kClientOnRecvPacketHead;
@@ -908,8 +920,6 @@ index 0000000..c60709f
 +using build_3446::kLayer_Chart;
 +using build_3446::kLayer_Playback;
 +using build_3446::kLoadKindMount;
-+using build_3446::kLoadPositionFromEnd;
-+using build_3446::kLoadRotationFromEnd;
 +using build_3446::kLoadingParkHeight;
 +using build_3446::kLoadingParkRadius;
 +using build_3446::kMaxStatEntries;
@@ -920,25 +930,6 @@ index 0000000..c60709f
 +using build_3446::kMoveController_Method;
 +using build_3446::kMoveController_WallUp;
 +using build_3446::kMoveMethodWallUp;
-+using build_3446::kOpActorLoadDataAck;
-+using build_3446::kOpChangeDockingSocketByFrameEventAck;
-+using build_3446::kOpCreateOrChangePinMarkerAck;
-+using build_3446::kOpMoveActorAck;
-+using build_3446::kOpMoveActorReq;
-+using build_3446::kOpOtherEquipItemAck;
-+using build_3446::kOpOtherUnequipItemAck;
-+using build_3446::kOpRemoteCatchResultAck;
-+using build_3446::kOpRemoveActorAck;
-+using build_3446::kOpRemovePinMarkerAck;
-+using build_3446::kOpRotateActorAck;
-+using build_3446::kOpRotateActorReq;
-+using build_3446::kOpSetFieldTimeAck;
-+using build_3446::kOpSetFieldTimeReq;
-+using build_3446::kOpStartActionAck;
-+using build_3446::kOpStartActionReq;
-+using build_3446::kOpUnequipItemAck;
-+using build_3446::kOpUpdateOnDemandGimmickAck;
-+using build_3446::kOpUpdateWallUpDataAck;
 +using build_3446::kPhysics_AxisX;
 +using build_3446::kPhysics_AxisY;
 +using build_3446::kPhysics_AxisZ;
@@ -991,6 +982,43 @@ index 0000000..c60709f
 +inline constexpr uintptr_t kClientClockBias = 0x71B5F48;     // = kWorldSystemSlot + 0x2A8
 +inline constexpr uintptr_t kMinimapIconRoot = 0x71B6038;     // = kWorldSystemSlot + 0x398
 +inline constexpr uintptr_t kMinimapIconRootAlt = 0x71B6040;  // = kWorldSystemSlot + 0x3A0
++
++// ---- camera block: the pointer moved 8 bytes inside the camera object ------------
++// Measured live on 3460 (world loaded): [exe+kCameraSlot]+0x428 no longer holds the block;
++// +0x430 does, and in it the 6360000.0f sentinel is still at +0xAC0, the position at +0x80 sits
++// 5 m from the player, the projection reads p00 1.545 / p11 2.747 (16:9) and the view matrix's
++// third axis equals the forward vector. The block's own layout is unchanged.
++inline constexpr uint32_t kCamera_Block = 0x430;  // 2976..3446: 0x428
++
++// ---- ActorLoadDataAck: the actor's transform is 4 bytes further from the end ------------
++// Captured on 3460: in both the player record (13282 B) and the body record (19715 B) the
++// world position sits 158 bytes before the end with the quaternion right after it (3446: 154
++// and 142). The movement messages grew by the same 4 bytes (mod/net/wire_layout.h).
++inline constexpr size_t kLoadPositionFromEnd = 158;  // 3446: 154
++inline constexpr size_t kLoadRotationFromEnd = 146;  // 3446: 142
++
++// ---- message numbers (opcodes), from the live Troc table of 3460 ----------------------
++// The headers carried 2976-era numbers; the sniffer re-resolved eight of them by name at
++// runtime, but everything else compared against the stale constants.
++inline constexpr uint16_t kOpSetFieldTimeReq = 2227;  // 2976-era header: 2125
++inline constexpr uint16_t kOpSetFieldTimeAck = 2952;  // 2976-era header: 2816
++inline constexpr uint16_t kOpActorLoadDataAck = 2005;  // 2976-era header: 2005
++inline constexpr uint16_t kOpRemoveActorAck = 3067;  // 2976-era header: 2516
++inline constexpr uint16_t kOpMoveActorReq = 2833;  // 2976-era header: 2556
++inline constexpr uint16_t kOpMoveActorAck = 3094;  // 2976-era header: 2697
++inline constexpr uint16_t kOpStartActionReq = 2202;  // 2976-era header: 2223
++inline constexpr uint16_t kOpStartActionAck = 2552;  // 2976-era header: 2991
++inline constexpr uint16_t kOpRotateActorReq = 2852;  // 2976-era header: 2828
++inline constexpr uint16_t kOpRotateActorAck = 3078;  // 2976-era header: 2687
++inline constexpr uint16_t kOpUpdateWallUpDataAck = 3024;  // 2976-era header: 2893
++inline constexpr uint16_t kOpUnequipItemAck = 2615;  // 2976-era header: 2280
++inline constexpr uint16_t kOpOtherEquipItemAck = 3136;  // 2976-era header: 2757
++inline constexpr uint16_t kOpOtherUnequipItemAck = 2651;  // 2976-era header: 3073
++inline constexpr uint16_t kOpCreateOrChangePinMarkerAck = 2647;  // 2976-era header: 2824
++inline constexpr uint16_t kOpRemovePinMarkerAck = 2376;  // 2976-era header: 2992
++inline constexpr uint16_t kOpChangeDockingSocketByFrameEventAck = 2907;  // 2976-era header: 2747
++inline constexpr uint16_t kOpRemoteCatchResultAck = 2395;  // 2976-era header: 2763
++inline constexpr uint16_t kOpUpdateOnDemandGimmickAck = 2923;  // 2976-era header: 2145
 +
 +// ---- vtables, by RTTI name -------------------------------------------------
 +inline constexpr uintptr_t kVtClientActorManager = 0x593DCF0;    // .?AVClientActorManager@pa@@ (3446:0x5939CD8)
@@ -1642,10 +1670,10 @@ index 79ccd06..48676eb 100644
          log::error("Unhandled exception in worker: {}", e.what());
      } catch (...) {
 diff --git a/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp b/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
-index 355b8df..38ed0a0 100644
+index 355b8df..38fb2b4 100644
 --- a/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
-@@ -23,7 +23,7 @@
+@@ -23,12 +23,14 @@
  
  namespace cdmp::net {
  namespace {
@@ -1653,20 +1681,35 @@ index 355b8df..38ed0a0 100644
 +namespace off = game::build_3460;
  
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
- constexpr uint16_t kOpCurrentTargetChangeReq = 2984;   // u32 actor | u32 target | u64 seq | u8 | u8 reason
+-constexpr uint16_t kOpCurrentTargetChangeReq = 2984;   // u32 actor | u32 target | u64 seq | u8 | u8 reason
+-constexpr uint16_t kOpCurrentTargetChangedAck = 3040;  // same 18 B; u8 at +0x10 = force
+-constexpr uint16_t kOpDoFrameEventReq = 2380;
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
++constexpr uint16_t kOpCurrentTargetChangeReq = 2820;   // u32 actor | u32 target | u64 seq | u8 | u8 reason
++constexpr uint16_t kOpCurrentTargetChangedAck = 2609;  // same 18 B; u8 at +0x10 = force
++constexpr uint16_t kOpDoFrameEventReq = 3030;
+ 
+ constexpr uintptr_t kIsTargetable = 0x22141E0;    // (target comp, actor* candidate, u8 mode)
+ constexpr uint8_t kIsTargetableHead[] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74,
 diff --git a/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp b/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp
-index 4e09fdc..0e59c90 100644
+index 4e09fdc..1aec6f8 100644
 --- a/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp
-@@ -21,7 +21,7 @@
+@@ -21,9 +21,11 @@
  namespace cdmp::net {
  namespace {
  
 -namespace off = game::build_3446;
 +namespace off = game::build_3460;
  
- constexpr uint16_t kOpCurrentTargetChangeReq = 2984;  // u32 actor | u32 target | ...
+-constexpr uint16_t kOpCurrentTargetChangeReq = 2984;  // u32 actor | u32 target | ...
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
++constexpr uint16_t kOpCurrentTargetChangeReq = 2820;  // u32 actor | u32 target | ...
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
+ constexpr uint64_t kRecentMs = 5000;
+ constexpr uint32_t kMaxListed = 16;
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop.cpp b/upstream/cd-coop-3446/src/mod/net/coop.cpp
 index 3bdc2c5..c3a1162 100644
 --- a/upstream/cd-coop-3446/src/mod/net/coop.cpp
@@ -1680,8 +1723,92 @@ index 3bdc2c5..c3a1162 100644
          if (r.op == op) return r.reliable;
      }
      return false;
+diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
+index 72da385..bc87cf8 100644
+--- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
++++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
+@@ -1,4 +1,5 @@
+ #include "mod/net/enemy_relay.h"
++#include "mod/net/wire_layout.h"
+ 
+ #include <windows.h>
+ 
+@@ -44,13 +45,15 @@ bool load_is_relayable(uint32_t type, uint32_t key) {
+     return is_relayable_record_type(type, boss_is_boss(key));
+ }
+ 
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
+ constexpr uint16_t kOpActorLoadDataAck = 2005;
+-constexpr uint16_t kOpRemoveActorAck = 2516;
+-constexpr uint16_t kOpStartActionReq = 2223;
+-constexpr uint16_t kOpRotateActorReq = 2828;
+-constexpr uint16_t kOpChangeBattleStateReq = 2257;  // 5 B: u32 actor | u8 state (0 = out of combat)
+-constexpr uint16_t kOpDoFrameEventReq = 2380;       // u8 4 | u32 attacker | ... | 665-byte target entries at the end
+-constexpr uint16_t kOpCurrentTargetChangeReq = 2984;  // u32 actor | u32 target | u64 seq | u8 | u8 reason
++constexpr uint16_t kOpRemoveActorAck = 3067;
++constexpr uint16_t kOpStartActionReq = 2202;
++constexpr uint16_t kOpRotateActorReq = 2852;
++constexpr uint16_t kOpChangeBattleStateReq = 2453;  // 5 B: u32 actor | u8 state (0 = out of combat)
++constexpr uint16_t kOpDoFrameEventReq = 3030;       // u8 4 | u32 attacker | ... | 665-byte target entries at the end
++constexpr uint16_t kOpCurrentTargetChangeReq = 2820;  // u32 actor | u32 target | u64 seq | u8 | u8 reason
+ constexpr uint64_t kEngagedMs = 20000;
+ // An enemy that aimed at or struck one of us this long ago still counts as
+ // hostile: one locked on us sends no new CurrentTargetChangeReq, and its
+@@ -58,20 +61,20 @@ constexpr uint64_t kEngagedMs = 20000;
+ constexpr uint64_t kAimedMs = 120000;
+ // Server->client messages about an enemy (key at +0), relayed for its copy
+ // (enemigos-del-anfitrion.md §3.1): HP and death reliably, hit reactions not.
+-constexpr uint16_t kOpVaryHPAck = 2147;               // 92 B; +0x40 per-actor sequence, kept
+-constexpr uint16_t kOpNotifyHandleDeadAck = 2530;     // 19 B: dead | killer | reason
++constexpr uint16_t kOpVaryHPAck = 2740;               // 92 B; +0x40 per-actor sequence, kept
++constexpr uint16_t kOpNotifyHandleDeadAck = 2985;     // 19 B: dead | killer | reason
+ // What a server sends once a corpse is emptied (botin-invitado.md §1): a dead
+ // copy offered the loot prompt, but our server has no such actor and gave
+ // nothing (two-PC test, 6 Oct). Sent for it ~1 s after its death.
+-constexpr uint16_t kOpLootDropCharacterRewardListAck = 2897;  // u8 4 | u32 dead | n x 37 B
+-constexpr uint16_t kOpRemoveLootableAck = 2822;               // u32 dead | u32 player
++constexpr uint16_t kOpLootDropCharacterRewardListAck = 2414;  // u8 4 | u32 dead | n x 37 B
++constexpr uint16_t kOpRemoveLootableAck = 3066;               // u32 dead | u32 player
+ constexpr uint64_t kNoLootAfterMs = 1000;
+-constexpr uint16_t kOpAttackTargetAck = 2922;         // hit effect on the target at +0
+-constexpr uint16_t kOpApplyActionRestrictionAck = 2162;
++constexpr uint16_t kOpAttackTargetAck = 2791;         // hit effect on the target at +0
++constexpr uint16_t kOpApplyActionRestrictionAck = 3059;
+ constexpr size_t kRotateActorReqSize = 176;
+ constexpr uint64_t kPosIntervalMs = 66;  // ~15 Hz
+ constexpr uint64_t kPosKeepAliveMs = 900;  // the remote buffer wants a sample every <= 1 s
+-constexpr size_t kStartActionReqSize = 725;
++constexpr size_t kStartActionReqSize = wire::kActionReqSize;
+ constexpr uint32_t kPuppetUser = 0x9010F001;
+ constexpr uint32_t kPuppetPlayer = 0xA010F001;
+ constexpr float kPickRadius = 40.0f;
+@@ -571,7 +574,9 @@ void map_field_locked(Bytes& v, size_t off, bool parent64) {
+ uint64_t g_dropped_messages = 0;
+ bool map_message_locked(uint16_t op, Bytes& v, uint32_t self) {
+     switch (op) {
+-        case kOpStartActionReq: map_field_locked(v, 0x116, true), map_field_locked(v, 0x16C, false); break;
++        case kOpStartActionReq:
++            map_field_locked(v, wire::kActionParent, true), map_field_locked(v, wire::kActionTarget, false);
++            break;
+         case kOpRotateActorReq: map_field_locked(v, 0x54, true); break;
+         case kOpVaryHPAck: map_field_locked(v, 0x54, false); break;
+         case kOpNotifyHandleDeadAck: map_field_locked(v, 0x04, false); break;
+@@ -1611,9 +1616,9 @@ void no_parent(Bytes& v, size_t off) {
+ void scrub_message(uint16_t op, Bytes& v, uint32_t copy, uint32_t own) {
+     switch (op) {
+         case kOpStartActionReq:
+-            no_parent(v, 0x116);
+-            scrub_field(v, 0x16C, copy, own);
+-            scrub_key_shaped(v, 0xAA, copy, own);
++            no_parent(v, wire::kActionParent);
++            scrub_field(v, wire::kActionTarget, copy, own);
++            scrub_key_shaped(v, wire::kActionKeyField, copy, own);
+             break;
+         case kOpRotateActorReq: no_parent(v, 0x54); break;
+         case kOpVaryHPAck: scrub_field(v, 0x54, copy, own); break;
 diff --git a/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp b/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
-index 8411baa..e885858 100644
+index 8411baa..a1a648a 100644
 --- a/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
 @@ -21,6 +21,7 @@
@@ -1692,7 +1819,37 @@ index 8411baa..e885858 100644
  #include "mod/net/remote_puppet.h"
  #include "mod/net/troc_sniffer.h"
  
-@@ -752,8 +753,11 @@ void apply_hit(const proto::GameEvent& ev) {
+@@ -29,17 +30,19 @@ namespace {
+ 
+ using Bytes = std::vector<uint8_t>;
+ 
+-constexpr uint16_t kOpDoFrameEventReq = 2380;
+-constexpr uint16_t kOpAttackTargetAck = 2922;           // +0 target | +4 attacker | +8 flags | +0x24 attack hash
+-constexpr uint16_t kOpApplyActionRestrictionAck = 2162;  // 77 B: +0 target | +0x24 instance | +0x38 hash | +0x49 source
+-constexpr uint16_t kOpOnPostBuffDamagedAck = 2681;       // +0 target | +4 attacker | +0x0C u32 damage x1000
+-constexpr uint16_t kOpNotifyHandleFatalAck = 2899;       // +0 key | +4 by
+-constexpr uint16_t kOpApplyBuffAck = 2506;  // 77 B: +0 holder | +4 buff | +0x14 instance | +0x18 source |
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
++constexpr uint16_t kOpDoFrameEventReq = 3030;
++constexpr uint16_t kOpAttackTargetAck = 2791;           // +0 target | +4 attacker | +8 flags | +0x24 attack hash
++constexpr uint16_t kOpApplyActionRestrictionAck = 3059;  // 77 B: +0 target | +0x24 instance | +0x38 hash | +0x49 source
++constexpr uint16_t kOpOnPostBuffDamagedAck = 2994;       // +0 target | +4 attacker | +0x0C u32 damage x1000
++constexpr uint16_t kOpNotifyHandleFatalAck = 2225;       // +0 key | +4 by
++constexpr uint16_t kOpApplyBuffAck = 2677;  // 77 B: +0 holder | +4 buff | +0x14 instance | +0x18 source |
+                                             // +0x1C holder | +0x29 source position | +0x39/+0x41 server ms
+-constexpr uint16_t kOpVaryStatCheatReq = 2703;           // u32 key | u32 stat | u8 mode | i32 delta | u8 | u8
+-constexpr uint16_t kOpKillCheatReq = 2279;               // u32 key | u32 option
+-constexpr uint16_t kOpDieByRunOutFatalReq = 2321;        // u32 key
+-constexpr uint16_t kOpAttackByCollisionReq = 2815;  // u32 victim | u32 attacker | u32 0 | vec3 point | vec3 dir |
++constexpr uint16_t kOpVaryStatCheatReq = 2326;           // u32 key | u32 stat | u8 mode | i32 delta | u8 | u8
++constexpr uint16_t kOpKillCheatReq = 2210;               // u32 key | u32 option
++constexpr uint16_t kOpDieByRunOutFatalReq = 3051;        // u32 key
++constexpr uint16_t kOpAttackByCollisionReq = 2150;  // u32 victim | u32 attacker | u32 0 | vec3 point | vec3 dir |
+                                                     // u32 ProjectileInfo | u32 0 (44 B)
+ // The collision of a captured native kill (105149, t = 495.8); with our player
+ // as its owner it takes 7 HP and the death counts as a normal one (live test X2:
+@@ -752,8 +755,11 @@ void apply_hit(const proto::GameEvent& ev) {
              base = kDefaultBase, source = "default";
          }
      }
@@ -1706,7 +1863,7 @@ index 8411baa..e885858 100644
      // Boss safety (boss_safe.h, pendiente-jefes.md plan J1). Against a stage boss
      // the guest must never land the killing blow: the boss's death has to come
      // from the host, because the host's stage script is what runs BossPhase, the
-@@ -783,6 +787,7 @@ void apply_hit(const proto::GameEvent& ev) {
+@@ -783,6 +789,7 @@ void apply_hit(const proto::GameEvent& ev) {
              std::memcpy(b, &enemy, 4);
              std::memcpy(b + 4, &kStatHP, 4);
              std::memcpy(b + 9, &delta, 4);
@@ -1714,7 +1871,7 @@ index 8411baa..e885858 100644
              ok = sniffer_inject_c2s(packet(kOpVaryStatCheatReq, b, sizeof b));
          }
          ok = send_collision(enemy) && ok;
-@@ -795,6 +800,7 @@ void apply_hit(const proto::GameEvent& ev) {
+@@ -795,6 +802,7 @@ void apply_hit(const proto::GameEvent& ev) {
          std::memcpy(b, &enemy, 4);
          std::memcpy(b + 4, &kStatHP, 4);
          std::memcpy(b + 9, &delta, 4);
@@ -1859,10 +2016,16 @@ index 1865e4e..c35ede1 100644
          log::warn("Learnt: cdmp_learnt.txt is not usable (another game build, or damaged): ignored and replaced");
          return;
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-index 22b77f6..0c9e760 100644
+index 22b77f6..a028e95 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-@@ -27,6 +27,8 @@
+@@ -1,4 +1,5 @@
+ #include "mod/net/local_capture.h"
++#include "mod/net/wire_layout.h"
+ 
+ #include <windows.h>
+ 
+@@ -27,6 +28,8 @@
  #include "mod/net/guest_hits.h"
  #include "mod/net/loot_twin.h"
  #include "mod/net/native_suppress.h"
@@ -1871,7 +2034,7 @@ index 22b77f6..0c9e760 100644
  #include "common/keys.h"
  #include "mod/net/piece4_test.h"
  #include "mod/net/player_hits.h"
-@@ -35,7 +37,7 @@
+@@ -35,7 +38,7 @@
  
  namespace cdmp::net {
  namespace {
@@ -1880,7 +2043,95 @@ index 22b77f6..0c9e760 100644
  using Bytes = std::vector<uint8_t>;
  
  // Keys our own puppet uses (remote_puppet.cpp): never learn templates from those.
-@@ -560,6 +562,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -44,13 +47,13 @@ constexpr uint32_t kPuppetPlayer = 0xA010F001;
+ constexpr uint32_t kPuppetBody = 0xB010F001;
+ constexpr uint32_t kPuppetHorse = 0xB010F002;
+ 
+-constexpr size_t kMoveReqSize = 514;
+-constexpr size_t kMoveWireSize = 0xEA;  // what is sent of it (see emit)
+-constexpr size_t kStartActionReqSize = 725;
++using wire::kMoveReqSize;
++using wire::kMoveWireSize;  // what is sent of it (see emit)
++constexpr size_t kStartActionReqSize = wire::kActionReqSize;
+ constexpr size_t kRotateReqSize = 176;
+ constexpr size_t kWallUpSize = 132;
+-constexpr size_t kMoveTs = 0xD5;
+-constexpr size_t kStartActionTs = 0x15F;
++using wire::kMoveTs;
++constexpr size_t kStartActionTs = wire::kActionTs;
+ constexpr size_t kRotateTs = 0x9C;
+ 
+ uint64_t steady_ms() {
+@@ -96,9 +99,11 @@ std::map<uint32_t, ActorSeen> g_actors;
+ std::atomic<uint32_t> g_last_attack_hash{0};
+ std::atomic<uint32_t> g_last_attack_target{0};
+ std::set<uint32_t> g_has_hp;  // under g_actors_mutex
+-constexpr uint16_t kOpVaryHPAck = 2147;
+-constexpr uint16_t kOpNotifyHandleDeadAck = 2530;
+-constexpr uint16_t kOpVaryStatByAccInputReq = 2181;
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
++constexpr uint16_t kOpVaryHPAck = 2740;
++constexpr uint16_t kOpNotifyHandleDeadAck = 2985;
++constexpr uint16_t kOpVaryStatByAccInputReq = 2565;
+ constexpr uint32_t kStatHP = 0x000F4240;
+ 
+ // World actors with hit points, from their loads and HP messages.
+@@ -115,9 +120,9 @@ std::map<uint32_t, Enemy> g_enemies;  // under g_actors_mutex
+ std::atomic<bool> g_damage_enabled{false};
+ std::atomic<bool> g_key_alarm{false};
+ uint64_t g_damage_sent = 0, g_damage_applied = 0, g_damage_unmatched = 0;
+-constexpr uint16_t kOpAttackTargetAck = 2922;  // PostProcessAttackResult_AttackTargetAck
+-constexpr uint16_t kOpChangedEquipByQuickSlotAck = 2667;  // 6 B: u32 player | u16 weapon set
+-constexpr uint16_t kOpSetAvoidByCutSceneAck = 2561;       // boss_safe.h: stage cinematic on/off
++constexpr uint16_t kOpAttackTargetAck = 2791;  // PostProcessAttackResult_AttackTargetAck
++constexpr uint16_t kOpChangedEquipByQuickSlotAck = 2440;  // 6 B: u32 player | u16 weapon set
++constexpr uint16_t kOpSetAvoidByCutSceneAck = 2708;       // boss_safe.h: stage cinematic on/off
+ 
+ // ---------------------------------------------------------------- writer-thread state
+ game::PlayerReader g_reader;
+@@ -132,7 +137,7 @@ float g_horse_sent_pos[3] = {NAN, NAN, NAN};
+ uint64_t g_horse_last_synth_ms = 0;
+ Bytes g_last_move;                  // last real MoveActorReq payload (template for synth)
+ uint64_t g_last_move_ms = 0;        // steady_ms when it was seen
+-uint64_t g_last_move_ts = 0;        // its game timestamp (+0xD5)
++uint64_t g_last_move_ts = 0;        // its game timestamp (wire::kMoveTs)
+ float g_last_sent_pos[3] = {NAN, NAN, NAN};
+ uint64_t g_last_synth_ms = 0;
+ uint64_t g_synthesized = 0;
+@@ -430,10 +435,10 @@ void capture_synth(uint64_t now) {
+     Bytes req = g_last_move;
+     const float pos[3] = {me->position.x, me->position.y, me->position.z};
+     const float rot[4] = {me->rotation.x, me->rotation.y, me->rotation.z, me->rotation.w};
+-    std::memcpy(req.data() + 0x04, pos, sizeof pos);  // current position
+-    std::memcpy(req.data() + 0x10, rot, sizeof rot);  // facing (matches q@10, verified)
+-    std::memcpy(req.data() + 0x4C, pos, sizeof pos);  // second copy (equal when moving)
+-    std::memcpy(req.data() + 0x58, rot, sizeof rot);
++    std::memcpy(req.data() + wire::kMovePos, pos, sizeof pos);  // current position
++    std::memcpy(req.data() + wire::kMoveRot, rot, sizeof rot);  // facing
++    std::memcpy(req.data() + wire::kMoveLocalPos, pos, sizeof pos);  // Path.local (equal on foot)
++    std::memcpy(req.data() + wire::kMoveLocalRot, rot, sizeof rot);
+     // Game clock: the game's own (stops in menus), else advanced from the
+     // last real Move by the wall clock.
+     uint64_t ts = g_clock_reader.load(std::memory_order_relaxed) == 1 ? capture_game_clock_ms() : 0;
+@@ -464,12 +469,12 @@ void capture_horse_synth(uint64_t now) {
+     if (dx * dx + dy * dy + dz * dz < kSynthMinMove * kSynthMinMove) return;
+     Bytes req = g_horse_last_move;
+     const float p[3] = {pos->x, pos->y, pos->z};
+-    std::memcpy(req.data() + 0x04, p, sizeof p);
+-    std::memcpy(req.data() + 0x4C, p, sizeof p);
++    std::memcpy(req.data() + wire::kMovePos, p, sizeof p);
++    std::memcpy(req.data() + wire::kMoveLocalPos, p, sizeof p);
+     if (auto rot = game::actor_world_rotation(g_own_horse)) {
+         const float q[4] = {rot->x, rot->y, rot->z, rot->w};
+-        std::memcpy(req.data() + 0x10, q, sizeof q);
+-        std::memcpy(req.data() + 0x58, q, sizeof q);
++        std::memcpy(req.data() + wire::kMoveRot, q, sizeof q);
++        std::memcpy(req.data() + wire::kMoveLocalRot, q, sizeof q);
+     }
+     std::memcpy(req.data() + kMoveTs, &clock, 8);
+     std::memcpy(g_horse_sent_pos, p, sizeof p);
+@@ -560,6 +565,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
                  e.hp_max = hp_max;
                  // Damage dealt by the local player: mirror it to the other world.
                  const uint32_t own = g_equip_key.load();
@@ -1890,7 +2141,7 @@ index 22b77f6..0c9e760 100644
                  if (own && source == own && hp < before && e.type && g_damage_enabled) {
                      Bytes b(proto::kDamageEventSize);
                      // Where it spawned (same in both worlds); else where it is.
-@@ -701,6 +706,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -701,6 +709,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      loot_observe_c2s(packet, size);
      piece4_observe_c2s(packet, size);
      attack_probe_observe_c2s(packet, size);
@@ -1898,12 +2149,146 @@ index 22b77f6..0c9e760 100644
      if (size < 5 + 4) return;
      uint16_t op = 0;
      std::memcpy(&op, packet, 2);
+@@ -727,7 +736,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+     if (kind == proto::EventKind::Move && keys::is_class(key, keys::kClassWorld) && key != kPuppetBody &&
+         key != kPuppetHorse && key != g_own_horse) {
+         float p[3];
+-        std::memcpy(p, payload.data() + 0x04, sizeof p);
++        std::memcpy(p, payload.data() + wire::kMovePos, sizeof p);
+         std::lock_guard lock(g_actors_mutex);
+         if (g_actors.size() > 4096) g_actors.clear();
+         g_actors[key] = {{p[0], p[1], p[2]}, steady_ms()};
+@@ -736,7 +745,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+     if (g_own_horse && key == g_own_horse) {
+         if (kind == proto::EventKind::Move) {
+             g_horse_last_move = payload;
+-            std::memcpy(g_horse_sent_pos, payload.data() + 0x04, sizeof g_horse_sent_pos);
++            std::memcpy(g_horse_sent_pos, payload.data() + wire::kMovePos, sizeof g_horse_sent_pos);
+         }
+         emit(kind, std::move(payload));
+         return;
+@@ -748,20 +757,20 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+     std::memcpy(&ts, payload.data() + ts_off, 8);
+     note_clock(ts);
+     if (kind == proto::EventKind::Move && g_own_horse) {
+-        // Riding: Path.parent (+0x8C) is the horse and the receiver derives
++        // Riding: Path.parent is the horse and the receiver derives
+         // the horse's moves from ours.
+         uint32_t parent = 0;
+-        std::memcpy(&parent, payload.data() + 0x8C, 4);
++        std::memcpy(&parent, payload.data() + wire::kMoveParent, 4);
+         if (parent == g_own_horse) {
+             g_ridden_until_ms = steady_ms() + 200;
+-            std::memcpy(g_horse_sent_pos, payload.data() + 0x94, sizeof g_horse_sent_pos);
++            std::memcpy(g_horse_sent_pos, payload.data() + wire::kMoveWorldPos, sizeof g_horse_sent_pos);
+         }
+     }
+     if (kind == proto::EventKind::Move) {
+         g_last_move = payload;
+         g_last_move_ms = steady_ms();
+         g_last_move_ts = ts;
+-        std::memcpy(g_last_sent_pos, payload.data() + 0x04, sizeof g_last_sent_pos);
++        std::memcpy(g_last_sent_pos, payload.data() + wire::kMovePos, sizeof g_last_sent_pos);
+     }
+     emit(kind, std::move(payload));
+ }
+diff --git a/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp b/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp
+index 001ed04..5e11311 100644
+--- a/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp
++++ b/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp
+@@ -28,23 +28,25 @@ namespace {
+ 
+ using Bytes = std::vector<uint8_t>;
+ 
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
+ constexpr uint16_t kOpActorLoadDataAck = 2005;
+-constexpr uint16_t kOpDoFrameEventReq = 2380;              // u8 4 | u32 attacker | ... | 665-byte targets at the end
+-constexpr uint16_t kOpSpawnCharacterCheatReq = 2115;       // u32 variant | u32 0 | vec3 | u8 spawn reason
+-constexpr uint16_t kOpKillCheatReq = 2279;                 // u32 victim | u32 option (0 = dies at once)
+-constexpr uint16_t kOpNotifyHandleDeadAck = 2530;          // u32 dead | ...
+-constexpr uint16_t kOpLootDropCharacterRewardListAck = 2897;  // u8 4 | u32 dead | n x 37 B
+-constexpr uint16_t kOpRemoveLootableAck = 2822;            // u32 dead | u32 player
+-constexpr uint16_t kOpInteractionPreemptionStepReq = 2671;  // u32 who | u32 target | ... (25 B)
+-constexpr uint16_t kOpInteractionDoStepReq = 2720;          // u32 who | u32 target | ... (16 B)
+-constexpr uint16_t kOpInteractionPreemptionStepSuccessAck = 2663;  // u32 who | the 25 B (target at +8)
+-constexpr uint16_t kOpInteractionPreemptionStepFailAck = 3000;     // u32 who | u32 target | ... | u32 error at +12
+-constexpr uint16_t kOpLootingDropFromDeadBodyReq = 3052;            // u32 dead | u8 | u8 (botin-invitado.md §1.4)
++constexpr uint16_t kOpDoFrameEventReq = 3030;              // u8 4 | u32 attacker | ... | 665-byte targets at the end
++constexpr uint16_t kOpSpawnCharacterCheatReq = 2185;       // u32 variant | u32 0 | vec3 | u8 spawn reason
++constexpr uint16_t kOpKillCheatReq = 2210;                 // u32 victim | u32 option (0 = dies at once)
++constexpr uint16_t kOpNotifyHandleDeadAck = 2985;          // u32 dead | ...
++constexpr uint16_t kOpLootDropCharacterRewardListAck = 2414;  // u8 4 | u32 dead | n x 37 B
++constexpr uint16_t kOpRemoveLootableAck = 3066;            // u32 dead | u32 player
++constexpr uint16_t kOpInteractionPreemptionStepReq = 3008;  // u32 who | u32 target | ... (25 B)
++constexpr uint16_t kOpInteractionDoStepReq = 3073;          // u32 who | u32 target | ... (16 B)
++constexpr uint16_t kOpInteractionPreemptionStepSuccessAck = 2120;  // u32 who | the 25 B (target at +8)
++constexpr uint16_t kOpInteractionPreemptionStepFailAck = 3100;     // u32 who | u32 target | ... | u32 error at +12
++constexpr uint16_t kOpLootingDropFromDeadBodyReq = 2491;            // u32 dead | u8 | u8 (botin-invitado.md §1.4)
+ constexpr uint32_t kErrInteractionCondition = 0x2569C661;          // eErrNoInteractionTargetConditionCheckFail
+ constexpr uint64_t kRescueWaitMs = 3000;
+-constexpr uint16_t kOpInteractionDoStepSuccessAck = 2916;          // u32 player | the 16 B (target at +8)
+-constexpr uint16_t kOpAttackerAck = 2509;           // PostProcessAttackResult_AttackerAck: u32 attacker | u32 target
+-constexpr uint16_t kOpRemoveActorAck = 2516;        // 04 | u32 0 | u8 reason | n x u32 key
++constexpr uint16_t kOpInteractionDoStepSuccessAck = 2794;          // u32 player | the 16 B (target at +8)
++constexpr uint16_t kOpAttackerAck = 2181;           // PostProcessAttackResult_AttackerAck: u32 attacker | u32 target
++constexpr uint16_t kOpRemoveActorAck = 3067;        // 04 | u32 0 | u8 reason | n x u32 key
+ constexpr uint8_t kSpawnReasonCheat = 33;
+ constexpr size_t kTargetEntry = 665, kFirstEntry = 0x203;
+ 
+diff --git a/upstream/cd-coop-3446/src/mod/net/native_suppress.cpp b/upstream/cd-coop-3446/src/mod/net/native_suppress.cpp
+index bd4c5ea..e5f50a7 100644
+--- a/upstream/cd-coop-3446/src/mod/net/native_suppress.cpp
++++ b/upstream/cd-coop-3446/src/mod/net/native_suppress.cpp
+@@ -31,27 +31,29 @@ namespace {
+ using Bytes = std::vector<uint8_t>;
+ using enemy_load::Verdict;
+ 
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
+ constexpr uint16_t kOpActorLoadDataAck = 2005;
+-constexpr uint16_t kOpRemoveActorAck = 2516;  // 04 | u32 0 | u8 reason | n x u32 key
+-constexpr uint16_t kOpNotifyHandleDeadAck = 2530;  // 19 B: dead | killer | reason
+-constexpr uint16_t kOpAttackTargetAck = 2922;      // u32 target | u32 attacker | ...
+-constexpr uint16_t kOpUpdateFactionRelationDataAck = 2597;
++constexpr uint16_t kOpRemoveActorAck = 3067;  // 04 | u32 0 | u8 reason | n x u32 key
++constexpr uint16_t kOpNotifyHandleDeadAck = 2985;  // 19 B: dead | killer | reason
++constexpr uint16_t kOpAttackTargetAck = 2791;      // u32 target | u32 attacker | ...
++constexpr uint16_t kOpUpdateFactionRelationDataAck = 2097;
+ // The server's messages about a held native, given back behind its load
+ // (fase5 §5.5; key at +0, apariencia-estado-coop.md §3): the latest of each,
+ // buffs in order.
+-constexpr uint16_t kOpVaryHPAck = 2147;               // 92 B
+-constexpr uint16_t kOpApplyBuffAck = 2506;            // 77 B
+-constexpr uint16_t kOpUnapplyBuffAck = 3007;          // 77 B
+-constexpr uint16_t kOpChangeMoveSessionIDAck = 3097;  // 16 B
+-constexpr uint16_t kOpUpdateElementalAck = 2642;      // 118 B
++constexpr uint16_t kOpVaryHPAck = 2740;               // 92 B
++constexpr uint16_t kOpApplyBuffAck = 2677;            // 77 B
++constexpr uint16_t kOpUnapplyBuffAck = 2521;          // 77 B
++constexpr uint16_t kOpChangeMoveSessionIDAck = 2897;  // 16 B
++constexpr uint16_t kOpUpdateElementalAck = 3143;      // 118 B
+ constexpr size_t kMaxStatePerKey = 32;
+ // Client->server: a native of ours fights us.
+-constexpr uint16_t kOpCurrentTargetChangeReq = 2984;  // u32 actor | u32 target | ...
+-constexpr uint16_t kOpDoFrameEventReq = 2380;         // 04 | u32 attacker | ... | 665-byte target entries
+-constexpr uint16_t kOpChangeBattleStateReq = 2257;    // u32 actor | u8 state
++constexpr uint16_t kOpCurrentTargetChangeReq = 2820;  // u32 actor | u32 target | ...
++constexpr uint16_t kOpDoFrameEventReq = 3030;         // 04 | u32 attacker | ... | 665-byte target entries
++constexpr uint16_t kOpChangeBattleStateReq = 2453;    // u32 actor | u8 state
+ // 04 | u32 NPC | u16: the NPC is about to get its weapon (a type-7 gimmick
+ // whose load names it; pendiente-3g §1.5).
+-constexpr uint16_t kOpOnDemandEquipDockingGimmickSpawnReq = 2249;
++constexpr uint16_t kOpOnDemandEquipDockingGimmickSpawnReq = 2288;
+ 
+ constexpr uint8_t kReasonFar = 25;          // the server's own "far away"
+ constexpr uint8_t kReasonLoadScreen = 19;   // everything goes
 diff --git a/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp b/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp
 new file mode 100644
-index 0000000..53323e4
+index 0000000..4a26c2b
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,155 @@
 +#include "mod/net/party_scaling.h"
 +
 +#include <atomic>
@@ -1922,7 +2307,9 @@ index 0000000..53323e4
 +namespace cdmp::net {
 +namespace {
 +
-+constexpr uint16_t kOpVaryStatCheatReq = 2703;  // u32 key | u32 stat | u8 mode | i32 delta | u8 | u8
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
++constexpr uint16_t kOpVaryStatCheatReq = 2326;  // u32 key | u32 stat | u8 mode | i32 delta | u8 | u8
 +constexpr uint32_t kStatHP = 0x000F4240;
 +constexpr size_t kMaxPending = 64;
 +
@@ -2104,6 +2491,53 @@ index 0000000..37a4982
 +std::string scaling_describe();
 +
 +}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/piece4_test.cpp b/upstream/cd-coop-3446/src/mod/net/piece4_test.cpp
+index 911d138..269b530 100644
+--- a/upstream/cd-coop-3446/src/mod/net/piece4_test.cpp
++++ b/upstream/cd-coop-3446/src/mod/net/piece4_test.cpp
+@@ -25,11 +25,13 @@ namespace {
+ 
+ using Bytes = std::vector<uint8_t>;
+ 
+-constexpr uint16_t kOpAttackTargetAck = 2922;            // +0 target | +4 attacker | +0x24 attack hash
+-constexpr uint16_t kOpApplyActionRestrictionAck = 2162;  // 77 B: +0 target | +0x24 instance | +0x49 source
+-constexpr uint16_t kOpApplyBuffAck = 2506;               // 77 B: +0 holder | +4 buff | +0x14 instance | +0x18 source |
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
++constexpr uint16_t kOpAttackTargetAck = 2791;            // +0 target | +4 attacker | +0x24 attack hash
++constexpr uint16_t kOpApplyActionRestrictionAck = 3059;  // 77 B: +0 target | +0x24 instance | +0x49 source
++constexpr uint16_t kOpApplyBuffAck = 2677;               // 77 B: +0 holder | +4 buff | +0x14 instance | +0x18 source |
+                                                          // +0x1C holder | +0x29 source position
+-constexpr uint16_t kOpStartActionReq = 2223;             // +0 actor | +4 previous action | +8 new action
++constexpr uint16_t kOpStartActionReq = 2202;             // +0 actor | +4 previous action | +8 new action
+ constexpr size_t kBatchSize = 77;
+ constexpr uint32_t kPuppetPlayer = 0xA010F001;
+ 
+diff --git a/upstream/cd-coop-3446/src/mod/net/player_hits.cpp b/upstream/cd-coop-3446/src/mod/net/player_hits.cpp
+index f6612e6..a402330 100644
+--- a/upstream/cd-coop-3446/src/mod/net/player_hits.cpp
++++ b/upstream/cd-coop-3446/src/mod/net/player_hits.cpp
+@@ -27,12 +27,14 @@ namespace {
+ 
+ using Bytes = std::vector<uint8_t>;
+ 
+-constexpr uint16_t kOpDoFrameEventReq = 2380;
+-constexpr uint16_t kOpVaryHPAck = 2147;
+-constexpr uint16_t kOpVaryStatByAccInputReq = 2181;
+-constexpr uint16_t kOpAttackTargetAck = 2922;            // +0 target | +4 attacker
+-constexpr uint16_t kOpApplyActionRestrictionAck = 2162;  // 77 B: +0 target | +0x24 instance | +0x49 source
+-constexpr uint16_t kOpApplyBuffAck = 2506;               // 77 B: +0 holder | +4 buff | +0x14 instance |
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
++constexpr uint16_t kOpDoFrameEventReq = 3030;
++constexpr uint16_t kOpVaryHPAck = 2740;
++constexpr uint16_t kOpVaryStatByAccInputReq = 2565;
++constexpr uint16_t kOpAttackTargetAck = 2791;            // +0 target | +4 attacker
++constexpr uint16_t kOpApplyActionRestrictionAck = 3059;  // 77 B: +0 target | +0x24 instance | +0x49 source
++constexpr uint16_t kOpApplyBuffAck = 2677;               // 77 B: +0 holder | +4 buff | +0x14 instance |
+                                                          // +0x18 source | +0x1C holder | +0x29 source pos |
+                                                          // +0x39/+0x41 server ms
+ constexpr size_t kBatchSize = 77;
 diff --git a/upstream/cd-coop-3446/src/mod/net/puppet_minimap.cpp b/upstream/cd-coop-3446/src/mod/net/puppet_minimap.cpp
 index bd802c7..db1d126 100644
 --- a/upstream/cd-coop-3446/src/mod/net/puppet_minimap.cpp
@@ -2118,10 +2552,16 @@ index bd802c7..db1d126 100644
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
  
 diff --git a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
-index 1754b2d..459557d 100644
+index 1754b2d..33837f4 100644
 --- a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
-@@ -33,7 +33,7 @@
+@@ -1,4 +1,5 @@
+ #include "mod/net/remote_puppet.h"
++#include "mod/net/wire_layout.h"
+ 
+ #include <windows.h>
+ 
+@@ -33,7 +34,7 @@
  
  namespace cdmp::net {
  namespace {
@@ -2130,6 +2570,350 @@ index 1754b2d..459557d 100644
  using Bytes = std::vector<uint8_t>;
  
  // Fresh keys for the puppet. Real serials seen so far are below 0x1000, so
+@@ -419,53 +420,55 @@ void rebase_timestamp(Bytes& ack, size_t off) {
+     std::memcpy(ack.data() + off, &ts, 8);
+ }
+ 
+-// MoveActor: 514 -> 235. Ack = req[0:0xDE] + u8 0 ("also send to controller",
+-// read and ignored by the client) + req[0xDE:0xEA]; the Req's trailing
+-// 10 x 28-byte history array is not part of the Ack.
++// MoveActor: 518 -> 239 on 3460 (514 -> 235 on 3446). Ack = req[0:kMoveDataEnd] + u8 0
++// ("also send to controller", read and ignored by the client) + the 12-byte tail; the Req's
++// trailing 10 x 28-byte history array is not part of the Ack. Layout: wire_layout.h.
+ std::optional<Bytes> move_ack(const Bytes& req) {
+-    if (req.size() != 514) return std::nullopt;
+-    if (!sane_pos(req, 0x04) || !sane_quat(req, 0x10) || !sane_pos(req, 0x4C) || !finite_at(req, 0x58, 4) ||
+-        !finite_at(req, 0x94, 7)) {
++    if (req.size() != wire::kMoveReqSize) return std::nullopt;
++    if (!sane_pos(req, wire::kMovePos) || !sane_quat(req, wire::kMoveRot) || !sane_pos(req, wire::kMoveLocalPos) ||
++        !finite_at(req, wire::kMoveLocalRot, 4) || !finite_at(req, wire::kMoveWorldPos, 7)) {
+         return std::nullopt;
+     }
+-    std::memcpy(g_ref_pos, req.data() + 0x04, sizeof g_ref_pos);
+-    Bytes ack = slice(req, 0, 0xDE);
++    std::memcpy(g_ref_pos, req.data() + wire::kMovePos, sizeof g_ref_pos);
++    Bytes ack = slice(req, 0, wire::kMoveDataEnd);
+     ack.push_back(0);
+-    append(ack, slice(req, 0xDE, 0xEA));
+-    shift_x(ack, 0x04);
+-    shift_x(ack, 0x4C);
+-    clear_parent(ack, 0x8C);
+-    scrub_key(ack, 0x20);
+-    rebase_timestamp(ack, 0xD5);  // advances 25 ms per packet in captura-2
++    append(ack, slice(req, wire::kMoveDataEnd, wire::kMoveWireSize));
++    shift_x(ack, wire::kMovePos);
++    shift_x(ack, wire::kMoveLocalPos);
++    clear_parent(ack, wire::kMoveParent);
++    scrub_key(ack, wire::kMoveKeyField);
++    rebase_timestamp(ack, wire::kMoveTs);  // advances 25 ms per packet in captura-2
+     return ack;
+ }
+ 
+-// StartAction: 725 -> 725, same bytes but the Req's last u8 (a "force" flag)
+-// moves to 0x8E, before the big block.
++// StartAction: 729 -> 729 on 3460 (725 on 3446), same bytes but the Req's last u8 (a
++// "force" flag) moves to kActionMoveData, before the big block. Layout: wire_layout.h.
+ std::optional<Bytes> start_action_ack(const Bytes& req) {
+-    if (req.size() != 725 || !finite_at(req, 0x8E, 7) || !finite_at(req, 0xD6, 3)) return std::nullopt;
+-    Bytes ack = slice(req, 0, 0x8E);
+-    ack.push_back(req[0x2D4]);
+-    append(ack, slice(req, 0x8E, 0x2D4));
+-    clear_parent(ack, 0x117);
+-    scrub_key(ack, 0xAB);
+-    scrub_key(ack, 0x169);
+-    // Action target (Req +0x16C, Ack +0x16D): 0 almost always; when it names
+-    // another actor (an enemy, a grabbed animal) it is one of the SENDER's
+-    // world, which here may be a different actor (interacciones-mundo.md R3).
+-    if (ack.size() >= 0x171) {
++    if (req.size() != wire::kActionReqSize || !finite_at(req, wire::kActionRot, 7) ||
++        !finite_at(req, wire::kActionLocalPos, 3)) {
++        return std::nullopt;
++    }
++    Bytes ack = slice(req, 0, wire::kActionMoveData);
++    ack.push_back(req[wire::kActionFlag]);
++    append(ack, slice(req, wire::kActionMoveData, wire::kActionFlag));
++    clear_parent(ack, wire::ack_at(wire::kActionParent));
++    scrub_key(ack, wire::ack_at(wire::kActionKeyField));
++    scrub_key(ack, wire::ack_at(wire::kActionAfterMove));
++    // Action target: 0 almost always; when it names another actor (an enemy, a grabbed
++    // animal) it is one of the SENDER's world, which here may be a different actor
++    // (interacciones-mundo.md R3).
++    if (constexpr size_t at = wire::ack_at(wire::kActionTarget); ack.size() >= at + 4) {
+         uint32_t target;
+-        std::memcpy(&target, ack.data() + 0x16D, 4);
+-        if (is_actor_key(target) && !is_puppet_key(target)) std::memset(ack.data() + 0x16D, 0, 4);
+-    }
+-    // World positions found in captura-2 at Req 0x8E (393/400 packets) and
+-    // 0xD6 (247/400); they sit one byte later in the Ack. Unshifted, they
+-    // snapped the puppet onto the sender every ~0.5 s.
+-    shift_x_if_near_sender(ack, 0x8F);
+-    shift_x_if_near_sender(ack, 0xD7);
++        std::memcpy(&target, ack.data() + at, 4);
++        if (is_actor_key(target) && !is_puppet_key(target)) std::memset(ack.data() + at, 0, 4);
++    }
++    // World positions (the actor's and Path.local, which is the same on foot). Unshifted,
++    // they snapped the puppet onto the sender every ~0.5 s.
++    shift_x_if_near_sender(ack, wire::ack_at(wire::kActionPos));
++    shift_x_if_near_sender(ack, wire::ack_at(wire::kActionLocalPos));
+     // StartAction feeds the same position buffer as MoveActor; its u64
+-    // timestamp (Ack+0x160) needs the same rebase (movimiento-remoto-cliente.md).
+-    rebase_timestamp(ack, 0x160);
++    // timestamp needs the same rebase (movimiento-remoto-cliente.md).
++    rebase_timestamp(ack, wire::ack_at(wire::kActionTs));
+     return ack;
+ }
+ 
+@@ -591,7 +594,9 @@ std::atomic<float> g_end_gap_copy{-1.0f}, g_end_gap_ours{-1.0f};  // |B - target
+ bool g_rope_lookup_faulted = false;
+ // ReleaseRemoteCatchResultAck: u32 catcher | u8 slot | u8 reason (reader
+ // 0xB5BD60 -> 0x5A7A10; the game's own releases use reason 2).
+-constexpr uint16_t kOpReleaseRemoteCatchResultAck = 2471;
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
++constexpr uint16_t kOpReleaseRemoteCatchResultAck = 2464;
+ constexpr uint8_t kReleaseReason = 2;
+ 
+ std::string scene_text(const SceneId& id) {
+@@ -719,13 +724,13 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
+     if (g_gap_ref_stale.exchange(false)) return;  // reloaded since that Move (5 Oct: 1-7 m jumps)
+     if (g_last_move.empty()) return;
+     uint64_t ts_next = 0;
+-    std::memcpy(&ts_next, next.data() + 0xD5, 8);
++    std::memcpy(&ts_next, next.data() + wire::kMoveTs, 8);
+     if (ts_next <= g_last_move_ts) return;
+     const uint64_t gap = ts_next - g_last_move_ts;
+     if (gap < kGapMinMs || gap > kGapMaxMs) return;
+     float a[3], b[3];
+-    std::memcpy(a, g_last_move.data() + 0x04, sizeof a);
+-    std::memcpy(b, next.data() + 0x04, sizeof b);
++    std::memcpy(a, g_last_move.data() + wire::kMovePos, sizeof a);
++    std::memcpy(b, next.data() + wire::kMovePos, sizeof b);
+     const float dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+     const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+     if (dist < kGapMinJump || dist > kGapMaxJump) return;
+@@ -762,17 +767,17 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
+     AcquireSRWLockExclusive(&g_queue_lock);
+     for (Pending& item : g_queue) {
+         Bytes& pk = item.packet;
+-        if (!item.movement || pk.size() != 5 + 725) continue;
++        if (!item.movement || pk.size() != 5 + wire::kActionReqSize) continue;
+         uint16_t op;
+         std::memcpy(&op, pk.data(), 2);
+         if (op != off::kOpStartActionAck) continue;
+         uint64_t ts;
+-        std::memcpy(&ts, pk.data() + 5 + 0x160, 8);
++        std::memcpy(&ts, pk.data() + 5 + wire::ack_at(wire::kActionTs), 8);
+         if (ts < win_lo || ts > win_hi) continue;
+         float p[3];
+         path_at(std::min(1.0f, static_cast<float>(ts - win_lo) / static_cast<float>(gap)), p);
+         p[0] += g_offset_x;
+-        for (size_t at : {size_t{0x8F}, size_t{0xD7}}) {
++        for (size_t at : {wire::ack_at(wire::kActionPos), wire::ack_at(wire::kActionLocalPos)}) {
+             float v[3];
+             std::memcpy(v, pk.data() + 5 + at, sizeof v);
+             const float ex = v[0] - (a[0] + g_offset_x), ey = v[1] - a[1], ez = v[2] - a[2];
+@@ -794,10 +799,10 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
+         float p[3];
+         path_at(f, p);
+         Bytes req = g_last_move;
+-        std::memcpy(req.data() + 0x04, p, sizeof p);
+-        std::memcpy(req.data() + 0x4C, p, sizeof p);
++        std::memcpy(req.data() + wire::kMovePos, p, sizeof p);
++        std::memcpy(req.data() + wire::kMoveLocalPos, p, sizeof p);
+         const uint64_t ts = g_last_move_ts + k * kGapStepMs;
+-        std::memcpy(req.data() + 0xD5, &ts, 8);
++        std::memcpy(req.data() + wire::kMoveTs, &ts, 8);
+         auto ack = move_ack(req);
+         if (!ack) return;
+         // Due when the original sample would have been: received at the time
+@@ -1296,10 +1301,12 @@ bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vecto
+         if (const uint64_t est = capture_game_clock_ms()) game_now = est;  // the estimate (clock read off)
+     }
+     int with_action = 0;
+-    for (size_t at = 0; at + 725 <= action_req.size(); at += 725) {
+-        const Bytes one(action_req.begin() + at, action_req.begin() + at + 725);
++    for (size_t at = 0; at + wire::kActionReqSize <= action_req.size(); at += wire::kActionReqSize) {
++        const Bytes one(action_req.begin() + at, action_req.begin() + at + wire::kActionReqSize);
+         if (auto ack = start_action_ack(one)) {
+-            if (game_now && ack->size() >= 0x168) std::memcpy(ack->data() + 0x160, &*game_now, 8);
++            if (constexpr size_t ts_at = wire::ack_at(wire::kActionTs); game_now && ack->size() >= ts_at + 8) {
++                std::memcpy(ack->data() + ts_at, &*game_now, 8);
++            }
+             enqueue_at(make_packet(off::kOpStartActionAck, *ack), now, /*movement=*/false);
+             ++with_action;
+         }
+@@ -1308,18 +1315,18 @@ bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vecto
+     // without one the first copies loaded but never showed (live test). One
+     // still sample where it stands, built on the other player's last Move.
+     bool with_move = false;
+-    if (g_last_move.size() == 514 && std::isfinite(orig[0])) {
++    if (g_last_move.size() == wire::kMoveReqSize && std::isfinite(orig[0])) {
+         Bytes m = g_last_move;
+         std::memcpy(m.data() + 0x00, &copy_key, 4);
+-        std::memcpy(m.data() + 0x04, orig, 12);
+-        std::memcpy(m.data() + 0x10, rot, 16);
+-        std::memset(m.data() + 0x20, 0, 4);
+-        std::memcpy(m.data() + 0x4C, orig, 12);  // Path.local = world, no parent
+-        std::memcpy(m.data() + 0x58, rot, 16);
++        std::memcpy(m.data() + wire::kMovePos, orig, 12);
++        std::memcpy(m.data() + wire::kMoveRot, rot, 16);
++        std::memset(m.data() + wire::kMoveKeyField, 0, 4);
++        std::memcpy(m.data() + wire::kMoveLocalPos, orig, 12);  // Path.local = world, no parent
++        std::memcpy(m.data() + wire::kMoveLocalRot, rot, 16);
+         const float one[3] = {1.0f, 1.0f, 1.0f};
+-        std::memcpy(m.data() + 0x68, one, sizeof one);
+-        std::memset(m.data() + 0x8C, 0xFF, 8);
+-        std::memset(m.data() + 0x94, 0, 0x40);
++        std::memcpy(m.data() + wire::kMoveLocalScale, one, sizeof one);
++        std::memset(m.data() + wire::kMoveParent, 0xFF, 8);
++        std::memset(m.data() + wire::kMoveWorldPos, 0, wire::kMoveWorldBlock);
+         float ref[3];
+         std::memcpy(ref, g_ref_pos, sizeof ref);  // the sender's reference stays
+         auto ack = move_ack(m);
+@@ -1342,21 +1349,21 @@ std::map<uint32_t, std::array<float, 3>> g_enemy_pos;
+ 
+ void puppet_enemy_move(uint32_t copy_key, uint64_t ts, const proto::Vec3& pos, const proto::Quat& rot,
+                        int64_t ts_shift_ms, uint64_t delay_ms) {
+-    if (g_last_move.size() != 514) return;
++    if (g_last_move.size() != wire::kMoveReqSize) return;
+     Bytes m = g_last_move;
+     const float p[3] = {pos.x, pos.y, pos.z};
+     const float q[4] = {rot.x, rot.y, rot.z, rot.w};
+     std::memcpy(m.data() + 0x00, &copy_key, 4);
+-    std::memcpy(m.data() + 0x04, p, sizeof p);
+-    std::memcpy(m.data() + 0x10, q, sizeof q);
+-    std::memset(m.data() + 0x20, 0, 4);
+-    std::memcpy(m.data() + 0x4C, p, sizeof p);  // Path.local = world, no parent
+-    std::memcpy(m.data() + 0x58, q, sizeof q);
++    std::memcpy(m.data() + wire::kMovePos, p, sizeof p);
++    std::memcpy(m.data() + wire::kMoveRot, q, sizeof q);
++    std::memset(m.data() + wire::kMoveKeyField, 0, 4);
++    std::memcpy(m.data() + wire::kMoveLocalPos, p, sizeof p);  // Path.local = world, no parent
++    std::memcpy(m.data() + wire::kMoveLocalRot, q, sizeof q);
+     const float one[3] = {1.0f, 1.0f, 1.0f};
+-    std::memcpy(m.data() + 0x68, one, sizeof one);
+-    std::memset(m.data() + 0x8C, 0xFF, 8);
+-    std::memset(m.data() + 0x94, 0, 0x40);
+-    std::memcpy(m.data() + 0xD5, &ts, 8);
++    std::memcpy(m.data() + wire::kMoveLocalScale, one, sizeof one);
++    std::memset(m.data() + wire::kMoveParent, 0xFF, 8);
++    std::memset(m.data() + wire::kMoveWorldPos, 0, wire::kMoveWorldBlock);
++    std::memcpy(m.data() + wire::kMoveTs, &ts, 8);
+     g_enemy_pos[copy_key] = {p[0], p[1], p[2]};
+     float ref[3];
+     std::memcpy(ref, g_ref_pos, sizeof ref);
+@@ -1471,17 +1478,17 @@ void ride_horse(const Bytes& rider_req, uint64_t now, uint64_t delay_ms) {
+     if (!g_horse_spawned) return;
+     Bytes h = rider_req;
+     std::memcpy(h.data() + 0x00, &kPuppetHorse, 4);
+-    std::memcpy(h.data() + 0x04, rider_req.data() + 0x94, 12);  // horse position
+-    std::memcpy(h.data() + 0x10, rider_req.data() + 0xA0, 16);  // horse rotation
+-    std::memset(h.data() + 0x20, 0, 4);
+-    std::memcpy(h.data() + 0x4C, rider_req.data() + 0x94, 12);  // Path.local = world, no parent
+-    std::memcpy(h.data() + 0x58, rider_req.data() + 0xA0, 16);
++    std::memcpy(h.data() + wire::kMovePos, rider_req.data() + wire::kMoveWorldPos, 12);  // horse position
++    std::memcpy(h.data() + wire::kMoveRot, rider_req.data() + wire::kMoveWorldRot, 16);  // horse rotation
++    std::memset(h.data() + wire::kMoveKeyField, 0, 4);
++    std::memcpy(h.data() + wire::kMoveLocalPos, rider_req.data() + wire::kMoveWorldPos, 12);  // Path.local = world
++    std::memcpy(h.data() + wire::kMoveLocalRot, rider_req.data() + wire::kMoveWorldRot, 16);
+     const float one[3] = {1.0f, 1.0f, 1.0f};
+-    std::memcpy(h.data() + 0x68, one, sizeof one);
+-    std::memset(h.data() + 0x8C, 0xFF, 8);
+-    std::memset(h.data() + 0x94, 0, 0x40);
++    std::memcpy(h.data() + wire::kMoveLocalScale, one, sizeof one);
++    std::memset(h.data() + wire::kMoveParent, 0xFF, 8);
++    std::memset(h.data() + wire::kMoveWorldPos, 0, wire::kMoveWorldBlock);
+     float hp[3];
+-    std::memcpy(hp, h.data() + 0x04, sizeof hp);
++    std::memcpy(hp, h.data() + wire::kMovePos, sizeof hp);
+     if (!std::isfinite(hp[0]) || (hp[0] == 0.0f && hp[2] == 0.0f)) return;
+     float ref[3];
+     std::memcpy(ref, g_ref_pos, sizeof ref);  // keep the rider's reference position
+@@ -1561,7 +1568,7 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+     const uint32_t src = g_src_player_key;
+     Bytes payload = ev.payload;
+     // Moves arrive without their unused trailing history (local_capture emit).
+-    if (ev.kind == proto::EventKind::Move && payload.size() == 0xEA) payload.resize(514, 0);
++    if (ev.kind == proto::EventKind::Move && payload.size() == wire::kMoveWireSize) payload.resize(wire::kMoveReqSize, 0);
+     // The actor key leads every payload, after a fragment marker byte in
+     // OtherEquipItemAck.
+     const size_t key_at = ev.kind == proto::EventKind::Equip   ? 1
+@@ -1602,21 +1609,21 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+     std::optional<Bytes> ack;
+     switch (ev.kind) {
+         case proto::EventKind::Move:
+-            if (payload.size() != 514) return;
++            if (payload.size() != wire::kMoveReqSize) return;
+             fill_gap_before(payload, move_hold);
+             g_last_move = payload;
+             g_last_move_ms = now;
+-            std::memcpy(&g_last_move_ts, payload.data() + 0xD5, 8);
+-            std::memcpy(g_last_move_pos, payload.data() + 0x04, sizeof g_last_move_pos);
++            std::memcpy(&g_last_move_ts, payload.data() + wire::kMoveTs, 8);
++            std::memcpy(g_last_move_pos, payload.data() + wire::kMovePos, sizeof g_last_move_pos);
+             ack_op = off::kOpMoveActorAck;
+             ack = move_ack(payload);
+-            if (u32_at(payload, 0x8C) == kPuppetHorse) ride_horse(payload, now, move_hold);
++            if (u32_at(payload, wire::kMoveParent) == kPuppetHorse) ride_horse(payload, now, move_hold);
+             {
+                 // Dismounted (parent back to none for a few Moves): unless our
+                 // copy really rides our copy of the horse, reload it. Only the
+                 // sender's horse counts: other parents (a pulled tree, a carried
+                 // animal, a boat) caused reload loops in live test 4.
+-                const uint32_t parent = u32_at(payload, 0x8C);
++                const uint32_t parent = u32_at(payload, wire::kMoveParent);
+                 const uint32_t horse = g_sender_horse;
+                 const bool riding = horse && (parent == kPuppetHorse || parent == horse);
+                 if (riding) {
+@@ -1642,9 +1649,9 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+         case proto::EventKind::StartAction:
+             // A StartAction right after a filled climb-up that still carries the
+             // frozen start position: move it to where the sender ended up.
+-            if (payload.size() == 725 && g_recent_gap.valid) {
++            if (payload.size() == wire::kActionReqSize && g_recent_gap.valid) {
+                 if (now - g_recent_gap.detected_ms <= 300) {
+-                    for (size_t at : {size_t{0x8E}, size_t{0xD6}}) {
++                    for (size_t at : {wire::kActionPos, wire::kActionLocalPos}) {
+                         float v[3];
+                         std::memcpy(v, payload.data() + at, sizeof v);
+                         const float ex = v[0] - g_recent_gap.start[0], ey = v[1] - g_recent_gap.start[1],
+@@ -1780,7 +1787,7 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+     if (ev.kind == proto::EventKind::Move) {
+         enqueue_at(make_packet(ack_op, *ack), movement_due(now + move_hold), /*movement=*/true);
+     } else {
+-        g_action_hold = action_hold_for(*ack, ev.kind == proto::EventKind::StartAction ? 0x160 : 0x9C, delay_ms);
++        g_action_hold = action_hold_for(*ack, ev.kind == proto::EventKind::StartAction ? wire::ack_at(wire::kActionTs) : 0x9C, delay_ms);
+         const uint64_t due = action_due(now + g_action_hold);
+         if (ev.kind == proto::EventKind::StartAction && !is_horse && g_copy_hooked && payload.size() >= 12) {
+             const uint32_t next = u32_at(payload, 8);
+@@ -2045,8 +2052,8 @@ void puppet_tick() {
+ bool movement_ts(const Bytes& pk, size_t& at, InjectClock::Buffer& buffer) {
+     if (pk.size() < 5 + 4) return false;
+     const uint16_t op = static_cast<uint16_t>(pk[0] | (pk[1] << 8));
+-    if (op == off::kOpMoveActorAck) at = 5 + 0xD5, buffer = InjectClock::Buffer::Position;
+-    else if (op == off::kOpStartActionAck) at = 5 + 0x160, buffer = InjectClock::Buffer::Both;
++    if (op == off::kOpMoveActorAck) at = 5 + wire::kMoveTs, buffer = InjectClock::Buffer::Position;
++    else if (op == off::kOpStartActionAck) at = 5 + wire::ack_at(wire::kActionTs), buffer = InjectClock::Buffer::Both;
+     else if (op == off::kOpRotateActorAck) at = 5 + 0x9C, buffer = InjectClock::Buffer::Rotation;
+     else return false;
+     return pk.size() >= at + 8;
+@@ -2469,12 +2476,13 @@ bool puppet_take_injection(std::vector<uint8_t>& out) {
+         break;
+     }
+     if (has) {
+-        // MoveActorAck: u32 key | f32 x, y, z | ...
+-        if (out.size() >= 5 + 16 && out[0] == (off::kOpMoveActorAck & 0xFF) && out[1] == (off::kOpMoveActorAck >> 8)) {
++        // MoveActorAck: u32 key | ... | f32 x, y, z at wire::kMovePos
++        if (out.size() >= 5 + wire::kMovePos + 12 && out[0] == (off::kOpMoveActorAck & 0xFF) &&
++            out[1] == (off::kOpMoveActorAck >> 8)) {
+             uint32_t key;
+             std::memcpy(&key, out.data() + 5, 4);
+             if (key == kPuppetPlayer || key == kPuppetBody) {
+-                std::memcpy(g_told_pos, out.data() + 9, sizeof g_told_pos);
++                std::memcpy(g_told_pos, out.data() + 5 + wire::kMovePos, sizeof g_told_pos);
+                 g_told_x.store(g_told_pos[0], std::memory_order_relaxed);
+                 g_told_z.store(g_told_pos[2], std::memory_order_relaxed);
+                 g_told_ms = now;
 diff --git a/upstream/cd-coop-3446/src/mod/net/room_code.cpp b/upstream/cd-coop-3446/src/mod/net/room_code.cpp
 index e5717d3..9cf5a27 100644
 --- a/upstream/cd-coop-3446/src/mod/net/room_code.cpp
@@ -2260,10 +3044,10 @@ index 50a62fa..1fbfd36 100644
  
 diff --git a/upstream/cd-coop-3446/src/mod/net/save_guard.cpp b/upstream/cd-coop-3446/src/mod/net/save_guard.cpp
 new file mode 100644
-index 0000000..b769fb2
+index 0000000..56a9a90
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/save_guard.cpp
-@@ -0,0 +1,162 @@
+@@ -0,0 +1,164 @@
 +#include "mod/net/save_guard.h"
 +
 +#include <windows.h>
@@ -2292,8 +3076,10 @@ index 0000000..b769fb2
 +
 +// Fallbacks from the 2976 message table (docs/research/data/troc_messages_2976.csv);
 +// resolved by name at runtime (opcode_for), so a patch that renumbers them is fine.
-+constexpr uint16_t kOpSaveAutoReq = 3037;
-+constexpr uint16_t kOpSaveToFileCurrentPlayerReq = 2910;
++// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
++// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
++constexpr uint16_t kOpSaveAutoReq = 3134;
++constexpr uint16_t kOpSaveToFileCurrentPlayerReq = 2122;
 +constexpr uint64_t kBackupEveryMs = 10 * 60 * 1000;
 +constexpr size_t kKeepBackups = 10;
 +constexpr uint64_t kNoticeMs = 20000;
@@ -2918,6 +3704,65 @@ index b6efad7..b358264 100644
  // has not been read yet or the name is not there, so behaviour is identical to
  // before on a build where resolution is unavailable.
  uint16_t opcode_for(const char* name, uint16_t fallback);
+diff --git a/upstream/cd-coop-3446/src/mod/net/wire_layout.h b/upstream/cd-coop-3446/src/mod/net/wire_layout.h
+new file mode 100644
+index 0000000..4b35dcf
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/wire_layout.h
+@@ -0,0 +1,53 @@
++#pragma once
++// Co-op+: byte layout of the movement messages the co-op relays, for game 1.0.0.3460.
++//
++// 1.0.0.3460 reordered the "MoveData" block that MoveActor and StartAction carry and grew it
++// by 4 bytes (218 -> 222): the Path (local transform, parent, world transform) now comes
++// FIRST, then the transform, the rotation and the position, then the timestamp and a new u32.
++// Read from the client's own parser (MoveActorAck vf2 exe+0xC6F2A0 -> MoveData reader
++// exe+0x26356B0 -> Path exe+0x148A940) and confirmed on captured 3460 packets (key, position,
++// rotation, parent 0xFF..FF on foot, timestamp advancing with real time, StartAction flag
++// 1 in 10854 of 11013). RotateActor (176 B) did not change.
++//
++// Offsets are into the Req payload (after the 5-byte header). The Ack is the same bytes with
++// one u8 inserted: MoveActor at kMoveDataEnd, StartAction at kActionMoveData, so every
++// StartAction offset from kActionMoveData on is one higher in the Ack (ack_at below).
++
++#include <cstddef>
++
++namespace cdmp::net::wire {
++
++// ---- MoveActorReq: 518 B = key, MoveData (222), tail (12), 10 x 28 history ---------
++inline constexpr size_t kMoveReqSize = 518;    // 3446: 514
++inline constexpr size_t kMoveLocalPos = 0x04;  // Path.local position (= world on foot); 3446: 0x4C
++inline constexpr size_t kMoveLocalRot = 0x10;  // 3446: 0x58
++inline constexpr size_t kMoveLocalScale = 0x20;  // 3446: 0x68
++inline constexpr size_t kMoveParent = 0x44;    // u64 parent/mount key, all FF on foot; 3446: 0x8C
++inline constexpr size_t kMoveWorldPos = 0x4C;  // Path.world (the mount's transform when riding); 3446: 0x94
++inline constexpr size_t kMoveWorldRot = 0x58;  // 3446: 0xA0
++inline constexpr size_t kMoveWorldBlock = 0x40;  // world transform + two vec3, zeroed on foot
++inline constexpr size_t kMoveRot = 0xB4;       // quaternion of the actor; 3446: 0x10
++inline constexpr size_t kMovePos = 0xC4;       // world position of the actor; 3446: 0x04
++inline constexpr size_t kMoveKeyField = 0xD0;  // u32, sometimes another actor's key; 3446: 0x20
++inline constexpr size_t kMoveTs = 0xD4;        // u64 game clock, ms; 3446: 0xD5
++inline constexpr size_t kMoveDataEnd = 0xE2;   // the Ack's extra u8 goes here; 3446: 0xDE
++inline constexpr size_t kMoveWireSize = 0xEE;  // without the history (what we send); 3446: 0xEA
++
++// ---- StartActionReq: 729 B = key, 2 x 69, MoveData (222) + the rest, u8 flag ----------
++inline constexpr size_t kActionReqSize = 729;    // 3446: 725
++inline constexpr size_t kActionMoveData = 0x8E;  // unchanged
++inline constexpr size_t kActionFlag = 0x2D8;     // the Req's last byte, first byte of B in the Ack; 3446: 0x2D4
++// MoveData fields inside StartAction: Move offset - 4 + kActionMoveData.
++inline constexpr size_t kActionLocalPos = kActionMoveData + kMoveLocalPos - 4;  // 0x8E; 3446: 0xD6
++inline constexpr size_t kActionParent = kActionMoveData + kMoveParent - 4;      // 0xCE; 3446: 0x116
++inline constexpr size_t kActionRot = kActionMoveData + kMoveRot - 4;            // 0x13E
++inline constexpr size_t kActionPos = kActionMoveData + kMovePos - 4;            // 0x14E; 3446: 0x8E
++inline constexpr size_t kActionKeyField = kActionMoveData + kMoveKeyField - 4;  // 0x15A; 3446: 0xAA
++inline constexpr size_t kActionTs = kActionMoveData + kMoveTs - 4;              // 0x15E; 3446: 0x15F
++inline constexpr size_t kActionAfterMove = kActionMoveData + kMoveDataEnd - 4;  // 0x16C, u32 (a key at times); 3446: 0x168
++inline constexpr size_t kActionTarget = kActionAfterMove + 4;                   // 0x170, u32 action target; 3446: 0x16C
++
++// Ack offset of a StartAction Req offset at or past kActionMoveData.
++constexpr size_t ack_at(size_t req_offset) { return req_offset + 1; }
++
++}  // namespace cdmp::net::wire
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 index 14edc91..be216c3 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp

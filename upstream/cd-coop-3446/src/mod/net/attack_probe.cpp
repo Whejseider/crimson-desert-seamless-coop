@@ -23,7 +23,9 @@ namespace {
 
 namespace off = game::build_3460;
 
-constexpr uint16_t kOpCurrentTargetChangeReq = 2984;  // u32 actor | u32 target | ...
+// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
+// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
+constexpr uint16_t kOpCurrentTargetChangeReq = 2820;  // u32 actor | u32 target | ...
 constexpr uint32_t kPuppetPlayer = 0xA010F001;
 constexpr uint64_t kRecentMs = 5000;
 constexpr uint32_t kMaxListed = 16;

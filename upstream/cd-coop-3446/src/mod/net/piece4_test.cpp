@@ -25,11 +25,13 @@ namespace {
 
 using Bytes = std::vector<uint8_t>;
 
-constexpr uint16_t kOpAttackTargetAck = 2922;            // +0 target | +4 attacker | +0x24 attack hash
-constexpr uint16_t kOpApplyActionRestrictionAck = 2162;  // 77 B: +0 target | +0x24 instance | +0x49 source
-constexpr uint16_t kOpApplyBuffAck = 2506;               // 77 B: +0 holder | +4 buff | +0x14 instance | +0x18 source |
+// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
+// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
+constexpr uint16_t kOpAttackTargetAck = 2791;            // +0 target | +4 attacker | +0x24 attack hash
+constexpr uint16_t kOpApplyActionRestrictionAck = 3059;  // 77 B: +0 target | +0x24 instance | +0x49 source
+constexpr uint16_t kOpApplyBuffAck = 2677;               // 77 B: +0 holder | +4 buff | +0x14 instance | +0x18 source |
                                                          // +0x1C holder | +0x29 source position
-constexpr uint16_t kOpStartActionReq = 2223;             // +0 actor | +4 previous action | +8 new action
+constexpr uint16_t kOpStartActionReq = 2202;             // +0 actor | +4 previous action | +8 new action
 constexpr size_t kBatchSize = 77;
 constexpr uint32_t kPuppetPlayer = 0xA010F001;
 

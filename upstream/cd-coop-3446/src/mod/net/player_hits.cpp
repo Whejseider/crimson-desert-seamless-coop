@@ -27,12 +27,14 @@ namespace {
 
 using Bytes = std::vector<uint8_t>;
 
-constexpr uint16_t kOpDoFrameEventReq = 2380;
-constexpr uint16_t kOpVaryHPAck = 2147;
-constexpr uint16_t kOpVaryStatByAccInputReq = 2181;
-constexpr uint16_t kOpAttackTargetAck = 2922;            // +0 target | +4 attacker
-constexpr uint16_t kOpApplyActionRestrictionAck = 2162;  // 77 B: +0 target | +0x24 instance | +0x49 source
-constexpr uint16_t kOpApplyBuffAck = 2506;               // 77 B: +0 holder | +4 buff | +0x14 instance |
+// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
+// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
+constexpr uint16_t kOpDoFrameEventReq = 3030;
+constexpr uint16_t kOpVaryHPAck = 2740;
+constexpr uint16_t kOpVaryStatByAccInputReq = 2565;
+constexpr uint16_t kOpAttackTargetAck = 2791;            // +0 target | +4 attacker
+constexpr uint16_t kOpApplyActionRestrictionAck = 3059;  // 77 B: +0 target | +0x24 instance | +0x49 source
+constexpr uint16_t kOpApplyBuffAck = 2677;               // 77 B: +0 holder | +4 buff | +0x14 instance |
                                                          // +0x18 source | +0x1C holder | +0x29 source pos |
                                                          // +0x39/+0x41 server ms
 constexpr size_t kBatchSize = 77;
