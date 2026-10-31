@@ -127,3 +127,7 @@
 - 06:04 docs/architecture.md and integration-plan.md: 'how it is actually built today' sections for future sessions.
 - 06:05 Final package 0.1.0-alpha+22202d0f built from HEAD; fake-folder install/uninstall OK; ini reads role=auto,
   join=friends, transport=steam, coop=1; Defender: no detections.
+
+## 2026-10-31 11:01 — upstream watch ended
+- Polled nouzert1/cd-coop-3446 every 5 min until 11:00: no new commits (still b7ae1337). Nothing to integrate;
+  package 0.1.0-alpha+22202d0f stays current. Waiting for "GO: game testing is clear." to start M0.
