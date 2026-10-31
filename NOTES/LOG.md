@@ -25,3 +25,20 @@
 - User reconnected GitHub and asked for a fully separate repo (nothing in Elden Force). create_repository -> 403 "Resource not accessible by integration"; list_repos finds no crimson repo. Split history with `git subtree split --prefix=CrimsonDesert-SeamlessCoop` into /home/user/crimson-desert-seamless-coop (main, 4 commits, no Elden Force history). Moved CI workflow to .github/workflows/build.yml (root paths), fixed patch paths (-p1). Reset the local elden-force-source branch to c48f916 (its original state; nothing had been pushed).
 - User created the repo via the browser; it then appeared to the GitHub App. add_repo OK, remote was empty, pushed main (02ca593). Repo private.
 - User turned on Remote Control. list_computer_folders: DESKTOP-SM0R9J3 / JumpRing in cannot_be_used (Windows computers can't serve folders to cloud sessions). Not using JumpRing (Elden Ring). Proposed local session on the PC (D14).
+
+## 2026-10-31 (session 2, local Claude Code on the user's Windows PC)
+- Cloned the repo into a folder the app made for this session (very long path). README_FOR_CLAUDE -> brief -> STATE -> LOG.
+- Game exe read-only: D:\SteamLibrary\steamapps\common\Crimson Desert\bin64\CrimsonDesert.exe, FileVersion 1.0.0.3446,
+  332786072 bytes. Not launched.
+- Toolchain: vswhere finds VS Build Tools 2022 17.14.37710 (MSVC 14.44.35207); CMake 3.31 + Ninja bundled under
+  Common7\IDE\CommonExtensions\Microsoft\CMake; Windows SDK 10.0.22621 and 10.0.26100. cmake/cl not on PATH (use VsDevCmd).
+- MSVC attempt 1 (build dir in the repo): VsDevCmd warned vswhere missing from PATH; CMake try_compile failed (path too long).
+- MSVC attempt 2 (build dir %TEMP%\cdcoop-b): our core, DLL and test objects compiled (warnings only: C4996 _wfopen,
+  C4127 in upstream tests). Failed: C1083 cannot open upstream\cd-coop-3446\src\common\client_session.cpp, because the
+  full source path is over MAX_PATH. Decision D15: move the project to C:\Users\asher\CrimsonDesert-SeamlessCoop.
+- User sent the brief PDF (same as docs/BRIEF.txt) and preferences: contact only at pivotal moments; Chrome is signed in
+  to Nexus/GitHub for our use.
+- Nexus permissions: own Chrome tab, fetched each mod page (read-only GET, 0.7 s apart) and parsed the "Permissions and
+  credits" section. 26/27 read; 3380 CDAutoLoot hidden since 2026-09-13 (unsupported). docs/mod-permissions.md updated.
+  Tab closed.
+- gh api: ThirteenAG/Ultimate-ASI-Loader licence MIT, latest release v10.0.2 (2026-10-27).

@@ -63,3 +63,17 @@
 - Proposed to the user: run Phase B in a Claude Code session on the PC itself (desktop app, local), in its own folder
   cloned from https://github.com/ashersheets-jpg/crimson-desert-seamless-coop. That session has the game (D:), Chrome,
   MSVC/screen control (after GO); it starts from README_FOR_CLAUDE.md -> NOTES/STATE.md.
+
+## 2026-10-31 D15: Local project folder on the PC
+- The user asked Claude to choose the folder. Options: (a) keep the app's per-session folder (deleted with the session,
+  path ~200 chars), (b) `C:\Users\asher\CrimsonDesert-SeamlessCoop`, the brief's suggested name, beside (not inside)
+  the JumpRing/Elden Ring project.
+- Chosen: (b). It survives the session, and the short path keeps upstream sources under Windows MAX_PATH for MSVC
+  (attempt 2 failed with C1083 on a 260+ char path). We do not change the system long-path setting.
+
+## 2026-10-31 D16: Nexus permissions verified; Comfort Pack approach unchanged
+- All "ask first" mods stay idea-only (reimplement + credit); nothing is bundled. Permissive mods (Fat Stacks, Infinite
+  Stamina, PrivateStorageAnywherePLUS, JMM, Barber 2.04) could be adapted with credit, but the co-op rule (D-policy 7:
+  gameplay patches must match on both machines) still favours our own host-synced config.
+- Live Transmog and CDUMM: GitHub says MIT, Nexus says ask first. We follow the stricter Nexus terms until the authors
+  clarify; no code reuse for now.
