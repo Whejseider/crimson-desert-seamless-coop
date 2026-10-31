@@ -22,6 +22,7 @@
 #include "common/protocol.h"
 #include "common/reliable.h"
 #include "mod/net/room_codec.h"
+#include "mod/net/join_args.h"
 #include "mod/net/boss_rules.h"
 
 #include <cctype>
@@ -1505,6 +1506,32 @@ void test_boss_rules() {
     CHECK(!net::is_boss_stage_name("cd_field_village_idle"));
 }
 
+
+// Co-op+: the lobby a Steam "Join Game" / invite names on the command line.
+void test_join_args() {
+    using net::find_connect_lobby;
+    constexpr uint64_t kLobby = 109775242893225821ull;  // a real lobby id (room_codec.h)
+    CHECK(net::looks_like_lobby_id(kLobby));
+    CHECK(!net::looks_like_lobby_id(76561197960287930ull));  // an individual SteamID64
+    CHECK(!net::looks_like_lobby_id(0));
+    // The way Steam starts the game for a join.
+    CHECK(find_connect_lobby(std::string_view("CrimsonDesert.exe +connect_lobby 109775242893225821")) == kLobby);
+    CHECK(find_connect_lobby(std::wstring_view(L"\"D:\\bin64\\CrimsonDesert.exe\" +connect_lobby 109775242893225821 -x")) == kLobby);
+    CHECK(find_connect_lobby(std::string_view("+connect_lobby=109775242893225821")) == kLobby);
+    CHECK(find_connect_lobby(std::string_view("+CONNECT_LOBBY	109775242893225821")) == kLobby);
+    // Our own rich presence "connect" string.
+    CHECK(find_connect_lobby(std::string_view("+connect_lobby 109775242893225821")) == kLobby);
+    // Refused: no number, not a lobby, glued words, overflow.
+    CHECK(!find_connect_lobby(std::string_view("+connect_lobby")));
+    CHECK(!find_connect_lobby(std::string_view("+connect_lobby 76561197960287930")));
+    CHECK(!find_connect_lobby(std::string_view("x+connect_lobby 109775242893225821")));
+    CHECK(!find_connect_lobby(std::string_view("+connect_lobbyX 109775242893225821")));
+    CHECK(!find_connect_lobby(std::string_view("+connect_lobby 109775242893225821abc")));
+    CHECK(!find_connect_lobby(std::string_view("+connect_lobby 99999999999999999999999")));
+    // A bad first match does not hide a good later one.
+    CHECK(find_connect_lobby(std::string_view("+connect_lobby 5 +connect_lobby 109775242893225821")) == kLobby);
+}
+
 }  // namespace
 
 int main() {    test_pattern();
@@ -1532,6 +1559,7 @@ int main() {    test_pattern();
     test_enemy_zone_machine();
     test_room_code();
     test_boss_rules();
+    test_join_args();
     if (g_failures == 0) std::printf("All tests passed\n");
     return g_failures == 0 ? 0 : 1;
 }

@@ -1,43 +1,42 @@
 # STATE (single source of truth for resuming)
 
-**Phase A done; local PC session (session 2) started 2026-10-31. Waiting for the user's exact words "GO: game testing is clear."**
+**Phase A done. Session 2 (local, on the user's PC) is doing all pre-GO work; the user is asleep (since ~05:00 on
+2026-10-31) and asked for autonomous work until at least 11:00. Waiting for "GO: game testing is clear."**
 
 ## Where the project lives now
-- Local folder on the user's PC: `C:\Users\asher\CrimsonDesert-SeamlessCoop` (D15). Short path on purpose: the upstream
-  sources break MSVC under deep folders (260-char MAX_PATH; we don't change the system long-path setting).
-- Work branch: `phase-a/local-pc-setup` (pushed). `main` = Phase A from session 1.
+- `C:\Users\asher\CrimsonDesert-SeamlessCoop` (D15; short path because MSVC breaks on deep folders).
+- Work branch: `phase-a/local-pc-setup` (pushed after each milestone). `main` = Phase A from session 1.
+- Build: `upstream\cd-coop-3446\scripts\build.ps1` (cdmp.asi + tools + tests, RelWithDebInfo) and, for our own
+  layers, `cmake -S . -B build\msvc -G Ninja` inside VsDevCmd (PATH needs `...\Microsoft Visual Studio\Installer`).
 
 ## Done
-- Skeleton, CMake C++20; 42 own unit tests + upstream's test suite pass on Linux; MinGW builds; CI workflow.
-- Our layers: sim/, net/, game/, compat/, core/. Commented TOML configs.
-- Research: NOTES/RESEARCH/*.md, docs/research.md, CLAIMS.md.
-- D10 (user): build on cdmp via nouzert1/cd-coop-3446 -> `upstream/` (GPL-3.0), CREDITS.md, docs/integration-plan.md.
-- **Session 2 (on the PC):**
-  - Game exe confirmed read-only: `D:\SteamLibrary\steamapps\common\Crimson Desert\bin64\CrimsonDesert.exe`,
-    FileVersion **1.0.0.3446** (matches upstream `offsets_3446.h`), 332,786,072 bytes, written 2026-10-31 02:14.
-  - Toolchain: VS Build Tools 2022 17.14 (MSVC 14.44.35207), bundled CMake 3.31 + Ninja, Windows SDK 10.0.26100.
-    Nothing to install. VsDevCmd needs `...\Microsoft Visual Studio\Installer` on PATH (for vswhere).
-  - MSVC build of our targets compiled cleanly up to the upstream test sources, which failed only on path length
-    (long scratch path). Re-run from the short folder.
-  - **Nexus permissions verified first-hand** for all 27 listed mods (docs/mod-permissions.md). Nothing changes the
-    plan: all Comfort Pack features stay "reimplement the idea + credit". Permissive: Fat Stacks, Infinite Stamina,
-    PrivateStorageAnywherePLUS, JMM, Barber 2.04. CDAutoLoot is hidden (dropped). Ultimate ASI Loader is MIT, v10.0.2.
+- Phase A (session 1): skeleton, sim/net/game/compat/core layers, 42 unit tests, research, D10 build on cdmp.
+- Session 2:
+  - Game exe 1.0.0.3446 (`D:\SteamLibrary\steamapps\common\Crimson Desert\bin64`), PE timestamp 0x6AE46DD0 =
+    upstream `offsets_3446.h`. **Upstream's offline verifier passes every check against this exe**, so upstream's
+    addresses hold on the user's current patch.
+  - MSVC builds: ours (`CrimsonDesertCoop.asi`, both test suites pass) and upstream (`cdmp.asi`, tools, unit +
+    20M-id room codec test pass). **Two-instance loopback test passes** (two real mod instances connect).
+  - Nexus permissions verified first-hand (docs/mod-permissions.md, D16).
+  - Steam facts, offline: game's `steam_api64.dll` 09.31.86.04 exports everything we use (SteamFriends_v017,
+    Matchmaking_v009, Apps_v008, RegisterCallback, overlay invite, rich presence). The exe imports
+    `SteamAPI_RunCallbacks` + `SteamAPI_RegisterCallback` (classic dispatch), so callbacks we register will fire.
+  - **M1 code: Steam join** (patch 0002, D17): `[net] role=auto`, "Join Game"/invite via callbacks + `+connect_lobby`
+    launch argument, Ctrl+F1 invite (Steam overlay), Ctrl+F2 leave, rich presence, role switch between sessions.
+    Builds clean, unit-tested parser, loopback still passes. **Needs a live two-PC test.**
 
-## User preferences (2026-10-31)
-- Contact the user only at pivotal moments, real roadblocks, or direction-changing decisions. Don't ask what the brief
-  or notes already answer.
-- Chrome (Claude in Chrome) is signed in to the user's Nexus and GitHub for our use; use our own tab only.
-- Goal: play with friends in an official-feeling co-op mod.
+## Questions for the user (ask when they wake up; work continues meanwhile)
+1. Who is the second player for the first two-PC test, and when? (Both need the same mod zip; Denuvo 5 PCs/day.)
+2. Hotkeys: Ctrl+F1 = invite, Ctrl+F2 = leave, F8 = panel. OK, or do you prefer others?
+3. OK to post a courtesy GitHub issue to nouzert1 (cd-coop-3446) saying we build on the port and offering patches?
 
 ## Blockers / waiting on the user
 1. **GO** for game testing (another session may be testing Elden Ring on this PC).
-2. Two-player tests need a second PC + Steam account that owns the game (a friend). Denuvo: max 5 PCs/day.
+2. Two-player tests need a second PC + Steam account that owns the game.
 
-## Next steps
-1. In `C:\Users\asher\CrimsonDesert-SeamlessCoop`: MSVC build of ours (`cmake -G Ninja`, Release) + ctest; MSVC build
-   of upstream `cdmp.asi` (upstream/cd-coop-3446, its own CMake) + its tests. Record results in LOG.
-2. Pre-GO prep that needs no game: read upstream `offsets_3446.h` against our sigscan design; plan integration step 2
-   (one DLL: upstream + cdcoop_core) per docs/integration-plan.md and start it.
-3. After GO: M0 per docs/tests/M0.md + upstream's single-PC relay test (`cdmp_peer --mode relay`).
-4. Then signatures, then M1 Steam lobbies (integration-plan.md).
-5. Courtesy note to nouzert1 (GitHub issue) offering patches back; user to approve before posting.
+## Next steps (pre-GO, in order)
+1. Friend-ready package: release script (PowerShell) that builds, tests and zips cdmp.asi + Ultimate ASI Loader
+   v10.0.2 (MIT, from GitHub) + English install guide + install/uninstall script with save backup.
+2. English two-PC test plan (docs/tests/M1.md) for the Steam join flow; M0 checklist updated for upstream.
+3. Integration step 2 (our sim/config layers in the same DLL), starting with party-size scaling data plumbing.
+4. After GO: M0 + live checks (docs/tests/M0.md), then the two-PC session.

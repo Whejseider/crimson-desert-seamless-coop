@@ -14,4 +14,5 @@ ThirteenAG) is downloaded from its official GitHub release when packaging.
 ## Local patches (re-applied by tools/sync_upstream.sh)
 | Patch | Why |
 |---|---|
+| `patches/0002-coopplus-steam-join.patch` | Co-op+ M1: Steam "Join Game", overlay invites (Ctrl+F1), leave (Ctrl+F2), rich presence, `[net] role=auto` (host your world, become a guest on a Steam join). New files `src/mod/net/steam_join.*`, `join_args.h` (unit-tested); `mod.cpp` runs sessions back to back (`run_coop`) and re-applies role settings (`apply_role_settings`); `room_guest_resolve_lobby()`. Regenerate with `git diff -- upstream/cd-coop-3446` after changing these files. |
 | `patches/0001-enemy-zone-ctor-gcc-clang.patch` | `EnemyZoneMachine(Settings s = {})` needs the nested struct's default member initializers before the class is complete; MSVC accepts it, GCC/Clang don't. Split into two constructors so the upstream unit tests also build on Linux. No behaviour change. |

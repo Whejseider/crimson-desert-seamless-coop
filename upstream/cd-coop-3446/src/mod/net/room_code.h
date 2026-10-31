@@ -30,6 +30,8 @@ std::string room_host_open();
 
 // Joins the lobby of `code` and returns the host's SteamID64 (0 on failure).
 uint64_t room_guest_resolve(const std::string& code);
+// The same from a lobby id (a Steam invite or "Join Game"; Co-op+ addition).
+uint64_t room_guest_resolve_lobby(uint64_t lobby);
 
 // The lobby we are in (0 if none).
 uint64_t room_lobby_id();

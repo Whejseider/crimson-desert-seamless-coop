@@ -19,6 +19,12 @@ struct Config {
     // (or to cdmp_peer); a host waits for one player.
     bool net_transport_steam = false;
     bool net_role_host = false;
+    // [net] role=auto (Co-op+): start as the host of our own world; a Steam invite
+    // or "Join Game" switches to guest, and leaving switches back.
+    bool net_role_auto = false;
+    // Runtime only, never read from the ini: the lobby a Steam join asked for.
+    // The guest resolves the host from it instead of from [room] code.
+    uint64_t room_lobby = 0;
     // [steam] peer_steamid: guest = the host's SteamID64 (0 = the only friend
     // playing); host = accept only this friend (0 = any friend playing).
     uint64_t steam_peer_id = 0;

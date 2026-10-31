@@ -189,6 +189,7 @@ void hud_draw(float width, float height) {
         // read a file to find out what went wrong.
         ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
     }
+    if (!d.coop_hint.empty()) ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.6f, 1), "%s", d.coop_hint.c_str());
     ImGui::End();
 
     // ---- world markers

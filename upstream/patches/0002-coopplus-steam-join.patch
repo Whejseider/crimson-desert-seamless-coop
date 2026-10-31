@@ -1,0 +1,973 @@
+diff --git a/upstream/cd-coop-3446/CMakeLists.txt b/upstream/cd-coop-3446/CMakeLists.txt
+index c83acf3..409625e 100644
+--- a/upstream/cd-coop-3446/CMakeLists.txt
++++ b/upstream/cd-coop-3446/CMakeLists.txt
+@@ -113,6 +113,7 @@ add_library(cdmp_mod SHARED
+     src/mod/game/game_clock.cpp
+     src/mod/net/steam_transport.cpp
+     src/mod/net/room_code.cpp
++    src/mod/net/steam_join.cpp
+     src/mod/net/boss_safe.cpp
+     src/mod/net/time_sync.cpp
+     src/mod/render/dx12_hook.cpp
+diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
+index e89d220..8962bdb 100644
+--- a/upstream/cd-coop-3446/src/mod/config.cpp
++++ b/upstream/cd-coop-3446/src/mod/config.cpp
+@@ -21,6 +21,8 @@ constexpr wchar_t kDefaultIni[] =
+     L"; steam = play with a Steam friend; udp = tests on this PC only (cdmp_peer.exe)\r\n"
+     L"transport=udp\r\n"
+     L"; guest connects to the host or to cdmp_peer; host waits for one player\r\n"
++    L"; auto (Steam only): host your own world, and become a guest when you accept a\r\n"
++    L";      Steam invite or press \"Join Game\" on a friend (Co-op+)\r\n"
+     L"role=guest\r\n"
+     L"; UDP: address of the host or of cdmp_peer.exe (a UDP host listens on peer_port)\r\n"
+     L"peer_host=127.0.0.1\r\n"
+@@ -164,7 +166,11 @@ Config load_config(const std::wstring& ini_path) {
+     c.peer_port = static_cast<uint16_t>(read_uint(ini_path, L"net", L"peer_port", c.peer_port));
+     c.send_rate_hz = std::clamp(read_uint(ini_path, L"net", L"send_rate_hz", c.send_rate_hz), 1u, 60u);
+     c.net_transport_steam = read_string(ini_path, L"net", L"transport", "udp") == L"steam";
+-    c.net_role_host = read_string(ini_path, L"net", L"role", "guest") == L"host";
++    {
++        const std::wstring role = read_string(ini_path, L"net", L"role", "guest");
++        c.net_role_auto = role == L"auto";
++        c.net_role_host = role == L"host" || c.net_role_auto;  // auto starts as the host
++    }
+     c.steam_peer_id = _wcstoui64(read_string(ini_path, L"steam", L"peer_steamid", "").c_str(), nullptr, 10);
+     c.steam_channel = static_cast<int>(read_uint(ini_path, L"steam", L"channel", 67));
+     c.room_code = narrow(read_string(ini_path, L"room", L"code", ""));
+diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
+index 3cd2ce2..f8ef102 100644
+--- a/upstream/cd-coop-3446/src/mod/config.h
++++ b/upstream/cd-coop-3446/src/mod/config.h
+@@ -19,6 +19,12 @@ struct Config {
+     // (or to cdmp_peer); a host waits for one player.
+     bool net_transport_steam = false;
+     bool net_role_host = false;
++    // [net] role=auto (Co-op+): start as the host of our own world; a Steam invite
++    // or "Join Game" switches to guest, and leaving switches back.
++    bool net_role_auto = false;
++    // Runtime only, never read from the ini: the lobby a Steam join asked for.
++    // The guest resolves the host from it instead of from [room] code.
++    uint64_t room_lobby = 0;
+     // [steam] peer_steamid: guest = the host's SteamID64 (0 = the only friend
+     // playing); host = accept only this friend (0 = any friend playing).
+     uint64_t steam_peer_id = 0;
+diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
+index 79ccd06..391680d 100644
+--- a/upstream/cd-coop-3446/src/mod/mod.cpp
++++ b/upstream/cd-coop-3446/src/mod/mod.cpp
+@@ -34,6 +34,7 @@
+ #include "mod/net/boss_safe.h"
+ #include "mod/net/steam_transport.h"
+ #include "mod/net/room_code.h"
++#include "mod/net/steam_join.h"
+ #include "mod/net/time_sync.h"
+ #include "mod/net/troc_sniffer.h"
+ #include "mod/render/dx12_hook.h"
+@@ -188,10 +189,37 @@ private:
+     std::string status_;
+ };
+ 
+-void run_network(const Config& cfg, LocalSource& local) {
++// Why a network session ended (Co-op+): the player stopped the mod, accepted a
++// Steam join into another world, or left the world they were visiting.
++struct SessionEnd {
++    enum class Kind { Stop, Join, Leave } kind = Kind::Stop;
++    uint64_t lobby = 0;  // Join: the lobby Steam asked for
++};
++
++// True when the game owns the foreground window, so hotkeys typed into another
++// program (or into the Steam overlay's text boxes) do not trigger co-op actions.
++bool game_has_focus() {
++    DWORD pid = 0;
++    GetWindowThreadProcessId(GetForegroundWindow(), &pid);
++    return pid == GetCurrentProcessId();
++}
++
++// One key press (not a held key): true on the frame the combination goes down.
++struct HotkeyEdge {
++    bool was_down = false;
++    bool pressed(bool down) {
++        const bool edge = down && !was_down;
++        was_down = down;
++        return edge;
++    }
++};
++bool key_down(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
++
++SessionEnd run_network(const Config& cfg, LocalSource& local) {
++    using Kind = SessionEnd::Kind;
+     if (!net::startup()) {
+         log::error("Winsock startup failed");
+-        return;
++        return {};
+     }
+ 
+     // A guest knows whom to talk to; a host learns it from the first Hello.
+@@ -203,6 +231,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+     // needs a moment to join the lobby and see the host field).
+     bool room_code_pending = false;
+     std::string room_code_text;
++    // Co-op+: the lobby a Steam invite / "Join Game" named (resolved like a code).
++    uint64_t room_lobby = 0;
+     bool room_failed_logged = false;
+     // The host's lobby creation is retried in the loop for the same reason: this
+     // point in startup is reached BEFORE the save finishes loading (the mod loads
+@@ -216,7 +246,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+         if (!local.in_game()) {
+             log::error("The Steam transport only works inside the game");
+             net::cleanup();
+-            return;
++            return {};
+         }
+         auto st = std::make_unique<net::SteamTransport>(cfg.steam_channel, host, cfg.steam_peer_id);
+         steam = st.get();
+@@ -225,7 +255,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+         // creates the lobby and reads the code out; the guest resolves the
+         // host's SteamID64 from it. If anything fails, the old paths
+         // (peer_steamid, then the "only friend playing" scan) still work.
+-        if (cfg.room_code.empty()) {
++        if (!host && cfg.room_lobby) {
++            // Co-op+: a Steam join names the lobby itself, so there is no code to decode.
++            room_lobby = cfg.room_lobby;
++            room_code_pending = true;
++            room_code_text = net::room_code_encode(room_lobby);
++            if (room_code_text.empty()) room_code_text = std::to_string(room_lobby);
++            log::info("Room: joining through Steam, lobby {} (room {})", room_lobby, room_code_text);
++        } else if (cfg.room_code.empty()) {
+             if (host) {
+                 // One attempt now, and the loop retries if it does not take.
+                 //
+@@ -278,19 +315,19 @@ void run_network(const Config& cfg, LocalSource& local) {
+             if (!ep->is_loopback()) {
+                 log::error("UDP only connects within this PC (tests); to play with someone use transport=steam");
+                 net::cleanup();
+-                return;
++                return {};
+             }
+             peer = net::PeerAddr::udp(*ep);
+             ok = udp->open(0, true);
+         } else {
+             log::error("Cannot resolve peer host '{}'", cfg.peer_host);
+             net::cleanup();
+-            return;
++            return {};
+         }
+         if (!ok) {
+             log::error("Cannot open UDP socket: {}", net::UdpSocket::last_error());
+             net::cleanup();
+-            return;
++            return {};
+         }
+         transport = std::move(udp);
+     }
+@@ -327,10 +364,77 @@ void run_network(const Config& cfg, LocalSource& local) {
+     bool mark_was_down = false;
+     int marks = 0;
+     std::vector<uint8_t> buf(proto::kMaxPacketSize);
++    // Co-op+ Steam join: hotkeys, rich presence, and a short notice for the panel.
++    HotkeyEdge invite_key, leave_key;
++    uint32_t last_presence = 0;
++    std::string presence_said;
++    std::string notice;
++    uint32_t notice_until = 0;
++    auto say = [&](std::string text) {
++        log::info("Co-op+: {}", text);
++        notice = std::move(text);
++        notice_until = now_ms() + 6000;
++    };
++    SessionEnd end;
+ 
+     while (!stop_requested()) {
+         transport->poll(now_ms());
+ 
++        if (steam) {
++            net::join_poll();
++            // A Steam invite accepted, or "Join Game" pressed on a friend: end this
++            // session and come back as that world's guest.
++            if (const uint64_t want = net::join_take_request()) {
++                if (want == net::room_lobby_id()) {
++                    log::info("Join: already in lobby {}; nothing to do", want);
++                } else {
++                    end = {Kind::Join, want};
++                    break;
++                }
++            }
++            const bool focus = game_has_focus();
++            const bool ctrl = key_down(VK_CONTROL);
++            if (invite_key.pressed(focus && ctrl && key_down(VK_F1))) {
++                if (!host) {
++                    say("only the host can invite (you are in a friend's world)");
++                } else if (!net::room_lobby_id()) {
++                    say("no room yet: the invite works once your room is open");
++                } else if (!net::join_open_invite(net::room_lobby_id())) {
++                    say("the Steam overlay is not available (Steam > Settings > In Game)");
++                } else {
++                    say("Steam overlay opened: pick a friend to invite");
++                }
++            }
++            if (leave_key.pressed(focus && ctrl && key_down(VK_F2))) {
++                if (!host) {
++                    end = {Kind::Leave, 0};
++                    break;
++                }
++                say("you are the host: your friend leaves from their side (Ctrl+F2)");
++            }
++            // Rich presence: only when it changes, at most every 2 s.
++            if (now_ms() - last_presence >= 2000) {
++                last_presence = now_ms();
++                const bool linked = session.state() == ClientSession::State::Connected;
++                std::string want;
++                if (host && net::room_lobby_id()) {
++                    want = std::format("h{}:{}", net::room_lobby_id(), linked ? 2 : 1);
++                } else if (!host && linked) {
++                    want = std::format("g{}:{}", net::room_lobby_id(), session.peer_name());
++                }
++                if (want != presence_said) {
++                    presence_said = want;
++                    if (want.empty()) {
++                        net::join_presence_clear();
++                    } else if (host) {
++                        net::join_presence_hosting(net::room_lobby_id(), linked ? 2 : 1, 2);
++                    } else {
++                        net::join_presence_guest(net::room_lobby_id(), session.peer_name());
++                    }
++                }
++            }
++        }
++
+         // The host's lobby, retried until it takes. Startup runs before the save is
+         // loaded, so the first attempt reliably fails on a cold start; without this
+         // the host never gets a room code at all and the guest has nothing to type.
+@@ -363,7 +467,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+             last_friend_scan = now_ms();
+             // A room code wins over the friends scan: it names one host exactly.
+             if (room_code_pending) {
+-                const uint64_t host_id = net::room_guest_resolve(room_code_text);
++                const uint64_t host_id = room_lobby ? net::room_guest_resolve_lobby(room_lobby)
++                                                    : net::room_guest_resolve(room_code_text);
+                 if (host_id) {
+                     peer = net::PeerAddr::steam(host_id);
+                     steam->set_peer(host_id);
+@@ -475,6 +580,16 @@ void run_network(const Config& cfg, LocalSource& local) {
+                 hud.room_hosting = true;
+             }
+             if (hud.room_code.empty()) hud.room_status = net::room_status();
++            // Co-op+: what the player can do right now, or what just happened.
++            if (steam) {
++                if (!notice.empty() && static_cast<int32_t>(now - notice_until) < 0) {
++                    hud.coop_hint = notice;
++                } else if (host) {
++                    hud.coop_hint = net::room_lobby_id() ? "Ctrl+F1: invite a Steam friend" : "";
++                } else {
++                    hud.coop_hint = "Ctrl+F2: leave and go back to your world";
++                }
++            }
+             render::hud_update(std::move(hud));
+         }
+ 
+@@ -513,7 +628,79 @@ void run_network(const Config& cfg, LocalSource& local) {
+     session.disconnect(now_ms());
+     transport.reset();
+     net::cleanup();
+-    log::info("Network stopped");
++    if (steam && end.kind != Kind::Join) {
++        // Leaving or stopping: out of the lobby, and friends no longer see "Join Game".
++        // (A Join leaves the old lobby itself when it enters the new one.)
++        net::room_leave();
++        net::join_presence_clear();
++    }
++    log::info("Network stopped ({})", end.kind == Kind::Join    ? "joining another world"
++                                      : end.kind == Kind::Leave ? "left the other player's world"
++                                                                : "mod stopping");
++    return end;
++}
++
++// Applies the settings that depend on being the host or the guest. Called once at
++// startup, and again by Co-op+ when a Steam join or a leave changes the role.
++void apply_role_settings(const Config& cfg, bool in_game) {
++    if (!(in_game && cfg.coop_enabled)) return;
++    net::loot_set_enabled(cfg.coop_guest_loot && !cfg.net_role_host);
++    // Phase 5: only the guest hides its own enemies (the host relays them).
++    net::SuppressSettings s;
++    s.mode = net::SuppressMode::Off;
++    if (!cfg.net_role_host && cfg.coop_suppress != 0) {
++        s.mode = cfg.coop_suppress == 2 ? net::SuppressMode::On : net::SuppressMode::DryRun;
++    }
++    s.radius_m = cfg.coop_suppress_radius_m;
++    s.off_m = cfg.coop_suppress_off_m;
++    s.restore = cfg.coop_suppress_restore;
++    s.restore_state = cfg.coop_suppress_restore_state;
++    s.wait_fight_s = cfg.coop_suppress_wait_fight_s;
++    s.respawn_grace_s = cfg.coop_suppress_respawn_grace_s;
++    s.node_events = cfg.coop_suppress_node_events;
++    s.lab = cfg.coop_suppress_lab;
++    s.lab_radius_m = cfg.coop_suppress_lab_radius_m;
++    s.english = cfg.overlay_english;
++    if (s.mode != net::SuppressMode::Off || cfg.net_role_auto) net::suppress_configure(s);
++    if (s.mode != net::SuppressMode::Off && s.lab) {
++        log::info("Suppress lab: automatic enemy copies off (they would be hidden too)");
++    }
++}
++
++// Co-op+: runs network sessions back to back. With [net] role=auto the player
++// hosts their own world; a Steam join switches to guest, and leaving (Ctrl+F2) switches back. Without a Steam join, a session runs until the mod
++// stops, exactly as before.
++void run_coop(const Config& base, LocalSource& local, bool in_game) {
++    Config cfg = base;
++    if (cfg.net_transport_steam) {
++        if (const auto lobby = net::join_launch_lobby()) {
++            // Steam started the game for a join ("Join Game" / an accepted invite).
++            log::info("Join: Steam started the game to join lobby {}", *lobby);
++            cfg.net_role_host = false;
++            cfg.room_lobby = *lobby;
++            cfg.room_code.clear();
++            cfg.steam_peer_id = 0;
++            apply_role_settings(cfg, in_game);
++        }
++    }
++    for (;;) {
++        const SessionEnd end = run_network(cfg, local);
++        if (end.kind == SessionEnd::Kind::Stop || stop_requested()) break;
++        if (end.kind == SessionEnd::Kind::Join) {
++            cfg.net_role_host = false;
++            cfg.room_lobby = end.lobby;
++            cfg.room_code.clear();
++            cfg.steam_peer_id = 0;
++        } else {
++            // Leave: back to our own world, hosting it if role=auto, as configured otherwise.
++            cfg = base;
++            if (!base.net_role_auto && !base.net_role_host) cfg.net_role_host = true;
++        }
++        log::info("Co-op+: now {}", cfg.net_role_host ? "hosting our own world" : "joining a friend's world");
++        apply_role_settings(cfg, in_game);
++        // Let Steam settle the old session before the new one starts.
++        if (stop_requested(1500)) break;
++    }
+ }
+ 
+ // The game's own top-level window, once it is visible and reasonably large.
+@@ -925,7 +1112,7 @@ DWORD WINAPI worker(LPVOID) {
+         // says how their game was set up.
+         log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
+                   "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
+-                  cfg.net_transport_steam ? "steam" : "udp", cfg.net_role_host ? "host" : "guest", cfg.coop_delay_ms,
++                  cfg.net_transport_steam ? "steam" : "udp", cfg.net_role_auto ? "auto (host until a Steam join)" : cfg.net_role_host ? "host" : "guest", cfg.coop_delay_ms,
+                   cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
+                   cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
+                   cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
+@@ -1020,29 +1207,14 @@ DWORD WINAPI worker(LPVOID) {
+             net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
+             net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
+             net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
+-            net::loot_set_enabled(cfg.coop_guest_loot && !cfg.net_role_host);
+             net::puppet_minimap_set_enemy_offset(cfg.coop_enemy_minimap_icon);
+             net::puppet_want_rope_bend(cfg.dev_rope_bend);
+             net::time_sync_set_mode(static_cast<net::TimeSyncMode>(cfg.coop_time_sync));
+             net::time_sync_set_dev_key(cfg.dev_time_sync_key);
+-            // Phase 5: only the guest hides its own enemies (the host relays them).
+-            if (!cfg.net_role_host && cfg.coop_suppress != 0) {
+-                net::SuppressSettings s;
+-                s.mode = cfg.coop_suppress == 2 ? net::SuppressMode::On : net::SuppressMode::DryRun;
+-                s.radius_m = cfg.coop_suppress_radius_m;
+-                s.off_m = cfg.coop_suppress_off_m;
+-                s.restore = cfg.coop_suppress_restore;
+-                s.restore_state = cfg.coop_suppress_restore_state;
+-                s.wait_fight_s = cfg.coop_suppress_wait_fight_s;
+-                s.respawn_grace_s = cfg.coop_suppress_respawn_grace_s;
+-                s.node_events = cfg.coop_suppress_node_events;
+-                s.lab = cfg.coop_suppress_lab;
+-                s.lab_radius_m = cfg.coop_suppress_lab_radius_m;
+-                s.english = cfg.overlay_english;
+-                net::suppress_configure(s);
+-                if (s.lab) log::info("Suppress lab: automatic enemy copies off (they would be hidden too)");
+-            }
+         }
++        // Loot and the guest's enemy zone depend on the role; Co-op+ re-applies
++        // them when a Steam join changes it.
++        apply_role_settings(cfg, in_game);
+ 
+         if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
+ 
+@@ -1080,7 +1252,9 @@ DWORD WINAPI worker(LPVOID) {
+                                          0, nullptr);
+         }
+ 
+-        if (cfg.net_enabled) run_network(cfg, local);
++        if (cfg.net_enabled) run_coop(cfg, local, in_game);
++        // Our Steam callbacks must be gone before the mod's code can be unloaded.
++        net::join_shutdown();
+     } catch (const std::exception& e) {
+         log::error("Unhandled exception in worker: {}", e.what());
+     } catch (...) {
+diff --git a/upstream/cd-coop-3446/src/mod/net/join_args.h b/upstream/cd-coop-3446/src/mod/net/join_args.h
+new file mode 100644
+index 0000000..ae0d050
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/join_args.h
+@@ -0,0 +1,77 @@
++#pragma once
++// Finds the lobby a Steam "Join Game" asks for, in a command line or a Steam
++// connect string.
++//
++// Steam hands the lobby over in one of two ways, both as the text
++// "+connect_lobby <lobby SteamID64>":
++//   - the game is NOT running: Steam starts it with that text on the command
++//     line (friends list "Join Game", or an accepted invite);
++//   - the game IS running: steam_join.cpp receives GameLobbyJoinRequested_t (the
++//     lobby id directly) or GameRichPresenceJoinRequested_t (our own rich
++//     presence "connect" string, which uses the same text).
++//
++// Pure logic, no Windows and no Steam, so it is unit-tested (tests/tests.cpp).
++
++#include <cstdint>
++#include <optional>
++#include <string_view>
++
++namespace cdmp::net {
++
++inline constexpr std::string_view kConnectLobbyArg = "+connect_lobby";
++
++// A lobby CSteamID: universe Public (1) in bits 56-63, account type Chat (8) in
++// bits 52-55. Anything else is not a lobby and is refused, so a stray number on
++// the command line can never send the player into some other kind of id.
++inline bool looks_like_lobby_id(uint64_t id) {
++    return (id >> 56) == 1 && ((id >> 52) & 0xF) == 8 && (id & 0xFFFFFFFFull) != 0;
++}
++
++// The lobby id after "+connect_lobby" (separated by spaces, tabs or '='), or
++// nothing. Works on narrow and wide text alike.
++template <class Char>
++std::optional<uint64_t> find_connect_lobby(std::basic_string_view<Char> text) {
++    const size_t n = text.size();
++    const size_t k = kConnectLobbyArg.size();
++    for (size_t i = 0; i + k <= n; ++i) {
++        bool match = true;
++        for (size_t j = 0; j < k; ++j) {
++            Char c = text[i + j];
++            if (c >= 'A' && c <= 'Z') c = static_cast<Char>(c - 'A' + 'a');
++            if (c != static_cast<Char>(kConnectLobbyArg[j])) {
++                match = false;
++                break;
++            }
++        }
++        if (!match) continue;
++        // The option must start a word: "x+connect_lobby" is not it.
++        if (i > 0 && text[i - 1] != ' ' && text[i - 1] != '\t' && text[i - 1] != '"') continue;
++        size_t p = i + k;
++        if (p < n && text[p] != ' ' && text[p] != '\t' && text[p] != '=' && text[p] != '"') continue;
++        while (p < n && (text[p] == ' ' || text[p] == '\t' || text[p] == '=' || text[p] == '"')) ++p;
++        uint64_t id = 0;
++        int digits = 0;
++        bool overflow = false;
++        while (p < n && text[p] >= '0' && text[p] <= '9') {
++            const uint64_t d = static_cast<uint64_t>(text[p] - '0');
++            if (id > (UINT64_MAX - d) / 10) overflow = true;
++            id = id * 10 + d;
++            ++digits;
++            ++p;
++        }
++        // The number must end the word too: "123abc" is not a lobby id.
++        if (p < n && text[p] != ' ' && text[p] != '\t' && text[p] != '"') continue;
++        if (digits == 0 || digits > 20 || overflow || !looks_like_lobby_id(id)) continue;
++        return id;
++    }
++    return std::nullopt;
++}
++
++inline std::optional<uint64_t> find_connect_lobby(std::string_view text) {
++    return find_connect_lobby<char>(text);
++}
++inline std::optional<uint64_t> find_connect_lobby(std::wstring_view text) {
++    return find_connect_lobby<wchar_t>(text);
++}
++
++}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/room_code.cpp b/upstream/cd-coop-3446/src/mod/net/room_code.cpp
+index e5717d3..84427b0 100644
+--- a/upstream/cd-coop-3446/src/mod/net/room_code.cpp
++++ b/upstream/cd-coop-3446/src/mod/net/room_code.cpp
+@@ -275,11 +275,20 @@ uint64_t room_guest_resolve(const std::string& code) {
+         log::warn("Room: '{}' is not a valid code ({} characters expected)", code, kRoomCodeLen);
+         return 0;
+     }
++    return room_guest_resolve_lobby(lobby);
++}
++
++uint64_t room_guest_resolve_lobby(uint64_t lobby) {
++    if (!room_available() || lobby == 0) return 0;
++    // A lobby from a Steam invite or "Join Game" may not fit a room code; the log
++    // and the panel then name it by its id.
++    std::string code = room_code_encode(lobby);
++    if (code.empty()) code = std::to_string(lobby);
+     std::lock_guard lock(g_mutex);
+     if (g_lobby != lobby) {
+         if (g_lobby) call_void(g_api.leave_lobby, g_api.mm, static_cast<CSteamID>(g_lobby));
+         g_lobby = lobby;
+-        g_code = room_code_encode(lobby);
++        g_code = code;
+         call_void(g_api.join_lobby, g_api.mm, static_cast<CSteamID>(lobby));
+     }
+     // JoinLobby is asynchronous and there is no call result for it: the lobby
+diff --git a/upstream/cd-coop-3446/src/mod/net/room_code.h b/upstream/cd-coop-3446/src/mod/net/room_code.h
+index 50a62fa..3f61ef6 100644
+--- a/upstream/cd-coop-3446/src/mod/net/room_code.h
++++ b/upstream/cd-coop-3446/src/mod/net/room_code.h
+@@ -30,6 +30,8 @@ std::string room_host_open();
+ 
+ // Joins the lobby of `code` and returns the host's SteamID64 (0 on failure).
+ uint64_t room_guest_resolve(const std::string& code);
++// The same from a lobby id (a Steam invite or "Join Game"; Co-op+ addition).
++uint64_t room_guest_resolve_lobby(uint64_t lobby);
+ 
+ // The lobby we are in (0 if none).
+ uint64_t room_lobby_id();
+diff --git a/upstream/cd-coop-3446/src/mod/net/steam_join.cpp b/upstream/cd-coop-3446/src/mod/net/steam_join.cpp
+new file mode 100644
+index 0000000..94dc650
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/steam_join.cpp
+@@ -0,0 +1,300 @@
++#include "mod/net/steam_join.h"
++
++#include <windows.h>
++
++#include <atomic>
++#include <cstddef>
++#include <cstdio>
++#include <cstring>
++#include <mutex>
++#include <string_view>
++
++#include "mod/log.h"
++#include "mod/net/join_args.h"
++
++namespace cdmp::net {
++namespace {
++
++using CSteamID = uint64_t;
++using SteamAPICall_t = uint64_t;
++
++// ------------------------------------------------------------ callback base
++// The SDK's CCallbackBase (steam_api_internal.h), declared exactly as the SDK
++// does. steam_api64.dll calls these through the vtable, so the layout must be
++// the one MSVC gives that declaration: MSVC orders overloaded virtuals in its
++// own way, and declaring them identically (same order, same overloads) is what
++// makes our vtable match the one Steam expects. Do not reorder.
++class SteamCallbackBase {
++public:
++    SteamCallbackBase() = default;
++    virtual void Run(void* param) = 0;
++    virtual void Run(void* param, bool io_failure, SteamAPICall_t call) = 0;
++    int GetICallback() { return callback_id_; }
++    virtual int GetCallbackSizeBytes() = 0;
++
++protected:
++    uint8_t flags_ = 0;    // m_nCallbackFlags: Steam sets "registered" here
++    int callback_id_ = 0;  // m_iCallback: Steam writes the id it registered us for
++};
++static_assert(sizeof(SteamCallbackBase) == 16);
++
++#pragma pack(push, 8)
++// GameLobbyJoinRequested_t: k_iSteamFriendsCallbacks (300) + 33.
++struct GameLobbyJoinRequested {
++    CSteamID lobby;
++    CSteamID friend_id;
++};
++static_assert(sizeof(GameLobbyJoinRequested) == 16);
++// GameRichPresenceJoinRequested_t: k_iSteamFriendsCallbacks (300) + 37.
++struct GameRichPresenceJoinRequested {
++    CSteamID friend_id;
++    char connect[256];  // k_cchMaxRichPresenceValueLength
++};
++static_assert(sizeof(GameRichPresenceJoinRequested) == 264);
++#pragma pack(pop)
++
++constexpr int kGameLobbyJoinRequested = 300 + 33;
++constexpr int kGameRichPresenceJoinRequested = 300 + 37;
++
++std::atomic<uint64_t> g_request{0};
++std::atomic<uint64_t> g_requests_seen{0};
++
++class LobbyJoinCallback final : public SteamCallbackBase {
++public:
++    void Run(void* param) override {
++        if (!param) return;
++        GameLobbyJoinRequested r;
++        std::memcpy(&r, param, sizeof r);
++        if (looks_like_lobby_id(r.lobby)) {
++            g_request.store(r.lobby);
++            g_requests_seen.fetch_add(1);
++        }
++    }
++    void Run(void* param, bool, SteamAPICall_t) override { Run(param); }
++    int GetCallbackSizeBytes() override { return static_cast<int>(sizeof(GameLobbyJoinRequested)); }
++};
++
++class PresenceJoinCallback final : public SteamCallbackBase {
++public:
++    void Run(void* param) override {
++        if (!param) return;
++        GameRichPresenceJoinRequested r;
++        std::memcpy(&r, param, sizeof r);
++        r.connect[sizeof r.connect - 1] = '\0';
++        if (auto lobby = find_connect_lobby(std::string_view(r.connect))) {
++            g_request.store(*lobby);
++            g_requests_seen.fetch_add(1);
++        }
++    }
++    void Run(void* param, bool, SteamAPICall_t) override { Run(param); }
++    int GetCallbackSizeBytes() override { return static_cast<int>(sizeof(GameRichPresenceJoinRequested)); }
++};
++
++LobbyJoinCallback g_lobby_cb;
++PresenceJoinCallback g_presence_cb;
++
++// ------------------------------------------------------------ flat API
++// Export names checked against bin64\steam_api64.dll 09.31.86.04 (game 1.0.0.3446).
++struct Api {
++    int32_t (*get_hsteam_user)() = nullptr;
++    void (*register_callback)(SteamCallbackBase*, int) = nullptr;
++    void (*unregister_callback)(SteamCallbackBase*) = nullptr;
++    void* (*friends)() = nullptr;  // SteamAPI_SteamFriends_v017
++    void (*invite_dialog)(void*, CSteamID) = nullptr;
++    bool (*set_rich_presence)(void*, const char*, const char*) = nullptr;
++    void (*clear_rich_presence)(void*) = nullptr;
++    const char* (*friend_name)(void*, CSteamID) = nullptr;
++    void* frn = nullptr;
++};
++
++Api g_api;
++std::mutex g_mutex;
++bool g_resolved = false;
++bool g_registered = false;
++bool g_disabled = false;
++std::string g_status = "join: waiting for Steam";
++
++template <class R, class... P, class... A>
++bool call(R& out, R (*fn)(P...), A... args) {
++    if (!fn) return false;
++    __try {
++        out = fn(args...);
++        return true;
++    } __except (EXCEPTION_EXECUTE_HANDLER) {
++        return false;
++    }
++}
++template <class... P, class... A>
++bool call_void(void (*fn)(P...), A... args) {
++    if (!fn) return false;
++    __try {
++        fn(args...);
++        return true;
++    } __except (EXCEPTION_EXECUTE_HANDLER) {
++        return false;
++    }
++}
++
++void fail(const char* what) {
++    if (!g_disabled) log::error("Join: exception in {}; Steam join and invites disabled", what);
++    g_disabled = true;
++    g_status = "join: disabled after an error";
++}
++
++// Called with g_mutex held.
++void resolve_locked() {
++    if (g_resolved || g_disabled) return;
++    HMODULE dll = GetModuleHandleW(L"steam_api64.dll");
++    if (!dll) return;  // transient: the game loads Steam later
++    Api& a = g_api;
++    int missing = 0;
++    auto get = [&](auto& fn, const char* name) {
++        fn = reinterpret_cast<std::remove_reference_t<decltype(fn)>>(GetProcAddress(dll, name));
++        if (!fn) {
++            log::warn("Join: export {} not found", name);
++            ++missing;
++        }
++    };
++    get(a.get_hsteam_user, "SteamAPI_GetHSteamUser");
++    get(a.register_callback, "SteamAPI_RegisterCallback");
++    get(a.unregister_callback, "SteamAPI_UnregisterCallback");
++    get(a.friends, "SteamAPI_SteamFriends_v017");
++    get(a.invite_dialog, "SteamAPI_ISteamFriends_ActivateGameOverlayInviteDialog");
++    get(a.set_rich_presence, "SteamAPI_ISteamFriends_SetRichPresence");
++    get(a.clear_rich_presence, "SteamAPI_ISteamFriends_ClearRichPresence");
++    get(a.friend_name, "SteamAPI_ISteamFriends_GetFriendPersonaName");
++    if (missing) {
++        // A different steam_api64.dll: permanent.
++        g_disabled = true;
++        g_status = "join: Steam API of this game version not supported";
++        return;
++    }
++    int32_t hu = 0;
++    if (!call(hu, a.get_hsteam_user)) return fail("GetHSteamUser");
++    if (hu == 0) return;  // Steam not initialised yet
++    if (!call(a.frn, a.friends)) return fail("SteamFriends");
++    if (!a.frn) return;
++    g_resolved = true;
++    g_status = "join: ready";
++}
++
++}  // namespace
++
++std::optional<uint64_t> join_launch_lobby() {
++    const wchar_t* cmd = GetCommandLineW();
++    if (!cmd) return std::nullopt;
++    return find_connect_lobby(std::wstring_view(cmd));
++}
++
++void join_poll() {
++    std::lock_guard lock(g_mutex);
++    resolve_locked();
++    if (!g_resolved || g_disabled || g_registered) return;
++    if (!call_void(g_api.register_callback, static_cast<SteamCallbackBase*>(&g_lobby_cb),
++                   kGameLobbyJoinRequested) ||
++        !call_void(g_api.register_callback, static_cast<SteamCallbackBase*>(&g_presence_cb),
++                   kGameRichPresenceJoinRequested)) {
++        return fail("RegisterCallback");
++    }
++    g_registered = true;
++    g_status = "join: ready (Steam invites and Join Game)";
++    log::info("Join: listening for Steam 'Join Game' and invites");
++}
++
++uint64_t join_take_request() {
++    const uint64_t lobby = g_request.exchange(0);
++    if (lobby) log::info("Join: Steam asked to join lobby {} (request {})", lobby, g_requests_seen.load());
++    return lobby;
++}
++
++bool join_open_invite(uint64_t lobby) {
++    std::lock_guard lock(g_mutex);
++    resolve_locked();
++    if (!g_resolved || g_disabled || !lobby) return false;
++    if (!call_void(g_api.invite_dialog, g_api.frn, static_cast<CSteamID>(lobby))) {
++        fail("ActivateGameOverlayInviteDialog");
++        return false;
++    }
++    log::info("Join: opened the Steam invite dialog for lobby {}", lobby);
++    return true;
++}
++
++namespace {
++void set_presence_locked(const char* key, const char* value) {
++    bool ok = false;
++    if (!call(ok, g_api.set_rich_presence, g_api.frn, key, value)) fail("SetRichPresence");
++}
++}  // namespace
++
++void join_presence_hosting(uint64_t lobby, int members, int max_members) {
++    std::lock_guard lock(g_mutex);
++    resolve_locked();
++    if (!g_resolved || g_disabled || !lobby) return;
++    char connect[64], group[32], size[16], status[96];
++    std::snprintf(connect, sizeof connect, "+connect_lobby %llu", static_cast<unsigned long long>(lobby));
++    std::snprintf(group, sizeof group, "%llu", static_cast<unsigned long long>(lobby));
++    std::snprintf(size, sizeof size, "%d", members);
++    std::snprintf(status, sizeof status, "Co-op+: hosting (%d/%d)", members, max_members);
++    // "connect" is what puts "Join Game" on us in a friend's list; the group keys
++    // show the party together there.
++    set_presence_locked("connect", connect);
++    set_presence_locked("status", status);
++    set_presence_locked("steam_player_group", group);
++    set_presence_locked("steam_player_group_size", size);
++}
++
++void join_presence_guest(uint64_t lobby, const std::string& host_name) {
++    std::lock_guard lock(g_mutex);
++    resolve_locked();
++    if (!g_resolved || g_disabled) return;
++    char group[32], status[128];
++    std::snprintf(group, sizeof group, "%llu", static_cast<unsigned long long>(lobby));
++    std::snprintf(status, sizeof status, "Co-op+: in %s's world", host_name.empty() ? "a friend" : host_name.c_str());
++    // No "connect" on a guest: the session holds two players, so a third would be
++    // refused. Friends join through the host.
++    set_presence_locked("connect", "");
++    set_presence_locked("status", status);
++    if (lobby) {
++        set_presence_locked("steam_player_group", group);
++        set_presence_locked("steam_player_group_size", "2");
++    }
++}
++
++void join_presence_clear() {
++    std::lock_guard lock(g_mutex);
++    if (!g_resolved || g_disabled) return;
++    if (!call_void(g_api.clear_rich_presence, g_api.frn)) fail("ClearRichPresence");
++}
++
++std::string join_persona_name(uint64_t steam_id) {
++    std::lock_guard lock(g_mutex);
++    resolve_locked();
++    if (!g_resolved || g_disabled || !steam_id) return {};
++    const char* name = nullptr;
++    if (!call(name, g_api.friend_name, g_api.frn, static_cast<CSteamID>(steam_id))) {
++        fail("GetFriendPersonaName");
++        return {};
++    }
++    return name ? std::string(name) : std::string();
++}
++
++void join_shutdown() {
++    std::lock_guard lock(g_mutex);
++    if (!g_registered) return;
++    call_void(g_api.unregister_callback, static_cast<SteamCallbackBase*>(&g_lobby_cb));
++    call_void(g_api.unregister_callback, static_cast<SteamCallbackBase*>(&g_presence_cb));
++    g_registered = false;
++    if (g_resolved && !g_disabled) call_void(g_api.clear_rich_presence, g_api.frn);
++}
++
++bool join_available() {
++    std::lock_guard lock(g_mutex);
++    return g_resolved && !g_disabled;
++}
++
++std::string join_status() {
++    std::lock_guard lock(g_mutex);
++    return g_status;
++}
++
++}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/steam_join.h b/upstream/cd-coop-3446/src/mod/net/steam_join.h
+new file mode 100644
+index 0000000..f57c9b2
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/steam_join.h
+@@ -0,0 +1,57 @@
++#pragma once
++// Steam's own ways into a friend's world, on top of the room lobby
++// (room_code.h): "Join Game" in the friends list, invites from the Steam
++// overlay, and rich presence. Co-op+ addition (not in upstream cdmp).
++//
++// How a join reaches us:
++//   - game not running: Steam starts it with "+connect_lobby <id>" on the
++//     command line (join_launch_lobby());
++//   - game running: Steam raises GameLobbyJoinRequested_t (lobby invite or
++//     "Join Game" on a friend in a joinable lobby) or
++//     GameRichPresenceJoinRequested_t (our rich presence "connect" string). We
++//     register for both through SteamAPI_RegisterCallback. The game pumps
++//     SteamAPI_RunCallbacks itself (its exe imports it; checked offline on
++//     1.0.0.3446), so they fire on the game's thread; the handlers only store the
++//     lobby id, and the network thread picks it up with join_take_request().
++//
++// Every Steam call is wrapped like the rest of the Steam code (a crash would be
++// reported as a game crash); the first exception disables this module and the
++// room code / peer_steamid paths keep working.
++
++#include <cstdint>
++#include <optional>
++#include <string>
++
++namespace cdmp::net {
++
++// The lobby the command line asks for ("+connect_lobby <id>"), if any. Read once
++// at startup: Steam passes it only when it launches the game for a join.
++std::optional<uint64_t> join_launch_lobby();
++
++// Resolves the Steam API and registers the callbacks once Steam is up. Cheap;
++// call it from the network loop.
++void join_poll();
++
++// A lobby the player asked to join through Steam since the last call, or 0.
++uint64_t join_take_request();
++
++// Opens the Steam overlay's "invite friends" dialog for our lobby. False when
++// the overlay or the lobby is not available (the caller says so on screen).
++bool join_open_invite(uint64_t lobby);
++
++// Rich presence: what friends see in their list, and the "Join Game" button.
++void join_presence_hosting(uint64_t lobby, int members, int max_members);
++void join_presence_guest(uint64_t lobby, const std::string& host_name);
++void join_presence_clear();
++
++// Name of a Steam user as the local player knows them ("" if unknown).
++std::string join_persona_name(uint64_t steam_id);
++
++// Unregisters the callbacks. Must run before the mod's code is unloaded, or the
++// game's next SteamAPI_RunCallbacks would call into freed memory.
++void join_shutdown();
++
++bool join_available();
++std::string join_status();
++
++}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
+index 14edc91..d2d10eb 100644
+--- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
++++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
+@@ -189,6 +189,7 @@ void hud_draw(float width, float height) {
+         // read a file to find out what went wrong.
+         ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
+     }
++    if (!d.coop_hint.empty()) ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.6f, 1), "%s", d.coop_hint.c_str());
+     ImGui::End();
+ 
+     // ---- world markers
+diff --git a/upstream/cd-coop-3446/src/mod/render/hud.h b/upstream/cd-coop-3446/src/mod/render/hud.h
+index 532564a..53402f9 100644
+--- a/upstream/cd-coop-3446/src/mod/render/hud.h
++++ b/upstream/cd-coop-3446/src/mod/render/hud.h
+@@ -29,6 +29,9 @@ struct HudData {
+     // where the code would be, so a missing code explains itself on screen instead
+     // of only in the log.
+     std::string room_status;
++    // Co-op+: the Steam action available now (invite / leave) or a short notice
++    // about the last one. "" = nothing to say.
++    std::string coop_hint;
+     // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
+     // copy. The guest has no native boss bar -- the stage that draws it exists
+     // only in the host's world -- so we draw our own.
+diff --git a/upstream/cd-coop-3446/tests/tests.cpp b/upstream/cd-coop-3446/tests/tests.cpp
+index 6c43dc1..8f0fbb5 100644
+--- a/upstream/cd-coop-3446/tests/tests.cpp
++++ b/upstream/cd-coop-3446/tests/tests.cpp
+@@ -22,6 +22,7 @@
+ #include "common/protocol.h"
+ #include "common/reliable.h"
+ #include "mod/net/room_codec.h"
++#include "mod/net/join_args.h"
+ #include "mod/net/boss_rules.h"
+ 
+ #include <cctype>
+@@ -1505,6 +1506,32 @@ void test_boss_rules() {
+     CHECK(!net::is_boss_stage_name("cd_field_village_idle"));
+ }
+ 
++
++// Co-op+: the lobby a Steam "Join Game" / invite names on the command line.
++void test_join_args() {
++    using net::find_connect_lobby;
++    constexpr uint64_t kLobby = 109775242893225821ull;  // a real lobby id (room_codec.h)
++    CHECK(net::looks_like_lobby_id(kLobby));
++    CHECK(!net::looks_like_lobby_id(76561197960287930ull));  // an individual SteamID64
++    CHECK(!net::looks_like_lobby_id(0));
++    // The way Steam starts the game for a join.
++    CHECK(find_connect_lobby(std::string_view("CrimsonDesert.exe +connect_lobby 109775242893225821")) == kLobby);
++    CHECK(find_connect_lobby(std::wstring_view(L"\"D:\\bin64\\CrimsonDesert.exe\" +connect_lobby 109775242893225821 -x")) == kLobby);
++    CHECK(find_connect_lobby(std::string_view("+connect_lobby=109775242893225821")) == kLobby);
++    CHECK(find_connect_lobby(std::string_view("+CONNECT_LOBBY	109775242893225821")) == kLobby);
++    // Our own rich presence "connect" string.
++    CHECK(find_connect_lobby(std::string_view("+connect_lobby 109775242893225821")) == kLobby);
++    // Refused: no number, not a lobby, glued words, overflow.
++    CHECK(!find_connect_lobby(std::string_view("+connect_lobby")));
++    CHECK(!find_connect_lobby(std::string_view("+connect_lobby 76561197960287930")));
++    CHECK(!find_connect_lobby(std::string_view("x+connect_lobby 109775242893225821")));
++    CHECK(!find_connect_lobby(std::string_view("+connect_lobbyX 109775242893225821")));
++    CHECK(!find_connect_lobby(std::string_view("+connect_lobby 109775242893225821abc")));
++    CHECK(!find_connect_lobby(std::string_view("+connect_lobby 99999999999999999999999")));
++    // A bad first match does not hide a good later one.
++    CHECK(find_connect_lobby(std::string_view("+connect_lobby 5 +connect_lobby 109775242893225821")) == kLobby);
++}
++
+ }  // namespace
+ 
+ int main() {    test_pattern();
+@@ -1532,6 +1559,7 @@ int main() {    test_pattern();
+     test_enemy_zone_machine();
+     test_room_code();
+     test_boss_rules();
++    test_join_args();
+     if (g_failures == 0) std::printf("All tests passed\n");
+     return g_failures == 0 ? 0 : 1;
+ }

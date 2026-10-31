@@ -21,6 +21,8 @@ constexpr wchar_t kDefaultIni[] =
     L"; steam = play with a Steam friend; udp = tests on this PC only (cdmp_peer.exe)\r\n"
     L"transport=udp\r\n"
     L"; guest connects to the host or to cdmp_peer; host waits for one player\r\n"
+    L"; auto (Steam only): host your own world, and become a guest when you accept a\r\n"
+    L";      Steam invite or press \"Join Game\" on a friend (Co-op+)\r\n"
     L"role=guest\r\n"
     L"; UDP: address of the host or of cdmp_peer.exe (a UDP host listens on peer_port)\r\n"
     L"peer_host=127.0.0.1\r\n"
@@ -164,7 +166,11 @@ Config load_config(const std::wstring& ini_path) {
     c.peer_port = static_cast<uint16_t>(read_uint(ini_path, L"net", L"peer_port", c.peer_port));
     c.send_rate_hz = std::clamp(read_uint(ini_path, L"net", L"send_rate_hz", c.send_rate_hz), 1u, 60u);
     c.net_transport_steam = read_string(ini_path, L"net", L"transport", "udp") == L"steam";
-    c.net_role_host = read_string(ini_path, L"net", L"role", "guest") == L"host";
+    {
+        const std::wstring role = read_string(ini_path, L"net", L"role", "guest");
+        c.net_role_auto = role == L"auto";
+        c.net_role_host = role == L"host" || c.net_role_auto;  // auto starts as the host
+    }
     c.steam_peer_id = _wcstoui64(read_string(ini_path, L"steam", L"peer_steamid", "").c_str(), nullptr, 10);
     c.steam_channel = static_cast<int>(read_uint(ini_path, L"steam", L"channel", 67));
     c.room_code = narrow(read_string(ini_path, L"room", L"code", ""));

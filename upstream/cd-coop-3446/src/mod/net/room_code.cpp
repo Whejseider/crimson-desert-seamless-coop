@@ -275,11 +275,20 @@ uint64_t room_guest_resolve(const std::string& code) {
         log::warn("Room: '{}' is not a valid code ({} characters expected)", code, kRoomCodeLen);
         return 0;
     }
+    return room_guest_resolve_lobby(lobby);
+}
+
+uint64_t room_guest_resolve_lobby(uint64_t lobby) {
+    if (!room_available() || lobby == 0) return 0;
+    // A lobby from a Steam invite or "Join Game" may not fit a room code; the log
+    // and the panel then name it by its id.
+    std::string code = room_code_encode(lobby);
+    if (code.empty()) code = std::to_string(lobby);
     std::lock_guard lock(g_mutex);
     if (g_lobby != lobby) {
         if (g_lobby) call_void(g_api.leave_lobby, g_api.mm, static_cast<CSteamID>(g_lobby));
         g_lobby = lobby;
-        g_code = room_code_encode(lobby);
+        g_code = code;
         call_void(g_api.join_lobby, g_api.mm, static_cast<CSteamID>(lobby));
     }
     // JoinLobby is asynchronous and there is no call result for it: the lobby

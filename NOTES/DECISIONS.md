@@ -77,3 +77,13 @@
   gameplay patches must match on both machines) still favours our own host-synced config.
 - Live Transmog and CDUMM: GitHub says MIT, Nexus says ask first. We follow the stricter Nexus terms until the authors
   clarify; no code reuse for now.
+
+## 2026-10-31 D17: M1 join flow uses Steam's own UI, not an in-game menu (for now)
+- Options: (a) ImGui co-op menu with mouse/keyboard (needs a WndProc hook and input blocking, cannot be tested before
+  GO), (b) Steam overlay for invites + "Join Game" + rich presence, with two hotkeys and a panel hint.
+- Chosen: (b). Steam's overlay already is the friends picker players know; it needs no input hook; everything but the
+  live flow is testable offline. The ImGui menu can come later (M2/M7) for settings.
+- Mechanics: callbacks via SteamAPI_RegisterCallback (the exe pumps RunCallbacks), launch argument +connect_lobby,
+  lobby id validated as a Chat-type CSteamID. A join ends the session and starts a guest session (CoopLink destructor
+  restores hidden enemies and removes the puppet), then role settings are re-applied.
+- Two players only (upstream's limit); lobbies stay friends-only, 2 members.

@@ -34,6 +34,7 @@
 #include "mod/net/boss_safe.h"
 #include "mod/net/steam_transport.h"
 #include "mod/net/room_code.h"
+#include "mod/net/steam_join.h"
 #include "mod/net/time_sync.h"
 #include "mod/net/troc_sniffer.h"
 #include "mod/render/dx12_hook.h"
@@ -188,10 +189,37 @@ private:
     std::string status_;
 };
 
-void run_network(const Config& cfg, LocalSource& local) {
+// Why a network session ended (Co-op+): the player stopped the mod, accepted a
+// Steam join into another world, or left the world they were visiting.
+struct SessionEnd {
+    enum class Kind { Stop, Join, Leave } kind = Kind::Stop;
+    uint64_t lobby = 0;  // Join: the lobby Steam asked for
+};
+
+// True when the game owns the foreground window, so hotkeys typed into another
+// program (or into the Steam overlay's text boxes) do not trigger co-op actions.
+bool game_has_focus() {
+    DWORD pid = 0;
+    GetWindowThreadProcessId(GetForegroundWindow(), &pid);
+    return pid == GetCurrentProcessId();
+}
+
+// One key press (not a held key): true on the frame the combination goes down.
+struct HotkeyEdge {
+    bool was_down = false;
+    bool pressed(bool down) {
+        const bool edge = down && !was_down;
+        was_down = down;
+        return edge;
+    }
+};
+bool key_down(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
+
+SessionEnd run_network(const Config& cfg, LocalSource& local) {
+    using Kind = SessionEnd::Kind;
     if (!net::startup()) {
         log::error("Winsock startup failed");
-        return;
+        return {};
     }
 
     // A guest knows whom to talk to; a host learns it from the first Hello.
@@ -203,6 +231,8 @@ void run_network(const Config& cfg, LocalSource& local) {
     // needs a moment to join the lobby and see the host field).
     bool room_code_pending = false;
     std::string room_code_text;
+    // Co-op+: the lobby a Steam invite / "Join Game" named (resolved like a code).
+    uint64_t room_lobby = 0;
     bool room_failed_logged = false;
     // The host's lobby creation is retried in the loop for the same reason: this
     // point in startup is reached BEFORE the save finishes loading (the mod loads
@@ -216,7 +246,7 @@ void run_network(const Config& cfg, LocalSource& local) {
         if (!local.in_game()) {
             log::error("The Steam transport only works inside the game");
             net::cleanup();
-            return;
+            return {};
         }
         auto st = std::make_unique<net::SteamTransport>(cfg.steam_channel, host, cfg.steam_peer_id);
         steam = st.get();
@@ -225,7 +255,14 @@ void run_network(const Config& cfg, LocalSource& local) {
         // creates the lobby and reads the code out; the guest resolves the
         // host's SteamID64 from it. If anything fails, the old paths
         // (peer_steamid, then the "only friend playing" scan) still work.
-        if (cfg.room_code.empty()) {
+        if (!host && cfg.room_lobby) {
+            // Co-op+: a Steam join names the lobby itself, so there is no code to decode.
+            room_lobby = cfg.room_lobby;
+            room_code_pending = true;
+            room_code_text = net::room_code_encode(room_lobby);
+            if (room_code_text.empty()) room_code_text = std::to_string(room_lobby);
+            log::info("Room: joining through Steam, lobby {} (room {})", room_lobby, room_code_text);
+        } else if (cfg.room_code.empty()) {
             if (host) {
                 // One attempt now, and the loop retries if it does not take.
                 //
@@ -278,19 +315,19 @@ void run_network(const Config& cfg, LocalSource& local) {
             if (!ep->is_loopback()) {
                 log::error("UDP only connects within this PC (tests); to play with someone use transport=steam");
                 net::cleanup();
-                return;
+                return {};
             }
             peer = net::PeerAddr::udp(*ep);
             ok = udp->open(0, true);
         } else {
             log::error("Cannot resolve peer host '{}'", cfg.peer_host);
             net::cleanup();
-            return;
+            return {};
         }
         if (!ok) {
             log::error("Cannot open UDP socket: {}", net::UdpSocket::last_error());
             net::cleanup();
-            return;
+            return {};
         }
         transport = std::move(udp);
     }
@@ -327,9 +364,76 @@ void run_network(const Config& cfg, LocalSource& local) {
     bool mark_was_down = false;
     int marks = 0;
     std::vector<uint8_t> buf(proto::kMaxPacketSize);
+    // Co-op+ Steam join: hotkeys, rich presence, and a short notice for the panel.
+    HotkeyEdge invite_key, leave_key;
+    uint32_t last_presence = 0;
+    std::string presence_said;
+    std::string notice;
+    uint32_t notice_until = 0;
+    auto say = [&](std::string text) {
+        log::info("Co-op+: {}", text);
+        notice = std::move(text);
+        notice_until = now_ms() + 6000;
+    };
+    SessionEnd end;
 
     while (!stop_requested()) {
         transport->poll(now_ms());
+
+        if (steam) {
+            net::join_poll();
+            // A Steam invite accepted, or "Join Game" pressed on a friend: end this
+            // session and come back as that world's guest.
+            if (const uint64_t want = net::join_take_request()) {
+                if (want == net::room_lobby_id()) {
+                    log::info("Join: already in lobby {}; nothing to do", want);
+                } else {
+                    end = {Kind::Join, want};
+                    break;
+                }
+            }
+            const bool focus = game_has_focus();
+            const bool ctrl = key_down(VK_CONTROL);
+            if (invite_key.pressed(focus && ctrl && key_down(VK_F1))) {
+                if (!host) {
+                    say("only the host can invite (you are in a friend's world)");
+                } else if (!net::room_lobby_id()) {
+                    say("no room yet: the invite works once your room is open");
+                } else if (!net::join_open_invite(net::room_lobby_id())) {
+                    say("the Steam overlay is not available (Steam > Settings > In Game)");
+                } else {
+                    say("Steam overlay opened: pick a friend to invite");
+                }
+            }
+            if (leave_key.pressed(focus && ctrl && key_down(VK_F2))) {
+                if (!host) {
+                    end = {Kind::Leave, 0};
+                    break;
+                }
+                say("you are the host: your friend leaves from their side (Ctrl+F2)");
+            }
+            // Rich presence: only when it changes, at most every 2 s.
+            if (now_ms() - last_presence >= 2000) {
+                last_presence = now_ms();
+                const bool linked = session.state() == ClientSession::State::Connected;
+                std::string want;
+                if (host && net::room_lobby_id()) {
+                    want = std::format("h{}:{}", net::room_lobby_id(), linked ? 2 : 1);
+                } else if (!host && linked) {
+                    want = std::format("g{}:{}", net::room_lobby_id(), session.peer_name());
+                }
+                if (want != presence_said) {
+                    presence_said = want;
+                    if (want.empty()) {
+                        net::join_presence_clear();
+                    } else if (host) {
+                        net::join_presence_hosting(net::room_lobby_id(), linked ? 2 : 1, 2);
+                    } else {
+                        net::join_presence_guest(net::room_lobby_id(), session.peer_name());
+                    }
+                }
+            }
+        }
 
         // The host's lobby, retried until it takes. Startup runs before the save is
         // loaded, so the first attempt reliably fails on a cold start; without this
@@ -363,7 +467,8 @@ void run_network(const Config& cfg, LocalSource& local) {
             last_friend_scan = now_ms();
             // A room code wins over the friends scan: it names one host exactly.
             if (room_code_pending) {
-                const uint64_t host_id = net::room_guest_resolve(room_code_text);
+                const uint64_t host_id = room_lobby ? net::room_guest_resolve_lobby(room_lobby)
+                                                    : net::room_guest_resolve(room_code_text);
                 if (host_id) {
                     peer = net::PeerAddr::steam(host_id);
                     steam->set_peer(host_id);
@@ -475,6 +580,16 @@ void run_network(const Config& cfg, LocalSource& local) {
                 hud.room_hosting = true;
             }
             if (hud.room_code.empty()) hud.room_status = net::room_status();
+            // Co-op+: what the player can do right now, or what just happened.
+            if (steam) {
+                if (!notice.empty() && static_cast<int32_t>(now - notice_until) < 0) {
+                    hud.coop_hint = notice;
+                } else if (host) {
+                    hud.coop_hint = net::room_lobby_id() ? "Ctrl+F1: invite a Steam friend" : "";
+                } else {
+                    hud.coop_hint = "Ctrl+F2: leave and go back to your world";
+                }
+            }
             render::hud_update(std::move(hud));
         }
 
@@ -513,7 +628,79 @@ void run_network(const Config& cfg, LocalSource& local) {
     session.disconnect(now_ms());
     transport.reset();
     net::cleanup();
-    log::info("Network stopped");
+    if (steam && end.kind != Kind::Join) {
+        // Leaving or stopping: out of the lobby, and friends no longer see "Join Game".
+        // (A Join leaves the old lobby itself when it enters the new one.)
+        net::room_leave();
+        net::join_presence_clear();
+    }
+    log::info("Network stopped ({})", end.kind == Kind::Join    ? "joining another world"
+                                      : end.kind == Kind::Leave ? "left the other player's world"
+                                                                : "mod stopping");
+    return end;
+}
+
+// Applies the settings that depend on being the host or the guest. Called once at
+// startup, and again by Co-op+ when a Steam join or a leave changes the role.
+void apply_role_settings(const Config& cfg, bool in_game) {
+    if (!(in_game && cfg.coop_enabled)) return;
+    net::loot_set_enabled(cfg.coop_guest_loot && !cfg.net_role_host);
+    // Phase 5: only the guest hides its own enemies (the host relays them).
+    net::SuppressSettings s;
+    s.mode = net::SuppressMode::Off;
+    if (!cfg.net_role_host && cfg.coop_suppress != 0) {
+        s.mode = cfg.coop_suppress == 2 ? net::SuppressMode::On : net::SuppressMode::DryRun;
+    }
+    s.radius_m = cfg.coop_suppress_radius_m;
+    s.off_m = cfg.coop_suppress_off_m;
+    s.restore = cfg.coop_suppress_restore;
+    s.restore_state = cfg.coop_suppress_restore_state;
+    s.wait_fight_s = cfg.coop_suppress_wait_fight_s;
+    s.respawn_grace_s = cfg.coop_suppress_respawn_grace_s;
+    s.node_events = cfg.coop_suppress_node_events;
+    s.lab = cfg.coop_suppress_lab;
+    s.lab_radius_m = cfg.coop_suppress_lab_radius_m;
+    s.english = cfg.overlay_english;
+    if (s.mode != net::SuppressMode::Off || cfg.net_role_auto) net::suppress_configure(s);
+    if (s.mode != net::SuppressMode::Off && s.lab) {
+        log::info("Suppress lab: automatic enemy copies off (they would be hidden too)");
+    }
+}
+
+// Co-op+: runs network sessions back to back. With [net] role=auto the player
+// hosts their own world; a Steam join switches to guest, and leaving (Ctrl+F2) switches back. Without a Steam join, a session runs until the mod
+// stops, exactly as before.
+void run_coop(const Config& base, LocalSource& local, bool in_game) {
+    Config cfg = base;
+    if (cfg.net_transport_steam) {
+        if (const auto lobby = net::join_launch_lobby()) {
+            // Steam started the game for a join ("Join Game" / an accepted invite).
+            log::info("Join: Steam started the game to join lobby {}", *lobby);
+            cfg.net_role_host = false;
+            cfg.room_lobby = *lobby;
+            cfg.room_code.clear();
+            cfg.steam_peer_id = 0;
+            apply_role_settings(cfg, in_game);
+        }
+    }
+    for (;;) {
+        const SessionEnd end = run_network(cfg, local);
+        if (end.kind == SessionEnd::Kind::Stop || stop_requested()) break;
+        if (end.kind == SessionEnd::Kind::Join) {
+            cfg.net_role_host = false;
+            cfg.room_lobby = end.lobby;
+            cfg.room_code.clear();
+            cfg.steam_peer_id = 0;
+        } else {
+            // Leave: back to our own world, hosting it if role=auto, as configured otherwise.
+            cfg = base;
+            if (!base.net_role_auto && !base.net_role_host) cfg.net_role_host = true;
+        }
+        log::info("Co-op+: now {}", cfg.net_role_host ? "hosting our own world" : "joining a friend's world");
+        apply_role_settings(cfg, in_game);
+        // Let Steam settle the old session before the new one starts.
+        if (stop_requested(1500)) break;
+    }
 }
 
 // The game's own top-level window, once it is visible and reasonably large.
@@ -925,7 +1112,7 @@ DWORD WINAPI worker(LPVOID) {
         // says how their game was set up.
         log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                   "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
-                  cfg.net_transport_steam ? "steam" : "udp", cfg.net_role_host ? "host" : "guest", cfg.coop_delay_ms,
+                  cfg.net_transport_steam ? "steam" : "udp", cfg.net_role_auto ? "auto (host until a Steam join)" : cfg.net_role_host ? "host" : "guest", cfg.coop_delay_ms,
                   cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                   cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                   cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
@@ -1020,29 +1207,14 @@ DWORD WINAPI worker(LPVOID) {
             net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
             net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
             net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
-            net::loot_set_enabled(cfg.coop_guest_loot && !cfg.net_role_host);
             net::puppet_minimap_set_enemy_offset(cfg.coop_enemy_minimap_icon);
             net::puppet_want_rope_bend(cfg.dev_rope_bend);
             net::time_sync_set_mode(static_cast<net::TimeSyncMode>(cfg.coop_time_sync));
             net::time_sync_set_dev_key(cfg.dev_time_sync_key);
-            // Phase 5: only the guest hides its own enemies (the host relays them).
-            if (!cfg.net_role_host && cfg.coop_suppress != 0) {
-                net::SuppressSettings s;
-                s.mode = cfg.coop_suppress == 2 ? net::SuppressMode::On : net::SuppressMode::DryRun;
-                s.radius_m = cfg.coop_suppress_radius_m;
-                s.off_m = cfg.coop_suppress_off_m;
-                s.restore = cfg.coop_suppress_restore;
-                s.restore_state = cfg.coop_suppress_restore_state;
-                s.wait_fight_s = cfg.coop_suppress_wait_fight_s;
-                s.respawn_grace_s = cfg.coop_suppress_respawn_grace_s;
-                s.node_events = cfg.coop_suppress_node_events;
-                s.lab = cfg.coop_suppress_lab;
-                s.lab_radius_m = cfg.coop_suppress_lab_radius_m;
-                s.english = cfg.overlay_english;
-                net::suppress_configure(s);
-                if (s.lab) log::info("Suppress lab: automatic enemy copies off (they would be hidden too)");
-            }
         }
+        // Loot and the guest's enemy zone depend on the role; Co-op+ re-applies
+        // them when a Steam join changes it.
+        apply_role_settings(cfg, in_game);
 
         if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
 
@@ -1080,7 +1252,9 @@ DWORD WINAPI worker(LPVOID) {
                                          0, nullptr);
         }
 
-        if (cfg.net_enabled) run_network(cfg, local);
+        if (cfg.net_enabled) run_coop(cfg, local, in_game);
+        // Our Steam callbacks must be gone before the mod's code can be unloaded.
+        net::join_shutdown();
     } catch (const std::exception& e) {
         log::error("Unhandled exception in worker: {}", e.what());
     } catch (...) {

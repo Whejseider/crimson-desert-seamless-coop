@@ -29,6 +29,9 @@ struct HudData {
     // where the code would be, so a missing code explains itself on screen instead
     // of only in the log.
     std::string room_status;
+    // Co-op+: the Steam action available now (invite / leave) or a short notice
+    // about the last one. "" = nothing to say.
+    std::string coop_hint;
     // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
     // copy. The guest has no native boss bar -- the stage that draws it exists
     // only in the host's world -- so we draw our own.

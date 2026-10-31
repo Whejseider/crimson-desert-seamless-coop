@@ -42,3 +42,16 @@
   credits" section. 26/27 read; 3380 CDAutoLoot hidden since 2026-09-13 (unsupported). docs/mod-permissions.md updated.
   Tab closed.
 - gh api: ThirteenAG/Ultimate-ASI-Loader licence MIT, latest release v10.0.2 (2026-10-27).
+- 04:45 Moved to C:\Users\asher\CrimsonDesert-SeamlessCoop (app did not copy; cloned branch phase-a/local-pc-setup there).
+- MSVC (Ninja, Release) of ours: CrimsonDesertCoop.asi + cdcoop_tests + upstream_tests, 2/2 ctest pass. Warnings:
+  C4701 protocol.cpp:102 'reason' maybe uninitialised, C4996 _wfopen (log.cpp).
+- Upstream own CMake (RelWithDebInfo): cdmp.asi, cdmp_peer/host/probe/dx12_test/tests; unit + roomcodec pass.
+- verify-port.ps1 -Exe D:\...\CrimsonDesert.exe: ALL OFFLINE CHECKS PASSED (PE timestamp 0x6AE46DD0, image size
+  0x14268000, all measured globals, prologues of the send/recv/minimap/equip hooks, the 4 containment sites, RTTI).
+- e2e-loopback.ps1: PASS (handshake, build ids, state both ways, no rejects, clean shutdown, build-id self-test).
+- User (05:00): going to bed; work autonomously until at least 11:00, push after milestones, keep a question list.
+- dumpbin: steam_api64.dll 09.31.86.04 exports SteamAPI_RegisterCallback, ActivateGameOverlayInviteDialog,
+  SetRichPresence, SteamApps_v008 GetLaunchCommandLine, Matchmaking_v009 lobby member calls. Exe imports
+  SteamAPI_RunCallbacks/RegisterCallback/UnregisterCallback (no ManualDispatch).
+- Wrote steam_join.{h,cpp}, join_args.h, run_coop/apply_role_settings in mod.cpp, role=auto, HUD hint, tests.
+  Build: no warnings in changed files; unit tests (incl. test_join_args) pass; loopback passes. Patch 0002 recorded.
