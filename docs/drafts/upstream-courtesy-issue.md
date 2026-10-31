@@ -6,6 +6,15 @@ Hi! Thanks for porting cdmp to 1.0.0.3446 and for publishing it under the GPL. W
 friends on top of your port (credited to ByJunter and you in our README, credits file and package), and we'd like to
 give back what we find:
 
+0. **PointClimb / RideOn / RideOff Enter are 0x10 too high on 3446.** `kPointClimbEnter = 0x75F630`,
+   `kRideOnEnter = 0x74E8E0`, `kRideOffEnter = 0x74F8B0` point into the middle of their functions, so the head checks
+   in `puppet_install_climb_fix` fail ("PointClimb::Enter not recognised; wall climbs will freeze"). The 3446 vtables
+   (`probe vtables ".?AVPointClimbMovementMethod@pa@@"` -> exe+0x59196A8, RideOn -> exe+0x5919810, RideOff ->
+   exe+0x5919868) hold slot +0x38 = **0x75F620 / 0x74E8D0 / 0x74F8A0**, and the bytes there are exactly
+   `kPointClimbEnterHead` / `kRideEnterHead`. (The comment's RideOn/RideOff vtable addresses 0x5917760 / 0x59177B8
+   look like 3424 values.) We added the three to verify-port's prologue list.
+   Also stale but failing closed: `game_errors.cpp` kErrorLogger 0x35D8D0 (byte 0x00 on 3446) and the aggro_test hooks.
+   And `opcodes_resolved()` is defined inside the anonymous namespace in troc_sniffer.cpp, so it never links when called.
 1. **UTF-16 profiles get corrupted on Windows checkouts.** `.gitattributes` has `kit/** text eol=crlf`, which also
    applies to `kit/coop/cdmp.ini.*` and `kit/public/cdmp.ini.*`. Those files are UTF-16 LE; on a Windows clone git
    inserts a single 0x0D byte before every LF, which shifts the UTF-16 code units and turns the profile into garbage
