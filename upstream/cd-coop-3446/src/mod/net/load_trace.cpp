@@ -18,14 +18,14 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3460;
+namespace off = game::build_3479;
 
 // The state steps on 3460 (each: cmp word [rcx+0x5E], from / jnz / mov word [rcx+0x5E], to / ret).
 struct Step {
     uintptr_t rva;
     uint16_t from, to;
 };
-constexpr Step kSteps[] = {{0x1618B40, 2, 4}, {0x1618B50, 4, 8}, {0x1618B60, 8, 0x10}};
+constexpr Step kSteps[] = {{0x1618AF0, 2, 4}, {0x1618B00, 4, 8}, {0x1618B10, 8, 0x10}};  // 3479 (3460: -0x50)
 
 // Finishes an actor tree: collects the root and its children, then runs the 8 -> 0x10 step
 // (vf 0x78) and vf 0x140 on each (exe+0x5B1AA6).
@@ -41,10 +41,10 @@ constexpr uint8_t kComponentBusyHead[] = {0x84, 0xC0, 0x75, 0x43};  // test al,a
 
 // ClientCharacterControlActorComponent vtable slots 18 (resource load complete: sets the hide
 // bits on 2976) and 24 (end of login: clears them), entry; rcx = component, [rcx+8] = actor.
-constexpr uintptr_t kCcSlot18 = 0x942B50, kCcSlot24 = 0x942EA0;
+constexpr uintptr_t kCcSlot18 = 0x942B20, kCcSlot24 = 0x942E70;  // 3479 (3460: +0x30)
 // ICharacterMovementMethod vf2 (slot 2 of Normal/AnimationAll/...): the per-frame step that,
 // for a remote actor, interpolates its network samples. rcx = method, [rcx+0x20] = actor.
-constexpr uintptr_t kMethodStep = 0xBBC5A0;
+constexpr uintptr_t kMethodStep = 0xBBC570;  // 3479 (3460: 0xBBC5A0)
 SafetyHookMid g_step_hook;
 std::atomic<uint64_t> g_step_own{0}, g_step_copy{0};
 SafetyHookMid g_cc18_hook, g_cc24_hook;
@@ -261,7 +261,7 @@ void load_trace_install() {
     }
     {
         uintptr_t s2 = 0;
-        if (game::safe_read(g_base + 0x5951BF8 + 2 * 8, &s2, 8) && s2 == g_base + kMethodStep) {
+        if (game::safe_read(g_base + off::kVtNormalMovementMethod + 2 * 8, &s2, 8) && s2 == g_base + kMethodStep) {
             g_step_hook = safetyhook::create_mid(reinterpret_cast<void*>(s2), on_method_step);
             log::info("LoadTrace: movement-step hook {}", g_step_hook ? "installed" : "FAILED");
         }

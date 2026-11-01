@@ -117,7 +117,7 @@ bool game_build_supported() {
     const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
     const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
-    return base == game::build_3460::kImageBase && nt->FileHeader.TimeDateStamp == game::build_3460::kPeTimestamp;
+    return base == game::build_3479::kImageBase && nt->FileHeader.TimeDateStamp == game::build_3479::kPeTimestamp;
 }
 
 bool log_process_info() {
@@ -158,7 +158,7 @@ public:
     explicit LocalSource(bool in_game) : in_game_(in_game) {
         if (!in_game_) return;
         if (reader_.init()) {
-            log::info("Game reader enabled (build 1.0.0.2976 offsets)");
+            log::info("Game reader enabled (build 1.0.0.3479 offsets)");
         } else {
             log::warn("Game reader DISABLED: {}. Only networking will run.",
                       reader_.last_failure());
@@ -875,7 +875,7 @@ void minimap_cycle_loop() {
         if (down && !was_down) {
             const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
             int at = net::puppet_minimap_offset();
-            if (at < 0xEA || at > 0x16C) at = game::build_3460::kMinimapIconPlayerArrow;
+            if (at < 0xEA || at > 0x16C) at = game::build_3479::kMinimapIconPlayerArrow;
             else at += back ? -2 : 2;
             if (at > 0x16C) at = 0xEA;
             if (at < 0xEA) at = 0x16C;
@@ -1012,7 +1012,7 @@ DWORD WINAPI late_init(LPVOID param) {
     if (init->in_game) {
         log::info("Late init: waiting for the game to finish starting up");
         const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
-                                game::build_3460::kWorldSystemSlot;
+                                game::build_3479::kWorldSystemSlot;
         // WorldSystem exists from the title screen on, i.e. after the game
         // created its device and swap chain and started presenting.
         while (!stop_requested(500)) {
@@ -1215,7 +1215,7 @@ DWORD WINAPI worker(LPVOID) {
         const bool build_ok = !in_game || game_build_supported();
         std::string build_problem;
         if (!build_ok) {
-            build_problem = std::format("Co-op+ is off: this mod was made for game version 1.0.0.3460, not {}. "
+            build_problem = std::format("Co-op+ is off: this mod was made for game version 1.0.0.3479, not {}. "
                                         "The game runs normally; update Co-op+ to play together.",
                                         file_version(module_path(nullptr)));
             log::warn("{}", build_problem);

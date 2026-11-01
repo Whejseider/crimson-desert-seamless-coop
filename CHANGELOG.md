@@ -1,8 +1,18 @@
 # Changelog
 
-## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3460)
+## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
-Co-op+ to game 1.0.0.3460.
+Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
+
+Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC with the echo peer):
+- Every address re-found for 3479 (a small patch: code moved by up to 0x70 bytes, data by ~0xFB0, message numbers
+  unchanged). The other player's character loads, is drawn and stands next to you again.
+- Gear changes are shared live: take off or put on a piece of gear and your friend sees it on your character
+  (tested both ways). The old way of catching them did not exist in these builds; the mod now reads your
+  character's equipped slots itself.
+- Fixed a crash at startup with NVIDIA DLSS Frame Generation (about one launch in five): the overlay no longer
+  creates a temporary swap chain to find the game's draw function.
+- The name tag sits a little lower, just above the other player's head.
 
 Game 1.0.0.3460 (Co-op+ port, tested in the game on one PC with the echo peer):
 - Every address re-found for 3460; the movement messages' new layout; all message numbers from the live game.

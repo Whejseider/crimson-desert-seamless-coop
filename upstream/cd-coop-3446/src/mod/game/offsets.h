@@ -12,7 +12,7 @@
 // re-exports the values a patch does not move from it, and because the
 // diff between two builds' tables is the most useful thing a future port can read.
 //
-// Consumers write `namespace off = build_3460;`. To retarget, change the include
+// Consumers write `namespace off = build_3479;`. To retarget, change the include
 // here and that alias in the consumers.
 
-#include "mod/game/offsets_3460.h"
+#include "mod/game/offsets_3479.h"

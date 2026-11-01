@@ -46,7 +46,7 @@ index c83acf3..14e7854 100644
  # built it (it named the user's folders).
  target_link_options(cdmp_mod PRIVATE "/PDBALTPATH:cdmp.pdb")
 diff --git a/upstream/cd-coop-3446/scripts/verify-port.ps1 b/upstream/cd-coop-3446/scripts/verify-port.ps1
-index d6c385a..61c3631 100644
+index d6c385a..4dbff84 100644
 --- a/upstream/cd-coop-3446/scripts/verify-port.ps1
 +++ b/upstream/cd-coop-3446/scripts/verify-port.ps1
 @@ -115,7 +115,7 @@ _hdr_src = _read_header('offsets.h') + '\n' + ''.join(_read_header(h) for h in _
@@ -54,7 +54,7 @@ index d6c385a..61c3631 100644
  # ACTIVE build's text FIRST: a name defined in both must resolve to the active one,
  # and the lookup below takes the first match for that reason.
 -_hdr_search = _hdr_src + '\n' + _read_header('offsets_3424.h')
-+_hdr_search = _hdr_src + '\n' + _read_header('offsets_3446.h') + '\n' + _read_header('offsets_3424.h')
++_hdr_search = _hdr_src + '\n' + _read_header('offsets_3460.h') + '\n' + _read_header('offsets_3446.h') + '\n' + _read_header('offsets_3424.h')
  print('  active build header: %s' % (_hdr_names[0] if _hdr_names else '(none found)'))
  ok('offsets.h includes exactly one build header', len(_hdr_names) == 1,
     'found %d' % len(_hdr_names))
@@ -65,15 +65,15 @@ index d6c385a..61c3631 100644
 -    ('WorldSystem  (world_system_ref)',    0x0C9B3AB, 3, 0x71B1A40),
 -    ('WorldSystem  (world_system_ref_p3)', 0x03AAA46, 3, 0x71B1A40),
 -    ('Camera       (camera_global_ref)',   0x2FB8997, 3, 0x70CDEA8),
-+    ('WorldSystem  (world_system_ref)',    0x0C9C6DB, 3, 0x71B5CA0),
-+    ('WorldSystem  (world_system_ref_p3)', 0x03AAEC6, 3, 0x71B5CA0),
-+    ('Camera       (camera_global_ref)',   0x2FBC4E7, 3, 0x70D1FB0),
++    ('WorldSystem  (world_system_ref)',    0x0C9C6AB, 3, 0x71B6C50),
++    ('WorldSystem  (world_system_ref_p3)', 0x03AAEC6, 3, 0x71B6C50),
++    ('Camera       (camera_global_ref)',   0x2FBC7D7, 3, 0x70D2F68),
      # C5 FB 11 3D <disp32>  = vmovsd [rip+disp], xmm0
 -    ('StaticPos XY (player_static_pos)',   0x0A2F5FA, 4, 0x71C0C20),
-+    ('StaticPos XY (player_static_pos)',   0x0A3014A, 4, 0x71C4E40),
++    ('StaticPos XY (player_static_pos)',   0x0A3011A, 4, 0x71C5DF0),
      # 44 89 3D <disp32>     = mov [rip+disp], r15d   (the Z component, +8)
 -    ('StaticPos Z  (player_static_pos+8)', 0x0A2F5FA, 11, 0x71C0C28),
-+    ('StaticPos Z  (player_static_pos+8)', 0x0A3014A, 11, 0x71C4E48),
++    ('StaticPos Z  (player_static_pos+8)', 0x0A3011A, 11, 0x71C5DF8),
      # C5 F8 5C 05 <disp32>  = vsubps xmm0, xmm0, [rip+disp]  (chunk world offset)
      # The signature anchors on the preceding `mov rcx,[rbx+0x2C0]`, and the vsubps
      # opcode sits at +0x15 from there with its disp32 at +0x19 -- the same +0x19 the
@@ -81,7 +81,7 @@ index d6c385a..61c3631 100644
      # it instead of reading the bytes, which produced a misaligned Vec4 and a
      # garbled target. The bytes above were read out of the image to settle it.)
 -    ('ChunkOrigin  (world_offset_sub)',    0x39736F1, 25, 0x719DCA0),
-+    ('ChunkOrigin  (world_offset_sub)',    0x3977221, 25, 0x71A1F00),
++    ('ChunkOrigin  (world_offset_sub)',    0x3977511, 25, 0x71A2EB0),
  ]
  print()
  print('== measured globals (independent re-decode of the signature site) ==')
@@ -92,18 +92,18 @@ index d6c385a..61c3631 100644
 -    ('kClientFrameClockMs', 0x70CACAD + 0x34, 0x70CDCAD + 0x34),
 -    ('kClientFrameClockUs', 0x70CACAD + 0x3C, 0x70CDCAD + 0x3C),
 -    ('kClientClockBias',    0x71AECF8, 0x71B1CE8),
-+    ('kClientFrameClockMs', 0x70CDCAD + 0x34, 0x70D1DB5 + 0x34),
-+    ('kClientFrameClockUs', 0x70CDCAD + 0x3C, 0x70D1DB5 + 0x3C),
-+    ('kClientClockBias',    0x71B1CE8, 0x71B5F48),
++    ('kClientFrameClockMs', 0x70D1DB5 + 0x34, 0x70D2D75 + 0x34),
++    ('kClientFrameClockUs', 0x70D1DB5 + 0x3C, 0x70D2D75 + 0x3C),
++    ('kClientClockBias',    0x71B5F48, 0x71B6EF8),
      ('kFieldTimeClient',    0x6EB2AD8, 0x6EB2AD8),
 -    ('kTrocInstancesBegin', 0x6E973A0, 0x6E82D10),
 -    ('kTrocInstancesEnd',   0x6EC8540, 0x6EB6378),
 -    ('kMinimapIconRoot',    0x71AEDE8, 0x71B1DD8),
 -    ('kMinimapIconRootAlt', 0x71AEDF0, 0x71B1DE0),
-+    ('kTrocInstancesBegin', 0x6E82D10, 0x6E86D10),
-+    ('kTrocInstancesEnd',   0x6EB6378, 0x6EBA378),
-+    ('kMinimapIconRoot',    0x71B1DD8, 0x71B6038),
-+    ('kMinimapIconRootAlt', 0x71B1DE0, 0x71B6040),
++    ('kTrocInstancesBegin', 0x6E86D10, 0x6E87D10),
++    ('kTrocInstancesEnd',   0x6EBA378, 0x6EBB378),
++    ('kMinimapIconRoot',    0x71B6038, 0x71B6FE8),
++    ('kMinimapIconRootAlt', 0x71B6040, 0x71B6FF0),
  ]
  print()
  print('== inferred globals (per-region anchors, not one constant) ==')
@@ -112,7 +112,7 @@ index d6c385a..61c3631 100644
      if name.startswith('kClientFrameClock'):
          ok('%s sits where the proven flag puts it' % name,
 -           (new - 0x70CDCAD) in (0x34, 0x3C), 'flag+0x%X' % (new - 0x70CDCAD))
-+           (new - 0x70D1DB5) in (0x34, 0x3C), 'flag+0x%X' % (new - 0x70D1DB5))
++           (new - 0x70D2D75) in (0x34, 0x3C), 'flag+0x%X' % (new - 0x70D2D75))
      else:
          ok('%s pointer-aligned' % name, new % 8 == 0, 'rva=0x%X' % new)
  
@@ -122,8 +122,8 @@ index d6c385a..61c3631 100644
  import struct as _struct
 -_clock_target = 0x70CDCAD
 -_clock_sites = [0x561BB5, 0x2F0B197, 0x15F5550, 0x2E442A9]
-+_clock_target = 0x70D1DB5
-+_clock_sites = [0x562575, 0x2F0ECE7, 0x15F8660, 0x2E47DF9]  # 3446: 0x561BB5 0x2F0B197 0x15F5550 0x2E442A9
++_clock_target = 0x70D2D75
++_clock_sites = [0x562575, 0x2F0EFD7, 0x15F8610, 0x2E480E9]  # 3460: 0x562575 0x2F0ECE7 0x15F8660 0x2E47DF9
  _hits = 0
  for _site in _clock_sites:
      _off = doff(_site)
@@ -135,10 +135,10 @@ index d6c385a..61c3631 100644
 -   'gap 0x%X' % (0x70CDCE1 - _clock_target))
 -ok('kClientFrameClockUs sits 0x3C past the flag', 0x70CDCE9 - _clock_target == 0x3C,
 -   'gap 0x%X' % (0x70CDCE9 - _clock_target))
-+ok('kClientFrameClockMs sits 0x34 past the flag', 0x70D1DE9 - _clock_target == 0x34,
-+   'gap 0x%X' % (0x70D1DE9 - _clock_target))
-+ok('kClientFrameClockUs sits 0x3C past the flag', 0x70D1DF1 - _clock_target == 0x3C,
-+   'gap 0x%X' % (0x70D1DF1 - _clock_target))
++ok('kClientFrameClockMs sits 0x34 past the flag', 0x70D2DA9 - _clock_target == 0x34,
++   'gap 0x%X' % (0x70D2DA9 - _clock_target))
++ok('kClientFrameClockUs sits 0x3C past the flag', 0x70D2DB1 - _clock_target == 0x3C,
++   'gap 0x%X' % (0x70D2DB1 - _clock_target))
  
  # The same question for the other INFERRED globals: does any code actually reach
  # them? x64 reads data RIP-relatively, so a global that is real and used has a
@@ -149,9 +149,9 @@ index d6c385a..61c3631 100644
 -    ('kClientClockBias',    0x71B1CE8, True),
 -    ('kMinimapIconRoot',    0x71B1DD8, True),
 -    ('kMinimapIconRootAlt', 0x71B1DE0, True),
-+    ('kClientClockBias',    0x71B5F48, True),
-+    ('kMinimapIconRoot',    0x71B6038, True),
-+    ('kMinimapIconRootAlt', 0x71B6040, True),
++    ('kClientClockBias',    0x71B6EF8, True),
++    ('kMinimapIconRoot',    0x71B6FE8, True),
++    ('kMinimapIconRootAlt', 0x71B6FF0, True),
      # The Troc range edges are now advisory rather than required. They were True on
      # 3424 because that range was inherited and the walk's correctness depended on
      # it; on 3446 the range was produced by running the walk itself and bracketing
@@ -161,8 +161,8 @@ index d6c385a..61c3631 100644
      # see `lea` is what the TrocInstancesBegin note below established the hard way.
 -    ('kTrocInstancesBegin', 0x6E82D10, False),
 -    ('kTrocInstancesEnd',   0x6EB6378, False),
-+    ('kTrocInstancesBegin', 0x6E86D10, False),
-+    ('kTrocInstancesEnd',   0x6EBA378, False),
++    ('kTrocInstancesBegin', 0x6E87D10, False),
++    ('kTrocInstancesEnd',   0x6EBB378, False),
      ('kFieldTimeClient',    0x6EB2AD8, False),
  ]
  
@@ -171,11 +171,11 @@ index d6c385a..61c3631 100644
  vt_expect = [
      # class name (RTTI string), expected rva, note
 -    ('WallUpMovementMethod', 0x5918F78, 'has_vtable guard in read_player_wallup'),
-+    ('WallUpMovementMethod', 0x591CF78, 'has_vtable guard in read_player_wallup'),
-+    ('ClientActorManager', 0x593DCF0, 'kVtClientActorManager'),
-+    ('ClientChildOnlyInGameActor', 0x590BCA0, 'kVtControlledActor'),
-+    ('ClientCharacterControlActorComponent', 0x593C8E0, 'kVtCharacterControl'),
-+    ('ClientStatusActorComponent', 0x59136E0, 'kVtStatusComponent'),
++    ('WallUpMovementMethod', 0x591DF78, 'has_vtable guard in read_player_wallup'),
++    ('ClientActorManager', 0x593ECF0, 'kVtClientActorManager'),
++    ('ClientChildOnlyInGameActor', 0x590CCA0, 'kVtControlledActor'),
++    ('ClientCharacterControlActorComponent', 0x593D8E0, 'kVtCharacterControl'),
++    ('ClientStatusActorComponent', 0x59146E0, 'kVtStatusComponent'),
  ]
  
  # Code sites whose HEAD ARRAY is checked against the executable at the same address the mod
@@ -184,17 +184,17 @@ index d6c385a..61c3631 100644
  site_expect = [
      # name, rva on the CURRENT build, head bytes as written in offsets_3446.h, note
 -    ('kActionLayerAdvance',  0x2148D50,
-+    ('kActionLayerAdvance',  0x214C0C0,
++    ('kActionLayerAdvance',  0x214C070,
       '48 8B C4 57 48 81 EC 80 00 00 00 C5 F8 29 78 D8',
       'puppet_install_layer_guards; guard for the enemy relay'),
 -    ('kActionLayersAdvance', 0x232A8B0,
-+    ('kActionLayersAdvance', 0x232DFE0,
++    ('kActionLayersAdvance', 0x232DF70,
       '74 51 4C 89 3F 44 38 3E 74 32 48 C7 C3 FF FF FF',
       'puppet_install_layer_guards; guard for the enemy relay'),
 -    ('kMinimapIconDecide', 0x9E8A7D,
 -     '80 7C 24 48 00 75 6F 8B 05 46 3D 75 06 41 89 06',
-+    ('kMinimapIconDecide', 0x9E95CD,
-+     '80 7C 24 48 00 75 6F 8B 05 56 74 75 06 41 89 06',
++    ('kMinimapIconDecide', 0x9E959D,
++     '80 7C 24 48 00 75 6F 8B 05 36 84 75 06 41 89 06',
       'minimap icon decision (mid-hook)'),
 -    ('kServerOtherEquipWriter', 0x29EDD11,
 -     '48 8B 84 24 E0 10 00 00 48 8B 10 48 85 D2 74 0A',
@@ -215,15 +215,15 @@ index d6c385a..61c3631 100644
  # ~+0x2FF0), so no single constant covers this port either.
 -measured_deltas = [('Camera', 0x2FF8), ('ChunkOrigin', 0x2FDB),
 -                   ('WorldSystem', 0x2FF0), ('StaticPos', 0x3010)]
-+measured_deltas = [('Camera', 0x4108), ('ChunkOrigin', 0x4260),
-+                   ('WorldSystem', 0x4260), ('StaticPos', 0x4220)]
++measured_deltas = [('Camera', 0xFB8), ('ChunkOrigin', 0xFB0),
++                   ('WorldSystem', 0xFB0), ('StaticPos', 0xFB0)]
  spread = max(d for _, d in measured_deltas) - min(d for _, d in measured_deltas)
  print()
  print('== is the port delta actually constant? ==')
 -print('   measured 3424->3446 deltas: ' + ', '.join('%s +0x%X' % (n, d) for n, d in measured_deltas))
 -print('   spread: 0x%X (%d bytes); the clock flag sits at +0x1000, a different region'
-+print('   measured 3446->3460 deltas: ' + ', '.join('%s +0x%X' % (n, d) for n, d in measured_deltas))
-+print('   spread: 0x%X (%d bytes); the clock flag moved with the camera region (+0x4108)'
++print('   measured 3460->3479 deltas: ' + ', '.join('%s +0x%X' % (n, d) for n, d in measured_deltas))
++print('   spread: 0x%X (%d bytes); the clock flag moved +0xFC0'
        % (spread, spread))
  ok('delta spread is measured, not assumed', spread >= 0,
     'a flat constant is off by up to 0x%X across the measured slots' % spread)
@@ -232,10 +232,10 @@ index d6c385a..61c3631 100644
  print('== preserved gaps and range sanity ==')
  ok('Troc instances span is 0x33668',
 -   (0x6EB6378 - 0x6E82D10) == 0x33668, 'span 0x%X' % (0x6EB6378 - 0x6E82D10))
-+   (0x6EBA378 - 0x6E86D10) == 0x33668, 'span 0x%X' % (0x6EBA378 - 0x6E86D10))
++   (0x6EBB378 - 0x6E87D10) == 0x33668, 'span 0x%X' % (0x6EBB378 - 0x6E87D10))
  ok('Troc span is one contiguous writable region',
 -   sec_of(0x6E82D10) in _rw and sec_of(0x6EB6378 - 1) == sec_of(0x6E82D10))
-+   sec_of(0x6E86D10) in _rw and sec_of(0x6EBA378 - 1) == sec_of(0x6E86D10))
++   sec_of(0x6E87D10) in _rw and sec_of(0x6EBB378 - 1) == sec_of(0x6E87D10))
  
  # ---- code addresses: do their prologue heads still match? ----
  # The heads live in the per-build header as byte arrays. Rather than restating them
@@ -250,7 +250,7 @@ index d6c385a..61c3631 100644
      ('kClientClock             (time sync)',        0x1416B80, 'kClientClockHead',            False),
 -    ('kMinimapIconDecide       (minimap icon)',     0x9E8A7D,  'kMinimapIconDecideHead',      True),
 -    ('kServerOtherEquipWriter  (equip relay)',      0x29EDD11, 'kServerOtherEquipWriterHead', True),
-+    ('kMinimapIconDecide       (minimap icon)',     0x9E95CD,  'kMinimapIconDecideHead',      True),
++    ('kMinimapIconDecide       (minimap icon)',     0x9E959D,  'kMinimapIconDecideHead',      True),
 +    # Not ported to 3460: the address is 0, so the guard reads the PE header and refuses.
 +    ('kServerOtherEquipWriter  (equip relay)',      0,         'kServerOtherEquipWriterHead', False),
 +    # Co-op+: the puppet's wall-climb and mount fixes (remote_puppet.cpp). They were 0x10 off
@@ -269,10 +269,10 @@ index d6c385a..61c3631 100644
 -    ('kCcPost',   0x860D60,  bytes([0x0F,0x85,0xB6,0x00,0x00,0x00,0x4C,0x89,0x6C,0x24,0x28,0x80,0x7C,0x24,0x38,0x00])),
 -    ('kRestore',  0x948240,  bytes([0x48,0x8B,0xC4,0x48,0x89,0x58,0x20,0x48,0x89,0x50,0x10,0x55,0x56,0x57,0x41,0x54])),
 -    ('kPending',  0x232AF20, bytes([0x74,0x51,0x4C,0x89,0x3F,0x44,0x38,0x3E,0x74,0x32,0x48,0xC7,0xC3,0xFF,0xFF,0xFF])),
-+    ('kCcUpdate', 0x942880,  bytes([0x48,0x89,0x5C,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57,0x48,0x83,0xEC,0x20,0x48])),
++    ('kCcUpdate', 0x942850,  bytes([0x48,0x89,0x5C,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57,0x48,0x83,0xEC,0x20,0x48])),
 +    ('kCcPost',   0x861700,  bytes([0x0F,0x85,0xB6,0x00,0x00,0x00,0x4C,0x89,0x6C,0x24,0x28,0x80,0x7C,0x24,0x38,0x00])),
-+    ('kRestore',  0x948D80,  bytes([0x48,0x8B,0xC4,0x48,0x89,0x58,0x20,0x48,0x89,0x50,0x10,0x55,0x56,0x57,0x41,0x54])),
-+    ('kPending',  0x232E650, bytes([0x74,0x51,0x4C,0x89,0x3F,0x44,0x38,0x3E,0x74,0x32,0x48,0xC7,0xC3,0xFF,0xFF,0xFF])),
++    ('kRestore',  0x948D50,  bytes([0x48,0x8B,0xC4,0x48,0x89,0x58,0x20,0x48,0x89,0x50,0x10,0x55,0x56,0x57,0x41,0x54])),
++    ('kPending',  0x232E5E0, bytes([0x74,0x51,0x4C,0x89,0x3F,0x44,0x38,0x3E,0x74,0x32,0x48,0xC7,0xC3,0xFF,0xFF,0xFF])),
  ]
  print('  (all four MUST match: one bad address disables the whole containment)')
  for name, rva, sig in containment:
@@ -769,7 +769,7 @@ index d5b91c4..117a241 100644
      return TRUE;
  }
 diff --git a/upstream/cd-coop-3446/src/mod/game/actor_lookup.cpp b/upstream/cd-coop-3446/src/mod/game/actor_lookup.cpp
-index 7d4220a..3410a3c 100644
+index 7d4220a..f70f55e 100644
 --- a/upstream/cd-coop-3446/src/mod/game/actor_lookup.cpp
 +++ b/upstream/cd-coop-3446/src/mod/game/actor_lookup.cpp
 @@ -9,7 +9,7 @@
@@ -777,7 +777,7 @@ index 7d4220a..3410a3c 100644
  namespace cdmp::game {
  namespace {
 -namespace off = build_3446;
-+namespace off = build_3460;
++namespace off = build_3479;
  
  // Hash table of the ClientActorManager (same layout as the server's).
  constexpr uint32_t kManager_Table = 0x08;
@@ -786,12 +786,12 @@ index 7d4220a..3410a3c 100644
      auto actor = find_actor(key);
      if (!actor) return std::nullopt;
 -    auto components = read_ptr(*actor + build_3446::kActor_ComponentTable);
-+    auto components = read_ptr(*actor + build_3460::kActor_ComponentTable);
++    auto components = read_ptr(*actor + build_3479::kActor_ComponentTable);
      if (!components) return std::nullopt;
      auto ts = read_ptr(*components + kComponents_TransformSync);
      if (!ts) return std::nullopt;
 diff --git a/upstream/cd-coop-3446/src/mod/game/camera_reader.cpp b/upstream/cd-coop-3446/src/mod/game/camera_reader.cpp
-index d1fbb16..74ac46f 100644
+index d1fbb16..e5baa0e 100644
 --- a/upstream/cd-coop-3446/src/mod/game/camera_reader.cpp
 +++ b/upstream/cd-coop-3446/src/mod/game/camera_reader.cpp
 @@ -9,7 +9,7 @@
@@ -799,12 +799,12 @@ index d1fbb16..74ac46f 100644
  
  namespace cdmp::game {
 -namespace off = build_3446;
-+namespace off = build_3460;
++namespace off = build_3479;
  using proto::Vec3;
  
  namespace {
 diff --git a/upstream/cd-coop-3446/src/mod/game/game_clock.cpp b/upstream/cd-coop-3446/src/mod/game/game_clock.cpp
-index 669a910..ce4352a 100644
+index 669a910..552e421 100644
 --- a/upstream/cd-coop-3446/src/mod/game/game_clock.cpp
 +++ b/upstream/cd-coop-3446/src/mod/game/game_clock.cpp
 @@ -8,7 +8,7 @@
@@ -812,12 +812,12 @@ index 669a910..ce4352a 100644
  
  namespace cdmp::game {
 -namespace off = build_3446;
-+namespace off = build_3460;
++namespace off = build_3479;
  
  std::optional<uint64_t> client_game_clock_ms() {
      static const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
 diff --git a/upstream/cd-coop-3446/src/mod/game/game_errors.cpp b/upstream/cd-coop-3446/src/mod/game/game_errors.cpp
-index c38f4f7..30a6bdf 100644
+index c38f4f7..4535642 100644
 --- a/upstream/cd-coop-3446/src/mod/game/game_errors.cpp
 +++ b/upstream/cd-coop-3446/src/mod/game/game_errors.cpp
 @@ -15,7 +15,7 @@
@@ -825,12 +825,12 @@ index c38f4f7..30a6bdf 100644
  namespace cdmp::game {
  namespace {
 -namespace off = build_3446;
-+namespace off = build_3460;
++namespace off = build_3479;
  
  // Entry of the logger: arguments 10-13 on the stack ([rsp] = return address).
  // Seen at a call site (0x35AED1..0x35AF10): arg10 dword = code, arg11 dword =
 diff --git a/upstream/cd-coop-3446/src/mod/game/offsets.h b/upstream/cd-coop-3446/src/mod/game/offsets.h
-index 2f0241f..18d5f66 100644
+index 2f0241f..73ccb89 100644
 --- a/upstream/cd-coop-3446/src/mod/game/offsets.h
 +++ b/upstream/cd-coop-3446/src/mod/game/offsets.h
 @@ -8,11 +8,11 @@
@@ -844,11 +844,11 @@ index 2f0241f..18d5f66 100644
  // diff between two builds' tables is the most useful thing a future port can read.
  //
 -// Consumers write `namespace off = build_3446;`. To retarget, change the include
-+// Consumers write `namespace off = build_3460;`. To retarget, change the include
++// Consumers write `namespace off = build_3479;`. To retarget, change the include
  // here and that alias in the consumers.
  
 -#include "mod/game/offsets_3446.h"
-+#include "mod/game/offsets_3460.h"
++#include "mod/game/offsets_3479.h"
 diff --git a/upstream/cd-coop-3446/src/mod/game/offsets_3446.h b/upstream/cd-coop-3446/src/mod/game/offsets_3446.h
 index 072e9a3..04afd07 100644
 --- a/upstream/cd-coop-3446/src/mod/game/offsets_3446.h
@@ -1130,8 +1130,180 @@ index 0000000..b3a00cd
 +inline constexpr uintptr_t kTrocInstancesEnd = 0x6EBA378;    // last + 8 (3446:0x6EB6378)
 +
 +}  // namespace cdmp::game::build_3460
+diff --git a/upstream/cd-coop-3446/src/mod/game/offsets_3479.h b/upstream/cd-coop-3446/src/mod/game/offsets_3479.h
+new file mode 100644
+index 0000000..69f48a5
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/game/offsets_3479.h
+@@ -0,0 +1,166 @@
++#pragma once
++// Addresses for CrimsonDesert.exe 1.0.0.3479 (game version 2.04.05; Co-op+ port, 2026-11-01).
++//
++// Steam updated the game from 1.0.0.3460 (PE 0x6AE58024) to 1.0.0.3479 (PE 0x6AE6E3E8,
++// 330,738,072 bytes) on 2026-11-01. A small patch: every value below was re-found in the 3479
++// image (build/exe-archive keeps a copy from now on) with the same identities as the 3460 port:
++// signatures for data globals, RTTI names for vtables, recorded heads for code, and a live
++// read-only probe for the Troc table, whose 1175 opcodes are identical to 3460's.
++//
++// Shifts 3460 -> 3479: code +0 (packet hooks, climb/ride, status handler, CC post) .. -0x30
++// (CC, movement step) .. -0x50 (layer advance, load-state steps) .. -0x70 (layers, pending);
++// vtables and the Troc table +0x1000; data globals +0xFB0 (camera +0xFB8, clock +0xFC0).
++
++#include "mod/game/offsets_3460.h"
++
++namespace cdmp::game::build_3479 {
++
++// Everything this patch did not move (opcodes, struct offsets, wire layout, heads that match).
++using build_3460::RelayedAck;
++using build_3460::kActionLayerAdvanceHead;
++using build_3460::kActionLayersAdvanceHead;
++using build_3460::kActorManager_ControlledActor;
++using build_3460::kActor_ComponentTable;
++using build_3460::kActor_Key;
++using build_3460::kActor_OwnerUser;
++using build_3460::kCameraBlockSentinelValue;
++using build_3460::kCameraBlock_Forward;
++using build_3460::kCameraBlock_Position;
++using build_3460::kCameraBlock_Projection;
++using build_3460::kCameraBlock_Sentinel;
++using build_3460::kCameraBlock_View;
++using build_3460::kClientClock;
++using build_3460::kClientClockHead;
++using build_3460::kClientOnRecvPacketHead;
++using build_3460::kClientPostPacketHead;
++using build_3460::kComponents_CharacterControl;
++using build_3460::kComponents_Status;
++using build_3460::kControlInner_Physics;
++using build_3460::kControl_Inner;
++using build_3460::kControl_Layer0;
++using build_3460::kControl_MoveController;
++using build_3460::kControl_WallData;
++using build_3460::kCoopPinId;
++using build_3460::kFieldTimeClient;
++using build_3460::kHookArgSizeStackOffset;
++using build_3460::kLayer_Chart;
++using build_3460::kLayer_Playback;
++using build_3460::kLoadKindMount;
++using build_3460::kLoadingParkHeight;
++using build_3460::kLoadingParkRadius;
++using build_3460::kMaxStatEntries;
++using build_3460::kMethod_Actor;
++using build_3460::kMinimapIconCompanion;
++using build_3460::kMinimapIconOutlinedArrow;
++using build_3460::kMinimapIconPlayerArrow;
++using build_3460::kMoveController_Method;
++using build_3460::kMoveController_WallUp;
++using build_3460::kMoveMethodWallUp;
++using build_3460::kPhysics_AxisX;
++using build_3460::kPhysics_AxisY;
++using build_3460::kPhysics_AxisZ;
++using build_3460::kPhysics_Position;
++using build_3460::kPinColourCount;
++using build_3460::kPinGroupNormal;
++using build_3460::kPinShapeCount;
++using build_3460::kPointClimbEnterHead;
++using build_3460::kRelayedAcks;
++using build_3460::kRemoteCatchSceneId;
++using build_3460::kRideEnterHead;
++using build_3460::kServerActor_Key;
++using build_3460::kServerDockingWriterHead;
++using build_3460::kServerOtherEquipWriterHead;
++using build_3460::kStatContainer_Count;
++using build_3460::kStatContainer_Entries;
++using build_3460::kStatEntry_Current;
++using build_3460::kStatEntry_Id;
++using build_3460::kStatEntry_Max;
++using build_3460::kStatEntry_Size;
++using build_3460::kStatId_Health;
++using build_3460::kStatId_Stamina;
++using build_3460::kStatus_StatContainer;
++using build_3460::kTroc_Kind;
++using build_3460::kTroc_Opcode;
++using build_3460::kVtCamera;
++using build_3460::kVtPhysicsObject;
++using build_3460::kWorldSystem_ActorManager;
++using build_3460::kCamera_Block;
++using build_3460::kLoadPositionFromEnd;
++using build_3460::kLoadRotationFromEnd;
++using build_3460::kOpSetFieldTimeReq;
++using build_3460::kOpSetFieldTimeAck;
++using build_3460::kOpActorLoadDataAck;
++using build_3460::kOpRemoveActorAck;
++using build_3460::kOpMoveActorReq;
++using build_3460::kOpMoveActorAck;
++using build_3460::kOpStartActionReq;
++using build_3460::kOpStartActionAck;
++using build_3460::kOpRotateActorReq;
++using build_3460::kOpRotateActorAck;
++using build_3460::kOpUpdateWallUpDataAck;
++using build_3460::kOpUnequipItemAck;
++using build_3460::kOpOtherEquipItemAck;
++using build_3460::kOpOtherUnequipItemAck;
++using build_3460::kOpCreateOrChangePinMarkerAck;
++using build_3460::kOpRemovePinMarkerAck;
++using build_3460::kOpChangeDockingSocketByFrameEventAck;
++using build_3460::kOpRemoteCatchResultAck;
++using build_3460::kOpUpdateOnDemandGimmickAck;
++using build_3460::kStatus_HideFlags;
++using build_3460::kHideFlagsOfCopies;
++using build_3460::kStatusFlagsChangedHead;
++using build_3460::kMovementMethodStepHead;
++using build_3460::kPointClimbEnter;
++using build_3460::kRideOnEnter;
++using build_3460::kRideOffEnter;
++using build_3460::kServerOtherEquipWriter;
++using build_3460::kComponents_EquipSlot;
++using build_3460::kEquipSlot_Serial;
++using build_3460::kEquipSlot_Table;
++using build_3460::kSlotTable_Entries;
++using build_3460::kSlotTable_Count;
++using build_3460::kSlotEntry_Size;
++using build_3460::kSlotEntry_ItemIndex;
++using build_3460::kSlotEntry_Count;
++using build_3460::kSlotEntry_ShownIndex;
++using build_3460::kSlotEntry_Slot;
++using build_3460::kItemInfoTable_Count;
++using build_3460::kItemInfoTable_Records;
++using build_3460::kItemInfo_Key;
++using build_3460::kServerDockingWriter;
++using build_3460::kClientPostPacket;
++using build_3460::kClientOnRecvPacket;
++
++// ---- moved in 3479 ----------------------------------------------------------
++inline constexpr uint32_t kPeTimestamp = 0x6AE6E3E8;  // 3460:0x6AE58024
++inline constexpr uintptr_t kImageBase = 0x140000000;  // fixed, no ASLR
++inline constexpr uintptr_t kImageSize = 0x14073000;  // 3460:0x13EE0000
++inline constexpr uintptr_t kWorldSystemSlot = 0x71B6C50;  // 3460:0x71B5CA0 [world_system_ref, _p3: one match each]
++inline constexpr uintptr_t kCameraSlot = 0x70D2F68;  // 3460:0x70D1FB0 [camera_global_ref]
++inline constexpr uintptr_t kStaticPlayerPos = 0x71C5DF0;  // 3460:0x71C4E40 [player_static_pos_write]
++inline constexpr uintptr_t kChunkOrigin = 0x71A2EB0;  // 3460:0x71A1F00 [world_offset_sub]
++inline constexpr uintptr_t kClientClockGlobal = 0x70D2D75;  // 3460:0x70D1DB5; 15 cmp sites; live: flag 1, +0x3C 77672
++inline constexpr uintptr_t kClientFrameClockMs = 0x70D2DA9;  // = flag + 0x34
++inline constexpr uintptr_t kClientFrameClockUs = 0x70D2DB1;  // = flag + 0x3C
++inline constexpr uintptr_t kClientClockBias = 0x71B6EF8;  // = kWorldSystemSlot + 0x2A8
++inline constexpr uintptr_t kMinimapIconRoot = 0x71B6FE8;  // = kWorldSystemSlot + 0x398
++inline constexpr uintptr_t kMinimapIconRootAlt = 0x71B6FF0;  // = kWorldSystemSlot + 0x3A0
++inline constexpr uintptr_t kStatusFlagsChanged = 0x6E90A0;  // unchanged, head matches
++inline constexpr uintptr_t kVtNormalMovementMethod = 0x5952BF8;  // 3460:0x5951BF8
++inline constexpr uintptr_t kMovementMethodStep = 0xBBC570;  // 3460:0xBBC5A0 = slot 2 of NormalMovementMethod, head matches
++inline constexpr uintptr_t kVtClientActorManager = 0x593ECF0;  // 3460:0x593DCF0
++inline constexpr uintptr_t kVtControlledActor = 0x590CCA0;  // 3460:0x590BCA0
++inline constexpr uintptr_t kVtCharacterControl = 0x593D8E0;  // 3460:0x593C8E0
++inline constexpr uintptr_t kVtStatusComponent = 0x59146E0;  // 3460:0x59136E0
++inline constexpr uintptr_t kVtWallUpMovementMethod = 0x591DF78;  // 3460:0x591CF78
++inline constexpr uintptr_t kActionLayerAdvance = 0x214C070;  // 3460:0x214C0C0, 16-byte head: one match
++inline constexpr uintptr_t kActionLayersAdvance = 0x232DF70;  // 3460:0x232DFE0, keeps its 0x670 gap to kPending (0x232E5E0)
++inline constexpr uintptr_t kMinimapIconDecide = 0x9E959D;  // 3460:0x9E95CD, context signature: one match
++inline constexpr uintptr_t kVtClientEquipSlotComponent = 0x5945388;  // 3460:0x5944388
++inline constexpr uintptr_t kItemInfoTableSlot = 0x71B7BD0;  // 3460:0x71B6C20, decoded from the load below
++inline constexpr uintptr_t kItemInfoTableLoad = 0x3DCFD5;  // unchanged
++inline constexpr uintptr_t kTrocInstancesBegin = 0x6E87D10;  // 3460:0x6E86D10; live: 1175 handlers, same span 0x33660
++inline constexpr uintptr_t kTrocInstancesEnd = 0x6EBB378;  // last + 8
++inline constexpr uint8_t kMinimapIconDecideHead[] = {0x80, 0x7C, 0x24, 0x48, 0x00, 0x75, 0x6F, 0x8B, 0x05, 0x36, 0x84, 0x75, 0x06, 0x41, 0x89, 0x06};  // its mov eax,[rip+d] moved with the data
++
++}  // namespace cdmp::game::build_3479
 diff --git a/upstream/cd-coop-3446/src/mod/game/player_reader.cpp b/upstream/cd-coop-3446/src/mod/game/player_reader.cpp
-index 912762f..500c53b 100644
+index 912762f..0a725d1 100644
 --- a/upstream/cd-coop-3446/src/mod/game/player_reader.cpp
 +++ b/upstream/cd-coop-3446/src/mod/game/player_reader.cpp
 @@ -9,7 +9,7 @@
@@ -1139,12 +1311,12 @@ index 912762f..500c53b 100644
  
  namespace cdmp::game {
 -namespace off = build_3446;
-+namespace off = build_3460;
++namespace off = build_3479;
  
  namespace {
  
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..ce57496 100644
+index 79ccd06..906b5b0 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,7 @@
@@ -1200,12 +1372,21 @@ index 79ccd06..ce57496 100644
 +    const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
 +    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
 +    const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
-+    return base == game::build_3460::kImageBase && nt->FileHeader.TimeDateStamp == game::build_3460::kPeTimestamp;
++    return base == game::build_3479::kImageBase && nt->FileHeader.TimeDateStamp == game::build_3479::kPeTimestamp;
 +}
 +
  bool log_process_info() {
      const std::wstring exe = module_path(nullptr);
      const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+@@ -138,7 +158,7 @@ public:
+     explicit LocalSource(bool in_game) : in_game_(in_game) {
+         if (!in_game_) return;
+         if (reader_.init()) {
+-            log::info("Game reader enabled (build 1.0.0.2976 offsets)");
++            log::info("Game reader enabled (build 1.0.0.3479 offsets)");
+         } else {
+             log::warn("Game reader DISABLED: {}. Only networking will run.",
+                       reader_.last_failure());
 @@ -188,10 +208,37 @@ private:
      std::string status_;
  };
@@ -1590,7 +1771,7 @@ index 79ccd06..ce57496 100644
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
 -            if (at < 0xEA || at > 0x16C) at = game::build_3446::kMinimapIconPlayerArrow;
-+            if (at < 0xEA || at > 0x16C) at = game::build_3460::kMinimapIconPlayerArrow;
++            if (at < 0xEA || at > 0x16C) at = game::build_3479::kMinimapIconPlayerArrow;
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
@@ -1617,7 +1798,7 @@ index 79ccd06..ce57496 100644
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
 -                                game::build_3446::kWorldSystemSlot;
-+                                game::build_3460::kWorldSystemSlot;
++                                game::build_3479::kWorldSystemSlot;
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
@@ -1692,7 +1873,7 @@ index 79ccd06..ce57496 100644
 +        const bool build_ok = !in_game || game_build_supported();
 +        std::string build_problem;
 +        if (!build_ok) {
-+            build_problem = std::format("Co-op+ is off: this mod was made for game version 1.0.0.3460, not {}. "
++            build_problem = std::format("Co-op+ is off: this mod was made for game version 1.0.0.3479, not {}. "
 +                                        "The game runs normally; update Co-op+ to play together.",
 +                                        file_version(module_path(nullptr)));
 +            log::warn("{}", build_problem);
@@ -1780,7 +1961,7 @@ index 79ccd06..ce57496 100644
          log::error("Unhandled exception in worker: {}", e.what());
      } catch (...) {
 diff --git a/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp b/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
-index 355b8df..38fb2b4 100644
+index 355b8df..37888f7 100644
 --- a/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
 @@ -23,12 +23,14 @@
@@ -1788,7 +1969,7 @@ index 355b8df..38fb2b4 100644
  namespace cdmp::net {
  namespace {
 -namespace off = game::build_3446;
-+namespace off = game::build_3460;
++namespace off = game::build_3479;
  
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
 -constexpr uint16_t kOpCurrentTargetChangeReq = 2984;   // u32 actor | u32 target | u64 seq | u8 | u8 reason
@@ -1803,7 +1984,7 @@ index 355b8df..38fb2b4 100644
  constexpr uintptr_t kIsTargetable = 0x22141E0;    // (target comp, actor* candidate, u8 mode)
  constexpr uint8_t kIsTargetableHead[] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74,
 diff --git a/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp b/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp
-index 4e09fdc..1aec6f8 100644
+index 4e09fdc..5a743d9 100644
 --- a/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp
 @@ -21,9 +21,11 @@
@@ -1811,7 +1992,7 @@ index 4e09fdc..1aec6f8 100644
  namespace {
  
 -namespace off = game::build_3446;
-+namespace off = game::build_3460;
++namespace off = game::build_3479;
  
 -constexpr uint16_t kOpCurrentTargetChangeReq = 2984;  // u32 actor | u32 target | ...
 +// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
@@ -1821,7 +2002,7 @@ index 4e09fdc..1aec6f8 100644
  constexpr uint64_t kRecentMs = 5000;
  constexpr uint32_t kMaxListed = 16;
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop.cpp b/upstream/cd-coop-3446/src/mod/net/coop.cpp
-index 3bdc2c5..c3a1162 100644
+index 3bdc2c5..30abc9e 100644
 --- a/upstream/cd-coop-3446/src/mod/net/coop.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/coop.cpp
 @@ -49,7 +49,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
@@ -1829,7 +2010,7 @@ index 3bdc2c5..c3a1162 100644
      uint16_t op = 0;
      std::memcpy(&op, ev.payload.data(), 2);
 -    for (const auto& r : game::build_3446::kRelayedAcks) {
-+    for (const auto& r : game::build_3460::kRelayedAcks) {
++    for (const auto& r : game::build_3479::kRelayedAcks) {
          if (r.op == op) return r.reliable;
      }
      return false;
@@ -1990,7 +2171,7 @@ index 8411baa..a1a648a 100644
          std::lock_guard lock(g_mutex);
          g_cheated[enemy] = now_ms();
 diff --git a/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp b/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp
-index 9d5bf8c..c347bc1 100644
+index 9d5bf8c..f3b88c6 100644
 --- a/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp
 @@ -15,7 +15,7 @@
@@ -1998,29 +2179,31 @@ index 9d5bf8c..c347bc1 100644
  namespace cdmp::net {
  namespace {
 -namespace off = game::build_3446;
-+namespace off = game::build_3460;
++namespace off = game::build_3479;
  
  constexpr uint32_t kCopyHorse = 0xB010F002;
  
-@@ -88,13 +88,13 @@ struct Site {
+@@ -88,13 +88,15 @@ struct Site {
  //         comment above it claims is NOT established - both readers are guarded, so a
  //         wrong rcx fails safe, but it fails silently. Treat the PENDING log line as
  //         unverified until a live run shows it printing sensible state for a watched key.
 -constexpr Site kCcUpdate = {0x941D40, {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74, 0x24, 0x18, 0x57, 0x48,
-+constexpr Site kCcUpdate = {0x942880, {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74, 0x24, 0x18, 0x57, 0x48,
++// 1.0.0.3479 (Co-op+): CC update and restore -0x30 (CC update = vtable slot 16 again), pending
++// -0x70 with the action layers; the post-update site did not move. All four heads unchanged.
++constexpr Site kCcUpdate = {0x942850, {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74, 0x24, 0x18, 0x57, 0x48,
                                         0x83, 0xEC, 0x20, 0x48}, "CC update"};
 -constexpr Site kCcPost = {0x860D60, {0x0F, 0x85, 0xB6, 0x00, 0x00, 0x00, 0x4C, 0x89, 0x6C, 0x24, 0x28, 0x80,
 +constexpr Site kCcPost = {0x861700, {0x0F, 0x85, 0xB6, 0x00, 0x00, 0x00, 0x4C, 0x89, 0x6C, 0x24, 0x28, 0x80,
                                       0x7C, 0x24, 0x38, 0x00}, "CC post-update"};
 -constexpr Site kRestore = {0x948240, {0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, 0x20, 0x48, 0x89, 0x50, 0x10, 0x55,
-+constexpr Site kRestore = {0x948D80, {0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, 0x20, 0x48, 0x89, 0x50, 0x10, 0x55,
++constexpr Site kRestore = {0x948D50, {0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, 0x20, 0x48, 0x89, 0x50, 0x10, 0x55,
                                        0x56, 0x57, 0x41, 0x54}, "restore actions"};
 -constexpr Site kPending = {0x232AF20, {0x74, 0x51, 0x4C, 0x89, 0x3F, 0x44, 0x38, 0x3E, 0x74, 0x32, 0x48, 0xC7,
-+constexpr Site kPending = {0x232E650, {0x74, 0x51, 0x4C, 0x89, 0x3F, 0x44, 0x38, 0x3E, 0x74, 0x32, 0x48, 0xC7,
++constexpr Site kPending = {0x232E5E0, {0x74, 0x51, 0x4C, 0x89, 0x3F, 0x44, 0x38, 0x3E, 0x74, 0x32, 0x48, 0xC7,
                                         0xC3, 0xFF, 0xFF, 0xFF}, "pending actions"};
  
  SafetyHookMid g_cc_hook, g_post_hook, g_restore_hook, g_pending_hook;
-@@ -238,6 +238,13 @@ void on_cc_update(safetyhook::Context& ctx) {
+@@ -238,6 +240,13 @@ void on_cc_update(safetyhook::Context& ctx) {
      // crashed three different functions of this update (INFORME §5).
      if (g_contain && is_copy(key) && layer_without_action(s)) {
          g_skipped.fetch_add(1, std::memory_order_relaxed);
@@ -2118,7 +2301,7 @@ index 0000000..ae0d050
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/learnt_store.cpp b/upstream/cd-coop-3446/src/mod/net/learnt_store.cpp
-index 1865e4e..c35ede1 100644
+index 1865e4e..42e3b2f 100644
 --- a/upstream/cd-coop-3446/src/mod/net/learnt_store.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/learnt_store.cpp
 @@ -21,7 +21,7 @@ std::string current_text() {
@@ -2126,7 +2309,7 @@ index 1865e4e..c35ede1 100644
      guest_hits_learnt_get(c);
      hits_learnt_get(c);
 -    return c.empty() ? std::string() : learnt::format(c, game::build_3446::kPeTimestamp);
-+    return c.empty() ? std::string() : learnt::format(c, game::build_3460::kPeTimestamp);
++    return c.empty() ? std::string() : learnt::format(c, game::build_3479::kPeTimestamp);
  }
  
  // The whole file goes to a .tmp first, then replaces the old one: a game
@@ -2135,13 +2318,13 @@ index 1865e4e..c35ede1 100644
      }
      CloseHandle(h);
 -    const auto c = learnt::parse(text, game::build_3446::kPeTimestamp);
-+    const auto c = learnt::parse(text, game::build_3460::kPeTimestamp);
++    const auto c = learnt::parse(text, game::build_3479::kPeTimestamp);
      if (!c) {
          log::warn("Learnt: cdmp_learnt.txt is not usable (another game build, or damaged): ignored and replaced");
          return;
 diff --git a/upstream/cd-coop-3446/src/mod/net/load_trace.cpp b/upstream/cd-coop-3446/src/mod/net/load_trace.cpp
 new file mode 100644
-index 0000000..5b91853
+index 0000000..2d957d9
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/load_trace.cpp
 @@ -0,0 +1,278 @@
@@ -2165,14 +2348,14 @@ index 0000000..5b91853
 +
 +namespace cdmp::net {
 +namespace {
-+namespace off = game::build_3460;
++namespace off = game::build_3479;
 +
 +// The state steps on 3460 (each: cmp word [rcx+0x5E], from / jnz / mov word [rcx+0x5E], to / ret).
 +struct Step {
 +    uintptr_t rva;
 +    uint16_t from, to;
 +};
-+constexpr Step kSteps[] = {{0x1618B40, 2, 4}, {0x1618B50, 4, 8}, {0x1618B60, 8, 0x10}};
++constexpr Step kSteps[] = {{0x1618AF0, 2, 4}, {0x1618B00, 4, 8}, {0x1618B10, 8, 0x10}};  // 3479 (3460: -0x50)
 +
 +// Finishes an actor tree: collects the root and its children, then runs the 8 -> 0x10 step
 +// (vf 0x78) and vf 0x140 on each (exe+0x5B1AA6).
@@ -2188,10 +2371,10 @@ index 0000000..5b91853
 +
 +// ClientCharacterControlActorComponent vtable slots 18 (resource load complete: sets the hide
 +// bits on 2976) and 24 (end of login: clears them), entry; rcx = component, [rcx+8] = actor.
-+constexpr uintptr_t kCcSlot18 = 0x942B50, kCcSlot24 = 0x942EA0;
++constexpr uintptr_t kCcSlot18 = 0x942B20, kCcSlot24 = 0x942E70;  // 3479 (3460: +0x30)
 +// ICharacterMovementMethod vf2 (slot 2 of Normal/AnimationAll/...): the per-frame step that,
 +// for a remote actor, interpolates its network samples. rcx = method, [rcx+0x20] = actor.
-+constexpr uintptr_t kMethodStep = 0xBBC5A0;
++constexpr uintptr_t kMethodStep = 0xBBC570;  // 3479 (3460: 0xBBC5A0)
 +SafetyHookMid g_step_hook;
 +std::atomic<uint64_t> g_step_own{0}, g_step_copy{0};
 +SafetyHookMid g_cc18_hook, g_cc24_hook;
@@ -2408,7 +2591,7 @@ index 0000000..5b91853
 +    }
 +    {
 +        uintptr_t s2 = 0;
-+        if (game::safe_read(g_base + 0x5951BF8 + 2 * 8, &s2, 8) && s2 == g_base + kMethodStep) {
++        if (game::safe_read(g_base + off::kVtNormalMovementMethod + 2 * 8, &s2, 8) && s2 == g_base + kMethodStep) {
 +            g_step_hook = safetyhook::create_mid(reinterpret_cast<void*>(s2), on_method_step);
 +            log::info("LoadTrace: movement-step hook {}", g_step_hook ? "installed" : "FAILED");
 +        }
@@ -2448,7 +2631,7 @@ index 0000000..6b6a821
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-index 22b77f6..a5f974f 100644
+index 22b77f6..c383770 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 @@ -1,4 +1,5 @@
@@ -2479,7 +2662,7 @@ index 22b77f6..a5f974f 100644
  namespace cdmp::net {
  namespace {
 -namespace off = game::build_3446;
-+namespace off = game::build_3460;
++namespace off = game::build_3479;
  using Bytes = std::vector<uint8_t>;
  
  // Keys our own puppet uses (remote_puppet.cpp): never learn templates from those.
@@ -3140,7 +3323,7 @@ index f6612e6..a402330 100644
                                                           // +0x39/+0x41 server ms
  constexpr size_t kBatchSize = 77;
 diff --git a/upstream/cd-coop-3446/src/mod/net/puppet_minimap.cpp b/upstream/cd-coop-3446/src/mod/net/puppet_minimap.cpp
-index bd802c7..db1d126 100644
+index bd802c7..05bb4f3 100644
 --- a/upstream/cd-coop-3446/src/mod/net/puppet_minimap.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/puppet_minimap.cpp
 @@ -19,7 +19,7 @@
@@ -3148,13 +3331,13 @@ index bd802c7..db1d126 100644
  namespace cdmp::net {
  namespace {
 -namespace off = game::build_3446;
-+namespace off = game::build_3460;
++namespace off = game::build_3479;
  
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
  
 diff --git a/upstream/cd-coop-3446/src/mod/net/puppet_visibility.cpp b/upstream/cd-coop-3446/src/mod/net/puppet_visibility.cpp
 new file mode 100644
-index 0000000..cc17836
+index 0000000..b33038a
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/puppet_visibility.cpp
 @@ -0,0 +1,122 @@
@@ -3177,7 +3360,7 @@ index 0000000..cc17836
 +
 +namespace cdmp::net {
 +namespace {
-+namespace off = game::build_3460;
++namespace off = game::build_3479;
 +
 +constexpr uint32_t kPuppetPlayer = 0xA010F001;
 +constexpr uint32_t kPuppetHorse = 0xB010F002;
@@ -3302,7 +3485,7 @@ index 0000000..dae629f
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
-index 1754b2d..33837f4 100644
+index 1754b2d..6d75ab8 100644
 --- a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 @@ -1,4 +1,5 @@
@@ -3316,7 +3499,7 @@ index 1754b2d..33837f4 100644
  namespace cdmp::net {
  namespace {
 -namespace off = game::build_3446;
-+namespace off = game::build_3460;
++namespace off = game::build_3479;
  using Bytes = std::vector<uint8_t>;
  
  // Fresh keys for the puppet. Real serials seen so far are below 0x1000, so
@@ -4389,7 +4572,7 @@ index 0000000..fa07127
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/time_sync.cpp b/upstream/cd-coop-3446/src/mod/net/time_sync.cpp
-index 64b6fc9..c912d03 100644
+index 64b6fc9..8f86512 100644
 --- a/upstream/cd-coop-3446/src/mod/net/time_sync.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/time_sync.cpp
 @@ -19,7 +19,7 @@
@@ -4397,12 +4580,12 @@ index 64b6fc9..c912d03 100644
  namespace cdmp::net {
  namespace {
 -namespace off = game::build_3446;
-+namespace off = game::build_3460;
++namespace off = game::build_3479;
  
  constexpr uint32_t kSendEveryMs = 5000;
  // Below this difference nothing is done: ~2 game minutes, 10 real seconds.
 diff --git a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
-index 82b334d..52a240c 100644
+index 82b334d..647bc14 100644
 --- a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
 @@ -30,7 +30,7 @@
@@ -4410,7 +4593,7 @@ index 82b334d..52a240c 100644
  namespace cdmp::net {
  namespace {
 -namespace off = game::build_3446;
-+namespace off = game::build_3460;
++namespace off = game::build_3479;
  
  enum class Dir : uint8_t { ClientToServer = 1, ServerToClient = 2 };
  
