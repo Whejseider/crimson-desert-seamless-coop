@@ -194,3 +194,12 @@
   it again. Game closed without saving; saves still 2026-05-13.
 - Package 0.1.0-alpha+d56adad8 built, Defender clean, installed (cdmp.ini kept).
 
+## 2026-11-01 15:35-16:05 -- enemy-copy attempt, menus, Lootr request
+- User asked for Lootr-style loot (everyone takes every item for themselves): recorded as D24; it is the brief's
+  default and the per-player worlds already give it for chests/world items; the loot twin covers enemy drops.
+- Enemy copies: none can be made at the save spot (0 enemy loads); auto-walk toward the bandit camp fell off a cliff
+  (character died, game closed, nothing saved). Deferred to the two-PC test / a manual session.
+- Name tags showed over the world map: found the game's gameplay-input flag (input-mode push 0xF20AC7 / 0x71982B8);
+  tags now hide over every full-screen menu. Verified live.
+- Package 0.1.0-alpha+6e2b1940 built, Defender clean, installed (cdmp.ini kept). Saves still 2026-05-13.
+
