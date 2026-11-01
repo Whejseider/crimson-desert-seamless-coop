@@ -13,6 +13,7 @@
 #include <atomic>
 #include <cstring>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include "mod/log.h"
@@ -96,8 +97,18 @@ bool hook_function(void* target, void* detour, SafetyHookInline& hook, Fn& origi
         log::error("Overlay: cannot enable hook on {}", name);
         return false;
     }
-    log::info("Overlay: hooked {} at 0x{:X} (first bytes {:02X} {:02X} {:02X} {:02X} {:02X})", name,
-              reinterpret_cast<uintptr_t>(target), head[0], head[1], head[2], head[3], head[4]);
+    HMODULE mod = nullptr;
+    wchar_t path[MAX_PATH] = L"?";
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           static_cast<LPCWSTR>(target), &mod))
+        GetModuleFileNameW(mod, path, MAX_PATH);
+    const wchar_t* file = wcsrchr(path, L'\\');
+    std::string module;  // module names are ASCII
+    for (const wchar_t* c = file ? file + 1 : path; *c; ++c) module += static_cast<char>(*c);
+    log::info("Overlay: hooked {} at 0x{:X} = {}+0x{:X} (first bytes {:02X} {:02X} {:02X} {:02X} {:02X})", name,
+              reinterpret_cast<uintptr_t>(target), module,
+              reinterpret_cast<uintptr_t>(target) - reinterpret_cast<uintptr_t>(mod), head[0], head[1], head[2],
+              head[3], head[4]);
     return true;
 }
 
@@ -420,9 +431,74 @@ HRESULT STDMETHODCALLTYPE hk_resize1(IDXGISwapChain3* sc, UINT count, UINT w, UI
     return o_resize1(sc, count, w, h, fmt, flags, masks, queues);
 }
 
-// Builds a throwaway device + swap chain just to learn the vtable addresses
-// of DXGI's swap chain class and D3D12's command queue class.
+// The vtable of a class with MSVC RTTI, found in a loaded module's image by its type name (e.g.
+// ".?AUDXGISwapChain@interposer@sl@@"): type descriptor -> complete object locator (signature 1,
+// offset 0) -> the vtable that the locator precedes. nullptr if not found.
+void** find_rtti_vtable(HMODULE module, const char* type_name) {
+    const auto base = reinterpret_cast<const uint8_t*>(module);
+    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+    const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(base + dos->e_lfanew);
+    const size_t size = nt->OptionalHeader.SizeOfImage;
+    const size_t len = std::strlen(type_name);
+    auto find = [&](const void* pat, size_t n, size_t from) -> size_t {
+        for (size_t i = from; i + n <= size; i += (n == len ? 1 : 4)) {
+            if (std::memcmp(base + i, pat, n) == 0) return i;
+        }
+        return SIZE_MAX;
+    };
+    const size_t name_at = find(type_name, len, 0);
+    if (name_at == SIZE_MAX || name_at < 0x10) return nullptr;
+    const auto td = static_cast<uint32_t>(name_at - 0x10);
+    for (size_t at = find(&td, 4, 0); at != SIZE_MAX; at = find(&td, 4, at + 4)) {
+        if (at < 0x0C) continue;
+        const auto* col = reinterpret_cast<const uint32_t*>(base + at - 0x0C);
+        if (col[0] != 1 || col[1] != 0) continue;  // signature 1 (x64), primary base (offset 0)
+        const uint64_t col_va = reinterpret_cast<uintptr_t>(col);
+        for (size_t v = 0; v + 16 <= size; v += 8) {
+            if (*reinterpret_cast<const uint64_t*>(base + v) == col_va) {
+                return reinterpret_cast<void**>(const_cast<uint8_t*>(base + v + 8));
+            }
+        }
+    }
+    return nullptr;
+}
+
+// Learns the vtable addresses of the swap chain class the game presents through and of D3D12's
+// command queue class.
+//
+// Co-op+ (3460): the game loads NVIDIA Streamline, which wraps every DXGI swap chain in its own
+// proxy (sl::interposer::DXGISwapChain; the overlay has always ended up hooking that class's
+// Present). Creating a throwaway swap chain while the game runs, D3D12 or D3D11, is picked up by
+// DLSS frame generation and crashed the game a moment later in about one launch in five
+// (sl.dlss_g.dll on our thread, sl.interposer.dll / d3d11.dll on the game's). With Streamline
+// loaded, the proxy's vtable is read from its RTTI instead and no swap chain is created. Without
+// Streamline, the throwaway D3D12 swap chain as before. The command queue vtable still needs a
+// D3D12 device and queue, but no swap chain.
 bool find_vtables(void**& swapchain_vtable, void**& queue_vtable) {
+    if (HMODULE sl = GetModuleHandleW(L"sl.interposer.dll")) {
+        swapchain_vtable = find_rtti_vtable(sl, ".?AUDXGISwapChain@interposer@sl@@");
+        if (!swapchain_vtable) {
+            log::error("Overlay: Streamline is loaded but its swap chain class was not found");
+            return false;
+        }
+        log::info("Overlay: using Streamline's swap chain class (no throwaway swap chain)");
+    }
+
+    ComPtr<IDXGIFactory4> factory;
+    ComPtr<ID3D12Device> device;
+    ComPtr<ID3D12CommandQueue> queue;
+    if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) return false;
+    if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)))) {
+        ComPtr<IDXGIAdapter> warp;
+        if (SUCCEEDED(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp))))
+            D3D12CreateDevice(warp.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+    }
+    D3D12_COMMAND_QUEUE_DESC qd{};
+    qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    if (!device || FAILED(device->CreateCommandQueue(&qd, IID_PPV_ARGS(&queue)))) return false;
+    queue_vtable = *reinterpret_cast<void***>(queue.Get());
+    if (swapchain_vtable) return true;
+
     HINSTANCE inst = GetModuleHandleW(nullptr);
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof wc;
@@ -432,41 +508,23 @@ bool find_vtables(void**& swapchain_vtable, void**& queue_vtable) {
     RegisterClassExW(&wc);
     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW, 0, 0, 64, 64,
                                 nullptr, nullptr, inst, nullptr);
-    bool ok = false;
     if (hwnd) {
-        ComPtr<IDXGIFactory4> factory;
-        ComPtr<ID3D12Device> device;
-        ComPtr<ID3D12CommandQueue> queue;
         ComPtr<IDXGISwapChain1> swapchain;
-        if (SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) {
-            if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)))) {
-                ComPtr<IDXGIAdapter> warp;
-                if (SUCCEEDED(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp))))
-                    D3D12CreateDevice(warp.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
-            }
-        }
-        D3D12_COMMAND_QUEUE_DESC qd{};
-        qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-        if (device && SUCCEEDED(device->CreateCommandQueue(&qd, IID_PPV_ARGS(&queue)))) {
-            DXGI_SWAP_CHAIN_DESC1 sd{};
-            sd.Width = 64;
-            sd.Height = 64;
-            sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-            sd.SampleDesc.Count = 1;
-            sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-            sd.BufferCount = 2;
-            sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-            if (SUCCEEDED(factory->CreateSwapChainForHwnd(queue.Get(), hwnd, &sd, nullptr,
-                                                          nullptr, &swapchain))) {
-                swapchain_vtable = *reinterpret_cast<void***>(swapchain.Get());
-                queue_vtable = *reinterpret_cast<void***>(queue.Get());
-                ok = true;
-            }
+        DXGI_SWAP_CHAIN_DESC1 sd{};
+        sd.Width = 64;
+        sd.Height = 64;
+        sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sd.SampleDesc.Count = 1;
+        sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        sd.BufferCount = 2;
+        sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+        if (SUCCEEDED(factory->CreateSwapChainForHwnd(queue.Get(), hwnd, &sd, nullptr, nullptr, &swapchain))) {
+            swapchain_vtable = *reinterpret_cast<void***>(swapchain.Get());
         }
         DestroyWindow(hwnd);
     }
     UnregisterClassW(wc.lpszClassName, inst);
-    return ok;
+    return swapchain_vtable != nullptr;
 }
 
 }  // namespace
@@ -477,7 +535,7 @@ bool install(DrawFn draw) {
 
     void** sc_vtable = nullptr;
     if (!find_vtables(sc_vtable, g_queue_vtable)) {
-        log::error("Overlay: could not create the dummy D3D12 swap chain");
+        log::error("Overlay: could not create the dummy swap chain / D3D12 queue");
         note({}, "dummy swap chain failed");
         return false;
     }

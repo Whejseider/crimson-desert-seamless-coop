@@ -878,10 +878,10 @@ index 072e9a3..04afd07 100644
  
 diff --git a/upstream/cd-coop-3446/src/mod/game/offsets_3460.h b/upstream/cd-coop-3446/src/mod/game/offsets_3460.h
 new file mode 100644
-index 0000000..fb63203
+index 0000000..b3a00cd
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/game/offsets_3460.h
-@@ -0,0 +1,221 @@
+@@ -0,0 +1,248 @@
 +#pragma once
 +// Addresses for CrimsonDesert.exe 1.0.0.3460 (Co-op+ port, 2026-10-31).
 +//
@@ -1083,11 +1083,38 @@ index 0000000..fb63203
 +inline constexpr uint8_t kMinimapIconDecideHead[] = {0x80, 0x7C, 0x24, 0x48, 0x00, 0x75, 0x6F, 0x8B,
 +                                                     0x05, 0x56, 0x74, 0x75, 0x06, 0x41, 0x89, 0x06};
 +
-+// ---- server-side writer of OtherEquipItemAck: NOT PORTED ------------------------
-+// The 16 site bytes and the entry prologue are shared by ~40 item-list writers in 3460, and
-+// the 3446 executable that would tell them apart is gone. 0 makes the head check fail, so
-+// live gear changes are not relayed (gear at spawn still comes from the actor templates).
++// ---- server-side writer of OtherEquipItemAck: not used on 3460 ---------------------------
++// The old site's 16 bytes now occur in 41 functions, all of them log formatters (their format
++// strings are the game's Korean error messages), so there is no writer to port. 0 keeps the old
++// hook off; live gear changes come from the equipment watcher below instead.
 +inline constexpr uintptr_t kServerOtherEquipWriter = 0;  // 3446:0x29EDD11
++
++// ---- equipment watcher (Co-op+, measured on 3460) -----------------------------------------
++// Our own character's ClientEquipSlotActorComponent, read every quarter second; a change is sent
++// as an OtherEquipItemAck. Found from the client's OtherEquipItemAck handler (TrocTr vtable
++// 0x59909C0, vf2 0xCE3B10): it looks the actor up and calls 0xAA2B20([[actor+0x68]+0x38],
++// serial, list), whose apply 0xA82A80 walks the slot table at comp+0xA0. Read live: 17 slots
++// with the expected items (slot 0 = "AbyssReward_Mysterm_OneHandSword", key 0x310D2).
++inline constexpr uint32_t kComponents_EquipSlot = 0x38;
++inline constexpr uintptr_t kVtClientEquipSlotComponent = 0x5944388;
++inline constexpr uint32_t kEquipSlot_Serial = 0x18;  // u32 CachedSequenceNo
++inline constexpr uint32_t kEquipSlot_Table = 0xA0;   // -> {+8 entries, +0x10 u32 count}
++inline constexpr uint32_t kSlotTable_Entries = 0x08;
++inline constexpr uint32_t kSlotTable_Count = 0x10;
++inline constexpr uint32_t kSlotEntry_Size = 0xD0;
++inline constexpr uint32_t kSlotEntry_ItemIndex = 0x08;  // u16, 0xFFFF = none
++inline constexpr uint32_t kSlotEntry_Count = 0x10;      // i64, > 0 when an item is there
++inline constexpr uint32_t kSlotEntry_ShownIndex = 0x90; // u16 (a look item); 0xFFFF = use ItemIndex
++inline constexpr uint32_t kSlotEntry_Slot = 0xC8;       // u16 equipment slot
++// Static item table: the record lookup 0x3DCFC0 loads it with `mov rbx,[rip+d]` at 0x3DCFD5
++// (checked before use), then [+8] count, [+0x58] record pointers by u16 index, null until the
++// record is first needed. A record's u32 at +8 is the item key (+0 points to its name).
++inline constexpr uintptr_t kItemInfoTableSlot = 0x71B6C20;
++inline constexpr uintptr_t kItemInfoTableLoad = 0x3DCFD5;  // 48 8B 1D <rel32 to the slot>
++inline constexpr uint32_t kItemInfoTable_Count = 0x08;
++inline constexpr uint32_t kItemInfoTable_Records = 0x58;
++inline constexpr uint32_t kItemInfo_Key = 0x08;
++
 +// The docking relay is compiled out (local_capture.cpp, kDockingRelay); never ported past 3424.
 +inline constexpr uintptr_t kServerDockingWriter = 0;
 +
@@ -2421,7 +2448,7 @@ index 0000000..6b6a821
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-index 22b77f6..a028e95 100644
+index 22b77f6..a5f974f 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 @@ -1,4 +1,5 @@
@@ -2430,7 +2457,15 @@ index 22b77f6..a028e95 100644
  
  #include <windows.h>
  
-@@ -27,6 +28,8 @@
+@@ -9,6 +10,7 @@
+ #include <map>
+ #include <set>
+ #include <mutex>
++#include <optional>
+ #include <vector>
+ 
+ #include <safetyhook.hpp>
+@@ -27,6 +29,8 @@
  #include "mod/net/guest_hits.h"
  #include "mod/net/loot_twin.h"
  #include "mod/net/native_suppress.h"
@@ -2439,7 +2474,7 @@ index 22b77f6..a028e95 100644
  #include "common/keys.h"
  #include "mod/net/piece4_test.h"
  #include "mod/net/player_hits.h"
-@@ -35,7 +38,7 @@
+@@ -35,7 +39,7 @@
  
  namespace cdmp::net {
  namespace {
@@ -2448,7 +2483,7 @@ index 22b77f6..a028e95 100644
  using Bytes = std::vector<uint8_t>;
  
  // Keys our own puppet uses (remote_puppet.cpp): never learn templates from those.
-@@ -44,13 +47,13 @@ constexpr uint32_t kPuppetPlayer = 0xA010F001;
+@@ -44,13 +48,13 @@ constexpr uint32_t kPuppetPlayer = 0xA010F001;
  constexpr uint32_t kPuppetBody = 0xB010F001;
  constexpr uint32_t kPuppetHorse = 0xB010F002;
  
@@ -2467,7 +2502,7 @@ index 22b77f6..a028e95 100644
  constexpr size_t kRotateTs = 0x9C;
  
  uint64_t steady_ms() {
-@@ -96,9 +99,11 @@ std::map<uint32_t, ActorSeen> g_actors;
+@@ -96,9 +100,11 @@ std::map<uint32_t, ActorSeen> g_actors;
  std::atomic<uint32_t> g_last_attack_hash{0};
  std::atomic<uint32_t> g_last_attack_target{0};
  std::set<uint32_t> g_has_hp;  // under g_actors_mutex
@@ -2482,7 +2517,7 @@ index 22b77f6..a028e95 100644
  constexpr uint32_t kStatHP = 0x000F4240;
  
  // World actors with hit points, from their loads and HP messages.
-@@ -115,9 +120,9 @@ std::map<uint32_t, Enemy> g_enemies;  // under g_actors_mutex
+@@ -115,9 +121,9 @@ std::map<uint32_t, Enemy> g_enemies;  // under g_actors_mutex
  std::atomic<bool> g_damage_enabled{false};
  std::atomic<bool> g_key_alarm{false};
  uint64_t g_damage_sent = 0, g_damage_applied = 0, g_damage_unmatched = 0;
@@ -2495,7 +2530,7 @@ index 22b77f6..a028e95 100644
  
  // ---------------------------------------------------------------- writer-thread state
  game::PlayerReader g_reader;
-@@ -132,7 +137,7 @@ float g_horse_sent_pos[3] = {NAN, NAN, NAN};
+@@ -132,7 +138,7 @@ float g_horse_sent_pos[3] = {NAN, NAN, NAN};
  uint64_t g_horse_last_synth_ms = 0;
  Bytes g_last_move;                  // last real MoveActorReq payload (template for synth)
  uint64_t g_last_move_ms = 0;        // steady_ms when it was seen
@@ -2504,7 +2539,15 @@ index 22b77f6..a028e95 100644
  float g_last_sent_pos[3] = {NAN, NAN, NAN};
  uint64_t g_last_synth_ms = 0;
  uint64_t g_synthesized = 0;
-@@ -430,10 +435,10 @@ void capture_synth(uint64_t now) {
+@@ -172,6 +178,7 @@ struct EquipCopy {
+ };
+ SafetyHookMid g_equip_hook;
+ std::atomic<uint32_t> g_equip_key{0};  // our player key, for the hook
++std::atomic<bool> g_equip_watch{false};  // Co-op+: the equipment watcher replaces the hook (3460)
+ SRWLOCK g_equip_lock = SRWLOCK_INIT;
+ // Hook -> writer thread. Fixed storage: the hooks run on game server
+ // threads and must not allocate.
+@@ -430,10 +437,10 @@ void capture_synth(uint64_t now) {
      Bytes req = g_last_move;
      const float pos[3] = {me->position.x, me->position.y, me->position.z};
      const float rot[4] = {me->rotation.x, me->rotation.y, me->rotation.z, me->rotation.w};
@@ -2519,7 +2562,7 @@ index 22b77f6..a028e95 100644
      // Game clock: the game's own (stops in menus), else advanced from the
      // last real Move by the wall clock.
      uint64_t ts = g_clock_reader.load(std::memory_order_relaxed) == 1 ? capture_game_clock_ms() : 0;
-@@ -464,12 +469,12 @@ void capture_horse_synth(uint64_t now) {
+@@ -464,12 +471,12 @@ void capture_horse_synth(uint64_t now) {
      if (dx * dx + dy * dy + dz * dz < kSynthMinMove * kSynthMinMove) return;
      Bytes req = g_horse_last_move;
      const float p[3] = {pos->x, pos->y, pos->z};
@@ -2536,7 +2579,17 @@ index 22b77f6..a028e95 100644
      }
      std::memcpy(req.data() + kMoveTs, &clock, 8);
      std::memcpy(g_horse_sent_pos, p, sizeof p);
-@@ -560,6 +565,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -517,7 +524,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+         std::memcpy(&key, packet + 5, 4);
+         std::memcpy(&slot, packet + 9, 2);
+         std::memcpy(&serial, packet + 13, 4);
+-        if (key && key == g_equip_key.load()) note_equip(serial, {{0u, slot}});
++        // With the equipment watcher on, it sees this removal too.
++        if (key && key == g_equip_key.load() && !g_equip_watch.load()) note_equip(serial, {{0u, slot}});
+         return;
+     }
+     if (op == kOpAttackTargetAck && size >= 5 + 0x28) {
+@@ -560,6 +568,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
                  e.hp_max = hp_max;
                  // Damage dealt by the local player: mirror it to the other world.
                  const uint32_t own = g_equip_key.load();
@@ -2546,7 +2599,7 @@ index 22b77f6..a028e95 100644
                  if (own && source == own && hp < before && e.type && g_damage_enabled) {
                      Bytes b(proto::kDamageEventSize);
                      // Where it spawned (same in both worlds); else where it is.
-@@ -701,6 +709,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -701,6 +712,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      loot_observe_c2s(packet, size);
      piece4_observe_c2s(packet, size);
      attack_probe_observe_c2s(packet, size);
@@ -2554,7 +2607,7 @@ index 22b77f6..a028e95 100644
      if (size < 5 + 4) return;
      uint16_t op = 0;
      std::memcpy(&op, packet, 2);
-@@ -727,7 +736,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -727,7 +739,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (kind == proto::EventKind::Move && keys::is_class(key, keys::kClassWorld) && key != kPuppetBody &&
          key != kPuppetHorse && key != g_own_horse) {
          float p[3];
@@ -2563,7 +2616,7 @@ index 22b77f6..a028e95 100644
          std::lock_guard lock(g_actors_mutex);
          if (g_actors.size() > 4096) g_actors.clear();
          g_actors[key] = {{p[0], p[1], p[2]}, steady_ms()};
-@@ -736,7 +745,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -736,7 +748,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (g_own_horse && key == g_own_horse) {
          if (kind == proto::EventKind::Move) {
              g_horse_last_move = payload;
@@ -2572,7 +2625,7 @@ index 22b77f6..a028e95 100644
          }
          emit(kind, std::move(payload));
          return;
-@@ -748,20 +757,20 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -748,24 +760,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      std::memcpy(&ts, payload.data() + ts_off, 8);
      note_clock(ts);
      if (kind == proto::EventKind::Move && g_own_horse) {
@@ -2597,6 +2650,140 @@ index 22b77f6..a028e95 100644
      }
      emit(kind, std::move(payload));
  }
+ 
++// ---------------------------------------------------------------- equipment watcher
++// Co-op+ (3460): the old hook point (the server's OtherEquipItemAck writer) does not exist on
++// this build, so our gear is read from our own character instead: every slot of its
++// ClientEquipSlotActorComponent, with each item's static key. A change seen in two reads in a row
++// goes out as the OtherEquipItemAck the MMO would have sent: for each changed slot the new item,
++// then {0, slot} if something was there (offsets_3460.h, equipment watcher).
++constexpr uint64_t kEquipWatchMs = 250;
++uint64_t g_equip_watch_at = 0;
++struct EquipSnapshot {
++    uintptr_t actor = 0;
++    uint32_t serial = 0;
++    std::map<uint16_t, uint32_t> slots;  // slot -> item key
++    bool operator==(const EquipSnapshot& o) const { return actor == o.actor && slots == o.slots; }
++};
++std::optional<EquipSnapshot> g_equip_base;  // what the other PC's copy wears (as far as we sent)
++std::optional<EquipSnapshot> g_equip_last;  // the previous read
++uint32_t g_equip_base_generation = 0;
++uint64_t g_equip_watch_fails = 0;
++
++std::optional<EquipSnapshot> read_own_equipment() {
++    if (!g_exe_base) g_exe_base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
++    auto actor = game::find_actor(g_own_key);
++    if (!actor) return std::nullopt;
++    auto comps = game::read_ptr(*actor + off::kActor_ComponentTable);
++    auto comp = comps ? game::read_ptr(*comps + off::kComponents_EquipSlot) : std::nullopt;
++    if (!comp || !game::has_vtable(*comp, g_exe_base + off::kVtClientEquipSlotComponent)) return std::nullopt;
++    auto serial = game::read<uint32_t>(*comp + off::kEquipSlot_Serial);
++    auto table = game::read_ptr(*comp + off::kEquipSlot_Table);
++    auto entries = table ? game::read_ptr(*table + off::kSlotTable_Entries) : std::nullopt;
++    auto count = table ? game::read<uint32_t>(*table + off::kSlotTable_Count) : std::nullopt;
++    auto items = game::read_ptr(g_exe_base + off::kItemInfoTableSlot);
++    auto records = items ? game::read_ptr(*items + off::kItemInfoTable_Records) : std::nullopt;
++    auto records_n = items ? game::read<uint32_t>(*items + off::kItemInfoTable_Count) : std::nullopt;
++    if (!serial || !entries || !count || *count > EquipState::kMaxSlot + 1 || !records || !records_n) {
++        return std::nullopt;
++    }
++    EquipSnapshot snap;
++    snap.actor = *actor;
++    snap.serial = *serial;
++    for (uint32_t i = 0; i < *count; ++i) {
++        uint8_t e[off::kSlotEntry_Size];
++        if (!game::safe_read(*entries + i * off::kSlotEntry_Size, e, sizeof e)) return std::nullopt;
++        uint16_t index, slot;
++        int64_t n;
++        std::memcpy(&index, e + off::kSlotEntry_ItemIndex, 2);
++        std::memcpy(&n, e + off::kSlotEntry_Count, 8);
++        std::memcpy(&slot, e + off::kSlotEntry_Slot, 2);
++        if (index == 0xFFFF || n <= 0 || slot > EquipState::kMaxSlot) continue;
++        if (index >= *records_n) return std::nullopt;
++        auto record = game::read_ptr(*records + index * 8ull);
++        auto key = record ? game::read<uint32_t>(*record + off::kItemInfo_Key) : std::nullopt;
++        if (!key || !*key) return std::nullopt;  // record not loaded yet: read again later
++        snap.slots[slot] = *key;
++    }
++    return snap;
++}
++
++void watch_equip(uint64_t now) {
++    if (!g_equip_watch.load(std::memory_order_relaxed) || now < g_equip_watch_at) return;
++    g_equip_watch_at = now + kEquipWatchMs;
++    auto snap = read_own_equipment();
++    if (!snap) {
++        if (g_equip_watch_fails++ == 0) log::info("Capture: equipment watcher waiting for our character");
++        g_equip_last.reset();
++        return;
++    }
++    const bool stable = g_equip_last && *g_equip_last == *snap;
++    g_equip_last = snap;
++    if (!stable) return;
++    // A new load (new templates, or a reloaded character object): the copy is built from those
++    // templates, which already show this gear.
++    const uint32_t gen = g_generation.load();
++    if (!g_equip_base || g_equip_base->actor != snap->actor || gen != g_equip_base_generation) {
++        g_equip_base = snap;
++        g_equip_base_generation = gen;
++        log::info("Capture: equipment watcher on ({} slot(s) worn, serial {})", snap->slots.size(), snap->serial);
++        return;
++    }
++    if (*g_equip_base == *snap) return;
++    std::vector<std::pair<uint32_t, uint16_t>> puts, removes;
++    std::set<uint16_t> touched;
++    for (const auto& [slot, key] : g_equip_base->slots) touched.insert(slot);
++    for (const auto& [slot, key] : snap->slots) touched.insert(slot);
++    for (uint16_t slot : touched) {
++        const auto was = g_equip_base->slots.find(slot), is = snap->slots.find(slot);
++        const uint32_t before = was == g_equip_base->slots.end() ? 0 : was->second;
++        const uint32_t after = is == snap->slots.end() ? 0 : is->second;
++        if (before == after) continue;
++        if (after) puts.emplace_back(after, slot);
++        if (before) removes.emplace_back(0u, slot);
++    }
++    g_equip_base = snap;
++    puts.insert(puts.end(), removes.begin(), removes.end());
++    if (!puts.empty()) note_equip(snap->serial, puts);
++}
++
+ void capture_tick() {
+     {
+         std::lock_guard lock(g_mutex);
+@@ -777,14 +885,32 @@ void capture_tick() {
+     if (!g_reader_ready) return;
+     const uint64_t now = steady_ms();
+     drain_equip();
++    watch_equip(now);
+     capture_wallup(now);
+     capture_synth(now);
+     capture_horse_synth(now);
+ }
+ 
+ bool capture_install_equip_hook() {
+-    if (g_equip_hook) return true;
++    if (g_equip_hook || g_equip_watch) return true;
+     const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
++    if (off::kServerOtherEquipWriter == 0) {
++        // Co-op+ (3460): the equipment watcher. Its item table is the one this build's record
++        // lookup loads (`mov rbx,[rip+d]`).
++        uint8_t load[7] = {};
++        int32_t rel = 0;
++        if (base == off::kImageBase && game::safe_read(base + off::kItemInfoTableLoad, load, sizeof load)) {
++            std::memcpy(&rel, load + 3, 4);
++        }
++        if (load[0] != 0x48 || load[1] != 0x8B || load[2] != 0x1D ||
++            off::kItemInfoTableLoad + 7 + rel != off::kItemInfoTableSlot) {
++            log::warn("Capture: item table not recognised; equipment changes won't be sent");
++            return false;
++        }
++        g_equip_watch = true;
++        log::info("Capture: equipment watcher installed (reads our gear every {} ms)", kEquipWatchMs);
++        return true;
++    }
+     const uintptr_t fn = base + off::kServerOtherEquipWriter;
+     uint8_t head[sizeof off::kServerOtherEquipWriterHead];
+     if (base != off::kImageBase || !game::safe_read(fn, head, sizeof head) ||
 diff --git a/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp b/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp
 index 001ed04..5e11311 100644
 --- a/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp
@@ -4336,8 +4523,180 @@ index 0000000..4b35dcf
 +constexpr size_t ack_at(size_t req_offset) { return req_offset + 1; }
 +
 +}  // namespace cdmp::net::wire
+diff --git a/upstream/cd-coop-3446/src/mod/render/dx12_hook.cpp b/upstream/cd-coop-3446/src/mod/render/dx12_hook.cpp
+index 0516c86..64c81fe 100644
+--- a/upstream/cd-coop-3446/src/mod/render/dx12_hook.cpp
++++ b/upstream/cd-coop-3446/src/mod/render/dx12_hook.cpp
+@@ -13,6 +13,7 @@
+ #include <atomic>
+ #include <cstring>
+ #include <mutex>
++#include <string>
+ #include <vector>
+ 
+ #include "mod/log.h"
+@@ -96,8 +97,18 @@ bool hook_function(void* target, void* detour, SafetyHookInline& hook, Fn& origi
+         log::error("Overlay: cannot enable hook on {}", name);
+         return false;
+     }
+-    log::info("Overlay: hooked {} at 0x{:X} (first bytes {:02X} {:02X} {:02X} {:02X} {:02X})", name,
+-              reinterpret_cast<uintptr_t>(target), head[0], head[1], head[2], head[3], head[4]);
++    HMODULE mod = nullptr;
++    wchar_t path[MAX_PATH] = L"?";
++    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
++                           static_cast<LPCWSTR>(target), &mod))
++        GetModuleFileNameW(mod, path, MAX_PATH);
++    const wchar_t* file = wcsrchr(path, L'\\');
++    std::string module;  // module names are ASCII
++    for (const wchar_t* c = file ? file + 1 : path; *c; ++c) module += static_cast<char>(*c);
++    log::info("Overlay: hooked {} at 0x{:X} = {}+0x{:X} (first bytes {:02X} {:02X} {:02X} {:02X} {:02X})", name,
++              reinterpret_cast<uintptr_t>(target), module,
++              reinterpret_cast<uintptr_t>(target) - reinterpret_cast<uintptr_t>(mod), head[0], head[1], head[2],
++              head[3], head[4]);
+     return true;
+ }
+ 
+@@ -420,9 +431,74 @@ HRESULT STDMETHODCALLTYPE hk_resize1(IDXGISwapChain3* sc, UINT count, UINT w, UI
+     return o_resize1(sc, count, w, h, fmt, flags, masks, queues);
+ }
+ 
+-// Builds a throwaway device + swap chain just to learn the vtable addresses
+-// of DXGI's swap chain class and D3D12's command queue class.
++// The vtable of a class with MSVC RTTI, found in a loaded module's image by its type name (e.g.
++// ".?AUDXGISwapChain@interposer@sl@@"): type descriptor -> complete object locator (signature 1,
++// offset 0) -> the vtable that the locator precedes. nullptr if not found.
++void** find_rtti_vtable(HMODULE module, const char* type_name) {
++    const auto base = reinterpret_cast<const uint8_t*>(module);
++    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
++    const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(base + dos->e_lfanew);
++    const size_t size = nt->OptionalHeader.SizeOfImage;
++    const size_t len = std::strlen(type_name);
++    auto find = [&](const void* pat, size_t n, size_t from) -> size_t {
++        for (size_t i = from; i + n <= size; i += (n == len ? 1 : 4)) {
++            if (std::memcmp(base + i, pat, n) == 0) return i;
++        }
++        return SIZE_MAX;
++    };
++    const size_t name_at = find(type_name, len, 0);
++    if (name_at == SIZE_MAX || name_at < 0x10) return nullptr;
++    const auto td = static_cast<uint32_t>(name_at - 0x10);
++    for (size_t at = find(&td, 4, 0); at != SIZE_MAX; at = find(&td, 4, at + 4)) {
++        if (at < 0x0C) continue;
++        const auto* col = reinterpret_cast<const uint32_t*>(base + at - 0x0C);
++        if (col[0] != 1 || col[1] != 0) continue;  // signature 1 (x64), primary base (offset 0)
++        const uint64_t col_va = reinterpret_cast<uintptr_t>(col);
++        for (size_t v = 0; v + 16 <= size; v += 8) {
++            if (*reinterpret_cast<const uint64_t*>(base + v) == col_va) {
++                return reinterpret_cast<void**>(const_cast<uint8_t*>(base + v + 8));
++            }
++        }
++    }
++    return nullptr;
++}
++
++// Learns the vtable addresses of the swap chain class the game presents through and of D3D12's
++// command queue class.
++//
++// Co-op+ (3460): the game loads NVIDIA Streamline, which wraps every DXGI swap chain in its own
++// proxy (sl::interposer::DXGISwapChain; the overlay has always ended up hooking that class's
++// Present). Creating a throwaway swap chain while the game runs, D3D12 or D3D11, is picked up by
++// DLSS frame generation and crashed the game a moment later in about one launch in five
++// (sl.dlss_g.dll on our thread, sl.interposer.dll / d3d11.dll on the game's). With Streamline
++// loaded, the proxy's vtable is read from its RTTI instead and no swap chain is created. Without
++// Streamline, the throwaway D3D12 swap chain as before. The command queue vtable still needs a
++// D3D12 device and queue, but no swap chain.
+ bool find_vtables(void**& swapchain_vtable, void**& queue_vtable) {
++    if (HMODULE sl = GetModuleHandleW(L"sl.interposer.dll")) {
++        swapchain_vtable = find_rtti_vtable(sl, ".?AUDXGISwapChain@interposer@sl@@");
++        if (!swapchain_vtable) {
++            log::error("Overlay: Streamline is loaded but its swap chain class was not found");
++            return false;
++        }
++        log::info("Overlay: using Streamline's swap chain class (no throwaway swap chain)");
++    }
++
++    ComPtr<IDXGIFactory4> factory;
++    ComPtr<ID3D12Device> device;
++    ComPtr<ID3D12CommandQueue> queue;
++    if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) return false;
++    if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)))) {
++        ComPtr<IDXGIAdapter> warp;
++        if (SUCCEEDED(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp))))
++            D3D12CreateDevice(warp.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
++    }
++    D3D12_COMMAND_QUEUE_DESC qd{};
++    qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
++    if (!device || FAILED(device->CreateCommandQueue(&qd, IID_PPV_ARGS(&queue)))) return false;
++    queue_vtable = *reinterpret_cast<void***>(queue.Get());
++    if (swapchain_vtable) return true;
++
+     HINSTANCE inst = GetModuleHandleW(nullptr);
+     WNDCLASSEXW wc{};
+     wc.cbSize = sizeof wc;
+@@ -432,41 +508,23 @@ bool find_vtables(void**& swapchain_vtable, void**& queue_vtable) {
+     RegisterClassExW(&wc);
+     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW, 0, 0, 64, 64,
+                                 nullptr, nullptr, inst, nullptr);
+-    bool ok = false;
+     if (hwnd) {
+-        ComPtr<IDXGIFactory4> factory;
+-        ComPtr<ID3D12Device> device;
+-        ComPtr<ID3D12CommandQueue> queue;
+         ComPtr<IDXGISwapChain1> swapchain;
+-        if (SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) {
+-            if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)))) {
+-                ComPtr<IDXGIAdapter> warp;
+-                if (SUCCEEDED(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp))))
+-                    D3D12CreateDevice(warp.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+-            }
+-        }
+-        D3D12_COMMAND_QUEUE_DESC qd{};
+-        qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+-        if (device && SUCCEEDED(device->CreateCommandQueue(&qd, IID_PPV_ARGS(&queue)))) {
+-            DXGI_SWAP_CHAIN_DESC1 sd{};
+-            sd.Width = 64;
+-            sd.Height = 64;
+-            sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+-            sd.SampleDesc.Count = 1;
+-            sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+-            sd.BufferCount = 2;
+-            sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+-            if (SUCCEEDED(factory->CreateSwapChainForHwnd(queue.Get(), hwnd, &sd, nullptr,
+-                                                          nullptr, &swapchain))) {
+-                swapchain_vtable = *reinterpret_cast<void***>(swapchain.Get());
+-                queue_vtable = *reinterpret_cast<void***>(queue.Get());
+-                ok = true;
+-            }
++        DXGI_SWAP_CHAIN_DESC1 sd{};
++        sd.Width = 64;
++        sd.Height = 64;
++        sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
++        sd.SampleDesc.Count = 1;
++        sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
++        sd.BufferCount = 2;
++        sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
++        if (SUCCEEDED(factory->CreateSwapChainForHwnd(queue.Get(), hwnd, &sd, nullptr, nullptr, &swapchain))) {
++            swapchain_vtable = *reinterpret_cast<void***>(swapchain.Get());
+         }
+         DestroyWindow(hwnd);
+     }
+     UnregisterClassW(wc.lpszClassName, inst);
+-    return ok;
++    return swapchain_vtable != nullptr;
+ }
+ 
+ }  // namespace
+@@ -477,7 +535,7 @@ bool install(DrawFn draw) {
+ 
+     void** sc_vtable = nullptr;
+     if (!find_vtables(sc_vtable, g_queue_vtable)) {
+-        log::error("Overlay: could not create the dummy D3D12 swap chain");
++        log::error("Overlay: could not create the dummy swap chain / D3D12 queue");
+         note({}, "dummy swap chain failed");
+         return false;
+     }
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..be216c3 100644
+index 14edc91..f0eb770 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 @@ -11,6 +11,7 @@
@@ -4348,7 +4707,18 @@ index 14edc91..be216c3 100644
  #include "mod/game/camera_reader.h"
  #include "mod/log.h"
  #include "mod/render/dx12_hook.h"
-@@ -26,34 +27,39 @@ std::mutex g_mutex;
+@@ -18,7 +19,9 @@
+ namespace cdmp::render {
+ namespace {
+ 
+-constexpr float kHeadHeight = 2.1f;  // marker above the character's feet (m)
++// Marker above the character's feet (m). Co-op+: 2.1 floated well clear of the head in the 3460
++// echo tests (the name sits another ~28 px above the dot); the player character is ~1.8 m tall.
++constexpr float kHeadHeight = 1.95f;
+ constexpr ImU32 kAccent = IM_COL32(230, 70, 60, 255);
+ constexpr ImU32 kShadow = IM_COL32(0, 0, 0, 200);
+ 
+@@ -26,34 +29,39 @@ std::mutex g_mutex;
  HudData g_data;
  HudOptions g_options;
  
@@ -4406,7 +4776,7 @@ index 14edc91..be216c3 100644
  }
  
  }  // namespace
-@@ -68,42 +74,8 @@ void hud_update(HudData data) {
+@@ -68,42 +76,8 @@ void hud_update(HudData data) {
      g_data = std::move(data);
  }
  
@@ -4451,7 +4821,7 @@ index 14edc91..be216c3 100644
      // ---- status panel
      ImGui::SetNextWindowPos(ImVec2(20, 20));
      ImGui::SetNextWindowBgAlpha(0.55f);
-@@ -111,9 +83,19 @@ void hud_draw(float width, float height) {
+@@ -111,9 +85,19 @@ void hud_draw(float width, float height) {
                   ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
                       ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
                       ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
@@ -4472,7 +4842,7 @@ index 14edc91..be216c3 100644
      const bool en = opt.english;
      if (d.connected) {
          ImGui::Text(en ? "Network: connected to '%s' (%.1f ms)" : "Red: conectado a '%s' (%.1f ms)",
-@@ -153,14 +135,14 @@ void hud_draw(float width, float height) {
+@@ -153,14 +137,14 @@ void hud_draw(float width, float height) {
      } else {
          ImGui::TextDisabled(en ? "You: %s" : "Tú: %s", d.local_status.c_str());
      }
@@ -4490,7 +4860,7 @@ index 14edc91..be216c3 100644
  
      // The room code, ALWAYS shown -- with the code when we have one, and an explicit
      // "no code" plus the reason when we do not.
-@@ -189,13 +171,75 @@ void hud_draw(float width, float height) {
+@@ -189,13 +173,75 @@ void hud_draw(float width, float height) {
          // read a file to find out what went wrong.
          ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
      }

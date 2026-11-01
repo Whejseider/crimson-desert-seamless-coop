@@ -199,11 +199,38 @@ inline constexpr uintptr_t kMinimapIconDecide = 0x9E95CD;  // 3446:0x9E8A7D
 inline constexpr uint8_t kMinimapIconDecideHead[] = {0x80, 0x7C, 0x24, 0x48, 0x00, 0x75, 0x6F, 0x8B,
                                                      0x05, 0x56, 0x74, 0x75, 0x06, 0x41, 0x89, 0x06};
 
-// ---- server-side writer of OtherEquipItemAck: NOT PORTED ------------------------
-// The 16 site bytes and the entry prologue are shared by ~40 item-list writers in 3460, and
-// the 3446 executable that would tell them apart is gone. 0 makes the head check fail, so
-// live gear changes are not relayed (gear at spawn still comes from the actor templates).
+// ---- server-side writer of OtherEquipItemAck: not used on 3460 ---------------------------
+// The old site's 16 bytes now occur in 41 functions, all of them log formatters (their format
+// strings are the game's Korean error messages), so there is no writer to port. 0 keeps the old
+// hook off; live gear changes come from the equipment watcher below instead.
 inline constexpr uintptr_t kServerOtherEquipWriter = 0;  // 3446:0x29EDD11
+
+// ---- equipment watcher (Co-op+, measured on 3460) -----------------------------------------
+// Our own character's ClientEquipSlotActorComponent, read every quarter second; a change is sent
+// as an OtherEquipItemAck. Found from the client's OtherEquipItemAck handler (TrocTr vtable
+// 0x59909C0, vf2 0xCE3B10): it looks the actor up and calls 0xAA2B20([[actor+0x68]+0x38],
+// serial, list), whose apply 0xA82A80 walks the slot table at comp+0xA0. Read live: 17 slots
+// with the expected items (slot 0 = "AbyssReward_Mysterm_OneHandSword", key 0x310D2).
+inline constexpr uint32_t kComponents_EquipSlot = 0x38;
+inline constexpr uintptr_t kVtClientEquipSlotComponent = 0x5944388;
+inline constexpr uint32_t kEquipSlot_Serial = 0x18;  // u32 CachedSequenceNo
+inline constexpr uint32_t kEquipSlot_Table = 0xA0;   // -> {+8 entries, +0x10 u32 count}
+inline constexpr uint32_t kSlotTable_Entries = 0x08;
+inline constexpr uint32_t kSlotTable_Count = 0x10;
+inline constexpr uint32_t kSlotEntry_Size = 0xD0;
+inline constexpr uint32_t kSlotEntry_ItemIndex = 0x08;  // u16, 0xFFFF = none
+inline constexpr uint32_t kSlotEntry_Count = 0x10;      // i64, > 0 when an item is there
+inline constexpr uint32_t kSlotEntry_ShownIndex = 0x90; // u16 (a look item); 0xFFFF = use ItemIndex
+inline constexpr uint32_t kSlotEntry_Slot = 0xC8;       // u16 equipment slot
+// Static item table: the record lookup 0x3DCFC0 loads it with `mov rbx,[rip+d]` at 0x3DCFD5
+// (checked before use), then [+8] count, [+0x58] record pointers by u16 index, null until the
+// record is first needed. A record's u32 at +8 is the item key (+0 points to its name).
+inline constexpr uintptr_t kItemInfoTableSlot = 0x71B6C20;
+inline constexpr uintptr_t kItemInfoTableLoad = 0x3DCFD5;  // 48 8B 1D <rel32 to the slot>
+inline constexpr uint32_t kItemInfoTable_Count = 0x08;
+inline constexpr uint32_t kItemInfoTable_Records = 0x58;
+inline constexpr uint32_t kItemInfo_Key = 0x08;
+
 // The docking relay is compiled out (local_capture.cpp, kDockingRelay); never ported past 3424.
 inline constexpr uintptr_t kServerDockingWriter = 0;
 

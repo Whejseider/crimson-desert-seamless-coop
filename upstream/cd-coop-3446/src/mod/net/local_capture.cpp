@@ -10,6 +10,7 @@
 #include <map>
 #include <set>
 #include <mutex>
+#include <optional>
 #include <vector>
 
 #include <safetyhook.hpp>
@@ -177,6 +178,7 @@ struct EquipCopy {
 };
 SafetyHookMid g_equip_hook;
 std::atomic<uint32_t> g_equip_key{0};  // our player key, for the hook
+std::atomic<bool> g_equip_watch{false};  // Co-op+: the equipment watcher replaces the hook (3460)
 SRWLOCK g_equip_lock = SRWLOCK_INIT;
 // Hook -> writer thread. Fixed storage: the hooks run on game server
 // threads and must not allocate.
@@ -522,7 +524,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
         std::memcpy(&key, packet + 5, 4);
         std::memcpy(&slot, packet + 9, 2);
         std::memcpy(&serial, packet + 13, 4);
-        if (key && key == g_equip_key.load()) note_equip(serial, {{0u, slot}});
+        // With the equipment watcher on, it sees this removal too.
+        if (key && key == g_equip_key.load() && !g_equip_watch.load()) note_equip(serial, {{0u, slot}});
         return;
     }
     if (op == kOpAttackTargetAck && size >= 5 + 0x28) {
@@ -775,6 +778,102 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
     emit(kind, std::move(payload));
 }
 
+// ---------------------------------------------------------------- equipment watcher
+// Co-op+ (3460): the old hook point (the server's OtherEquipItemAck writer) does not exist on
+// this build, so our gear is read from our own character instead: every slot of its
+// ClientEquipSlotActorComponent, with each item's static key. A change seen in two reads in a row
+// goes out as the OtherEquipItemAck the MMO would have sent: for each changed slot the new item,
+// then {0, slot} if something was there (offsets_3460.h, equipment watcher).
+constexpr uint64_t kEquipWatchMs = 250;
+uint64_t g_equip_watch_at = 0;
+struct EquipSnapshot {
+    uintptr_t actor = 0;
+    uint32_t serial = 0;
+    std::map<uint16_t, uint32_t> slots;  // slot -> item key
+    bool operator==(const EquipSnapshot& o) const { return actor == o.actor && slots == o.slots; }
+};
+std::optional<EquipSnapshot> g_equip_base;  // what the other PC's copy wears (as far as we sent)
+std::optional<EquipSnapshot> g_equip_last;  // the previous read
+uint32_t g_equip_base_generation = 0;
+uint64_t g_equip_watch_fails = 0;
+
+std::optional<EquipSnapshot> read_own_equipment() {
+    if (!g_exe_base) g_exe_base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    auto actor = game::find_actor(g_own_key);
+    if (!actor) return std::nullopt;
+    auto comps = game::read_ptr(*actor + off::kActor_ComponentTable);
+    auto comp = comps ? game::read_ptr(*comps + off::kComponents_EquipSlot) : std::nullopt;
+    if (!comp || !game::has_vtable(*comp, g_exe_base + off::kVtClientEquipSlotComponent)) return std::nullopt;
+    auto serial = game::read<uint32_t>(*comp + off::kEquipSlot_Serial);
+    auto table = game::read_ptr(*comp + off::kEquipSlot_Table);
+    auto entries = table ? game::read_ptr(*table + off::kSlotTable_Entries) : std::nullopt;
+    auto count = table ? game::read<uint32_t>(*table + off::kSlotTable_Count) : std::nullopt;
+    auto items = game::read_ptr(g_exe_base + off::kItemInfoTableSlot);
+    auto records = items ? game::read_ptr(*items + off::kItemInfoTable_Records) : std::nullopt;
+    auto records_n = items ? game::read<uint32_t>(*items + off::kItemInfoTable_Count) : std::nullopt;
+    if (!serial || !entries || !count || *count > EquipState::kMaxSlot + 1 || !records || !records_n) {
+        return std::nullopt;
+    }
+    EquipSnapshot snap;
+    snap.actor = *actor;
+    snap.serial = *serial;
+    for (uint32_t i = 0; i < *count; ++i) {
+        uint8_t e[off::kSlotEntry_Size];
+        if (!game::safe_read(*entries + i * off::kSlotEntry_Size, e, sizeof e)) return std::nullopt;
+        uint16_t index, slot;
+        int64_t n;
+        std::memcpy(&index, e + off::kSlotEntry_ItemIndex, 2);
+        std::memcpy(&n, e + off::kSlotEntry_Count, 8);
+        std::memcpy(&slot, e + off::kSlotEntry_Slot, 2);
+        if (index == 0xFFFF || n <= 0 || slot > EquipState::kMaxSlot) continue;
+        if (index >= *records_n) return std::nullopt;
+        auto record = game::read_ptr(*records + index * 8ull);
+        auto key = record ? game::read<uint32_t>(*record + off::kItemInfo_Key) : std::nullopt;
+        if (!key || !*key) return std::nullopt;  // record not loaded yet: read again later
+        snap.slots[slot] = *key;
+    }
+    return snap;
+}
+
+void watch_equip(uint64_t now) {
+    if (!g_equip_watch.load(std::memory_order_relaxed) || now < g_equip_watch_at) return;
+    g_equip_watch_at = now + kEquipWatchMs;
+    auto snap = read_own_equipment();
+    if (!snap) {
+        if (g_equip_watch_fails++ == 0) log::info("Capture: equipment watcher waiting for our character");
+        g_equip_last.reset();
+        return;
+    }
+    const bool stable = g_equip_last && *g_equip_last == *snap;
+    g_equip_last = snap;
+    if (!stable) return;
+    // A new load (new templates, or a reloaded character object): the copy is built from those
+    // templates, which already show this gear.
+    const uint32_t gen = g_generation.load();
+    if (!g_equip_base || g_equip_base->actor != snap->actor || gen != g_equip_base_generation) {
+        g_equip_base = snap;
+        g_equip_base_generation = gen;
+        log::info("Capture: equipment watcher on ({} slot(s) worn, serial {})", snap->slots.size(), snap->serial);
+        return;
+    }
+    if (*g_equip_base == *snap) return;
+    std::vector<std::pair<uint32_t, uint16_t>> puts, removes;
+    std::set<uint16_t> touched;
+    for (const auto& [slot, key] : g_equip_base->slots) touched.insert(slot);
+    for (const auto& [slot, key] : snap->slots) touched.insert(slot);
+    for (uint16_t slot : touched) {
+        const auto was = g_equip_base->slots.find(slot), is = snap->slots.find(slot);
+        const uint32_t before = was == g_equip_base->slots.end() ? 0 : was->second;
+        const uint32_t after = is == snap->slots.end() ? 0 : is->second;
+        if (before == after) continue;
+        if (after) puts.emplace_back(after, slot);
+        if (before) removes.emplace_back(0u, slot);
+    }
+    g_equip_base = snap;
+    puts.insert(puts.end(), removes.begin(), removes.end());
+    if (!puts.empty()) note_equip(snap->serial, puts);
+}
+
 void capture_tick() {
     {
         std::lock_guard lock(g_mutex);
@@ -786,14 +885,32 @@ void capture_tick() {
     if (!g_reader_ready) return;
     const uint64_t now = steady_ms();
     drain_equip();
+    watch_equip(now);
     capture_wallup(now);
     capture_synth(now);
     capture_horse_synth(now);
 }
 
 bool capture_install_equip_hook() {
-    if (g_equip_hook) return true;
+    if (g_equip_hook || g_equip_watch) return true;
     const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    if (off::kServerOtherEquipWriter == 0) {
+        // Co-op+ (3460): the equipment watcher. Its item table is the one this build's record
+        // lookup loads (`mov rbx,[rip+d]`).
+        uint8_t load[7] = {};
+        int32_t rel = 0;
+        if (base == off::kImageBase && game::safe_read(base + off::kItemInfoTableLoad, load, sizeof load)) {
+            std::memcpy(&rel, load + 3, 4);
+        }
+        if (load[0] != 0x48 || load[1] != 0x8B || load[2] != 0x1D ||
+            off::kItemInfoTableLoad + 7 + rel != off::kItemInfoTableSlot) {
+            log::warn("Capture: item table not recognised; equipment changes won't be sent");
+            return false;
+        }
+        g_equip_watch = true;
+        log::info("Capture: equipment watcher installed (reads our gear every {} ms)", kEquipWatchMs);
+        return true;
+    }
     const uintptr_t fn = base + off::kServerOtherEquipWriter;
     uint8_t head[sizeof off::kServerOtherEquipWriterHead];
     if (base != off::kImageBase || !game::safe_read(fn, head, sizeof head) ||

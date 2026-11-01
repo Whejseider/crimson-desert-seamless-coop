@@ -19,7 +19,9 @@
 namespace cdmp::render {
 namespace {
 
-constexpr float kHeadHeight = 2.1f;  // marker above the character's feet (m)
+// Marker above the character's feet (m). Co-op+: 2.1 floated well clear of the head in the 3460
+// echo tests (the name sits another ~28 px above the dot); the player character is ~1.8 m tall.
+constexpr float kHeadHeight = 1.95f;
 constexpr ImU32 kAccent = IM_COL32(230, 70, 60, 255);
 constexpr ImU32 kShadow = IM_COL32(0, 0, 0, 200);
 
