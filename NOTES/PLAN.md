@@ -17,7 +17,8 @@ installed package updated. Status: [x] done, [~] in progress, [ ] to do.
 - [x] Loot design confirmed as per-player (Lootr-style), D24
 
 ## A. Shared enemies (the big one; all testable on one PC with the test save)
-- [~] A1 Enemy copies load without crashing (crash in the game's load-complete code, port-3479.md)
+- [~] A1 Enemy copies load without crashing (crash in the game's load-complete code, port-3479.md).
+      Holding them "loading" stops the crash but they never get an action: checking the forwarded actions next
 - [ ] A2 Enemy copies move, attack and die in step with the host's enemies
 - [ ] A3 The friend's hits on a copy damage the host's real enemy (guest_hits), and kills count for both
 - [ ] A4 Loot from shared kills: the friend loots their own roll from the copy (loot twin), host loots natively
@@ -25,6 +26,11 @@ installed package updated. Status: [x] done, [~] in progress, [ ] to do.
       lab test on one PC, then switch the default from "dry run" to real once A1-A3 hold)
 - [ ] A6 Bosses: safety rules (host lands the killing blow; boss copies refused) still hold on 3479
 - [ ] A7 Turn enemy copies back on by default once A1-A6 pass
+- [ ] A8 Boss scaling by player count, for up to 4 players (user request 2026-11-01): boss health/damage grow with
+      the party (curve in config/scaling.toml, e.g. x1.0 / 1.7 / 2.3 / 2.8); bosses must stay hard with a full party
+- [ ] A9 Boss-fight deaths (user request 2026-11-01): a player who dies during a boss fight does not respawn until the
+      teammates beat the boss (then everyone respawns/revives) or everyone is down (then the whole party restarts
+      the fight)
 
 ## B. Riding, movement and looks
 - [ ] B1 Horse copy (riding together): test, fix, decide default (currently off)
