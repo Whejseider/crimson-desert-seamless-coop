@@ -177,3 +177,20 @@
 - Invisible copy: real hide flags at status +0x3B8/+0x3C0; copy keeps bit 20. puppet_visibility clears it via the
   game's handler exe+0x6E90A0 from the copy's movement step. Copy visible and following in the echo test.
 - Package 0.1.0-alpha+219050be built, Defender clean, installed. Saves untouched (still 2026-05-13).
+
+## 2026-10-31 ~20:00-20:55 -- overlay crash fixed; equipment watcher
+- A launch closed the game ~14 s in: crash log showed sl.dlss_g.dll / sl.interposer.dll faults right as the overlay
+  created its throwaway D3D12 swap chain (also explains the 14:1x "launch 1"). A D3D11 dummy still crashed 1/5.
+  Fix: read Streamline's proxy swap chain vtable from RTTI (no swap chain created): 6/6 clean, same hook addresses.
+- The upstream equip-writer site is a log formatter on 3460 (41 identical ones). New equipment watcher reads our
+  ClientEquipSlotActorComponent (comp+0xA0 slot table, static item table 0x71B6C20) every 250 ms. Read 17 slots.
+- 20:55 the PC powered off during an echo test (Kernel-Power 41, no bugcheck/dump). Saves untouched.
+
+## 2026-11-01 15:00-15:30 -- port to 1.0.0.3479, gear changes verified
+- PC back up 15:02; Steam updated the game to 1.0.0.3479 at 15:09; the mod switched itself off as designed.
+- Ported (docs/research/port-3479.md): small patch, code +0..-0x70, vtables/Troc +0x1000, data +0xFB0..+0xFC0,
+  opcodes unchanged. verify-port ALL PASS, loopback e2e PASS.
+- Echo test on 3479: all hooks in, copy drawn. Inventory test: helmet off -> copy loses it; helmet on -> copy wears
+  it again. Game closed without saving; saves still 2026-05-13.
+- Package 0.1.0-alpha+d56adad8 built, Defender clean, installed (cdmp.ini kept).
+

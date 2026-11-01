@@ -1,17 +1,20 @@
 # STATE (single source of truth for resuming)
 
-## NOW (2026-10-31 evening) -- read this first
-- Game is **1.0.0.3460**; the mod targets it only (D22). Package `dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+219050be.zip`
-  is built from HEAD, Defender-clean, and installed in the game folder (user's cdmp.ini kept).
-- **Single-PC echo test passes the core:** the other player's character loads, is DRAWN, and follows (walk, jump),
-  with name plate + HP bar and map pin; it loads only after our own world is up; our control stays intact.
-- Fixed on the way (all in docs/research/port-3460.md): every address; MoveData layout; all 95 opcodes; camera
-  block; load transform; the containment's "still loading" answer; the loading detector's opcodes; the copy's
-  hide bit (puppet_visibility.cpp, through the game's own flag handler).
-- Not verified yet: anything between two PCs (Steam join/invite live, two real players, enemies, hits, scaling),
-  animations in detail, gear changes (OtherEquipItemAck writer not ported), enemy copies' visibility.
-- Dev tools: `[dev] load_trace=1` (load-state trace, movement-step counts, status flag watch); test helpers in
-  build/port3460 (trial/keys/shot/mouse/run_echo .ps1, live.py/actor.py read-only probes).
+## NOW (2026-11-01 afternoon) -- read this first
+- Game is **1.0.0.3479** (2.04.05, Steam update 2026-11-01 15:09); the mod targets it only. Package
+  `dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+d56adad8.zip` is built from HEAD, Defender-clean, installed (user's
+  cdmp.ini kept). A copy of each game exe is now kept in build/exe-archive (git-ignored) for the next port.
+- **Single-PC echo test on 3479 passes:** every hook installs; the other player's character loads, is drawn, stands
+  next to ours; **gear changes are shared live** (helmet off/on relayed both ways, the copy follows).
+- New since 3460: equipment watcher (reads our equip slots, replaces the dead writer hook); overlay finds Streamline's
+  swap chain class by RTTI instead of creating a throwaway swap chain (fixed a ~1-in-5 startup crash with DLSS frame
+  generation); name tag 1.95 m. Details: docs/research/port-3479.md, port-3460.md.
+- The user is choosing a second player. Not verified yet: anything between two PCs (Steam join/invite live,
+  two real players, enemies, hits, scaling), animations in detail, enemy copies' visibility.
+- 2026-10-31 20:55 the PC powered off mid-test (Kernel-Power 41, no bugcheck, no dump; the mod was steady). Keep
+  game sessions short; watch for it again.
+- Dev tools: `[dev] load_trace=1`; test helpers in build/port3460 (trial/keys/shot/mouse/click/run_echo .ps1,
+  live.py/actor.py) and build/port3479 (heads/near/vt/globals/troc .py for the next port).
 - Upstream issue with our 3460 findings: https://github.com/nouzert1/cd-coop-3446/issues/1
 
 ## Where the project lives now
@@ -69,7 +72,7 @@
    `gh auth refresh -s workflow` (browser sign-in). Pending CI change: docs/drafts/ci-tool-tests.patch.
 
 ## Blockers / waiting on the user
-1. **GO** for game testing (another session may be testing Elden Ring on this PC).
+1. GO for game testing: given 2026-10-31.
 2. Two-player tests need a second PC + Steam account that owns the game.
 
 ## Next steps
