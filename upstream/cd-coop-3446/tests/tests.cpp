@@ -919,6 +919,7 @@ struct LoadSpec {
     uint32_t parent = 0;
     std::vector<uint32_t> children, hierarchy;
     proto::Vec3 pos{-10284.0f, 640.0f, -3383.0f};
+    bool layout_3460 = false;  // a u32 in front of T0's position (1.0.0.3460 and later)
 };
 
 std::vector<uint8_t> make_load(const LoadSpec& s) {
@@ -940,7 +941,8 @@ std::vector<uint8_t> make_load(const LoadSpec& s) {
         v.resize(sig + 18 + 1200, 0);
         v[sig] = 0x0C;
         std::memset(v.data() + sig + 10, 0xFF, 4);
-        t0 = sig + 18;
+        t0 = sig + (s.layout_3460 ? 22 : 18);
+        if (s.layout_3460) put32(sig + 18, 0);
         putf(t0, 1.0f), putf(t0 + 4, 2.0f), putf(t0 + 8, 3.0f);  // its spawn point
         putf(t0 + 24, 1.0f);                                        // rotation w
         putf(t0 + 28, 1.0f), putf(t0 + 32, 1.0f), putf(t0 + 36, 1.0f);
@@ -1040,6 +1042,18 @@ void test_enemy_zone_predicate() {
         const auto tail = parse_tail(load);
         CHECK(tail && tail->parent == 0 && tail->children.empty() && tail->hierarchy.empty());
         CHECK(zone_check(load, plain).verdict == Verdict::Yes);
+    }
+    {
+        // Co-op+: the 3460+ layout (captured on 3479). Read at the old place, the origin was the
+        // scale's last bytes (every NPC "S ...13F80"), so no enemy ever passed the zone test.
+        LoadSpec s = bandit;
+        s.layout_3460 = true;
+        const auto load = make_load(s);
+        const auto o = origin(load);
+        CHECK(o.kind == OriginKind::Schedule && o.id == 0x343A74A6 && o.sub == 7);
+        CHECK(zone_check(load, plain).verdict == Verdict::Yes);
+        const auto t0_new = find_t0(load), t0_old = find_t0(make_load(bandit));
+        CHECK(t0_new && t0_old && *t0_new == *t0_old + 4);
     }
     auto verdict = [&](LoadSpec s, const ZoneRules& r = {}) { return zone_check(make_load(s), r).verdict; };
     {

@@ -193,6 +193,7 @@ bool valid_size(uint16_t op, size_t n) {
 }
 
 std::atomic<bool> g_receive_enabled{false};
+std::atomic<bool> g_copies_allowed{false};  // Co-op+: [dev] enemy_copies (enemy_relay.h)
 // kNoVariant is declared in enemy_relay.h: loot_twin enforces it too.
 std::map<uint32_t, bool> g_copies;          // copy keys loaded here
 std::map<uint32_t, uint32_t> g_copy_variant;  // copy key -> its enemy variant (load +0x18), or kNoVariant
@@ -309,15 +310,10 @@ std::optional<uint32_t> pick_manual() {
 // without one, like an ambient spawn. (Not the cause of the invisible
 // originals, copias-grupo-invisibles.md §6.7: that is the camp group.)
 int strip_spawn_identity(Bytes& load) {
-    static const uint8_t kSig[14] = {0x0C, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF};
-    size_t t0 = 0;
-    for (size_t i = 0x24; i + sizeof kSig + 18 + 40 <= load.size(); ++i) {
-        if (std::memcmp(load.data() + i, kSig, sizeof kSig) == 0) {
-            t0 = i + 18;
-            break;
-        }
-    }
-    if (!t0) return -1;
+    // Co-op+: the same T0 as the zone predicate (it moved 4 bytes on 3460; enemy_load.cpp).
+    const auto found = enemy_load::find_t0(load);
+    if (!found) return -1;
+    const size_t t0 = *found;
     float scale[3];
     std::memcpy(scale, load.data() + t0 + 28, sizeof scale);
     if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) return -1;
@@ -1562,6 +1558,7 @@ struct WaitingCopy {
     Bytes hp, dead;
     uint64_t state_delay_ms = 0;
     std::optional<proto::Vec3> pos;  // its latest EnemyPos while waiting (before: its load's place)
+    bool told = false;               // Co-op+: why it still waits, logged once
 };
 std::deque<WaitingCopy> g_waiting;
 std::map<uint32_t, uint64_t> g_removed_at;  // copy key -> when its copy here was removed
@@ -1815,9 +1812,22 @@ std::optional<proto::Vec3> spawn_place(const Bytes& spawn) {
 // copies came with "0 recent actions", 7 Oct 17:46:35). It waits for its
 // first relayed StartAction (enemy_on_event).
 void load_waiting() {
-    if (g_waiting.empty() || !capture_game_clock_decided() || !capture_game_clock_ms()) return;
+    if (g_waiting.empty()) return;
+    // Co-op+: a copy that cannot load says why, once (on 3479 they waited without a word).
+    auto tell = [](WaitingCopy& w, const std::string& why) {
+        if (w.told) return;
+        w.told = true;
+        log::info("Enemy relay: enemy copy 0x{:08X} waits: {}", w.copy, why);
+    };
+    if (!capture_game_clock_decided() || !capture_game_clock_ms()) {
+        for (auto& w : g_waiting) tell(w, "the game clock is not known yet");
+        return;
+    }
     const auto me = my_position();
-    if (!me) return;
+    if (!me) {
+        for (auto& w : g_waiting) tell(w, "our own position is not known");
+        return;
+    }
     // Loading (the tunnel walk into the world): our actor is parked at
     // (0, 1000, 0) (both of Shadow's crashes, 7 Oct).
     if (std::fabs(me->x) < 50.0f && std::fabs(me->z) < 50.0f && std::fabs(me->y - 1000.0f) < 50.0f) return;
@@ -1825,10 +1835,13 @@ void load_waiting() {
     for (auto it = g_waiting.begin(); it != g_waiting.end();) {
         if (const auto at = it->pos ? it->pos : spawn_place(it->spawn);
             at && enemy_load::flat_distance(*at, *me) > kMaxLoadDistance) {
+            tell(*it, std::format("{:.0f} m away (loads within {:.0f} m)", enemy_load::flat_distance(*at, *me),
+                                  kMaxLoadDistance));
             ++it;
             continue;
         }
         if (!spawn_actions(it->spawn)) {
+            tell(*it, "its message carries no actions");
             ++it;
             continue;
         }
@@ -1915,6 +1928,7 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
 }
 
 void enemy_set_receive_enabled(bool on) { g_receive_enabled = on; }
+void enemy_set_copies_allowed(bool on) { g_copies_allowed = on; }
 
 namespace {
 // Dead copies whose loot is still ours to take: removed when looted or after
@@ -1937,6 +1951,15 @@ void remove_copy_now(uint32_t copy) {
 
 void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
     if (bytes.size() < 12) return;
+    if (!g_copies_allowed) {
+        static bool told_off = false;
+        if (!told_off) {
+            log::info("Enemy relay: the other player's enemy copies are off on this game version "
+                      "(they crash it while loading; [dev] enemy_copies=1 to test)");
+        }
+        told_off = true;
+        return;
+    }
     if (!g_receive_enabled) {
         static bool told = false;
         if (!told) log::warn("Enemy relay: the other player's enemy copies are refused (no crash guards)");
@@ -1983,6 +2006,11 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
                                                       : std::format("{} copies here already", kMaxCopiesHere));
         }
         return;
+    }
+    static int received_logged = 0;
+    if (received_logged++ < 20) {
+        log::info("Enemy relay: enemy copy 0x{:08X} received ({} bytes, {} actions)", copy, bytes.size(),
+                  spawn_actions(bytes));
     }
     g_waiting.push_back({copy, bytes, {}, {}, 0});
     load_waiting();

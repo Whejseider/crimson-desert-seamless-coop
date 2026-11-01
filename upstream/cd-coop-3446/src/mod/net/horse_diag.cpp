@@ -99,13 +99,20 @@ constexpr Site kRestore = {0x948D50, {0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, 0x20, 
 constexpr Site kPending = {0x232E5E0, {0x74, 0x51, 0x4C, 0x89, 0x3F, 0x44, 0x38, 0x3E, 0x74, 0x32, 0x48, 0xC7,
                                        0xC3, 0xFF, 0xFF, 0xFF}, "pending actions"};
 
-SafetyHookMid g_cc_hook, g_post_hook, g_restore_hook, g_pending_hook;
+// Co-op+ (3479): the CC's per-frame update (rcx = the component, xmm1 = frame time), called
+// from the actor update at exe+0x99E891. kCcUpdate above is the component's vtable slot 16 (its
+// "still loading?" query), not this. A bandit copy with a chart and no action crashed in here
+// 0.2 s after loading (exe+0x944080 -> 0x948560 -> 0x25164ED reads [[layer+0x18]+0x28], the
+// action, null). Same containment rule, for the copies it was written for (horse and enemies).
+constexpr Site kCcTick = {0x944080, {0x48, 0x89, 0x5C, 0x24, 0x10, 0x55, 0x56, 0x57, 0x41, 0x54, 0x41, 0x55,
+                                     0x41, 0x56, 0x41, 0x57}, "CC tick"};
+SafetyHookMid g_cc_hook, g_post_hook, g_restore_hook, g_pending_hook, g_tick_hook;
 uint8_t* g_ret = nullptr;
 bool g_contain = false;
 std::atomic<uint32_t> g_watch_real{0};
 std::atomic<int> g_lines{0};
 constexpr int kMaxLines = 400;
-std::atomic<uint64_t> g_skipped{0}, g_skipped_post{0};
+std::atomic<uint64_t> g_skipped{0}, g_skipped_post{0}, g_skipped_tick{0};
 uint64_t g_t0 = 0;
 
 uint64_t now_ms() {
@@ -251,6 +258,18 @@ void on_cc_update(safetyhook::Context& ctx) {
     }
 }
 
+void on_cc_tick(safetyhook::Context& ctx) {
+    if (!g_contain) return;
+    uint32_t key = 0;
+    if (!read_key(ctx.rcx, key) || (key != kCopyHorse && !is_enemy_copy_key(key))) return;
+    State s;
+    if (!read_state(ctx.rcx, s)) return;
+    if (layer_without_action(s)) {
+        g_skipped_tick.fetch_add(1, std::memory_order_relaxed);
+        ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
+    }
+}
+
 void on_cc_post(safetyhook::Context& ctx) {
     if (!g_contain) return;
     uint32_t key = 0;
@@ -339,12 +358,13 @@ bool horse_diag_install(bool contain) {
     // Partial installs are now torn down rather than left half-armed, because a
     // containment that fires on some paths and not others is worse than none: it makes
     // the failure intermittent instead of reproducible.
-    if (contain && !hook(kCcPost, g_post_hook, on_cc_post)) {
+    if (contain && (!hook(kCcPost, g_post_hook, on_cc_post) || !hook(kCcTick, g_tick_hook, on_cc_tick))) {
         g_post_hook = {};
+        g_tick_hook = {};
         g_cc_hook = {};
         g_restore_hook = {};
         g_pending_hook = {};
-        log::warn("HorseDiag: post-update hook not installed; containment refused (all four hooks uninstalled)");
+        log::warn("HorseDiag: post-update or tick hook not installed; containment refused (all hooks uninstalled)");
         return false;
     }
     g_contain = contain;
@@ -359,7 +379,8 @@ void horse_diag_watch(uint32_t key) {
 
 void horse_diag_tick() {
     static uint64_t logged = 0, logged_post = 0, last = 0;
-    const uint64_t a = g_skipped.load(std::memory_order_relaxed), b = g_skipped_post.load(std::memory_order_relaxed);
+    const uint64_t a = g_skipped.load(std::memory_order_relaxed),
+                   b = g_skipped_post.load(std::memory_order_relaxed) + g_skipped_tick.load(std::memory_order_relaxed);
     const uint64_t t = now_ms();
     if ((a != logged || b != logged_post) && t - last >= 2000) {
         log::info("HorseDiag: copy's update skipped {} times (post-update {}) while it has no action", a, b);

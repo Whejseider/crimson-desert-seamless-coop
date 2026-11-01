@@ -154,7 +154,7 @@ std::atomic<uint64_t> g_clock_at{0};
 // wall clock, which runs on through a pause (pausa-copia-congelada.md F2).
 // Trusted once it agrees with the timestamps of our first Reqs.
 std::atomic<int> g_clock_reader{0};  // 0 checking, 1 trusted, -1 off
-int g_clock_good = 0, g_clock_bad = 0;  // note_clock only
+int g_clock_good = 0, g_clock_bad = 0, g_clock_unreadable = 0;  // note_clock only
 
 constexpr uint64_t kWallUpRepeatMs = 50;  // resend an unchanged path this often
 Bytes g_last_wallup;
@@ -343,7 +343,16 @@ void note_clock(uint64_t ts) {
     g_clock_at.store(steady_ms(), std::memory_order_relaxed);
     if (g_clock_reader.load(std::memory_order_relaxed) != 0) return;
     const auto read = game::client_game_clock_ms();
-    if (!read) return;
+    if (!read) {
+        // Co-op+: an unreadable clock must also end the wait. Everything that waits for the
+        // decision (enemy copies above all) waited forever on 3460/3479, where the read never
+        // succeeds; the estimate from our own Reqs is what a disagreeing read falls back to.
+        if (++g_clock_unreadable >= 50) {
+            g_clock_reader = -1;
+            log::warn("Capture: the game clock cannot be read on this build; estimating it from our Reqs");
+        }
+        return;
+    }
     // Read a little after the Req was stamped (this runs on the capture writer).
     const int64_t diff = static_cast<int64_t>(*read) - static_cast<int64_t>(ts);
     if (diff >= -250 && diff <= 250) ++g_clock_good;

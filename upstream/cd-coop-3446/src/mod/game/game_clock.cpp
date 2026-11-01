@@ -30,8 +30,10 @@ std::optional<uint64_t> client_game_clock_ms() {
         // is kImageSize (per build) rather than a literal, because this one really
         // does move: it was 0x145B9000 on 3424 and 0x14268000 on 3446, and a stale
         // bound silently accepts addresses past the end of the module.
-        return off::kClientClockGlobal > off::kImageBase &&
-               off::kClientFrameClockUs + 8 < off::kImageBase + off::kImageSize;
+        // Co-op+: these are RVAs; the old `> kImageBase` made this false on every build, so the
+        // read never ran. (On 3479 the ms field does not hold a clock either, live: the range
+        // checks below refuse it, and local_capture estimates the clock instead.)
+        return off::kClientClockGlobal != 0 && off::kClientFrameClockUs + 8 < off::kImageSize;
     }();
     if (!known) return std::nullopt;
     const auto ms = read<uint64_t>(base + off::kClientFrameClockMs);

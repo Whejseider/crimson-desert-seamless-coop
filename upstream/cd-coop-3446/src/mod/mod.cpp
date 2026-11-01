@@ -1276,6 +1276,7 @@ DWORD WINAPI worker(LPVOID) {
         net::save_guard_configure(cfg.coop_save_guard);
         net::room_set_invite_only(cfg.net_join_invite_only);
         net::load_trace_set_mode(cfg.dev_load_trace);
+        net::enemy_set_copies_allowed(cfg.dev_enemy_copies);
         log::info("Config: who can join: {}", cfg.net_join_invite_only
                                                   ? "invited friends only ([net] join=invite)"
                                                   : "any Steam friend playing (\"Join Game\")");

@@ -54,6 +54,9 @@ struct Tail {
 };
 std::optional<Tail> parse_tail(std::span<const uint8_t> load);
 
+// Offset of the load's first Transform T0 (its position), the base of the origin fields.
+std::optional<size_t> find_t0(std::span<const uint8_t> load);
+
 // Where the enemy spawns from (ids-enemigos-verificacion.md §2), relative to
 // its first Transform T0: a schedule (hash + element id), a sequence (hash +
 // id), a faction camp node (node + slot) or nothing (road bandits).

@@ -26,17 +26,29 @@ bool sorted_has(const uint32_t (&table)[N], uint32_t v) {
     return std::binary_search(std::begin(table), std::end(table), v);
 }
 
+}  // namespace
+
 // 0C 00 | 8 x 00 | FF x 4, then 4 bytes, then T0 (unique in 5,332 of 5,332
 // captured loads; the same search as enemy_relay's strip_spawn_identity).
+// Co-op+: from 1.0.0.3460 on, a u32 sits in front of T0's position, so T0 starts 4 bytes
+// later (captured on 3479: the bandits' schedule hash then reads 0x087766C6, one of the
+// allowed origins, instead of the scale's last bytes). Told apart by T0's unit rotation at +12
+// followed by the scale (1, 1, 1) at +28; with neither layout matching, the old place.
 std::optional<size_t> find_t0(std::span<const uint8_t> load) {
     static const uint8_t kSig[14] = {0x0C, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF};
     for (size_t i = 0x24; i + sizeof kSig + 18 + 40 <= load.size(); ++i) {
-        if (std::memcmp(load.data() + i, kSig, sizeof kSig) == 0) return i + 18;
+        if (std::memcmp(load.data() + i, kSig, sizeof kSig) != 0) continue;
+        for (const size_t t0 : {i + 18, i + 22}) {
+            float f[7];  // rotation (x, y, z, w) at +12, scale at +28
+            if (t0 + 40 > load.size()) break;
+            std::memcpy(f, load.data() + t0 + 12, sizeof f);
+            const float q = f[0] * f[0] + f[1] * f[1] + f[2] * f[2] + f[3] * f[3];
+            if (std::fabs(q - 1.0f) < 0.01f && f[4] == 1.0f && f[5] == 1.0f && f[6] == 1.0f) return t0;
+        }
+        return i + 18;
     }
     return std::nullopt;
 }
-
-}  // namespace
 
 std::optional<Head> read_head(std::span<const uint8_t> load) {
     if (load.size() < 0x40) return std::nullopt;

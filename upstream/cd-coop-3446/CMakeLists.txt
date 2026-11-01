@@ -179,6 +179,11 @@ if(TARGET Zydis)
     endif()
 endif()
 
+# Co-op+ dev tool: the enemy-zone verdict of every load in a packet capture.
+add_executable(cdmp_loadcheck tools/loadcheck/main.cpp)
+cdmp_strict(cdmp_loadcheck)
+target_link_libraries(cdmp_loadcheck PRIVATE cdmp_common)
+
 # Tests.
 enable_testing()
 add_executable(cdmp_tests tests/tests.cpp)

@@ -90,6 +90,10 @@ std::vector<proto::GameEvent> enemy_host_tick();
 // Copies of the other player's enemies are loaded only once their crash
 // guards are installed (mod.cpp).
 void enemy_set_receive_enabled(bool on);
+// Co-op+: the other player's enemy copies are loaded only with [dev] enemy_copies=1 for now: on
+// 1.0.0.3479 a copy finishes loading before it has an action and the game crashes in its
+// "just loaded" code (docs/research/port-3479.md). Off, they are refused with one log line.
+void enemy_set_copies_allowed(bool on);
 // Checked before it goes in (one solo enemy record named only by its copy key,
 // its actions all of that copy), and loaded from enemy_tick at a bounded rate
 // (at most 48 copies here, 8 at once then 2 a second, a key not again within

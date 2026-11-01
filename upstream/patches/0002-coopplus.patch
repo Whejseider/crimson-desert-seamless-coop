@@ -1,5 +1,5 @@
 diff --git a/upstream/cd-coop-3446/CMakeLists.txt b/upstream/cd-coop-3446/CMakeLists.txt
-index c83acf3..c678d77 100644
+index c83acf3..a3c0775 100644
 --- a/upstream/cd-coop-3446/CMakeLists.txt
 +++ b/upstream/cd-coop-3446/CMakeLists.txt
 @@ -87,11 +87,13 @@ configure_file(cmake/build_id.h.in ${CMAKE_BINARY_DIR}/generated/build_id.h)
@@ -51,8 +51,20 @@ index c83acf3..c678d77 100644
  # Only the symbol file's name goes into cdmp.asi, not the path of the PC that
  # built it (it named the user's folders).
  target_link_options(cdmp_mod PRIVATE "/PDBALTPATH:cdmp.pdb")
+@@ -156,6 +179,11 @@ if(TARGET Zydis)
+     endif()
+ endif()
+ 
++# Co-op+ dev tool: the enemy-zone verdict of every load in a packet capture.
++add_executable(cdmp_loadcheck tools/loadcheck/main.cpp)
++cdmp_strict(cdmp_loadcheck)
++target_link_libraries(cdmp_loadcheck PRIVATE cdmp_common)
++
+ # Tests.
+ enable_testing()
+ add_executable(cdmp_tests tests/tests.cpp)
 diff --git a/upstream/cd-coop-3446/scripts/verify-port.ps1 b/upstream/cd-coop-3446/scripts/verify-port.ps1
-index d6c385a..3b3e471 100644
+index d6c385a..dac68e4 100644
 --- a/upstream/cd-coop-3446/scripts/verify-port.ps1
 +++ b/upstream/cd-coop-3446/scripts/verify-port.ps1
 @@ -115,7 +115,7 @@ _hdr_src = _read_header('offsets.h') + '\n' + ''.join(_read_header(h) for h in _
@@ -270,7 +282,7 @@ index d6c385a..3b3e471 100644
  ]
  for label, rva, hname, must_match in code_addrs:
      sig = head_bytes(hname)
-@@ -664,10 +675,10 @@ print()
+@@ -664,10 +675,11 @@ print()
  # search: two of the four are MID-HOOKS, so the bytes recorded for them are interior
  # fragments of functions and will never be found by scanning for "the prologue".
  containment = [
@@ -279,12 +291,65 @@ index d6c385a..3b3e471 100644
 -    ('kRestore',  0x948240,  bytes([0x48,0x8B,0xC4,0x48,0x89,0x58,0x20,0x48,0x89,0x50,0x10,0x55,0x56,0x57,0x41,0x54])),
 -    ('kPending',  0x232AF20, bytes([0x74,0x51,0x4C,0x89,0x3F,0x44,0x38,0x3E,0x74,0x32,0x48,0xC7,0xC3,0xFF,0xFF,0xFF])),
 +    ('kCcUpdate', 0x942850,  bytes([0x48,0x89,0x5C,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57,0x48,0x83,0xEC,0x20,0x48])),
++    ('kCcTick',   0x944080,  bytes([0x48,0x89,0x5C,0x24,0x10,0x55,0x56,0x57,0x41,0x54,0x41,0x55,0x41,0x56,0x41,0x57])),
 +    ('kCcPost',   0x861700,  bytes([0x0F,0x85,0xB6,0x00,0x00,0x00,0x4C,0x89,0x6C,0x24,0x28,0x80,0x7C,0x24,0x38,0x00])),
 +    ('kRestore',  0x948D50,  bytes([0x48,0x8B,0xC4,0x48,0x89,0x58,0x20,0x48,0x89,0x50,0x10,0x55,0x56,0x57,0x41,0x54])),
 +    ('kPending',  0x232E5E0, bytes([0x74,0x51,0x4C,0x89,0x3F,0x44,0x38,0x3E,0x74,0x32,0x48,0xC7,0xC3,0xFF,0xFF,0xFF])),
  ]
  print('  (all four MUST match: one bad address disables the whole containment)')
  for name, rva, sig in containment:
+diff --git a/upstream/cd-coop-3446/src/common/enemy_load.cpp b/upstream/cd-coop-3446/src/common/enemy_load.cpp
+index 41d94eb..baa7a31 100644
+--- a/upstream/cd-coop-3446/src/common/enemy_load.cpp
++++ b/upstream/cd-coop-3446/src/common/enemy_load.cpp
+@@ -26,18 +26,30 @@ bool sorted_has(const uint32_t (&table)[N], uint32_t v) {
+     return std::binary_search(std::begin(table), std::end(table), v);
+ }
+ 
++}  // namespace
++
+ // 0C 00 | 8 x 00 | FF x 4, then 4 bytes, then T0 (unique in 5,332 of 5,332
+ // captured loads; the same search as enemy_relay's strip_spawn_identity).
++// Co-op+: from 1.0.0.3460 on, a u32 sits in front of T0's position, so T0 starts 4 bytes
++// later (captured on 3479: the bandits' schedule hash then reads 0x087766C6, one of the
++// allowed origins, instead of the scale's last bytes). Told apart by T0's unit rotation at +12
++// followed by the scale (1, 1, 1) at +28; with neither layout matching, the old place.
+ std::optional<size_t> find_t0(std::span<const uint8_t> load) {
+     static const uint8_t kSig[14] = {0x0C, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF};
+     for (size_t i = 0x24; i + sizeof kSig + 18 + 40 <= load.size(); ++i) {
+-        if (std::memcmp(load.data() + i, kSig, sizeof kSig) == 0) return i + 18;
++        if (std::memcmp(load.data() + i, kSig, sizeof kSig) != 0) continue;
++        for (const size_t t0 : {i + 18, i + 22}) {
++            float f[7];  // rotation (x, y, z, w) at +12, scale at +28
++            if (t0 + 40 > load.size()) break;
++            std::memcpy(f, load.data() + t0 + 12, sizeof f);
++            const float q = f[0] * f[0] + f[1] * f[1] + f[2] * f[2] + f[3] * f[3];
++            if (std::fabs(q - 1.0f) < 0.01f && f[4] == 1.0f && f[5] == 1.0f && f[6] == 1.0f) return t0;
++        }
++        return i + 18;
+     }
+     return std::nullopt;
+ }
+ 
+-}  // namespace
+-
+ std::optional<Head> read_head(std::span<const uint8_t> load) {
+     if (load.size() < 0x40) return std::nullopt;
+     uint16_t len;
+diff --git a/upstream/cd-coop-3446/src/common/enemy_load.h b/upstream/cd-coop-3446/src/common/enemy_load.h
+index 1b01e4a..750484f 100644
+--- a/upstream/cd-coop-3446/src/common/enemy_load.h
++++ b/upstream/cd-coop-3446/src/common/enemy_load.h
+@@ -54,6 +54,9 @@ struct Tail {
+ };
+ std::optional<Tail> parse_tail(std::span<const uint8_t> load);
+ 
++// Offset of the load's first Transform T0 (its position), the base of the origin fields.
++std::optional<size_t> find_t0(std::span<const uint8_t> load);
++
+ // Where the enemy spawns from (ids-enemigos-verificacion.md §2), relative to
+ // its first Transform T0: a schedule (hash + element id), a sequence (hash +
+ // id), a faction camp node (node + slot) or nothing (road bandits).
 diff --git a/upstream/cd-coop-3446/src/common/nameplate.h b/upstream/cd-coop-3446/src/common/nameplate.h
 new file mode 100644
 index 0000000..56fdd51
@@ -453,7 +518,7 @@ index e7d51fb..ad0020e 100644
      WallUp = 4,       // UpdateWallUpData, 132 bytes (built from memory)
      Equip = 5,        // OtherEquipItemAck payload (9 + 6n bytes); sent reliably
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..df1d498 100644
+index e89d220..9abc75d 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -518,15 +583,16 @@ index e89d220..df1d498 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,6 +205,7 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,6 +205,8 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
++    c.dev_enemy_copies = read_uint(ini_path, L"dev", L"enemy_copies", 0) != 0;
 +    c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
      c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
      c.coop_delay_ms = std::clamp(read_uint(ini_path, L"coop", L"delay_ms", c.coop_delay_ms), 50u, 5000u);
      c.coop_offset_m = read_metres(ini_path, L"coop", L"offset_m", c.coop_offset_m);
-@@ -226,6 +250,10 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +251,10 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -538,7 +604,7 @@ index e89d220..df1d498 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..bb0a4ea 100644
+index 3cd2ce2..82163fb 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -566,15 +632,16 @@ index 3cd2ce2..bb0a4ea 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -57,6 +68,7 @@ struct Config {
+@@ -57,6 +68,8 @@ struct Config {
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
++    bool dev_enemy_copies = false;  // Co-op+: load the other player's enemy copies (crash on 3479, enemy_relay.cpp)
 +    int dev_load_trace = 0;  // Co-op+: 1 = log actor load-state steps, 2 = + unhide experiment (load_trace.h)
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
-@@ -146,6 +158,14 @@ struct Config {
+@@ -146,6 +159,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -815,7 +882,7 @@ index d1fbb16..e5baa0e 100644
  
  namespace {
 diff --git a/upstream/cd-coop-3446/src/mod/game/game_clock.cpp b/upstream/cd-coop-3446/src/mod/game/game_clock.cpp
-index 669a910..552e421 100644
+index 669a910..4ae6864 100644
 --- a/upstream/cd-coop-3446/src/mod/game/game_clock.cpp
 +++ b/upstream/cd-coop-3446/src/mod/game/game_clock.cpp
 @@ -8,7 +8,7 @@
@@ -827,6 +894,19 @@ index 669a910..552e421 100644
  
  std::optional<uint64_t> client_game_clock_ms() {
      static const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+@@ -30,8 +30,10 @@ std::optional<uint64_t> client_game_clock_ms() {
+         // is kImageSize (per build) rather than a literal, because this one really
+         // does move: it was 0x145B9000 on 3424 and 0x14268000 on 3446, and a stale
+         // bound silently accepts addresses past the end of the module.
+-        return off::kClientClockGlobal > off::kImageBase &&
+-               off::kClientFrameClockUs + 8 < off::kImageBase + off::kImageSize;
++        // Co-op+: these are RVAs; the old `> kImageBase` made this false on every build, so the
++        // read never ran. (On 3479 the ms field does not hold a clock either, live: the range
++        // checks below refuse it, and local_capture estimates the clock instead.)
++        return off::kClientClockGlobal != 0 && off::kClientFrameClockUs + 8 < off::kImageSize;
+     }();
+     if (!known) return std::nullopt;
+     const auto ms = read<uint64_t>(base + off::kClientFrameClockMs);
 diff --git a/upstream/cd-coop-3446/src/mod/game/game_errors.cpp b/upstream/cd-coop-3446/src/mod/game/game_errors.cpp
 index c38f4f7..4535642 100644
 --- a/upstream/cd-coop-3446/src/mod/game/game_errors.cpp
@@ -1403,7 +1483,7 @@ index 0000000..3a01aaf
 +
 +}  // namespace cdmp::game
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..906b5b0 100644
+index 79ccd06..cc5546a 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,7 @@
@@ -1977,7 +2057,7 @@ index 79ccd06..906b5b0 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -969,6 +1272,13 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1272,14 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -1985,13 +2065,14 @@ index 79ccd06..906b5b0 100644
 +        net::save_guard_configure(cfg.coop_save_guard);
 +        net::room_set_invite_only(cfg.net_join_invite_only);
 +        net::load_trace_set_mode(cfg.dev_load_trace);
++        net::enemy_set_copies_allowed(cfg.dev_enemy_copies);
 +        log::info("Config: who can join: {}", cfg.net_join_invite_only
 +                                                  ? "invited friends only ([net] join=invite)"
 +                                                  : "any Steam friend playing (\"Join Game\")");
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1330,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1331,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -2024,7 +2105,7 @@ index 79ccd06..906b5b0 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1353,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1354,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -2036,7 +2117,7 @@ index 79ccd06..906b5b0 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1378,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1379,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -2102,7 +2183,7 @@ index 3bdc2c5..30abc9e 100644
      }
      return false;
 diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
-index 72da385..bc87cf8 100644
+index 72da385..c0cb9ba 100644
 --- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 @@ -1,4 +1,5 @@
@@ -2161,7 +2242,35 @@ index 72da385..bc87cf8 100644
  constexpr uint32_t kPuppetUser = 0x9010F001;
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
  constexpr float kPickRadius = 40.0f;
-@@ -571,7 +574,9 @@ void map_field_locked(Bytes& v, size_t off, bool parent64) {
+@@ -190,6 +193,7 @@ bool valid_size(uint16_t op, size_t n) {
+ }
+ 
+ std::atomic<bool> g_receive_enabled{false};
++std::atomic<bool> g_copies_allowed{false};  // Co-op+: [dev] enemy_copies (enemy_relay.h)
+ // kNoVariant is declared in enemy_relay.h: loot_twin enforces it too.
+ std::map<uint32_t, bool> g_copies;          // copy keys loaded here
+ std::map<uint32_t, uint32_t> g_copy_variant;  // copy key -> its enemy variant (load +0x18), or kNoVariant
+@@ -306,15 +310,10 @@ std::optional<uint32_t> pick_manual() {
+ // without one, like an ambient spawn. (Not the cause of the invisible
+ // originals, copias-grupo-invisibles.md §6.7: that is the camp group.)
+ int strip_spawn_identity(Bytes& load) {
+-    static const uint8_t kSig[14] = {0x0C, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF};
+-    size_t t0 = 0;
+-    for (size_t i = 0x24; i + sizeof kSig + 18 + 40 <= load.size(); ++i) {
+-        if (std::memcmp(load.data() + i, kSig, sizeof kSig) == 0) {
+-            t0 = i + 18;
+-            break;
+-        }
+-    }
+-    if (!t0) return -1;
++    // Co-op+: the same T0 as the zone predicate (it moved 4 bytes on 3460; enemy_load.cpp).
++    const auto found = enemy_load::find_t0(load);
++    if (!found) return -1;
++    const size_t t0 = *found;
+     float scale[3];
+     std::memcpy(scale, load.data() + t0 + 28, sizeof scale);
+     if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) return -1;
+@@ -571,7 +570,9 @@ void map_field_locked(Bytes& v, size_t off, bool parent64) {
  uint64_t g_dropped_messages = 0;
  bool map_message_locked(uint16_t op, Bytes& v, uint32_t self) {
      switch (op) {
@@ -2172,7 +2281,15 @@ index 72da385..bc87cf8 100644
          case kOpRotateActorReq: map_field_locked(v, 0x54, true); break;
          case kOpVaryHPAck: map_field_locked(v, 0x54, false); break;
          case kOpNotifyHandleDeadAck: map_field_locked(v, 0x04, false); break;
-@@ -1611,9 +1616,9 @@ void no_parent(Bytes& v, size_t off) {
+@@ -1557,6 +1558,7 @@ struct WaitingCopy {
+     Bytes hp, dead;
+     uint64_t state_delay_ms = 0;
+     std::optional<proto::Vec3> pos;  // its latest EnemyPos while waiting (before: its load's place)
++    bool told = false;               // Co-op+: why it still waits, logged once
+ };
+ std::deque<WaitingCopy> g_waiting;
+ std::map<uint32_t, uint64_t> g_removed_at;  // copy key -> when its copy here was removed
+@@ -1611,9 +1613,9 @@ void no_parent(Bytes& v, size_t off) {
  void scrub_message(uint16_t op, Bytes& v, uint32_t copy, uint32_t own) {
      switch (op) {
          case kOpStartActionReq:
@@ -2185,6 +2302,96 @@ index 72da385..bc87cf8 100644
              break;
          case kOpRotateActorReq: no_parent(v, 0x54); break;
          case kOpVaryHPAck: scrub_field(v, 0x54, copy, own); break;
+@@ -1810,9 +1812,22 @@ std::optional<proto::Vec3> spawn_place(const Bytes& spawn) {
+ // copies came with "0 recent actions", 7 Oct 17:46:35). It waits for its
+ // first relayed StartAction (enemy_on_event).
+ void load_waiting() {
+-    if (g_waiting.empty() || !capture_game_clock_decided() || !capture_game_clock_ms()) return;
++    if (g_waiting.empty()) return;
++    // Co-op+: a copy that cannot load says why, once (on 3479 they waited without a word).
++    auto tell = [](WaitingCopy& w, const std::string& why) {
++        if (w.told) return;
++        w.told = true;
++        log::info("Enemy relay: enemy copy 0x{:08X} waits: {}", w.copy, why);
++    };
++    if (!capture_game_clock_decided() || !capture_game_clock_ms()) {
++        for (auto& w : g_waiting) tell(w, "the game clock is not known yet");
++        return;
++    }
+     const auto me = my_position();
+-    if (!me) return;
++    if (!me) {
++        for (auto& w : g_waiting) tell(w, "our own position is not known");
++        return;
++    }
+     // Loading (the tunnel walk into the world): our actor is parked at
+     // (0, 1000, 0) (both of Shadow's crashes, 7 Oct).
+     if (std::fabs(me->x) < 50.0f && std::fabs(me->z) < 50.0f && std::fabs(me->y - 1000.0f) < 50.0f) return;
+@@ -1820,10 +1835,13 @@ void load_waiting() {
+     for (auto it = g_waiting.begin(); it != g_waiting.end();) {
+         if (const auto at = it->pos ? it->pos : spawn_place(it->spawn);
+             at && enemy_load::flat_distance(*at, *me) > kMaxLoadDistance) {
++            tell(*it, std::format("{:.0f} m away (loads within {:.0f} m)", enemy_load::flat_distance(*at, *me),
++                                  kMaxLoadDistance));
+             ++it;
+             continue;
+         }
+         if (!spawn_actions(it->spawn)) {
++            tell(*it, "its message carries no actions");
+             ++it;
+             continue;
+         }
+@@ -1910,6 +1928,7 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
+ }
+ 
+ void enemy_set_receive_enabled(bool on) { g_receive_enabled = on; }
++void enemy_set_copies_allowed(bool on) { g_copies_allowed = on; }
+ 
+ namespace {
+ // Dead copies whose loot is still ours to take: removed when looted or after
+@@ -1932,6 +1951,15 @@ void remove_copy_now(uint32_t copy) {
+ 
+ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
+     if (bytes.size() < 12) return;
++    if (!g_copies_allowed) {
++        static bool told_off = false;
++        if (!told_off) {
++            log::info("Enemy relay: the other player's enemy copies are off on this game version "
++                      "(they crash it while loading; [dev] enemy_copies=1 to test)");
++        }
++        told_off = true;
++        return;
++    }
+     if (!g_receive_enabled) {
+         static bool told = false;
+         if (!told) log::warn("Enemy relay: the other player's enemy copies are refused (no crash guards)");
+@@ -1979,6 +2007,11 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
+         }
+         return;
+     }
++    static int received_logged = 0;
++    if (received_logged++ < 20) {
++        log::info("Enemy relay: enemy copy 0x{:08X} received ({} bytes, {} actions)", copy, bytes.size(),
++                  spawn_actions(bytes));
++    }
+     g_waiting.push_back({copy, bytes, {}, {}, 0});
+     load_waiting();
+ }
+diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.h b/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
+index b09873f..8c054b4 100644
+--- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
++++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
+@@ -90,6 +90,10 @@ std::vector<proto::GameEvent> enemy_host_tick();
+ // Copies of the other player's enemies are loaded only once their crash
+ // guards are installed (mod.cpp).
+ void enemy_set_receive_enabled(bool on);
++// Co-op+: the other player's enemy copies are loaded only with [dev] enemy_copies=1 for now: on
++// 1.0.0.3479 a copy finishes loading before it has an action and the game crashes in its
++// "just loaded" code (docs/research/port-3479.md). Off, they are refused with one log line.
++void enemy_set_copies_allowed(bool on);
+ // Checked before it goes in (one solo enemy record named only by its copy key,
+ // its actions all of that copy), and loaded from enemy_tick at a bounded rate
+ // (at most 48 copies here, 8 at once then 2 a second, a key not again within
 diff --git a/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp b/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
 index 8411baa..a1a648a 100644
 --- a/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
@@ -2258,7 +2465,7 @@ index 8411baa..a1a648a 100644
          std::lock_guard lock(g_mutex);
          g_cheated[enemy] = now_ms();
 diff --git a/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp b/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp
-index 9d5bf8c..f3b88c6 100644
+index 9d5bf8c..75cfdba 100644
 --- a/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp
 @@ -15,7 +15,7 @@
@@ -2270,7 +2477,7 @@ index 9d5bf8c..f3b88c6 100644
  
  constexpr uint32_t kCopyHorse = 0xB010F002;
  
-@@ -88,13 +88,15 @@ struct Site {
+@@ -88,22 +88,31 @@ struct Site {
  //         comment above it claims is NOT established - both readers are guarded, so a
  //         wrong rcx fails safe, but it fails silently. Treat the PENDING log line as
  //         unverified until a live run shows it printing sensible state for a watched key.
@@ -2289,8 +2496,26 @@ index 9d5bf8c..f3b88c6 100644
 +constexpr Site kPending = {0x232E5E0, {0x74, 0x51, 0x4C, 0x89, 0x3F, 0x44, 0x38, 0x3E, 0x74, 0x32, 0x48, 0xC7,
                                         0xC3, 0xFF, 0xFF, 0xFF}, "pending actions"};
  
- SafetyHookMid g_cc_hook, g_post_hook, g_restore_hook, g_pending_hook;
-@@ -238,6 +240,13 @@ void on_cc_update(safetyhook::Context& ctx) {
+-SafetyHookMid g_cc_hook, g_post_hook, g_restore_hook, g_pending_hook;
++// Co-op+ (3479): the CC's per-frame update (rcx = the component, xmm1 = frame time), called
++// from the actor update at exe+0x99E891. kCcUpdate above is the component's vtable slot 16 (its
++// "still loading?" query), not this. A bandit copy with a chart and no action crashed in here
++// 0.2 s after loading (exe+0x944080 -> 0x948560 -> 0x25164ED reads [[layer+0x18]+0x28], the
++// action, null). Same containment rule, for the copies it was written for (horse and enemies).
++constexpr Site kCcTick = {0x944080, {0x48, 0x89, 0x5C, 0x24, 0x10, 0x55, 0x56, 0x57, 0x41, 0x54, 0x41, 0x55,
++                                     0x41, 0x56, 0x41, 0x57}, "CC tick"};
++SafetyHookMid g_cc_hook, g_post_hook, g_restore_hook, g_pending_hook, g_tick_hook;
+ uint8_t* g_ret = nullptr;
+ bool g_contain = false;
+ std::atomic<uint32_t> g_watch_real{0};
+ std::atomic<int> g_lines{0};
+ constexpr int kMaxLines = 400;
+-std::atomic<uint64_t> g_skipped{0}, g_skipped_post{0};
++std::atomic<uint64_t> g_skipped{0}, g_skipped_post{0}, g_skipped_tick{0};
+ uint64_t g_t0 = 0;
+ 
+ uint64_t now_ms() {
+@@ -238,6 +247,25 @@ void on_cc_update(safetyhook::Context& ctx) {
      // crashed three different functions of this update (INFORME §5).
      if (g_contain && is_copy(key) && layer_without_action(s)) {
          g_skipped.fetch_add(1, std::memory_order_relaxed);
@@ -2301,9 +2526,47 @@ index 9d5bf8c..f3b88c6 100644
 +        // finish loading, and it gets no action until it has loaded. Answer what the function
 +        // itself answers when it has nothing to do: false (exe+0x9428E4 `xor al, al`).
 +        ctx.rax = 0;
++        ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
++    }
++}
++
++void on_cc_tick(safetyhook::Context& ctx) {
++    if (!g_contain) return;
++    uint32_t key = 0;
++    if (!read_key(ctx.rcx, key) || (key != kCopyHorse && !is_enemy_copy_key(key))) return;
++    State s;
++    if (!read_state(ctx.rcx, s)) return;
++    if (layer_without_action(s)) {
++        g_skipped_tick.fetch_add(1, std::memory_order_relaxed);
          ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
      }
  }
+@@ -330,12 +358,13 @@ bool horse_diag_install(bool contain) {
+     // Partial installs are now torn down rather than left half-armed, because a
+     // containment that fires on some paths and not others is worse than none: it makes
+     // the failure intermittent instead of reproducible.
+-    if (contain && !hook(kCcPost, g_post_hook, on_cc_post)) {
++    if (contain && (!hook(kCcPost, g_post_hook, on_cc_post) || !hook(kCcTick, g_tick_hook, on_cc_tick))) {
+         g_post_hook = {};
++        g_tick_hook = {};
+         g_cc_hook = {};
+         g_restore_hook = {};
+         g_pending_hook = {};
+-        log::warn("HorseDiag: post-update hook not installed; containment refused (all four hooks uninstalled)");
++        log::warn("HorseDiag: post-update or tick hook not installed; containment refused (all hooks uninstalled)");
+         return false;
+     }
+     g_contain = contain;
+@@ -350,7 +379,8 @@ void horse_diag_watch(uint32_t key) {
+ 
+ void horse_diag_tick() {
+     static uint64_t logged = 0, logged_post = 0, last = 0;
+-    const uint64_t a = g_skipped.load(std::memory_order_relaxed), b = g_skipped_post.load(std::memory_order_relaxed);
++    const uint64_t a = g_skipped.load(std::memory_order_relaxed),
++                   b = g_skipped_post.load(std::memory_order_relaxed) + g_skipped_tick.load(std::memory_order_relaxed);
+     const uint64_t t = now_ms();
+     if ((a != logged || b != logged_post) && t - last >= 2000) {
+         log::info("HorseDiag: copy's update skipped {} times (post-update {}) while it has no action", a, b);
 diff --git a/upstream/cd-coop-3446/src/mod/net/join_args.h b/upstream/cd-coop-3446/src/mod/net/join_args.h
 new file mode 100644
 index 0000000..ae0d050
@@ -2718,7 +2981,7 @@ index 0000000..6b6a821
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-index 22b77f6..c383770 100644
+index 22b77f6..b4d386a 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 @@ -1,4 +1,5 @@
@@ -2809,6 +3072,15 @@ index 22b77f6..c383770 100644
  float g_last_sent_pos[3] = {NAN, NAN, NAN};
  uint64_t g_last_synth_ms = 0;
  uint64_t g_synthesized = 0;
+@@ -148,7 +154,7 @@ std::atomic<uint64_t> g_clock_at{0};
+ // wall clock, which runs on through a pause (pausa-copia-congelada.md F2).
+ // Trusted once it agrees with the timestamps of our first Reqs.
+ std::atomic<int> g_clock_reader{0};  // 0 checking, 1 trusted, -1 off
+-int g_clock_good = 0, g_clock_bad = 0;  // note_clock only
++int g_clock_good = 0, g_clock_bad = 0, g_clock_unreadable = 0;  // note_clock only
+ 
+ constexpr uint64_t kWallUpRepeatMs = 50;  // resend an unchanged path this often
+ Bytes g_last_wallup;
 @@ -172,6 +178,7 @@ struct EquipCopy {
  };
  SafetyHookMid g_equip_hook;
@@ -2817,7 +3089,25 @@ index 22b77f6..c383770 100644
  SRWLOCK g_equip_lock = SRWLOCK_INIT;
  // Hook -> writer thread. Fixed storage: the hooks run on game server
  // threads and must not allocate.
-@@ -430,10 +437,10 @@ void capture_synth(uint64_t now) {
+@@ -336,7 +343,16 @@ void note_clock(uint64_t ts) {
+     g_clock_at.store(steady_ms(), std::memory_order_relaxed);
+     if (g_clock_reader.load(std::memory_order_relaxed) != 0) return;
+     const auto read = game::client_game_clock_ms();
+-    if (!read) return;
++    if (!read) {
++        // Co-op+: an unreadable clock must also end the wait. Everything that waits for the
++        // decision (enemy copies above all) waited forever on 3460/3479, where the read never
++        // succeeds; the estimate from our own Reqs is what a disagreeing read falls back to.
++        if (++g_clock_unreadable >= 50) {
++            g_clock_reader = -1;
++            log::warn("Capture: the game clock cannot be read on this build; estimating it from our Reqs");
++        }
++        return;
++    }
+     // Read a little after the Req was stamped (this runs on the capture writer).
+     const int64_t diff = static_cast<int64_t>(*read) - static_cast<int64_t>(ts);
+     if (diff >= -250 && diff <= 250) ++g_clock_good;
+@@ -430,10 +446,10 @@ void capture_synth(uint64_t now) {
      Bytes req = g_last_move;
      const float pos[3] = {me->position.x, me->position.y, me->position.z};
      const float rot[4] = {me->rotation.x, me->rotation.y, me->rotation.z, me->rotation.w};
@@ -2832,7 +3122,7 @@ index 22b77f6..c383770 100644
      // Game clock: the game's own (stops in menus), else advanced from the
      // last real Move by the wall clock.
      uint64_t ts = g_clock_reader.load(std::memory_order_relaxed) == 1 ? capture_game_clock_ms() : 0;
-@@ -464,12 +471,12 @@ void capture_horse_synth(uint64_t now) {
+@@ -464,12 +480,12 @@ void capture_horse_synth(uint64_t now) {
      if (dx * dx + dy * dy + dz * dz < kSynthMinMove * kSynthMinMove) return;
      Bytes req = g_horse_last_move;
      const float p[3] = {pos->x, pos->y, pos->z};
@@ -2849,7 +3139,7 @@ index 22b77f6..c383770 100644
      }
      std::memcpy(req.data() + kMoveTs, &clock, 8);
      std::memcpy(g_horse_sent_pos, p, sizeof p);
-@@ -517,7 +524,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -517,7 +533,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
          std::memcpy(&key, packet + 5, 4);
          std::memcpy(&slot, packet + 9, 2);
          std::memcpy(&serial, packet + 13, 4);
@@ -2859,7 +3149,7 @@ index 22b77f6..c383770 100644
          return;
      }
      if (op == kOpAttackTargetAck && size >= 5 + 0x28) {
-@@ -560,6 +568,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -560,6 +577,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
                  e.hp_max = hp_max;
                  // Damage dealt by the local player: mirror it to the other world.
                  const uint32_t own = g_equip_key.load();
@@ -2869,7 +3159,7 @@ index 22b77f6..c383770 100644
                  if (own && source == own && hp < before && e.type && g_damage_enabled) {
                      Bytes b(proto::kDamageEventSize);
                      // Where it spawned (same in both worlds); else where it is.
-@@ -701,6 +712,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -701,6 +721,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      loot_observe_c2s(packet, size);
      piece4_observe_c2s(packet, size);
      attack_probe_observe_c2s(packet, size);
@@ -2877,7 +3167,7 @@ index 22b77f6..c383770 100644
      if (size < 5 + 4) return;
      uint16_t op = 0;
      std::memcpy(&op, packet, 2);
-@@ -727,7 +739,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -727,7 +748,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (kind == proto::EventKind::Move && keys::is_class(key, keys::kClassWorld) && key != kPuppetBody &&
          key != kPuppetHorse && key != g_own_horse) {
          float p[3];
@@ -2886,7 +3176,7 @@ index 22b77f6..c383770 100644
          std::lock_guard lock(g_actors_mutex);
          if (g_actors.size() > 4096) g_actors.clear();
          g_actors[key] = {{p[0], p[1], p[2]}, steady_ms()};
-@@ -736,7 +748,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -736,7 +757,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (g_own_horse && key == g_own_horse) {
          if (kind == proto::EventKind::Move) {
              g_horse_last_move = payload;
@@ -2895,7 +3185,7 @@ index 22b77f6..c383770 100644
          }
          emit(kind, std::move(payload));
          return;
-@@ -748,24 +760,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -748,24 +769,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      std::memcpy(&ts, payload.data() + ts_off, 8);
      note_clock(ts);
      if (kind == proto::EventKind::Move && g_own_horse) {
@@ -3020,7 +3310,7 @@ index 22b77f6..c383770 100644
  void capture_tick() {
      {
          std::lock_guard lock(g_mutex);
-@@ -777,14 +885,32 @@ void capture_tick() {
+@@ -777,14 +894,32 @@ void capture_tick() {
      if (!g_reader_ready) return;
      const uint64_t now = steady_ms();
      drain_equip();
@@ -5252,7 +5542,7 @@ index 532564a..82ff0cd 100644
  
  void hud_configure(const HudOptions& options);
 diff --git a/upstream/cd-coop-3446/tests/tests.cpp b/upstream/cd-coop-3446/tests/tests.cpp
-index 6c43dc1..671407e 100644
+index 6c43dc1..41c4961 100644
 --- a/upstream/cd-coop-3446/tests/tests.cpp
 +++ b/upstream/cd-coop-3446/tests/tests.cpp
 @@ -22,6 +22,9 @@
@@ -5265,7 +5555,44 @@ index 6c43dc1..671407e 100644
  #include "mod/net/boss_rules.h"
  
  #include <cctype>
-@@ -1505,6 +1508,85 @@ void test_boss_rules() {
+@@ -916,6 +919,7 @@ struct LoadSpec {
+     uint32_t parent = 0;
+     std::vector<uint32_t> children, hierarchy;
+     proto::Vec3 pos{-10284.0f, 640.0f, -3383.0f};
++    bool layout_3460 = false;  // a u32 in front of T0's position (1.0.0.3460 and later)
+ };
+ 
+ std::vector<uint8_t> make_load(const LoadSpec& s) {
+@@ -937,7 +941,8 @@ std::vector<uint8_t> make_load(const LoadSpec& s) {
+         v.resize(sig + 18 + 1200, 0);
+         v[sig] = 0x0C;
+         std::memset(v.data() + sig + 10, 0xFF, 4);
+-        t0 = sig + 18;
++        t0 = sig + (s.layout_3460 ? 22 : 18);
++        if (s.layout_3460) put32(sig + 18, 0);
+         putf(t0, 1.0f), putf(t0 + 4, 2.0f), putf(t0 + 8, 3.0f);  // its spawn point
+         putf(t0 + 24, 1.0f);                                        // rotation w
+         putf(t0 + 28, 1.0f), putf(t0 + 32, 1.0f), putf(t0 + 36, 1.0f);
+@@ -1038,6 +1043,18 @@ void test_enemy_zone_predicate() {
+         CHECK(tail && tail->parent == 0 && tail->children.empty() && tail->hierarchy.empty());
+         CHECK(zone_check(load, plain).verdict == Verdict::Yes);
+     }
++    {
++        // Co-op+: the 3460+ layout (captured on 3479). Read at the old place, the origin was the
++        // scale's last bytes (every NPC "S ...13F80"), so no enemy ever passed the zone test.
++        LoadSpec s = bandit;
++        s.layout_3460 = true;
++        const auto load = make_load(s);
++        const auto o = origin(load);
++        CHECK(o.kind == OriginKind::Schedule && o.id == 0x343A74A6 && o.sub == 7);
++        CHECK(zone_check(load, plain).verdict == Verdict::Yes);
++        const auto t0_new = find_t0(load), t0_old = find_t0(make_load(bandit));
++        CHECK(t0_new && t0_old && *t0_new == *t0_old + 4);
++    }
+     auto verdict = [&](LoadSpec s, const ZoneRules& r = {}) { return zone_check(make_load(s), r).verdict; };
+     {
+         LoadSpec s = bandit;  // a camp leader: its members' tail names it
+@@ -1505,6 +1522,85 @@ void test_boss_rules() {
      CHECK(!net::is_boss_stage_name("cd_field_village_idle"));
  }
  
@@ -5351,7 +5678,7 @@ index 6c43dc1..671407e 100644
  }  // namespace
  
  int main() {    test_pattern();
-@@ -1532,6 +1614,9 @@ int main() {    test_pattern();
+@@ -1532,6 +1628,9 @@ int main() {    test_pattern();
      test_enemy_zone_machine();
      test_room_code();
      test_boss_rules();
@@ -5361,3 +5688,63 @@ index 6c43dc1..671407e 100644
      if (g_failures == 0) std::printf("All tests passed\n");
      return g_failures == 0 ? 0 : 1;
  }
+diff --git a/upstream/cd-coop-3446/tools/loadcheck/main.cpp b/upstream/cd-coop-3446/tools/loadcheck/main.cpp
+new file mode 100644
+index 0000000..0705ba8
+--- /dev/null
++++ b/upstream/cd-coop-3446/tools/loadcheck/main.cpp
+@@ -0,0 +1,54 @@
++// Co-op+ dev tool: runs the enemy-zone predicate (common/enemy_load) on every person-type
++// ActorLoadDataAck of a packet capture (cdmp_packets_*.bin) and prints the verdict and why.
++//   cdmp_loadcheck <capture.bin> [opcode, default 2005 = ActorLoadDataAck on 3460/3479]
++#include <cstdint>
++#include <cstdio>
++#include <cstring>
++#include <fstream>
++#include <iterator>
++#include <span>
++#include <vector>
++
++#include "common/enemy_load.h"
++
++using namespace cdmp;
++
++int main(int argc, char** argv) {
++    if (argc < 2) {
++        std::fprintf(stderr, "usage: cdmp_loadcheck <capture.bin> [opcode]\n");
++        return 2;
++    }
++    const uint16_t op_load = argc > 2 ? static_cast<uint16_t>(std::atoi(argv[2])) : 2005;
++    std::ifstream f(argv[1], std::ios::binary);
++    const std::vector<uint8_t> d((std::istreambuf_iterator<char>(f)), {});
++    if (d.size() < 12 || std::memcmp(d.data(), "CDPK", 4) != 0) {
++        std::fprintf(stderr, "not a capture\n");
++        return 2;
++    }
++    size_t o = 12, n = 0;
++    while (o + 24 <= d.size()) {
++        uint16_t size = 0, copied = 0;
++        std::memcpy(&size, d.data() + o + 10, 2);
++        std::memcpy(&copied, d.data() + o + 12, 2);
++        o += 24;
++        if (o + copied > d.size()) break;
++        const uint8_t* p = d.data() + o;
++        o += copied;
++        if (copied < 5 + 0x40 || (p[0] | p[1] << 8) != op_load) continue;
++        const std::span<const uint8_t> load(p + 5, copied - 5);
++        const auto head = enemy_load::read_head(load);
++        if (!head || (head->type != 3 && head->type != 4)) continue;
++        const auto c = enemy_load::zone_check(load, {});
++        const auto o2 = enemy_load::origin(load);
++        const auto t = enemy_load::last_transform(load);
++        std::printf("%08X type %u faction %8u variant %8u %-28s origin %c %08X | %s%s%s\n", head->key, head->type,
++                    head->faction, head->variant, enemy_load::name(load).c_str(), static_cast<char>(o2.kind), o2.id,
++                    c.verdict == enemy_load::Verdict::Yes            ? "YES"
++                    : c.verdict == enemy_load::Verdict::FollowParent ? "follows parent"
++                                                                     : "no: ",
++                    c.verdict == enemy_load::Verdict::No ? c.why : "", t ? "" : " [no transform]");
++        ++n;
++    }
++    std::printf("%zu person loads\n", n);
++    return 0;
++}

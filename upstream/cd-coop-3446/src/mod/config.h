@@ -68,6 +68,7 @@ struct Config {
     // Every 2 s, log who sits in the attacker lists of our player and of the
     // other player's copy (attack_probe.h). Read only.
     bool dev_attack_probe = false;
+    bool dev_enemy_copies = false;  // Co-op+: load the other player's enemy copies (crash on 3479, enemy_relay.cpp)
     int dev_load_trace = 0;  // Co-op+: 1 = log actor load-state steps, 2 = + unhide experiment (load_trace.h)
 
     // Co-op over the network ([coop]): the other player (or, through
