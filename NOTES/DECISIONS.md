@@ -132,3 +132,19 @@
   writers and nothing offline tells them apart. Live gear changes are not relayed; gear at spawn still matches.
 - Added a crash logger (vectored handler, logs only; process exit noted in DllMain) after the first launch closed
   the game with no trace. It did not recur in four launches.
+
+## 2026-11-01 D23: Port to 1.0.0.3479; gear changes from an equipment watcher
+- Steam updated to 3479 (2.04.05). Small patch; ported the same way as D22, now with the exe archived first
+  (build/exe-archive) so later ports can diff. The dead equip-writer hook (a log formatter) is replaced by reading our
+  own equip slots every 250 ms; verified live both ways. Overlay reads Streamline's swap chain class by RTTI (no
+  throwaway swap chain): fixes a ~1-in-5 startup crash with DLSS frame generation.
+
+## 2026-11-01 D24: Loot is per player, like Minecraft's Lootr (user request)
+- The user asked for Lootr-style loot: every player can take every item for themselves; nobody's pickup takes it
+  from the other. This is brief 6.4's default ("per-player instanced loot"), now confirmed by the user.
+- How the design already gives it: each player plays in their OWN game and save, so chests and items in the world
+  exist once per player -- opening "the same" chest gives each player their own contents. Enemy drops: on the host's
+  kills the guest gets its own roll through the loot twin (loot_twin.cpp, [coop] guest_loot, default on); the host
+  loots natively.
+- To verify on two PCs: both open the same chest and both get the items; both loot the same enemy. Still to build
+  (brief 6.4): currency and quest items to every nearby player; optional alternative modes (shared pile etc.).

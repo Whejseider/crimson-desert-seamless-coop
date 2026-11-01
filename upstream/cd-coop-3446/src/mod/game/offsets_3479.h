@@ -163,4 +163,12 @@ inline constexpr uintptr_t kTrocInstancesBegin = 0x6E87D10;  // 3460:0x6E86D10; 
 inline constexpr uintptr_t kTrocInstancesEnd = 0x6EBB378;  // last + 8
 inline constexpr uint8_t kMinimapIconDecideHead[] = {0x80, 0x7C, 0x24, 0x48, 0x00, 0x75, 0x6F, 0x8B, 0x05, 0x36, 0x84, 0x75, 0x06, 0x41, 0x89, 0x06};  // its mov eax,[rip+d] moved with the data
 
+// ---- full-screen menus (Co-op+, measured on 3479) -------------------------------------------
+// The game keeps an input-mode stack. Opening a menu (map, inventory, journal, skills, pause) runs
+// the push at kUiModePush: `movzx eax,byte [kGameplayInput]` (saved on the stack), then the flag is
+// set to 0; closing pops it back. Live: 1 in the world, 0 in every one of those menus, back to 1
+// after each. The world name tags are not drawn while it is 0 (they showed on top of the map).
+inline constexpr uintptr_t kGameplayInput = 0x71982B8;  // u8
+inline constexpr uintptr_t kUiModePush = 0xF20AC7;      // 0F B6 05 <rel32 to kGameplayInput>
+
 }  // namespace cdmp::game::build_3479

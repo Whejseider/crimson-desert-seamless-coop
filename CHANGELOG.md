@@ -13,6 +13,7 @@ Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC
 - Fixed a crash at startup with NVIDIA DLSS Frame Generation (about one launch in five): the overlay no longer
   creates a temporary swap chain to find the game's draw function.
 - The name tag sits a little lower, just above the other player's head.
+- The name tag is no longer drawn on top of the map, inventory, journal or pause menu.
 
 Game 1.0.0.3460 (Co-op+ port, tested in the game on one PC with the echo peer):
 - Every address re-found for 3460; the movement messages' new layout; all message numbers from the live game.

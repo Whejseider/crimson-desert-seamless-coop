@@ -93,6 +93,7 @@ add_library(cdmp_mod SHARED
     src/mod/game/safe_memory.cpp
     src/mod/game/player_reader.cpp
     src/mod/game/camera_reader.cpp
+    src/mod/game/ui_state.cpp
     src/mod/game/rtti.cpp
     src/mod/net/troc_sniffer.cpp
     src/mod/net/local_capture.cpp

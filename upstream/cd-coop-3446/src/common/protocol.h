@@ -75,7 +75,7 @@ enum class Type : uint8_t {
 // sender. Formats: docs/research/mirror-ack-formats.md.
 enum class EventKind : uint8_t {
     Move = 1,         // MoveActorReq, 518 bytes on 3460 (mod/net/wire_layout.h)
-    StartAction = 2,  // StartActionReq, 725 bytes
+    StartAction = 2,  // StartActionReq, 729 bytes on 3460+ (725 on 3446)
     Rotate = 3,       // RotateActorReq, 176 bytes
     WallUp = 4,       // UpdateWallUpData, 132 bytes (built from memory)
     Equip = 5,        // OtherEquipItemAck payload (9 + 6n bytes); sent reliably

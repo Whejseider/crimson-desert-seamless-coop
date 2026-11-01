@@ -415,6 +415,9 @@ site_expect = [
      '80 7C 24 48 00 75 6F 8B 05 36 84 75 06 41 89 06',
      'minimap icon decision (mid-hook)'),
     # kServerOtherEquipWriter: not ported to 3460 (0 in offsets_3460.h); checked below as disabled.
+    ('kUiModePush', 0xF20AC7,
+     '0F B6 05 EA 77 27 06 88 04 0A FF 43 08 C6 05 DD',
+     'menu flag for hiding name tags over menus (Co-op+, 3479)'),
     ('kClientPostPacket', 0x3A5A30,
      '48 89 5C 24 10 4C 89 4C 24 20 55 56 57 41 54 41',
      'packet send path'),

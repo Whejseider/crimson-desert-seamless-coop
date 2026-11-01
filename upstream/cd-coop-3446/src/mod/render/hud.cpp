@@ -13,6 +13,7 @@
 #include "common/math3d.h"
 #include "common/nameplate.h"
 #include "mod/game/camera_reader.h"
+#include "mod/game/ui_state.h"
 #include "mod/log.h"
 #include "mod/render/dx12_hook.h"
 
@@ -237,8 +238,8 @@ void hud_draw(float width, float height) {
         ImGui::End();
     }
 
-    // ---- world markers
-    if (!cam || !cam_world) return;
+    // ---- world markers (not over a full-screen menu: they showed on top of the map)
+    if (!cam || !cam_world || game::ui_menu_open()) return;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
     if (d.remote && plates_visible && nameplate::alpha(remote_distance) > 0.0f) {

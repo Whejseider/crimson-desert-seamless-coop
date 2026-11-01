@@ -1780,7 +1780,9 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
         }
     }
     if (!ack) {
-        log::warn("Puppet: event kind {} has unexpected size {}; dropped",
+        // Co-op+: the size can be right and the values not (a death fall on 3479 sent a 729-byte
+        // StartAction with a non-finite transform); say which.
+        log::warn("Puppet: event kind {} ({} bytes) has an unexpected size or a non-finite transform; dropped",
                   static_cast<int>(ev.kind), ev.payload.size());
         return;
     }
