@@ -18,10 +18,11 @@ namespace {
 namespace off = build_3479;
 
 // Entry of the logger: arguments 10-13 on the stack ([rsp] = return address).
-// Seen at a call site (0x35AED1..0x35AF10): arg10 dword = code, arg11 dword =
+// Seen at a call site (2976: 0x35AED1..0x35AF10): arg10 dword = code, arg11 dword =
 // severity, arg12 = const char* message (printf format), arg13 = first value.
-constexpr uintptr_t kErrorLogger = 0x35D8D0;
-constexpr uint8_t kErrorLoggerHead[] = {0xE9};  // starts with a jmp into .xtls
+// Co-op+ (3479): the logger is a plain function now (offsets_3479.h, kErrorLogger); its callers pass
+// the message already formatted. The stub path below stays for a build where it is a jmp again.
+constexpr uintptr_t kErrorLogger = off::kErrorLogger;
 constexpr uint32_t kArgCode = 0x50, kArgSeverity = 0x58, kArgText = 0x60, kArgValue = 0x68;
 constexpr int kExtraValues = 3;  // arguments 14-16 (more format values, if any)
 
@@ -79,8 +80,9 @@ void on_error(safetyhook::Context& ctx) {
 bool game_errors_install() {
     if (g_hook) return true;
     g_base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-    uint8_t head[1];
-    if (g_base != off::kImageBase || !safe_read(g_base + kErrorLogger, head, 1) || head[0] != kErrorLoggerHead[0]) {
+    uint8_t head[sizeof off::kErrorLoggerHead];
+    if (g_base != off::kImageBase || !safe_read(g_base + kErrorLogger, head, sizeof head) ||
+        std::memcmp(head, off::kErrorLoggerHead, sizeof head) != 0) {
         log::warn("Game errors: logger not recognised; not hooked");
         return false;
     }

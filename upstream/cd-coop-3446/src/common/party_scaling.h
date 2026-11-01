@@ -20,16 +20,24 @@
 
 namespace cdmp::scaling {
 
+inline constexpr int kMaxParty = 4;
 struct Settings {
     bool enabled = false;
     float health_2p = 1.7f;       // regular enemies; brief 6.5 starting curve x1.0 / 1.7 / 2.3 / 2.8
     float boss_health_2p = 1.7f;  // stage bosses (Co-op+ config/scaling.toml [boss] health[1])
+    // Co-op+: the whole curve by party size (index = players, 2..kMaxParty), from scaling.toml.
+    // 0 = not given: health_2p / boss_health_2p stand in.
+    float health[kMaxParty + 1] = {};
+    float boss_health[kMaxParty + 1] = {};
 };
 
 // The settings for one kind of enemy.
 inline Settings for_boss(const Settings& s, bool boss) {
     Settings out = s;
-    if (boss) out.health_2p = s.boss_health_2p;
+    if (boss) {
+        out.health_2p = s.boss_health_2p;
+        std::copy(std::begin(s.boss_health), std::end(s.boss_health), std::begin(out.health));
+    }
     return out;
 }
 
@@ -37,9 +45,13 @@ inline constexpr float kMinMultiplier = 1.0f;
 inline constexpr float kMaxMultiplier = 4.0f;
 
 // Enemy toughness for a party of `players` (1 = alone: always 1).
+// Parties bigger than kMaxParty use the kMaxParty value.
 inline float health_multiplier(const Settings& s, int players) {
-    if (!s.enabled || players < 2 || !(s.health_2p > 0.0f)) return 1.0f;
-    return std::clamp(s.health_2p, kMinMultiplier, kMaxMultiplier);
+    if (!s.enabled || players < 2) return 1.0f;
+    const float k = s.health[std::min(players, kMaxParty)];
+    const float v = k > 0.0f ? k : s.health_2p;
+    if (!(v > 0.0f)) return 1.0f;
+    return std::clamp(v, kMinMultiplier, kMaxMultiplier);
 }
 
 // A guest blow of `damage` whole HP, scaled. Never 0 for a real blow: a hit that

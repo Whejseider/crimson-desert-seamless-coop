@@ -171,4 +171,12 @@ inline constexpr uint8_t kMinimapIconDecideHead[] = {0x80, 0x7C, 0x24, 0x48, 0x0
 inline constexpr uintptr_t kGameplayInput = 0x71982B8;  // u8
 inline constexpr uintptr_t kUiModePush = 0xF20AC7;      // 0F B6 05 <rel32 to kGameplayInput>
 
+// ---- the game's error/report logger (Co-op+, 3479) ---------------------------------------------
+// The call every one of the 41 log formatters ends with (`mov cl,1 / call`), 364 callers. Same stack
+// arguments as the 2976 logger the mod hooked (exe+0x35D8D0, a Denuvo jmp): arg10 code, arg11
+// severity, arg12 the message (already formatted by those callers). A plain function here.
+inline constexpr uintptr_t kErrorLogger = 0x15FAF40;
+inline constexpr uint8_t kErrorLoggerHead[] = {0x4C, 0x89, 0x4C, 0x24, 0x20, 0x44, 0x88, 0x44,
+                                               0x24, 0x18, 0x88, 0x54, 0x24, 0x10, 0x88, 0x4C};
+
 }  // namespace cdmp::game::build_3479

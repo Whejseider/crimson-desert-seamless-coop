@@ -54,6 +54,24 @@ std::atomic<int> g_mode{0};
 SafetyHookMid g_hooks[3];
 SafetyHookMid g_finish_hook;
 SafetyHookMid g_busy_hook;
+// Co-op+ (3479): who runs a DriverMovementMethod, and which actor it resolves as the one it drives.
+// Enemy copies crashed in it (exe+0x780ED0 -> 0x976590 -> 0x976921, a driven actor's null action).
+constexpr uintptr_t kDriverStep = 0x780F59;  // mov r10,[rax+0xC8]; rax = the driven actor's CC
+SafetyHookMid g_driver_hook;
+std::atomic<int> g_driver_lines{0};
+void on_driver_step(safetyhook::Context& ctx) {
+    if (g_driver_lines.load(std::memory_order_relaxed) > 40) return;
+    uintptr_t driven_actor = 0, method_owner = 0;
+    uint32_t driven = 0, owner = 0;
+    game::safe_read(ctx.rax + 8, &driven_actor, 8);
+    if (driven_actor) game::safe_read(driven_actor + 0x60, &driven, 4);
+    // rdi = the step's rdx argument (the frame context); the method itself is not kept in a register
+    // here, so the owner is read from the frame's own actor slot when there is one.
+    game::safe_read(ctx.rbx + 0x20, &method_owner, 8);
+    if (method_owner) game::safe_read(method_owner + 0x60, &owner, 4);
+    g_driver_lines.fetch_add(1);
+    log::info("LoadTrace: DriverMovementMethod step: drives actor {:08X} (owner guess {:08X})", driven, owner);
+}
 std::atomic<int> g_lines{0};
 uintptr_t g_base = 0;
 
@@ -232,6 +250,8 @@ void load_trace_install() {
     if (!g_enabled) return;
     g_base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
     if (g_base != off::kImageBase) return;
+    g_driver_hook = safetyhook::create_mid(reinterpret_cast<void*>(g_base + kDriverStep), on_driver_step);
+    log::info("LoadTrace: driver-step hook {}", g_driver_hook ? "installed" : "FAILED");
     using Fn = void (*)(safetyhook::Context&);
     constexpr Fn kFns[] = {on_step<0>, on_step<1>, on_step<2>};
     for (int i = 0; i < 3; ++i) {

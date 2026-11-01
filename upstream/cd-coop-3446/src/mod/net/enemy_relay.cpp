@@ -194,6 +194,7 @@ bool valid_size(uint16_t op, size_t n) {
 
 std::atomic<bool> g_receive_enabled{false};
 std::atomic<bool> g_copies_allowed{false};  // Co-op+: [dev] enemy_copies (enemy_relay.h)
+std::atomic<bool> g_keep_origin{false};     // Co-op+: [dev] enemy_keep_origin (enemy_relay.h)
 // kNoVariant is declared in enemy_relay.h: loot_twin enforces it too.
 std::map<uint32_t, bool> g_copies;          // copy keys loaded here
 std::map<uint32_t, uint32_t> g_copy_variant;  // copy key -> its enemy variant (load +0x18), or kNoVariant
@@ -684,7 +685,7 @@ bool send_enemy(uint32_t key, const char* why, uint32_t epoch = 0) {
     // copy key, our user and player become the receiver's copies of us.
     translate(load, key, copy);
     translate(action, key, copy);
-    const int origin = strip_spawn_identity(load);
+    const int origin = g_keep_origin ? -2 : strip_spawn_identity(load);
     std::string cleaned;
     if (!sanitize_load(load, copy, cleaned)) {
         std::lock_guard lock(g_mutex);
@@ -760,7 +761,7 @@ bool send_enemy(uint32_t key, const char* why, uint32_t epoch = 0) {
     log::info("Enemy relay: sending enemy 0x{:08X} \"{}\" as copy 0x{:08X} ({}; {} B load, {} recent actions, {}; "
               "sanitized: {})",
               key, name, copy, why, n, action.size() / kStartActionReqSize,
-              origin < 0 ? "T0 not found" : kOrigin[origin], cleaned);
+              origin == -2 ? "spawn identity KEPT (dev)" : origin < 0 ? "T0 not found" : kOrigin[origin], cleaned);
     return true;
 }
 
@@ -1929,6 +1930,7 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
 
 void enemy_set_receive_enabled(bool on) { g_receive_enabled = on; }
 void enemy_set_copies_allowed(bool on) { g_copies_allowed = on; }
+void enemy_set_keep_origin(bool on) { g_keep_origin = on; }
 
 namespace {
 // Dead copies whose loot is still ours to take: removed when looted or after

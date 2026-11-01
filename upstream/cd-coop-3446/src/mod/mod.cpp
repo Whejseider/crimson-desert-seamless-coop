@@ -1189,12 +1189,17 @@ scaling::Settings scaling_settings(const Config& cfg, const std::wstring& dir) {
         return s;
     }
     const auto qol = cc.comfort.qol_state();
-    s.health_2p = static_cast<float>(
-        cdcoop::sim::compute(cc.scaling, 2, cdcoop::sim::EnemyTier::Regular, qol).health);
-    s.boss_health_2p =
-        static_cast<float>(cdcoop::sim::compute(cc.scaling, 2, cdcoop::sim::EnemyTier::Boss, qol).health);
-    log::info("Co-op+ config: scaling.toml for 2 players: regular x{:.2f}, bosses x{:.2f}", s.health_2p,
-              s.boss_health_2p);
+    for (int n = 2; n <= scaling::kMaxParty; ++n) {
+        s.health[n] = static_cast<float>(
+            cdcoop::sim::compute(cc.scaling, n, cdcoop::sim::EnemyTier::Regular, qol).health);
+        s.boss_health[n] =
+            static_cast<float>(cdcoop::sim::compute(cc.scaling, n, cdcoop::sim::EnemyTier::Boss, qol).health);
+    }
+    s.health_2p = s.health[2];
+    s.boss_health_2p = s.boss_health[2];
+    log::info("Co-op+ config: scaling.toml health by party size 2/3/4: regular x{:.2f}/{:.2f}/{:.2f}, bosses "
+              "x{:.2f}/{:.2f}/{:.2f}",
+              s.health[2], s.health[3], s.health[4], s.boss_health[2], s.boss_health[3], s.boss_health[4]);
 #else
     (void)dir;
 #endif
@@ -1277,6 +1282,7 @@ DWORD WINAPI worker(LPVOID) {
         net::room_set_invite_only(cfg.net_join_invite_only);
         net::load_trace_set_mode(cfg.dev_load_trace);
         net::enemy_set_copies_allowed(cfg.dev_enemy_copies);
+        net::enemy_set_keep_origin(cfg.dev_enemy_keep_origin);
         log::info("Config: who can join: {}", cfg.net_join_invite_only
                                                   ? "invited friends only ([net] join=invite)"
                                                   : "any Steam friend playing (\"Join Game\")");

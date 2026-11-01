@@ -106,13 +106,23 @@ constexpr Site kPending = {0x232E5E0, {0x74, 0x51, 0x4C, 0x89, 0x3F, 0x44, 0x38,
 // action, null). Same containment rule, for the copies it was written for (horse and enemies).
 constexpr Site kCcTick = {0x944080, {0x48, 0x89, 0x5C, 0x24, 0x10, 0x55, 0x56, 0x57, 0x41, 0x54, 0x41, 0x55,
                                      0x41, 0x56, 0x41, 0x57}, "CC tick"};
-SafetyHookMid g_cc_hook, g_post_hook, g_restore_hook, g_pending_hook, g_tick_hook;
+// Co-op+ (3479): the per-frame animation/movement update the CC calls on its +0xC8 object
+// (exe+0x945402 -> 0x975B60(obj, frame time); obj+0x60 = the CC). For a copy with a chart and no
+// action it reaches 0x976590, which dereferences the missing action (exe+0x976921: the second
+// enemy-copy crash). A void function that already returns early in some states: skipped the same way.
+constexpr Site kAnimUpdate = {0x975B60, {0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, 0x10, 0x48, 0x89, 0x70, 0x18, 0x55,
+                                         0x57, 0x41, 0x54, 0x41}, "animation update"};
+// Co-op+ (3479): a second per-frame CC update (exe+0x99A68A -> 0x94EA00(cc, frame time)); in a fight a
+// bandit copy crashed in it (-> 0x7F1E50 -> 0x7F58D0 reads [[main layer]+0x10]+0x116, null).
+constexpr Site kCcLate = {0x94EA00, {0x48, 0x89, 0x5C, 0x24, 0x10, 0x55, 0x56, 0x57, 0x41, 0x54, 0x41, 0x55,
+                                     0x41, 0x56, 0x41, 0x57}, "CC late update"};
+SafetyHookMid g_cc_hook, g_post_hook, g_restore_hook, g_pending_hook, g_tick_hook, g_anim_hook, g_late_hook;
 uint8_t* g_ret = nullptr;
 bool g_contain = false;
 std::atomic<uint32_t> g_watch_real{0};
 std::atomic<int> g_lines{0};
 constexpr int kMaxLines = 400;
-std::atomic<uint64_t> g_skipped{0}, g_skipped_post{0}, g_skipped_tick{0};
+std::atomic<uint64_t> g_skipped{0}, g_skipped_post{0}, g_skipped_tick{0}, g_skipped_anim{0}, g_skipped_late{0};
 uint64_t g_t0 = 0;
 
 uint64_t now_ms() {
@@ -245,7 +255,11 @@ void on_cc_update(safetyhook::Context& ctx) {
     if (last.exchange(sh, std::memory_order_relaxed) != sh) log_state("update", s);
     // Containment: a copy whose main layer has a chart but no current action
     // crashed three different functions of this update (INFORME §5).
-    if (g_contain && is_copy(key) && layer_without_action(s)) {
+    // Co-op+ (3479): this function is the CC's "still loading?" query (vtable slot 16), not its
+    // update. For an enemy copy the game's own answer is the right one: it says "loading" until the
+    // copy's movement method has its data, and only then may it finish (forcing "done" crashed it in
+    // the load-complete path, forcing "loading" left it there for ever). Not touched for them.
+    if (g_contain && is_copy(key) && !is_enemy_copy_key(key) && layer_without_action(s)) {
         g_skipped.fetch_add(1, std::memory_order_relaxed);
         // Co-op+ (3460): this is also the component's "still loading?" query -- the actor
         // loader's prepare step (exe+0x5B0CD0) calls it as vf 0x80 and keeps the actor at load
@@ -258,14 +272,40 @@ void on_cc_update(safetyhook::Context& ctx) {
     }
 }
 
-void on_cc_tick(safetyhook::Context& ctx) {
-    if (!g_contain) return;
+// Co-op+ (3479): what the crashing code reads -- the MAIN layer (index byte [[cc+0x30]+0x1B] into the
+// layers at cc+0x88) and its current (+0x10) and playing (+0x18) action. Empty for a copy between
+// loading and its first relayed action, and again for a moment between actions. True when the code
+// would dereference null. Only for the copies these guards are for (horse and enemies).
+bool copy_main_layer_empty(uintptr_t cc) {
     uint32_t key = 0;
-    if (!read_key(ctx.rcx, key) || (key != kCopyHorse && !is_enemy_copy_key(key))) return;
-    State s;
-    if (!read_state(ctx.rcx, s)) return;
-    if (layer_without_action(s)) {
+    if (!read_key(cc, key) || (key != kCopyHorse && !is_enemy_copy_key(key))) return false;
+    uintptr_t info = 0, layer = 0, cur = 0, play = 0;
+    uint8_t idx = 0;
+    if (!game::safe_read(cc + 0x30, &info, 8) || !info || !game::safe_read(info + 0x1B, &idx, 1) || idx > 7) return false;
+    if (!game::safe_read(cc + 0x88 + 8ull * idx, &layer, 8)) return false;
+    if (!layer) return true;
+    if (!game::safe_read(layer + 0x10, &cur, 8) || !game::safe_read(layer + 0x18, &play, 8)) return false;
+    return !cur || !play;
+}
+
+void on_cc_tick(safetyhook::Context& ctx) {
+    if (g_contain && copy_main_layer_empty(ctx.rcx)) {
         g_skipped_tick.fetch_add(1, std::memory_order_relaxed);
+        ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
+    }
+}
+
+void on_cc_late(safetyhook::Context& ctx) {
+    if (g_contain && copy_main_layer_empty(ctx.rcx)) {
+        g_skipped_late.fetch_add(1, std::memory_order_relaxed);
+        ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
+    }
+}
+
+void on_anim_update(safetyhook::Context& ctx) {
+    uintptr_t cc = 0;
+    if (g_contain && game::safe_read(ctx.rcx + 0x60, &cc, 8) && cc && copy_main_layer_empty(cc)) {
+        g_skipped_anim.fetch_add(1, std::memory_order_relaxed);
         ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
     }
 }
@@ -358,9 +398,12 @@ bool horse_diag_install(bool contain) {
     // Partial installs are now torn down rather than left half-armed, because a
     // containment that fires on some paths and not others is worse than none: it makes
     // the failure intermittent instead of reproducible.
-    if (contain && (!hook(kCcPost, g_post_hook, on_cc_post) || !hook(kCcTick, g_tick_hook, on_cc_tick))) {
+    if (contain && (!hook(kCcPost, g_post_hook, on_cc_post) || !hook(kCcTick, g_tick_hook, on_cc_tick) ||
+                    !hook(kAnimUpdate, g_anim_hook, on_anim_update) || !hook(kCcLate, g_late_hook, on_cc_late))) {
         g_post_hook = {};
         g_tick_hook = {};
+        g_anim_hook = {};
+        g_late_hook = {};
         g_cc_hook = {};
         g_restore_hook = {};
         g_pending_hook = {};
@@ -380,7 +423,8 @@ void horse_diag_watch(uint32_t key) {
 void horse_diag_tick() {
     static uint64_t logged = 0, logged_post = 0, last = 0;
     const uint64_t a = g_skipped.load(std::memory_order_relaxed),
-                   b = g_skipped_post.load(std::memory_order_relaxed) + g_skipped_tick.load(std::memory_order_relaxed);
+                   b = g_skipped_post.load(std::memory_order_relaxed) + g_skipped_tick.load(std::memory_order_relaxed) +
+                       g_skipped_anim.load(std::memory_order_relaxed) + g_skipped_late.load(std::memory_order_relaxed);
     const uint64_t t = now_ms();
     if ((a != logged || b != logged_post) && t - last >= 2000) {
         log::info("HorseDiag: copy's update skipped {} times (post-update {}) while it has no action", a, b);

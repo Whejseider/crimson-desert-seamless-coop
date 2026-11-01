@@ -1534,6 +1534,17 @@ void test_party_scaling() {
     CHECK(health_multiplier(on, 2) == 1.7f);
     CHECK(health_multiplier(Settings{true, 9.0f}, 2) == kMaxMultiplier);
     CHECK(health_multiplier(Settings{true, 0.5f}, 2) == 1.0f);
+    {
+        // Co-op+: the curve by party size (scaling.toml [boss] health = [1.0, 1.7, 2.3, 2.8]).
+        Settings c{true, 1.5f, 1.7f};
+        const float reg[] = {0, 0, 1.5f, 2.0f, 2.4f}, boss[] = {0, 0, 1.7f, 2.3f, 2.8f};
+        std::copy(std::begin(reg), std::end(reg), std::begin(c.health));
+        std::copy(std::begin(boss), std::end(boss), std::begin(c.boss_health));
+        CHECK(health_multiplier(c, 3) == 2.0f && health_multiplier(c, 4) == 2.4f);
+        CHECK(health_multiplier(for_boss(c, true), 3) == 2.3f && health_multiplier(for_boss(c, true), 4) == 2.8f);
+        CHECK(health_multiplier(for_boss(c, true), 6) == 2.8f);  // bigger parties: the 4-player value
+        CHECK(health_multiplier(c, 1) == 1.0f);
+    }
     // Guest blows: divided, rounded, never 0 for a real blow.
     CHECK(scale_damage(17, 1.7f) == 10);
     CHECK(scale_damage(1, 1.7f) == 1);

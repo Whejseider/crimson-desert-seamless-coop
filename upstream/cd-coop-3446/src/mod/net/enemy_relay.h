@@ -94,6 +94,9 @@ void enemy_set_receive_enabled(bool on);
 // 1.0.0.3479 a copy finishes loading before it has an action and the game crashes in its
 // "just loaded" code (docs/research/port-3479.md). Off, they are refused with one log line.
 void enemy_set_copies_allowed(bool on);
+// Co-op+ experiment ([dev] enemy_keep_origin=1): do not strip the spawn identity (schedule, sequence,
+// camp node) from the loads we send.
+void enemy_set_keep_origin(bool on);
 // Checked before it goes in (one solo enemy record named only by its copy key,
 // its actions all of that copy), and loaded from enemy_tick at a bounded rate
 // (at most 48 copies here, 8 at once then 2 a second, a key not again within
