@@ -2,7 +2,7 @@
 
 ## NOW (2026-11-01 afternoon) -- read this first
 - Game is **1.0.0.3479** (2.04.05, Steam update 2026-11-01 15:09); the mod targets it only. Package
-  `dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+6e2b1940.zip` is built from HEAD, Defender-clean, installed (user's
+  `dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+801f3f51.zip` is built from HEAD, Defender-clean, installed (user's
   cdmp.ini kept). A copy of each game exe is now kept in build/exe-archive (git-ignored) for the next port.
 - **Single-PC echo test on 3479 passes:** every hook installs; the other player's character loads, is drawn, stands
   next to ours; **gear changes are shared live** (helmet off/on relayed both ways, the copy follows).
@@ -11,7 +11,11 @@
   generation); name tag 1.95 m and hidden over full-screen menus (map etc.). Details: docs/research/port-3479.md, port-3460.md.
 - Loot is per player, Lootr-style (user request, D24): the design already gives it; verify on two PCs.
 - The user is choosing a second player. Not verified yet: anything between two PCs (Steam join/invite live,
-  two real players, enemies, hits, scaling), animations in detail, enemy copies' visibility (no enemies near the save spot; see port-3479.md).
+  two real players, enemies, hits, scaling), animations in detail.
+- **Enemy copies: blocker.** Recognition fixed (T0 +4 on 3460+), clock fallback fixed; a bandit copy now loads and
+  then CRASHES the game in its load-complete path (null main-layer action; port-3479.md). Gated off by default
+  (`[dev] enemy_copies=1`). Each player fights their own world's enemies meanwhile. Test save "COOP TEST bandits"
+  (Rodbel Fishing Dock) is in build/test-saves; copy it into the save folder as slot103 to test, then move it out.
 - 2026-10-31 20:55 the PC powered off mid-test (Kernel-Power 41, no bugcheck, no dump; the mod was steady). Keep
   game sessions short; watch for it again.
 - Dev tools: `[dev] load_trace=1`; test helpers in build/port3460 (trial/keys/shot/mouse/click/run_echo .ps1,

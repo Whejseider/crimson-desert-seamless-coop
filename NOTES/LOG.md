@@ -203,3 +203,13 @@
   tags now hide over every full-screen menu. Verified live.
 - Package 0.1.0-alpha+6e2b1940 built, Defender clean, installed (cdmp.ini kept). Saves still 2026-05-13.
 
+## 2026-11-01 16:10-17:15 -- enemy copies: two fixes, one blocker
+- With the user's OK, made a test save next to enemies: fast travel to Hernand Town (Abyss Nexus), walked to Rodbel
+  Fishing Dock (Bleed Bandits; one death fall on the way, instant revive), saved into the EMPTY slot only (slot103
+  "COOP TEST bandits"), later moved it out to build/test-saves. User's 12 save files equal to the 16:04 backup.
+- Fixed: no enemy ever passed the zone test on 3460+ (T0 +4); the game clock never decided (bad bound check), so
+  copies waited forever. Added CC per-frame containment (0x944080).
+- Blocker: a bandit copy loads, then crashes the game in its load-complete path (0x976921, null action). Enemy copies
+  gated off by default ([dev] enemy_copies=1); verified refused + no crash.
+- Package 0.1.0-alpha+801f3f51 built, Defender clean, installed (cdmp.ini kept).
+
