@@ -43,6 +43,22 @@ bool ui_menu_open() {
     return safe_read(g_flag, &v, 1) && v == 0;
 }
 
+uintptr_t minigame_gauge_address() {
+    const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    if (base != off::kImageBase) return 0;
+    const auto root = read_ptr(base + off::kMiniGameRoot);
+    if (!root) return 0;
+    const auto holder = read_ptr(*root + off::kMiniGameRoot_Holder);
+    if (!holder) return 0;
+    MEMORY_BASIC_INFORMATION mbi{};
+    const uintptr_t a = *holder + off::kMiniGameHolder_Gauge;
+    if (!VirtualQuery(reinterpret_cast<void*>(a), &mbi, sizeof mbi) || mbi.State != MEM_COMMIT ||
+        !(mbi.Protect & (PAGE_READWRITE | PAGE_EXECUTE_READWRITE))) {
+        return 0;
+    }
+    return a;
+}
+
 std::optional<bool> cutscene_playing() {
     const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
     if (base != off::kImageBase) return std::nullopt;

@@ -77,6 +77,8 @@ struct Config {
     int32_t dev_tp_offset_m = 30;  // Co-op+ dev: Ctrl+Shift+F4 teleports this far east ([dev] tp_offset_m)
     uint32_t dev_boss_hp = 0;       // Co-op+ dev: enemies with this many max HP count as bosses ([dev] boss_hp)
     bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
+    uint32_t dev_versus_test = 0;  // Co-op+ dev: simulated versus opponent pushing N times/s ([dev] versus_test)
+    uint32_t dev_trace_op = 0;  // Co-op+ dev: trace who sends this opcode ([dev] trace_op)
     bool dev_skip_test = false;  // Co-op+ dev: act as if the other player skipped 3 s into our cutscenes ([dev] skip_test)
     bool dev_partner_alive = false;  // Co-op+ dev: the revive prompt sees the other player alive ([dev] partner_alive)
     bool dev_loot_test_original = false;  // Co-op+ dev: loot_twin uses the copy's original (one-PC test)
@@ -126,7 +128,7 @@ struct Config {
     int coop_copy_attack_slots = 2;
     // Time of day (hora-del-dia.md): 0 off, 1 send ours (host), 2 take the
     // other player's (guest).
-    int coop_time_sync = 0;
+    int coop_time_sync = 3;
     // Host: copies of our enemies that fight go to the guest on their own
     // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
     bool coop_enemy_auto = true;

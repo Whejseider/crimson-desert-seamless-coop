@@ -13,13 +13,15 @@
 #include "mod/net/local_capture.h"
 #include "mod/net/remote_puppet.h"
 #include "mod/net/revive_prompt.h"
+#include "mod/net/time_sync.h"
+#include "mod/net/dev_watch.h"
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -89,6 +91,27 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "watch") {
+            std::string a;
+            int len = 4, hits = 8;
+            in >> a >> len >> hits;
+            st.kind = Step::Watch;
+            st.addr = static_cast<uintptr_t>(std::stoull(a, nullptr, 16));
+            st.to[0] = static_cast<float>(len ? len : 4);
+            st.to[1] = static_cast<float>(hits ? hits : 8);
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "time") {
+            char colon = 0;
+            if (!(in >> st.to[0] >> colon >> st.to[1]) || colon != ':') {
+                log::warn("Dev script: line {} needs time hh:mm", lineno);
+                continue;
+            }
+            st.kind = Step::Time;
+            steps.push_back(st);
+            continue;
+        }
         if (kind == "poke") {
             std::string a, rest;
             in >> a;
@@ -136,6 +159,10 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
         for (const auto& st : steps) {
             if (st.kind == Step::Wait) {
                 Sleep(st.wait_ms);
+            } else if (st.kind == Step::Watch) {
+                dev_watch_start(st.addr, static_cast<int>(st.to[0]), static_cast<int>(st.to[1]));
+            } else if (st.kind == Step::Time) {
+                time_sync_dev_set(static_cast<int>(st.to[0]), static_cast<int>(st.to[1]));
             } else if (st.kind == Step::Poke) {
                 MEMORY_BASIC_INFORMATION mbi{};
                 const bool ok = VirtualQuery(reinterpret_cast<void*>(st.addr), &mbi, sizeof mbi) &&

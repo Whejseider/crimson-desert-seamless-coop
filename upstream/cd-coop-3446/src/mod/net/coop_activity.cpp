@@ -5,8 +5,10 @@
 #include <atomic>
 #include <cmath>
 #include <cstring>
+#include <algorithm>
 #include <format>
 #include <mutex>
+#include <thread>
 
 #include "mod/game/ui_state.h"
 #include "mod/log.h"
@@ -18,11 +20,34 @@ namespace {
 
 constexpr uint16_t kOpActivateMiniGameReq = 2507;  // u16 minigame id | u32 our player
 constexpr uint16_t kOpLeaveMiniGameReq = 2379;     // u8 4 | u32 actor | 14 x 0 | u32 stage key
+constexpr uint16_t kOpSpawnMiniGameCharacterReq = 3124;  // every match: the NPC opponent is spawned
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
-constexpr uint32_t kSkipTestDelayMs = 3000;
-constexpr uint32_t kInjectQuietMs = 800;           // our own injected Esc is not a skip of ours
+constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6 };
+
+// Versus arm wrestling (D35): while both players are in a match, the host owns one gauge,
+// 50 + kPushGain x (host's E presses - guest's E presses), clamped to 0..100, and writes it into its game every tick;
+// the guest writes 100 - that into its own. 100 = a win, 0 = a loss: each game then ends its match by itself.
+constexpr float kPushGain = 2.0f;
+constexpr uint32_t kVersusSendMs = 100;
+std::atomic<uint32_t> g_e_presses{0};     // E key-downs (the hook counts them; not ours)
+std::atomic<bool> g_match_on{false};      // between SpawnMiniGameCharacterReq and LeaveMiniGameReq
+std::atomic<int> g_versus_test_rate{0};   // [dev] versus_test: a simulated other player pushing this many times/s
+struct Versus {
+    bool live = false;          // our match is running (gauge readable, no cutscene)
+    uint32_t base = 0;          // our presses when the versus started
+    bool started = false;
+    float gauge = 50.0f;        // the shared gauge, as the host sees it
+    uint32_t last_send = 0;
+    uint32_t live_since = 0;
+    bool partner_live = false;  // from their last kVersus
+    uint32_t partner_count = 0; // their presses since their match started
+    float partner_gauge = 50.0f;
+    uint32_t partner_seen = 0;
+    bool announced = false;
+    float last_ours = 50.0f;    // our side of the gauge at the last versus tick
+} g_vs;
 
 std::mutex g_mutex;
 uint32_t g_seq_out = 1;
@@ -30,12 +55,16 @@ uint32_t g_seq_in = 0;               // newest sequence seen from the other play
 bool g_partner_cutscene = false;
 std::array<float, 3> g_partner_cut_pos{};
 std::vector<std::string> g_toasts;   // filled by events, drained by the tick
-bool g_skip_wanted = false;          // the other player pressed skip, apply it if we are in a cutscene
+bool g_partner_skip = false;         // the other player pressed skip in their current cutscene
 std::array<float, 3> g_skip_from{};
+bool g_our_skip = false;             // we pressed skip in our current cutscene
+bool g_released = false;             // both pressed: our Esc went to the game
 bool g_last_cutscene = false;
-bool g_esc_was_down = false;
 uint32_t g_cut_since = 0;
-uint32_t g_injected_at = 0;
+std::atomic<bool> g_hold_esc{false};  // the keyboard hook holds back the player's Esc
+std::atomic<uint64_t> g_hold_seen{0};  // GetTickCount64 of the last tick that wanted it (stale = let Esc through)
+std::atomic<bool> g_esc_held{false};  // it did (a press to count as our skip)
+constexpr ULONG_PTR kOurKey = 0xC0C0A7;  // dwExtraInfo of the Esc we press ourselves (the hook lets it through)
 bool g_skip_test_done = false;
 std::atomic<bool> g_skip_test{false};
 
@@ -58,9 +87,48 @@ float dist_xz(const std::array<float, 3>& a, const std::array<float, 3>& b) {
 
 void press_escape() {
     const UINT scan = MapVirtualKeyW(VK_ESCAPE, MAPVK_VK_TO_VSC);
-    keybd_event(VK_ESCAPE, static_cast<BYTE>(scan), 0, 0);
+    keybd_event(VK_ESCAPE, static_cast<BYTE>(scan), 0, kOurKey);
     Sleep(40);
-    keybd_event(VK_ESCAPE, static_cast<BYTE>(scan), KEYEVENTF_KEYUP, 0);
+    keybd_event(VK_ESCAPE, static_cast<BYTE>(scan), KEYEVENTF_KEYUP, kOurKey);
+}
+
+bool game_in_front() {
+    DWORD pid = 0;
+    GetWindowThreadProcessId(GetForegroundWindow(), &pid);
+    return pid == GetCurrentProcessId();
+}
+
+// Low-level keyboard hook on its own thread (it needs a message loop): swallows Esc while g_hold_esc is set and the
+// game is in front, except the Esc we press ourselves. Every other key passes untouched.
+LRESULT CALLBACK keyboard_hook(int code, WPARAM wp, LPARAM lp) {
+    if (code == HC_ACTION && (wp == WM_KEYDOWN || wp == WM_SYSKEYDOWN)) {
+        const auto* k = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lp);
+        if (k->vkCode == 'E' && k->dwExtraInfo != kOurKey && !(k->flags & LLKHF_UP)) g_e_presses.fetch_add(1);
+    }
+    if (code == HC_ACTION && g_hold_esc.load() && GetTickCount64() - g_hold_seen.load() < 500) {
+        const auto* k = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lp);
+        if (k->vkCode == VK_ESCAPE && k->dwExtraInfo != kOurKey && game_in_front()) {
+            if (wp == WM_KEYDOWN || wp == WM_SYSKEYDOWN) g_esc_held = true;
+            return 1;
+        }
+    }
+    return CallNextHookEx(nullptr, code, wp, lp);
+}
+
+void start_hook() {
+    static std::once_flag once;
+    std::call_once(once, [] {
+        std::thread([] {
+            if (!SetWindowsHookExW(WH_KEYBOARD_LL, keyboard_hook, GetModuleHandleW(nullptr), 0)) {
+                log::warn("Activity: keyboard hook not installed ({}); skips will not wait for everyone",
+                          GetLastError());
+                return;
+            }
+            MSG m;
+            while (GetMessageW(&m, nullptr, 0, 0) > 0) {
+            }
+        }).detach();
+    });
 }
 
 }  // namespace
@@ -85,6 +153,84 @@ std::string activity_minigame_name(uint32_t stage) {
 }
 
 void activity_set_skip_test(bool on) { g_skip_test = on; }
+void activity_set_versus_test(int presses_per_s) { g_versus_test_rate = presses_per_s; }
+
+namespace {
+
+void write_gauge(uintptr_t a, float v) {
+    if (a) *reinterpret_cast<volatile float*>(a) = v;  // a writable float (game::minigame_gauge_address checked it)
+}
+
+// Versus arm wrestling (see kPushGain): every tick of the network loop.
+void versus_tick(ActivityTick& out, bool connected, bool host, bool cut, const std::string& who, uint32_t now) {
+    const uintptr_t ga = game::minigame_gauge_address();
+    float g = 0.0f;
+    if (ga) g = *reinterpret_cast<volatile float*>(ga);
+    const bool live = g_match_on.load() && !cut && ga && g > 0.0f && g <= 100.0f;
+    const int test_rate = g_versus_test_rate.load();
+    std::lock_guard lock(g_mutex);
+    Versus& v = g_vs;
+    if (live && !v.live) {
+        v.base = g_e_presses.load();
+        v.live_since = now;
+        v.started = false;
+        v.announced = false;
+    }
+    v.live = live;
+    const uint32_t mine = live ? g_e_presses.load() - v.base : 0;
+    if (test_rate > 0 && live) {  // one-PC test: a simulated other player in the same match
+        v.partner_live = true;
+        v.partner_count = static_cast<uint32_t>(static_cast<uint64_t>(now - v.live_since) * test_rate / 1000);
+        v.partner_seen = now;
+        host = true;
+    } else if (!connected || GetTickCount() - v.partner_seen > 1500) {
+        v.partner_live = false;
+    }
+    if ((connected || test_rate > 0) && now - v.last_send >= kVersusSendMs && (live || v.started)) {
+        v.last_send = now;
+        uint8_t b[9];
+        b[0] = live ? 1 : 0;
+        std::memcpy(b + 1, &mine, 4);
+        std::memcpy(b + 5, &v.gauge, 4);
+        if (connected) {
+            std::vector<uint8_t> pkt(5 + 9);
+            const uint32_t seq = g_seq_out++;
+            std::memcpy(pkt.data(), &seq, 4);
+            pkt[4] = kVersus;
+            std::memcpy(pkt.data() + 5, b, 9);
+            capture_emit_activity(std::move(pkt));
+        }
+    }
+    if (!(live && v.partner_live)) {
+        if (!live && v.started && !v.announced) {
+            // The game ends the match itself near the ends of the gauge (~96 / ~4): the last value tells who won.
+            v.announced = true;
+            out.toast = v.last_ours > 50.0f ? std::format("You beat {} at arm wrestling!", who)
+                                            : std::format("{} won the arm wrestling", who);
+            log::info("Activity: versus arm wrestling over: {} ({:.0f})", v.last_ours > 50.0f ? "we won" : "they won",
+                      v.last_ours);
+        }
+        if (!live) v.started = false;
+        return;  // a match against the game's NPC, as normal
+    }
+    if (!v.started) {
+        v.started = true;
+        log::info("Activity: versus arm wrestling with {} ({})", who, host ? "we hold the gauge" : "they hold the gauge");
+    }
+    if (host) {
+        v.gauge = std::clamp(50.0f + kPushGain * (static_cast<float>(mine) - static_cast<float>(v.partner_count)), 0.0f,
+                             100.0f);
+        write_gauge(ga, v.gauge);
+    } else {
+        v.gauge = 100.0f - v.partner_gauge;
+        write_gauge(ga, std::clamp(v.gauge, 0.0f, 100.0f));
+    }
+    const float ours = host ? v.gauge : 100.0f - v.partner_gauge;
+    v.last_ours = ours;
+    out.banner = std::format("Arm wrestling vs {}: mash E!   You {:.0f} - {:.0f} {}", who, ours, 100.0f - ours, who);
+}
+
+}  // namespace
 
 void activity_observe_c2s(const uint8_t* packet, size_t size) {
     if (size < 5) return;
@@ -95,7 +241,10 @@ void activity_observe_c2s(const uint8_t* packet, size_t size) {
         std::memcpy(&id, packet + 5, 2);
         log::info("Activity: we started a minigame (id 0x{:04X})", id);
         send(kGameOn, &id, 2);
+    } else if (op == kOpSpawnMiniGameCharacterReq) {
+        g_match_on = true;
     } else if (op == kOpLeaveMiniGameReq && size >= 5 + 23) {
+        g_match_on = false;
         uint32_t stage = 0;
         std::memcpy(&stage, packet + 5 + 19, 4);
         log::info("Activity: we finished {} (stage {})", activity_minigame_name(stage), stage);
@@ -113,10 +262,18 @@ void activity_on_event(const std::vector<uint8_t>& p) {
     std::array<float, 3> pos{};
     if (p.size() >= 5 + 12) std::memcpy(pos.data(), p.data() + 5, 12);
     switch (p[4]) {
-        case kCutsceneOn: g_partner_cutscene = true; g_partner_cut_pos = pos; break;
-        case kCutsceneOff: g_partner_cutscene = false; break;
-        case kSkip: g_skip_wanted = true; g_skip_from = pos; break;
+        case kCutsceneOn: g_partner_cutscene = true; g_partner_cut_pos = pos; g_partner_skip = false; break;
+        case kCutsceneOff: g_partner_cutscene = false; g_partner_skip = false; break;
+        case kSkip: g_partner_skip = true; g_skip_from = pos; break;
         case kGameOn: g_toasts.push_back("{} is playing a minigame"); break;
+        case kVersus:  // u8 live | u32 presses since their match started | f32 gauge (the host's)
+            if (p.size() >= 5 + 9) {
+                g_vs.partner_live = p[5] != 0;
+                std::memcpy(&g_vs.partner_count, p.data() + 6, 4);
+                std::memcpy(&g_vs.partner_gauge, p.data() + 10, 4);
+                g_vs.partner_seen = GetTickCount();
+            }
+            break;
         case kGameOff: {
             uint32_t stage = 0;
             if (p.size() >= 9) std::memcpy(&stage, p.data() + 5, 4);
@@ -127,52 +284,73 @@ void activity_on_event(const std::vector<uint8_t>& p) {
     }
 }
 
-ActivityTick activity_tick(bool connected, bool focused, std::optional<std::array<float, 3>> me,
+ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
                            std::optional<std::array<float, 3>> partner, const std::string& partner_name,
                            uint32_t now) {
     ActivityTick out;
     const bool cut = game::cutscene_playing().value_or(false);
     boss_note_cutscene(cut);
-    const std::array<float, 3> here = me.value_or(std::array<float, 3>{});
+    // Our last known position (none while a minigame holds the player): what we send and measure from.
+    static std::array<float, 3> last_here{};
+    static bool have_here = false;
+    if (me) {
+        last_here = *me;
+        have_here = true;
+    }
+    const std::array<float, 3> here = last_here;
+    if (!me && have_here) me = last_here;
     if (cut != g_last_cutscene) {
         g_last_cutscene = cut;
         g_cut_since = now;
         g_skip_test_done = false;
+        {
+            std::lock_guard lock(g_mutex);
+            g_our_skip = false;
+            g_released = false;
+            if (g_skip_test) g_partner_skip = false;
+        }
+        g_hold_esc = false;
         log::info("Activity: our cutscene {}", cut ? "started" : "ended");
         if (connected) {
             if (cut) send(kCutsceneOn, here.data(), 12);
             else send(kCutsceneOff, nullptr, 0);
         }
     }
-    // Our skip: Esc while our cutscene plays (not the Esc we pressed for the other player).
-    const bool esc = focused && (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
-    if (esc && !g_esc_was_down && cut && connected && now - g_injected_at > kInjectQuietMs) {
-        log::info("Activity: we skipped our cutscene; telling the other player");
-        send(kSkip, here.data(), 12);
-    }
-    g_esc_was_down = esc;
     const std::string who = partner_name.empty() ? std::string("Your friend") : partner_name;
-    bool apply_skip = false;
+    start_hook();
+    bool release = false, send_skip = false;
     {
         std::lock_guard lock(g_mutex);
         if (!connected) {
             g_partner_cutscene = false;
-            g_skip_wanted = false;
+            g_partner_skip = false;
             g_toasts.clear();
         }
-        if (g_skip_test && cut && !g_skip_test_done && now - g_cut_since > kSkipTestDelayMs) {
-            g_skip_test_done = true;
-            g_skip_wanted = true;
-            g_skip_from = here;
-            log::info("Activity: [dev] skip_test: acting as if the other player pressed skip");
-        }
-        if (g_skip_wanted) {
-            g_skip_wanted = false;
-            const bool is_near = !me || dist_xz(here, g_skip_from) <= kNearM;
-            apply_skip = cut && is_near && focused;
-            if (cut && !apply_skip) {
-                log::info("Activity: the other player skipped; ours not skipped ({})", is_near ? "game not in front" : "too far");
+        if (g_skip_test && cut) {
+            // One-PC test: the "other player" is in the same cutscene and presses skip kSkipTestDelayMs in.
+            g_partner_cutscene = true;
+            g_partner_cut_pos = here;
+            if (!g_skip_test_done && now - g_cut_since > kSkipTestDelayMs) {
+                g_skip_test_done = true;
+                g_partner_skip = true;
+                g_skip_from = here;
+                log::info("Activity: [dev] skip_test: the other player pressed skip");
             }
+        }
+        // Everyone in the cutscene must press skip (D32 as the user specified): while the other player is in a
+        // cutscene within kNearM, our own Esc is held back (keyboard hook) and only sent to them.
+        const bool partner_near = !me || dist_xz(here, g_partner_cut_pos) <= kNearM;
+        const bool shared = cut && (connected || g_skip_test) && g_partner_cutscene && partner_near;
+        g_hold_esc = shared && !g_released;
+        g_hold_seen = GetTickCount64();
+        if (g_esc_held.exchange(false) && shared && !g_our_skip) {
+            g_our_skip = true;
+            send_skip = true;  // sent below, outside g_mutex (send() takes it)
+        }
+        if (shared && g_our_skip && g_partner_skip && !g_released && focused) {
+            g_released = true;
+            g_hold_esc = false;
+            release = true;
         }
         if (!g_toasts.empty()) {
             out.toast = std::vformat(g_toasts.front(), std::make_format_args(who));
@@ -181,15 +359,23 @@ ActivityTick activity_tick(bool connected, bool focused, std::optional<std::arra
         const bool is_near = !partner || !me || dist_xz(*partner, here) <= kNearM;
         if (g_partner_cutscene && is_near && !cut) {
             out.banner = std::format("{} is watching a cutscene", who);
-        } else if (g_partner_cutscene && cut) {
-            out.banner = std::format("{} is in a cutscene too: Esc skips it for both of you", who);
+        } else if (shared && g_our_skip && !g_partner_skip) {
+            out.banner = std::format("Skip: waiting for {} to press Esc", who);
+        } else if (shared && g_partner_skip && !g_our_skip) {
+            out.banner = std::format("{} wants to skip: press Esc to skip together", who);
+        } else if (shared && !g_released) {
+            out.banner = std::format("{} is in this cutscene too: it skips when you both press Esc", who);
         }
     }
-    if (apply_skip) {
-        g_injected_at = now;
-        press_escape();
-        log::info("Activity: the other player skipped; skipping ours too");
+    if (send_skip) {
+        log::info("Activity: we pressed skip; waiting for the other player");
+        send(kSkip, here.data(), 12);
     }
+    if (release) {
+        press_escape();
+        log::info("Activity: both players pressed skip; skipping");
+    }
+    versus_tick(out, connected, host, cut, who, now);
     return out;
 }
 

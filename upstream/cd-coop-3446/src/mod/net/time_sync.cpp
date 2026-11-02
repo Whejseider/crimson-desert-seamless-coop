@@ -59,7 +59,9 @@ std::string hhmm(uint64_t raw) {
 // Our current time of day, from the client's copy (exe+0x6A6D218) carried
 // forward to now. The game copies it without a lock: read it twice.
 std::optional<std::pair<FieldTime, uint64_t>> own_time() {
-    if (!capture_game_clock_trusted()) {
+    // Co-op+: on 3479 the game's own clock cannot be read; the capture's estimate from our Reqs' timestamps (the same
+    // server clock the FieldTime anchor uses) is good to a few ms, which is plenty for a time of day.
+    if (!capture_game_clock_decided() || capture_game_clock_ms() == 0) {
         problem("waiting for the game clock (move once)");
         return std::nullopt;
     }
@@ -79,20 +81,20 @@ std::optional<std::pair<FieldTime, uint64_t>> own_time() {
         problem("this place has a fixed time of day; not synchronised here");
         return std::nullopt;
     }
-    const auto now = game::client_game_clock_ms();
+    const uint64_t now = capture_game_clock_ms();
     if (!now) return std::nullopt;
     problem("");
-    return std::make_pair(*ft, ft->raw_at(*now));
+    return std::make_pair(*ft, ft->raw_at(now));
 }
 
 // SetFieldTimeReq (2125, 36 bytes): FieldTime (31) | u8 flag 0 | u32 key 0.
 // With flag 0 the server only sets the time (as when waking up), saves it
 // with the field and tells its client with SetFieldTimeAck.
 bool set_time(FieldTime ft, uint64_t raw) {
-    const auto now = game::client_game_clock_ms();
+    const uint64_t now = capture_game_clock_ms();
     if (!now) return false;
     ft.set_raw(raw);
-    ft.anchor = *now;  // the server carries it forward from here, on its own clock
+    ft.anchor = now;  // the server carries it forward from here, on its own clock
     std::vector<uint8_t> pk(5 + 36, 0);
     const uint16_t op = off::kOpSetFieldTimeReq, len = 36;
     std::memcpy(pk.data(), &op, 2);
@@ -115,6 +117,20 @@ void time_sync_set_mode(TimeSyncMode mode) {
 void time_sync_set_dev_key(bool on) {
     g_dev_key = on;
     if (on) log::warn("Time sync (dev): Ctrl+Shift+F12 = our time of day 3 hours forward");
+}
+
+bool time_sync_dev_set(int hour, int minute) {
+    const auto own = own_time();
+    if (!own) return false;
+    FieldTime want;
+    want.set_raw(own->second);
+    want.hour = static_cast<uint32_t>(hour % 24);
+    want.minute = static_cast<uint32_t>(minute % 60);
+    want.second = want.ms = 0;
+    const uint64_t target = nearest_raw_with_time_of(own->second + FieldTime::kRawDay / 2, want.to_raw());
+    const bool ok = set_time(own->first, target);
+    log::info("Time sync (dev): {} -> {}{}", hhmm(own->second), hhmm(target), ok ? "" : " (NOT sent)");
+    return ok;
 }
 
 std::optional<proto::GameEvent> time_sync_tick(uint32_t now_ms) {

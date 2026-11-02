@@ -121,6 +121,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/revive_prompt.cpp
     src/mod/net/dev_script.cpp
     src/mod/net/coop_activity.cpp
+    src/mod/net/dev_watch.cpp
     src/mod/net/load_trace.cpp
     src/mod/net/puppet_visibility.cpp
     src/mod/net/boss_safe.cpp

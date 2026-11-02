@@ -651,14 +651,16 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 }
                 revive_prompt =
                     net::revive_prompt_tick(connected, s.health, s.health_max, partner_hp, game_has_focus(), now);
-                // Co-op+: shared cutscenes (notice, skip together) and minigame notices (coop_activity.h).
-                std::optional<std::array<float, 3>> partner_pos;
+            }
+            // Co-op+: shared cutscenes (notice, everyone skips) and minigame notices (coop_activity.h). Every loop,
+            // also when our position is not readable (in a minigame the player snapshot goes away).
+            {
+                std::optional<std::array<float, 3>> partner_pos, own_pos;
                 if (connected) {
                     if (const auto& rs = session.remote_state()) partner_pos = std::array<float, 3>{rs->pos.x, rs->pos.y, rs->pos.z};
                 }
-                auto act = net::activity_tick(connected, game_has_focus(),
-                                              std::array<float, 3>{s.position.x, s.position.y, s.position.z}, partner_pos,
-                                              session.peer_name(), now);
+                if (pos) own_pos = std::array<float, 3>{pos->x, pos->y, pos->z};
+                auto act = net::activity_tick(connected, host, game_has_focus(), own_pos, partner_pos, session.peer_name(), now);
                 activity_banner = std::move(act.banner);
                 if (!act.toast.empty()) {
                     toast = std::move(act.toast);
@@ -803,6 +805,10 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
 void apply_role_settings(const Config& cfg, bool in_game, bool role_changed) {
     if (!(in_game && cfg.coop_enabled)) return;
     net::loot_set_enabled(cfg.coop_guest_loot && !cfg.net_role_host);
+    // Co-op+: time of day follows the host ([coop] time_sync=3, the default).
+    if (cfg.coop_time_sync == 3) {
+        net::time_sync_set_mode(cfg.net_role_host ? net::TimeSyncMode::Send : net::TimeSyncMode::Apply);
+    }
     // Phase 5: only the guest hides its own enemies (the host relays them).
     net::SuppressSettings s;
     s.mode = net::SuppressMode::Off;
@@ -1366,6 +1372,7 @@ DWORD WINAPI worker(LPVOID) {
                   cfg.coop_suppress_lab ? ", suppressed by suppress_lab=1 (the one-PC lab)" : "");
         log::info("Config: time sync {}", cfg.coop_time_sync == 1   ? "send ours"
                                           : cfg.coop_time_sync == 2 ? "take the other player's"
+                                          : cfg.coop_time_sync == 3 ? "auto (the host's time of day)"
                                                                     : "off");
         log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                   "node events {} | lab {} ({:.0f} m)",
@@ -1389,6 +1396,8 @@ DWORD WINAPI worker(LPVOID) {
         net::coop_set_copy_disabled(cfg.dev_no_copy);
         net::revive_set_boss_wait(cfg.coop_boss_death_wait);
         net::activity_set_skip_test(cfg.dev_skip_test);
+        if (cfg.dev_trace_op) net::sniffer_set_trace_op(static_cast<uint16_t>(cfg.dev_trace_op));
+        net::activity_set_versus_test(static_cast<int>(cfg.dev_versus_test));
         if (cfg.dev_boss_hp) {
             net::boss_set_test_threshold(static_cast<int64_t>(cfg.dev_boss_hp) * 1000);
             log::info("Config: [dev] boss_hp={}: enemies with that much health count as bosses", cfg.dev_boss_hp);
@@ -1450,7 +1459,7 @@ DWORD WINAPI worker(LPVOID) {
             net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
             net::puppet_minimap_set_enemy_offset(cfg.coop_enemy_minimap_icon);
             net::puppet_want_rope_bend(cfg.dev_rope_bend);
-            net::time_sync_set_mode(static_cast<net::TimeSyncMode>(cfg.coop_time_sync));
+            if (cfg.coop_time_sync != 3) net::time_sync_set_mode(static_cast<net::TimeSyncMode>(cfg.coop_time_sync));
             net::time_sync_set_dev_key(cfg.dev_time_sync_key);
         }
         // Loot and the guest's enemy zone depend on the role; Co-op+ re-applies

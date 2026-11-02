@@ -24,6 +24,8 @@ bool sniffer_install(const std::wstring& dir, HANDLE stop, bool record = true);
 // posted from inside the next real ClientNet::PostPacket call, on that game
 // thread, with the channel/flags real packets use. False if not possible.
 bool sniffer_inject_c2s(std::vector<uint8_t> packet);
+// Co-op+ dev: log the code addresses on the stack when the game sends this opcode (0 = off).
+void sniffer_set_trace_op(uint16_t op);
 // The world is loading (GameLoadingStartReq until 1.5 s after
 // LoadingCompleteAck): nothing of ours goes in either way. Any thread.
 bool sniffer_world_loading();

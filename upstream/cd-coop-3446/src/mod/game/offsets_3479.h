@@ -41,7 +41,6 @@ using build_3460::kControl_Layer0;
 using build_3460::kControl_MoveController;
 using build_3460::kControl_WallData;
 using build_3460::kCoopPinId;
-using build_3460::kFieldTimeClient;
 using build_3460::kHookArgSizeStackOffset;
 using build_3460::kLayer_Chart;
 using build_3460::kLayer_Playback;
@@ -142,6 +141,16 @@ inline constexpr uintptr_t kChunkOrigin = 0x71A2EB0;  // 3460:0x71A1F00 [world_o
 // Co-op+: u8, 1 while a sequencer cutscene plays (minigame intro, its exit fade), 0 in free roam, menus, the minigame
 // itself (snapshot diff of .data, 2026-11-02; no signature yet: re-find by diffing on a new build).
 inline constexpr uintptr_t kCutscenePlaying = 0x70D2E2F;
+// Co-op+: the client's FieldTime (time of day). The 3446 value (0x6EB2AD8) was carried to 3460/3479 unchanged and
+// reads garbage here; found live 2026-11-02 by scanning .data for day 27 / scale 12 (fieldtime_find.py); a copy
+// follows at +0x20.
+inline constexpr uintptr_t kFieldTimeClient = 0x6EA4998;  // 3446:0x6EB2AD8 (stale)
+// Co-op+: the minigame strength gauge (arm wrestling: 0..100, 50 at the start, 100 = we win, 0 = we lose; the game
+// ends the match itself). The UI gauge feeder exe+0x101D3D0 reads float [[kMiniGameRoot] + 0x90] + 0xD30 through the
+// locked getter exe+0xA25630 (found with a hardware write breakpoint on the UI value, 2026-11-02).
+inline constexpr uintptr_t kMiniGameRoot = 0x71B6CA8;
+inline constexpr uintptr_t kMiniGameRoot_Holder = 0x90;
+inline constexpr uintptr_t kMiniGameHolder_Gauge = 0xD30;
 inline constexpr uintptr_t kClientClockGlobal = 0x70D2D75;  // 3460:0x70D1DB5; 15 cmp sites; live: flag 1, +0x3C 77672
 inline constexpr uintptr_t kClientFrameClockMs = 0x70D2DA9;  // = flag + 0x34
 inline constexpr uintptr_t kClientFrameClockUs = 0x70D2DB1;  // = flag + 0x3C

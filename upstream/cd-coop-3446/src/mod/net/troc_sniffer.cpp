@@ -180,6 +180,23 @@ bool read_post_args(uint64_t rsp, uint8_t& channel, uint16_t& flags) {
     }
 }
 
+// Co-op+ dev ([dev] trace_op): code addresses on the game's stack when it sends that opcode (first 3 times): who
+// builds the message (research: weather, cutscenes).
+std::atomic<uint16_t> g_trace_op{0};
+std::atomic<int> g_traced{0};
+
+void trace_stack(uint16_t op, uint64_t rsp) {
+    if (g_traced.fetch_add(1) >= 3) return;
+    uint64_t st[160] = {};
+    if (!guarded_copy(st, reinterpret_cast<const void*>(rsp), sizeof st)) return;
+    const auto base = reinterpret_cast<uint64_t>(GetModuleHandleW(nullptr));
+    std::string code;
+    for (int k = 0; k < 160; ++k) {
+        if (st[k] > base + 0x1000 && st[k] < base + 0x6000000) code += std::format(" +0x{:X}:exe+0x{:X}", k * 8, st[k] - base);
+    }
+    log::info("Sniffer: trace of op {}:{}", op, code);
+}
+
 void on_post_packet(safetyhook::Context& ctx) {
     capture(Dir::ClientToServer, static_cast<uint32_t>(ctx.r8),
             reinterpret_cast<const uint8_t*>(ctx.r9), ctx.rsp);
@@ -196,6 +213,7 @@ void on_post_packet(safetyhook::Context& ctx) {
     if (!read_post_args(ctx.rsp, channel, flags) || !guarded_copy(&op, reinterpret_cast<const void*>(ctx.r9), 2)) {
         return;
     }
+    if (op == g_trace_op.load(std::memory_order_relaxed)) trace_stack(op, ctx.rsp);
     const uint32_t packed = 0x80000000u | (static_cast<uint32_t>(flags) << 8) | channel;
     if (op < 4096) g_post_args[op].store(packed, std::memory_order_relaxed);
     g_post_args_any.store(packed, std::memory_order_relaxed);
@@ -746,5 +764,7 @@ bool sniffer_install(const std::wstring& dir, HANDLE stop, bool record) {
               off::kClientPostPacket, off::kClientOnRecvPacket, kMaxCopy);
     return true;
 }
+
+void sniffer_set_trace_op(uint16_t op) { g_trace_op = op; g_traced = 0; }
 
 }  // namespace cdmp::net

@@ -17,6 +17,8 @@ void time_sync_set_mode(TimeSyncMode mode);
 // same SetFieldTimeReq the guest uses (a one-PC check of the mechanism).
 void time_sync_set_dev_key(bool on);
 
+// Dev: set our own time of day to the next hh:mm (dev_script "time"); false if our clock is not readable.
+bool time_sync_dev_set(int hour, int minute);
 // Sender: an event to send now, if it is time to.
 std::optional<proto::GameEvent> time_sync_tick(uint32_t now_ms);
 // Receiver: the other player's time of day.

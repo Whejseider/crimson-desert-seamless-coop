@@ -223,6 +223,8 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_boss_hp = read_uint(ini_path, L"dev", L"boss_hp", 0);
     c.dev_partner_alive = read_uint(ini_path, L"dev", L"partner_alive", 0) != 0;
     c.dev_skip_test = read_uint(ini_path, L"dev", L"skip_test", 0) != 0;
+    c.dev_trace_op = read_uint(ini_path, L"dev", L"trace_op", 0);
+    c.dev_versus_test = read_uint(ini_path, L"dev", L"versus_test", 0);
     c.dev_scaling_as_host = read_uint(ini_path, L"dev", L"scaling_as_host", 0) != 0;
     c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
     c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
@@ -240,7 +242,8 @@ Config load_config(const std::wstring& ini_path) {
     c.coop_guest_hit_stagger = read_uint(ini_path, L"coop", L"guest_hit_stagger", 0) != 0;
     c.coop_player_hit_react = read_uint(ini_path, L"coop", L"player_hit_react", 1) != 0;
     c.coop_player_hit_lethal = read_uint(ini_path, L"coop", L"player_hit_lethal", 1) != 0;
-    c.coop_time_sync = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"time_sync", 0), 2u));
+    // Co-op+: 3 = auto (the host sends its time of day, the guest takes it): the user wants the time to match.
+    c.coop_time_sync = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"time_sync", 3), 3u));
     c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
     c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
     c.coop_finish_arrow = read_uint(ini_path, L"coop", L"finish_arrow", 1) != 0;

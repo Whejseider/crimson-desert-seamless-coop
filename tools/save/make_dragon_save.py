@@ -1,6 +1,7 @@
 """Build the "dragon" TEST save from the COOP TEST bandits save (slot103 test save; never a user slot).
 
-  python tools/save/make_dragon_save.py <bandits save.save> <out save.save> [main|wheel]
+  python tools/save/make_dragon_save.py <bandits save.save> <out save.save> [main|wheel] [character key]
+  (character key: default Blackstar 1000799; Riding_Wyvern_1000 = 1004233, read from the live game's data, 2026-11-02)
 
 - wheel (default): Demian's horse record (MercenarySaveData, key 1001173) becomes Blackstar (Riding_Dragon_1,
   1000799) owned by Kliff (1). It shows on the F1 companion wheel; picking it summons the dragon.
@@ -52,10 +53,11 @@ def strip_items(raw, sent):
 
 
 mode = sys.argv[3] if len(sys.argv) > 3 else "wheel"
+new_key = int(sys.argv[4]) if len(sys.argv) > 4 else 1000799
 sent, old_key, old_owner = RECORDS[mode]
 header, raw = cdsave.decode(sys.argv[1])
 blob = bytearray(raw)
-put(blob, sent + 16, "<I", old_key, 1000799)
+put(blob, sent + 16, "<I", old_key, new_key)
 if old_owner != 1:
     put(blob, sent + 28, "<I", old_owner, 1)
 put(blob, 0x27E9C2, "<I", 35008, 1000175)
@@ -66,4 +68,4 @@ for key_off, old, new in ((0x27408D, 1001315, 1000354), (0x2740AC, 1001316, 1000
 out = strip_items(bytes(blob), sent)
 Path(sys.argv[2]).write_bytes(cdsave.encode(out, header))
 assert cdsave.decode(sys.argv[2])[1] == out
-print(f"wrote {sys.argv[2]} ({mode}): blob {len(raw)} -> {len(out)} bytes")
+print(f"wrote {sys.argv[2]} ({mode}, character {new_key}): blob {len(raw)} -> {len(out)} bytes")
