@@ -69,6 +69,8 @@ std::optional<proto::Vec3> puppet_position();
 void puppet_map_pin(uint32_t owner, const std::optional<proto::Vec3>& pos, bool replace = false);
 // Shape (0-13) and colour (0-14) of that pin; out-of-range values are ignored.
 void puppet_map_pin_style(uint8_t shape, uint8_t colour);
+// Co-op+: the other player's map waypoint, as a second pin (another colour) on our map; replaced by the next one.
+void puppet_waypoint_pin(uint32_t owner, const std::optional<proto::Vec3>& pos);  // nullopt: remove it
 
 // Replays one event on the puppet.
 //   ts_shift_ms: added to the event's timestamps to express them on THIS

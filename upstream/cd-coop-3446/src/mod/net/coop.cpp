@@ -148,6 +148,9 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
                 std::memcpy(b.data(), &seq, 4);
                 std::memcpy(b.data() + 4, ev.payload.data(), ev.payload.size());
                 session_.send_reliable(equip ? proto::RelKind::Equip : proto::RelKind::Relay, b, now_ms);
+            } else if (ev.kind == proto::EventKind::Waypoint) {
+                // Co-op+: a one-off event on the lossy channel: three copies (a repeat only re-places the pin).
+                for (int i = 0; i < 3; ++i) session_.send_event(ev, now_ms);
             } else {
                 session_.send_event(std::move(ev), now_ms);
             }
@@ -475,6 +478,21 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
     }
     if (ev.kind == proto::EventKind::TimeSync) {  // about our world
         if (local_in_world_) time_sync_on_event(ev);
+        return;
+    }
+    if (ev.kind == proto::EventKind::Waypoint) {  // Co-op+: the other player's map waypoint
+        if (local_in_world_ && ev.payload.size() >= 13) {
+            if (const uint32_t owner = capture_own_player_key()) {
+                proto::Vec3 p{};
+                std::memcpy(&p.x, ev.payload.data(), 4);
+                std::memcpy(&p.y, ev.payload.data() + 4, 4);
+                std::memcpy(&p.z, ev.payload.data() + 8, 4);
+                // Flag 1 = set (seen live); 0 taken as "removed" (not seen yet).
+                const bool set = ev.payload[12] != 0;
+                puppet_waypoint_pin(owner, set ? std::optional<proto::Vec3>(p) : std::nullopt);
+                log::info("Co-op: the other player's waypoint {} ({:.0f}, {:.0f})", set ? "at" : "removed", p.x, p.z);
+            }
+        }
         return;
     }
     if (ev.kind == proto::EventKind::GuestHit) {  // about our enemies

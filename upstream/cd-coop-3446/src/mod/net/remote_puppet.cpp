@@ -1466,6 +1466,27 @@ void puppet_map_pin(uint32_t owner, const std::optional<proto::Vec3>& pos, bool 
     enqueue_at(make_packet(off::kOpCreateOrChangePinMarkerAck, c), now, /*movement=*/false);
 }
 
+void puppet_waypoint_pin(uint32_t owner, const std::optional<proto::Vec3>& pos) {
+    const uint64_t id = off::kCoopPinId + 1;  // next to the partner pin's id; never a game pin
+    const uint64_t now = steady_ms();
+    Bytes r(13, 0);
+    std::memcpy(r.data(), &owner, 4);
+    std::memcpy(r.data() + 4, &id, 8);
+    r[12] = off::kPinGroupNormal;
+    enqueue_at(make_packet(off::kOpRemovePinMarkerAck, r), now, /*movement=*/false);
+    if (!pos) return;
+    Bytes c(6 + 22, 0);
+    c[0] = 0x04;
+    std::memcpy(c.data() + 1, &owner, 4);
+    c[5] = off::kPinGroupNormal;
+    std::memcpy(c.data() + 6, &id, 8);
+    const float xyz[3] = {pos->x, pos->y, pos->z};
+    std::memcpy(c.data() + 14, xyz, sizeof xyz);
+    c[26] = g_pin_shape.load();
+    c[27] = static_cast<uint8_t>((g_pin_colour.load() + 1) % off::kPinColourCount);
+    enqueue_at(make_packet(off::kOpCreateOrChangePinMarkerAck, c), now, /*movement=*/false);
+}
+
 std::optional<proto::Vec3> puppet_position() {
     if (!puppet_spawned()) return std::nullopt;
     return game::actor_world_position(kPuppetPlayer);

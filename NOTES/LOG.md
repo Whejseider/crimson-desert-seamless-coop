@@ -279,3 +279,9 @@
 - Horse (D30): horse_test.sh rounds horse-on..horse-ride1; mount key is E ("Ride" prompt), dismount R. Status line
   now logs "Local: our horse 0x... at (x, y, z)" (walk-to-mount in tests).
 - No cutscene seen in any of 35 captures (only PlayAllPreLoadSequencerAck at loads): cutscene work needs one (F3).
+- Shared waypoints (backlog 5.7): new EventKind::Waypoint (14). Our CreateOrChangeSelfDestinationReq (2663: f32 x, y, z |
+  u8 flag; y = 0 from the map) is sent 3x (lossy channel); the receiver shows it as a second pin (id kCoopPinId+1,
+  next colour). Verified in echo (wp2): set from the map (Esc -> Map tab -> right-click), pin created at the same spot.
+  Flag 0 taken as "removed" (not seen yet). Map controls seen: right-click = marker, "Remove Destination", R = centre on Kliff.
+- Weather: SyncWeatherStateReq (2689) C>S, 24 B = 2 x u32 0 + 4 floats: the weather is simulated client-side; syncing it
+  needs the guest's weather state in memory (later). Time: SetFieldTime not seen in these captures.

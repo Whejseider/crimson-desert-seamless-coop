@@ -75,12 +75,12 @@ JOIN where the game has two sides (the friend takes the NPC opponent's place) --
 | # | Feature | Status | Approach | Test |
 |---|---|---|---|---|
 | 5.1 | Time of day sync (host's clock) | partial: time_sync exists, off (B4) | SetFieldTimeReq/Ack | 1PC |
-| 5.2 | Weather sync | todo | SyncWeatherStateReq | 1PC capture |
+| 5.2 | Weather sync | todo, RE | SyncWeatherStateReq is C>S (client simulates weather: 4 floats); needs the client weather state in memory | RE |
 | 5.3 | Crime / wanted: guards react to both | todo | WantedAddCrimeRecordReq, WantedAddWitnessActorReq | 2PC |
 | 5.4 | NPC trust / reputation changes | per player | by design (own save) | - |
 | 5.5 | Gimmicks: doors, levers, breakable objects, puzzles opened by one open for both | todo | UpdateGimmickReq/Ack, GimmickExecuteFrameEventReq, BreakSceneObjectReq, ApplyPuzzleSavePresetAck; rope/hook tree already relayed | 1PC capture |
 | 5.6 | Civilians / NPC schedules shared | todo (large) | NPC loads like enemy copies | RE |
-| 5.7 | Map pins and waypoints shared | partial (partner pin) | CreateOrChangePinMarkerReq, CreateOrChangeSelfDestinationReq: share custom waypoints | 1PC |
+| 5.7 | Map pins and waypoints shared | DONE on one PC: partner pin + partner's waypoint pin (EventKind::Waypoint) | CreateOrChangePinMarkerReq, CreateOrChangeSelfDestinationReq: share custom waypoints | 1PC |
 | 5.8 | Fast travel: guest follows host (Abyss Nexus) | todo | on host loading screen, offer the guest "follow"; teleport via DoTeleportAck/loading | 1PC partly |
 | 5.9 | Ocean / water levels, fishing pond state | per player | - | - |
 

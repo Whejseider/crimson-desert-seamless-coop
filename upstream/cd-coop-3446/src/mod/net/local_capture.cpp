@@ -105,6 +105,7 @@ std::set<uint32_t> g_has_hp;  // under g_actors_mutex
 // TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
 constexpr uint16_t kOpVaryHPAck = 2740;
 constexpr uint16_t kOpNotifyHandleDeadAck = 2985;
+constexpr uint16_t kOpCreateOrChangeSelfDestinationReq = 2663;  // Co-op+: vec3 | u8 (our map waypoint)
 constexpr uint16_t kOpVaryStatByAccInputReq = 2565;
 constexpr uint32_t kStatHP = 0x000F4240;
 
@@ -731,6 +732,11 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
     if (size < 5 + 4) return;
     uint16_t op = 0;
     std::memcpy(&op, packet, 2);
+    if (op == kOpCreateOrChangeSelfDestinationReq && size >= 5 + 13) {
+        // Co-op+: our own map waypoint (vec3 | u8): the other player sees it as a pin.
+        emit(proto::EventKind::Waypoint, Bytes(packet + 5, packet + 5 + 13));
+        return;
+    }
     proto::EventKind kind;
     size_t expected = 0, ts_off = 0;
     if (op == off::kOpMoveActorReq) {

@@ -43,6 +43,8 @@ PLAYING TOGETHER
   choose "Join Game". If the friend's game is closed, Steam starts it and the mod
   joins as soon as they load a save.
 - The friend appears in your world as a character, on the minimap and the map.
+- Set a waypoint on your map (right-click) and your friend sees it on theirs
+  as a second pin.
 - Ctrl+F2 (guest): leave and go back to your own world.
 - F8: show/hide the co-op panel (top left): connection, ping, room code.
 - Ctrl+F8: show/hide your friend's name over their head.

@@ -93,8 +93,10 @@ enum class EventKind : uint8_t {
                       // ProjectileInfo key | a << 8 | b
     TimeSync = 13,    // the sender's time of day (time_sync.h): u32 seq | u64 raw field time |
                       // u16 time scale | u8 flags
+    Waypoint = 14,    // Co-op+: the sender set its own map waypoint (CreateOrChangeSelfDestinationReq
+                      // payload: f32 x, y, z | u8 flag); shown as a pin on the receiver's map
 };
-inline constexpr uint8_t kMaxEventKind = 13;  // newer kinds decode; the session drops them
+inline constexpr uint8_t kMaxEventKind = 14;  // newer kinds decode; the session drops them
 
 // Wire: u32 copy key | u64 game clock ms | f32 x, y, z | f32 qx, qy, qz, qw.
 inline constexpr size_t kEnemyPosEventSize = 40;
