@@ -249,3 +249,9 @@
 - Crash seen in a throwaway experiment: a copy load and its removal in the same instant (exe+0xB6290E). The final
   code never removes the copy around deaths.
 - Saves: tests never saved; the shipped cdmp.ini restored after the tests. Test save still IN as slot103.
+- SAVE INCIDENT: the user's own slot2 (their 2026-05-13 save, unchanged in every backup up to 19:51) was rewritten
+  at 21:22:53 during a test round (earlyout2: echo session on the test save, mid-fight; no SaveAutoReq /
+  SaveToFileCurrentPlayerReq seen, no save event in cdmp.log, so the save guard did not warn). Restored from the
+  16:04 backup at 23:55; all user save files verified equal to it. The rewritten version is kept in
+  Documents\CrimsonDesert-CoopPlus-SaveBackups\overwritten-slot2-by-test-2026-11-01_21-22. Cause unknown (a game
+  write path the guard does not see, or Steam Cloud). From now on: run the save check after EVERY test session.
