@@ -27,6 +27,8 @@ void save_guard_set_connected(bool connected, const std::string& peer_name);
 
 // Sniffer thread (capture_observe_c2s).
 void save_guard_observe_c2s(const uint8_t* packet, size_t size);
+// Sniffer thread (capture_observe_s2c): the server confirms every save, autosaves included.
+void save_guard_observe_s2c(const uint8_t* packet, size_t size);
 
 // Panel line ("" when nothing to say).
 std::string save_guard_hud_text();

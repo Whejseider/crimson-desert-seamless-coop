@@ -293,3 +293,12 @@
   per message (30 m and 51 m took; 80, 104 (valid ground), 150, 400 m and 5 km ignored). Hops of 40 m every 0.4 s work
   (tp-hop: 104 m in 3 hops, exact). Fixes the checkpoint revive (far-hopU: dock -> checkpoint, "at the checkpoint") and
   gives Ctrl+F4 "go to your friend". Dev: [dev] kill_key=1 also enables Ctrl+Shift+F4 (tp_offset_m / tp_to "x,y,z").
+- SAVE WRITER FOUND: the game AUTOSAVES server-side into slot2 when entering some areas (go-hall4: entering Hernand Town
+  at 03:05:15 -> SaveToFileCurrentPlayerAck 2966 "01 00 10 A0 | 02 00 00 00 | 01 01 ..." with no request before it).
+  That was the 2026-11-01 21:22 write too. slot2 restored from the 16:04 backup (overwritten copy kept). savecheck.sh
+  --fix now restores automatically; save_guard also watches SaveToFileCurrentPlayerAck (logs the slot; warns in co-op).
+- Waypoint flag 0 = removal, confirmed live (right-click on an existing destination: "removed (0, 0)").
+- Adaptive hop teleport (D31): hops at our current height, retried at +-3/8/15/25 and +40/60/90 m when they do not
+  take (targets in the air or in the ground are refused). go-hall4: dock -> Hernand Town plateau (-10699, 635, -3731)
+  in ~13 s, over a cliff. Hernand Town: guards + carriage; quest "Unwelcomed Guests: check the commotion in front of
+  the castle gate" (marker ~6 m) -> a story scene to capture for F3.

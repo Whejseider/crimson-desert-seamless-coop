@@ -82,13 +82,20 @@ bool expect_revive(uint32_t own, uint8_t type) {
 }
 
 // Teleports: DoTeleportAck moves our player only up to ~50 m (30 and 51 m took; 80, 104, 150, 400 m and 5 km were
-// ignored, live tests 2026-11-02), standing or walking. Longer moves go in hops of kHopM, one every kHopMs,
-// planned from where we are when the move starts (height interpolated). Any thread may ask; the network loop hops.
+// ignored, live tests 2026-11-02), standing or walking, and only to a point near the ground (24 m up: refused).
+// Longer moves go in hops of up to kHopM from where we actually are, one every kHopMs, at our current height; a hop
+// that did not take (we did not move) is tried again a little higher or lower (kHopDy: the ground rises and falls);
+// after kHopFailLimit misses in a row the move stops where it got. Any thread may ask; the network loop hops.
 constexpr float kHopM = 40.0f;
-constexpr uint32_t kHopMs = 400;
+constexpr uint32_t kHopMs = 450;
+constexpr float kHopDy[] = {0.0f, 3.0f, -3.0f, 8.0f, -8.0f, 15.0f, -15.0f, 25.0f, -25.0f, 40.0f, 60.0f, 90.0f};
+constexpr int kHopFailLimit = 12;
+constexpr float kArrivedM = 3.0f;
 std::mutex g_hop_mutex;
-std::optional<std::array<float, 3>> g_hop_target;
-std::deque<std::array<float, 3>> g_hops;
+std::optional<std::array<float, 3>> g_hop_target;  // newly asked
+std::optional<std::array<float, 3>> g_hop_goal;    // in progress
+std::array<float, 3> g_hop_last{};                 // where we were at the last hop
+int g_hop_fails = 0;
 uint32_t g_hop_at = 0;
 
 void request_move(float x, float y, float z) {
@@ -105,33 +112,45 @@ void send_hop(uint32_t own, const std::array<float, 3>& p) {
     puppet_inject_s2c_batch({{kOpDoTeleportAck, b}});
 }
 
-// Network loop: plan a newly asked move, and send the next hop when due.
+// Network loop: start a newly asked move, and send the next hop when due.
 void hop_tick(uint32_t now_ms) {
-    std::optional<std::array<float, 3>> target;
     {
         std::lock_guard lock(g_hop_mutex);
-        target.swap(g_hop_target);
-    }
-    const uint32_t own = capture_own_player_key();
-    if (!own) return;
-    if (target) {
-        g_hops.clear();
-        const auto at = game::actor_world_position(own);
-        const std::array<float, 3> from = at ? std::array<float, 3>{at->x, at->y, at->z} : *target;
-        const float dx = (*target)[0] - from[0], dy = (*target)[1] - from[1], dz = (*target)[2] - from[2];
-        const int n = std::max(1, static_cast<int>(std::ceil(std::sqrt(dx * dx + dz * dz) / kHopM)));
-        for (int i = 1; i <= n; ++i) {
-            const float t = static_cast<float>(i) / static_cast<float>(n);
-            g_hops.push_back({from[0] + dx * t, from[1] + dy * t, from[2] + dz * t});
+        if (g_hop_target) {
+            g_hop_goal = g_hop_target;
+            g_hop_target.reset();
+            g_hop_fails = 0;
+            g_hop_at = now_ms;
+            g_hop_last = {1e9f, 0.0f, 1e9f};
         }
-        g_hop_at = now_ms;
-        if (n > 1) log::info("Teleport: {} hops of up to {:.0f} m", n, kHopM);
     }
-    if (!g_hops.empty() && static_cast<int32_t>(now_ms - g_hop_at) >= 0) {
-        send_hop(own, g_hops.front());
-        g_hops.pop_front();
-        g_hop_at = now_ms + kHopMs;
+    if (!g_hop_goal || static_cast<int32_t>(now_ms - g_hop_at) < 0) return;
+    const uint32_t own = capture_own_player_key();
+    const auto at = own ? game::actor_world_position(own) : std::nullopt;
+    if (!at) return;
+    const auto& goal = *g_hop_goal;
+    const float dx = goal[0] - at->x, dz = goal[2] - at->z;
+    const float left = std::sqrt(dx * dx + dz * dz);
+    if (left <= kArrivedM) {
+        log::info("Teleport: arrived ({:.0f}, {:.0f})", at->x, at->z);
+        g_hop_goal.reset();
+        return;
     }
+    const float mx = at->x - g_hop_last[0], mz = at->z - g_hop_last[2];
+    if (g_hop_last[0] < 1e8f && mx * mx + mz * mz < 1.0f) {
+        if (++g_hop_fails >= kHopFailLimit) {
+            log::warn("Teleport: stopped {:.0f} m short (hops did not take)", left);
+            g_hop_goal.reset();
+            return;
+        }
+    } else {
+        g_hop_fails = 0;
+    }
+    const float step = std::min(kHopM, left) / left;
+    const float y = (left <= kHopM ? goal[1] : at->y) + kHopDy[g_hop_fails];
+    send_hop(own, {at->x + dx * step, y, at->z + dz * step});
+    g_hop_last = {at->x, at->y, at->z};
+    g_hop_at = now_ms + kHopMs;
 }
 
 bool send(uint16_t op, const std::vector<uint8_t>& body);

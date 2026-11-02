@@ -505,6 +505,7 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     piece4_observe_s2c(packet, size);
     puppet_observe_s2c(packet, size);
     revive_observe_s2c(packet, size);
+    save_guard_observe_s2c(packet, size);  // Co-op+
     uint16_t op = 0;
     if (size >= 5) std::memcpy(&op, packet, 2);
     if (op == kOpSetAvoidByCutSceneAck && size >= 5 + 21) {

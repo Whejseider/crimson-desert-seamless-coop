@@ -30,6 +30,9 @@ namespace fs = std::filesystem;
 // TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
 constexpr uint16_t kOpSaveAutoReq = 3134;
 constexpr uint16_t kOpSaveToFileCurrentPlayerReq = 2122;
+// Co-op+: the server's answer to EVERY save, including the autosaves it starts itself on entering some areas
+// (no request before it, 2026-11-02): u32 player | u32 slot | ... (slot 2 = the autosave slot).
+constexpr uint16_t kOpSaveToFileCurrentPlayerAck = 2966;
 constexpr uint64_t kBackupEveryMs = 10 * 60 * 1000;
 constexpr size_t kKeepBackups = 10;
 constexpr uint64_t kNoticeMs = 20000;
@@ -151,6 +154,25 @@ void save_guard_observe_c2s(const uint8_t* packet, size_t size) {
               "restore Documents\\CrimsonDesert-CoopPlus-SaveBackups\\{}",
               op == auto_op ? "autosave" : "manual save", g_peer, n,
               g_last_backup.empty() ? "(no backup this session)" : g_last_backup);
+}
+
+void save_guard_observe_s2c(const uint8_t* packet, size_t size) {
+    if (!g_enabled || size < 5 + 8) return;
+    uint16_t op = 0;
+    std::memcpy(&op, packet, 2);
+    if (op != kOpSaveToFileCurrentPlayerAck) return;
+    uint32_t slot = 0;
+    std::memcpy(&slot, packet + 5 + 4, 4);
+    if (!g_connected) {
+        log::info("Save guard: the game saved into slot {}", slot);
+        return;
+    }
+    const uint64_t n = ++g_saves_in_coop;
+    g_last_save_ms = now_ms() ? now_ms() : 1;
+    std::lock_guard lock(g_mutex);
+    log::warn("Save guard: the game saved into slot {} while '{}' is in the session [{} so far]; if this save "
+              "misbehaves, restore Documents\\CrimsonDesert-CoopPlus-SaveBackups\\{}",
+              slot, g_peer, n, g_last_backup.empty() ? "(no backup this session)" : g_last_backup);
 }
 
 std::string save_guard_hud_text() {
