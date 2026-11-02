@@ -55,6 +55,9 @@ void activity_set_skip_test(bool on);
 // this many times a second (0 = off).
 void activity_set_versus_test(int presses_per_s);
 
+// Another Co-op+ module's Activity event (stage_cinema: types 7..9), on the same sequence as ours.
+void activity_send(uint8_t type, const std::vector<uint8_t>& data);
+
 // Human name of a minigame stage key ("arm wrestling"...), "a minigame" when unknown.
 std::string activity_minigame_name(uint32_t stage_key);
 

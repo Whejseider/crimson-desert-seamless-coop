@@ -14,6 +14,7 @@
 #include "mod/log.h"
 #include "mod/net/boss_safe.h"
 #include "mod/net/local_capture.h"
+#include "mod/net/stage_cinema.h"
 
 namespace cdmp::net {
 namespace {
@@ -152,6 +153,8 @@ std::string activity_minigame_name(uint32_t stage) {
     }
 }
 
+void activity_send(uint8_t type, const std::vector<uint8_t>& data) { send(static_cast<Type>(type), data.data(), data.size()); }
+
 void activity_set_skip_test(bool on) { g_skip_test = on; }
 void activity_set_versus_test(int presses_per_s) { g_versus_test_rate = presses_per_s; }
 
@@ -280,8 +283,11 @@ void activity_on_event(const std::vector<uint8_t>& p) {
             g_toasts.push_back("{} finished " + activity_minigame_name(stage));
             break;
         }
+        case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)
+            break;
         default: break;
     }
+    if (p[4] >= 7 && p[4] <= 9) cinema_on_event(p[4], p.data() + 5, p.size() - 5);
 }
 
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
@@ -316,6 +322,7 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
             else send(kCutsceneOff, nullptr, 0);
         }
     }
+    cinema_tick(connected, host, cut, me, partner, now);  // the host's stage cinematics for the guest (D38)
     const std::string who = partner_name.empty() ? std::string("Your friend") : partner_name;
     start_hook();
     bool release = false, send_skip = false;

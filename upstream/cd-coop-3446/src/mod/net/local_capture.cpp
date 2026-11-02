@@ -38,6 +38,7 @@
 #include "mod/net/remote_puppet.h"
 #include "mod/net/revive_prompt.h"
 #include "mod/net/troc_sniffer.h"
+#include "mod/net/stage_cinema.h"
 #include "mod/net/weather_sync.h"
 
 namespace cdmp::net {
@@ -508,6 +509,7 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     puppet_observe_s2c(packet, size);
     revive_observe_s2c(packet, size);
     save_guard_observe_s2c(packet, size);  // Co-op+
+    cinema_observe_s2c(packet, size);      // Co-op+
     uint16_t op = 0;
     if (size >= 5) std::memcpy(&op, packet, 2);
     // Co-op+: SetAvoidByCutSceneAck (18 bytes on 3479: u8 4 | u32 user | u64 stage | u8 flag | u32 user) flips on
@@ -740,6 +742,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
     save_guard_observe_c2s(packet, size);  // Co-op+
     activity_observe_c2s(packet, size);    // Co-op+
     weather_observe_c2s(packet, size);     // Co-op+
+    cinema_observe_c2s(packet, size);      // Co-op+
     if (size < 5 + 4) return;
     uint16_t op = 0;
     std::memcpy(&op, packet, 2);

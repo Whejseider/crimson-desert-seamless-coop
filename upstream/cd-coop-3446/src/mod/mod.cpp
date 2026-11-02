@@ -39,6 +39,7 @@
 #include "mod/net/revive_prompt.h"
 #include "mod/net/dev_script.h"
 #include "mod/net/coop_activity.h"
+#include "mod/net/stage_cinema.h"
 #include "mod/net/weather_sync.h"
 #include "mod/net/party_scaling.h"
 #include "mod/net/save_guard.h"
@@ -1402,6 +1403,8 @@ DWORD WINAPI worker(LPVOID) {
         net::activity_set_versus_test(static_cast<int>(cfg.dev_versus_test));
         net::weather_set_enabled(cfg.coop_weather_sync);
         net::weather_set_test(cfg.dev_weather_test);
+        net::cinema_set_enabled(cfg.coop_stage_cinema);
+        net::cinema_set_test(cfg.dev_cinema_test);
         if (cfg.dev_boss_hp) {
             net::boss_set_test_threshold(static_cast<int64_t>(cfg.dev_boss_hp) * 1000);
             log::info("Config: [dev] boss_hp={}: enemies with that much health count as bosses", cfg.dev_boss_hp);

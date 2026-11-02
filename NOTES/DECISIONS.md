@@ -251,3 +251,15 @@
   under sequencer ids 0x7E000000+n and answers its client's StageBranchStateReq / UpdateStageChartEventReq for them as
   the server does (its own server never heard of them). Leave / no report for 20 s: the guest's own come back.
   Verified on one PC ([dev] weather_test=19990030): own Windy+Cloudy_60 replaced by Rainy_Hard, rain icon + rain.
+
+## 2026-11-02 D38: The host's stage cinematics are replayed in the guest's game ([coop] stage_cinema=1)
+- Boss fights, story scenes and minigame intros are stages run by each player's own client; the boss stage only runs
+  in the host's world, so the guest never gets its intro. On the host's cutscene start the stage is picked
+  (SetAvoidByCutSceneAck's stage, else the stage that changed branch in the last 5 s; none = not shared) and its
+  PrepareSequencerAck (bound actors translated to the guest's copies, enemy_copy_of) + branch messages go out as
+  Activity types 7/8/9. A guest within 100 m starts a copy (sequencer 0x7D000000+n) at that branch, answers its chart
+  requests, follows branch changes, and ends it with the host's cutscene (max 3 min, or on leave/loading).
+- One PC ([dev] cinema_test, arm wrestling intro): picked 16005100 via SetAvoidByCutSceneAck, copy started 3 s in and
+  ended with the cutscene; match continued normally. The client sent nothing for the copy (its own instance of the
+  same stage was running): a real guest has no instance of the host's boss stage, which is the weather case (that
+  one ran). Unverified until a two-PC boss test (FLAGS F3).

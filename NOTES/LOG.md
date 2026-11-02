@@ -419,3 +419,13 @@
 - Boss idea from this: boss fights and their cinematics are stages too (cd_boss_*, *_bossencounter_*, Imp_Banquet_Boss_
   Battle_* are prepared near Hernand with pos 0,0,0). The same relay could start the host's boss stage in the guest's
   client (mirroring the host's branch acks instead of standing in). Next.
+
+## 2026-11-02 17:40-17:50 -- stage cinema relay (D38)
+- Boss research (upstream pendiente-jefes.md): a boss fight = .pastage + .paseq run by the player's own client; the
+  .paseq spawns Boss_00 and holds the cinematics; conditions only look at the local Player. Stage prepares near
+  Hernand include Imp_Banquet_Boss_Battle_GreyWolf_Yann/Nairah, _WildHorse (pos 0,0,0, quest-bound). A prepare's tail
+  binds stage nodes to world actors: (u32 0x200000nn | u32 actor key | 05 00 00) x n; node 1/2 = the player.
+- No boss location data here (no PAZ extractor; all_world_locations.json has none near), so no one-PC boss test.
+- cine.sh (pub table, [dev] cinema_test=1): "our cutscene is in stage 16005100 (sequencer 0x1FE)" -> copy 0x7D000000
+  (180 bytes) 3 s in -> ended 1 s after ours; the client sent no chart/trigger traffic for the copy (duplicate of a
+  running stage). Game fine, match finished. Pub entry autosaved slot2 again; restored (SAVES OK).

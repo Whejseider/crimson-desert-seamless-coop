@@ -224,6 +224,7 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_partner_alive = read_uint(ini_path, L"dev", L"partner_alive", 0) != 0;
     c.dev_skip_test = read_uint(ini_path, L"dev", L"skip_test", 0) != 0;
     c.dev_trace_op = read_uint(ini_path, L"dev", L"trace_op", 0);
+    c.dev_cinema_test = read_uint(ini_path, L"dev", L"cinema_test", 0) != 0;
     c.dev_weather_test = read_uint(ini_path, L"dev", L"weather_test", 0);
     c.dev_versus_test = read_uint(ini_path, L"dev", L"versus_test", 0);
     c.dev_scaling_as_host = read_uint(ini_path, L"dev", L"scaling_as_host", 0) != 0;
@@ -245,6 +246,7 @@ Config load_config(const std::wstring& ini_path) {
     c.coop_player_hit_lethal = read_uint(ini_path, L"coop", L"player_hit_lethal", 1) != 0;
     // Co-op+: 3 = auto (the host sends its time of day, the guest takes it): the user wants the time to match.
     c.coop_time_sync = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"time_sync", 3), 3u));
+    c.coop_stage_cinema = read_uint(ini_path, L"coop", L"stage_cinema", 1) != 0;
     c.coop_weather_sync = read_uint(ini_path, L"coop", L"weather_sync", 1) != 0;
     c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
     c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
