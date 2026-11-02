@@ -242,3 +242,12 @@
 ## 2026-11-02 D36: Time of day follows the host by default ([coop] time_sync=3)
 - It never ran on 3479: the FieldTime address was the 3446 one (fixed: exe+0x6EA4998) and the game clock it needed
   cannot be read (now: the capture's estimate). Only the time of day is matched (each keeps its own day count).
+
+## 2026-11-02 D37: Weather follows the host ([coop] weather_sync=1, default on)
+- Weather = server-chosen STAGES (Weather_Sunny / Cloudy_45..85 / Windy_Degree* / Windy_Speed* / Rainy_*), started
+  with PrepareSequencerAck, random per load (9 loads of one save at one time: 9 different sets), so matching the time
+  is not enough. The host sends its weather stages' PrepareSequencerAck payloads (EventKind::Weather 16, on change and
+  every 5 s); the guest drops its own server's weather Prepare/Delete, ends the ones running once, starts the host's
+  under sequencer ids 0x7E000000+n and answers its client's StageBranchStateReq / UpdateStageChartEventReq for them as
+  the server does (its own server never heard of them). Leave / no report for 20 s: the guest's own come back.
+  Verified on one PC ([dev] weather_test=19990030): own Windy+Cloudy_60 replaced by Rainy_Hard, rain icon + rain.

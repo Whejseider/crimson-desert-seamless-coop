@@ -400,3 +400,22 @@
 - WYVERN: Riding_Wyvern_1000 character key = 1004233 (live: string object <- record, key at +8; Bear_1000 = 1003911
   checks the layout). As main mount (Kliff's horse record) H sends nothing; on Demian's record it is not on the F1
   wheel. Guides: adult wyvern needs full growth + a saddle (removed with the gear). Not solved yet.
+
+## 2026-11-02 17:10-17:40 -- weather sync (D37)
+- Weather C/D test (18:00 on two days) dropped: the packet logs show weather is not a function of time. The server
+  prepares Weather_* stages (PrepareSequencerAck 2380, key at payload+19) at load and later; 9 loads of the test save
+  gave 9 different sets (e.g. Sunny+Windy90+Speed07+Cloudy65 / Windy180+Speed04+Cloudy80+Rainy_Hard). SyncWeather-
+  StateReq (2689) is only the client's report of the result. Boss stages have their own *_Boss_Weather stages.
+- Stage lifecycle (weather, 103-byte prepare): UpdateStageStateAck + AddStageRandomRateAck (by stage key) ->
+  PrepareSequencerAck (u8 4|player|player|u64 seq|u16 1|key|0|hash|key|pos...) + StageBranchStateAck (u8 4|player|
+  seq|u32 branch|u32 prev|0x22B6EC91|0|0xDAD73925|u32 counter; initial branch 0 prev -1) -> client
+  UpdateStageChartEventReq (seq|branch|idx|u8) repeated until UpdateStageChartEventAck (u8 4|player|+req) -> every
+  ~60 s client StageBranchStateReq (seq|branch|u16) -> StageOnBranchEventAck (u8 4|player|seq|branch|0) +
+  StageBranchStateAck (branch 1, prev, counter+1); the server ends a stage at one of those ticks (DeleteSequencerAck).
+- First injection test (dev script s2c, correct 103 bytes): the client ran the stage but spammed ChartEventReq (no
+  Ack) and nothing showed. Second (module, 105-byte template typo): client ignored it. Third: weather_sync with the
+  stand-in acks: branch requests answered at +2 and +3 min, rain icon and rain after ~1 min (shots rain3-1-1 vs -12).
+- tools/port/pkbin.py reads cdmp_packets_*.bin (whole packets; the .log truncates the hex).
+- Boss idea from this: boss fights and their cinematics are stages too (cd_boss_*, *_bossencounter_*, Imp_Banquet_Boss_
+  Battle_* are prepared near Hernand with pos 0,0,0). The same relay could start the host's boss stage in the guest's
+  client (mirroring the host's branch acks instead of standing in). Next.
