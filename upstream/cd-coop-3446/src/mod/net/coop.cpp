@@ -1,4 +1,5 @@
 #include "mod/net/coop.h"
+#include "mod/net/coop_activity.h"
 
 #include <algorithm>
 #include <atomic>
@@ -150,7 +151,7 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
                 std::memcpy(b.data(), &seq, 4);
                 std::memcpy(b.data() + 4, ev.payload.data(), ev.payload.size());
                 session_.send_reliable(equip ? proto::RelKind::Equip : proto::RelKind::Relay, b, now_ms);
-            } else if (ev.kind == proto::EventKind::Waypoint) {
+            } else if (ev.kind == proto::EventKind::Waypoint || ev.kind == proto::EventKind::Activity) {
                 // Co-op+: a one-off event on the lossy channel: three copies (a repeat only re-places the pin).
                 for (int i = 0; i < 3; ++i) session_.send_event(ev, now_ms);
             } else {
@@ -496,6 +497,10 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
                 log::info("Co-op: the other player's waypoint {} ({:.0f}, {:.0f})", set ? "at" : "removed", p.x, p.z);
             }
         }
+        return;
+    }
+    if (ev.kind == proto::EventKind::Activity) {  // Co-op+: the other player's cutscenes and minigames
+        if (local_in_world_) activity_on_event(ev.payload);
         return;
     }
     if (ev.kind == proto::EventKind::GuestHit) {  // about our enemies

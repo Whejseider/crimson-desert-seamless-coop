@@ -1,4 +1,5 @@
 #include "mod/net/local_capture.h"
+#include "mod/net/coop_activity.h"
 #include "mod/net/wire_layout.h"
 
 #include <windows.h>
@@ -508,15 +509,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     save_guard_observe_s2c(packet, size);  // Co-op+
     uint16_t op = 0;
     if (size >= 5) std::memcpy(&op, packet, 2);
-    if (op == kOpSetAvoidByCutSceneAck && size >= 5 + 21) {
-        // SetAvoidByCutSceneAck (2561), pendiente-jefes.md section 0.6: the one
-        // clean signal that a stage cinematic is starting or ending.
-        //   u8 4 | u32 user | u64 stage id | u8 flag | u32 user
-        // flag 1 = inside the cinematic. While it is up nothing of ours may
-        // land: a stage script owns the actors and an injected hit can skip the
-        // transition it is waiting for (a stuck quest on the host).
-        boss_note_cutscene(packet[5 + 12] != 0);
-    }
+    // Co-op+: SetAvoidByCutSceneAck (18 bytes on 3479: u8 4 | u32 user | u64 stage | u8 flag | u32 user) flips on
+    // and off within milliseconds during one cutscene, so boss_safe now gets the game's own "cutscene playing" flag
+    // from coop_activity.cpp instead (the old 21-byte check here never matched on 3479).
     if (op == kOpChangedEquipByQuickSlotAck && size == 5 + 6) {
         // u32 key | u16 weapon set: our player switched weapons from the quick
         // slots (no OtherEquipItemAck; capture 20261006-190309): our attacks change.
@@ -729,6 +724,8 @@ void capture_emit_ping(float x, float y, float z) {
     emit(proto::EventKind::Waypoint, std::move(b));
 }
 
+void capture_emit_activity(std::vector<uint8_t> payload) { emit(proto::EventKind::Activity, std::move(payload)); }
+
 void capture_observe_c2s(const uint8_t* packet, size_t size) {
     aggro_observe_c2s(packet, size);
     enemy_observe_c2s(packet, size);
@@ -739,6 +736,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
     piece4_observe_c2s(packet, size);
     attack_probe_observe_c2s(packet, size);
     save_guard_observe_c2s(packet, size);  // Co-op+
+    activity_observe_c2s(packet, size);    // Co-op+
     if (size < 5 + 4) return;
     uint16_t op = 0;
     std::memcpy(&op, packet, 2);

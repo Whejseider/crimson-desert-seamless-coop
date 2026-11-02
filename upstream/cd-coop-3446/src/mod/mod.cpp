@@ -37,6 +37,8 @@
 #include "mod/net/puppet_minimap.h"
 #include "mod/net/remote_puppet.h"
 #include "mod/net/revive_prompt.h"
+#include "mod/net/dev_script.h"
+#include "mod/net/coop_activity.h"
 #include "mod/net/party_scaling.h"
 #include "mod/net/save_guard.h"
 #include "mod/net/boss_safe.h"
@@ -394,6 +396,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     uint32_t notice_until = 0;
     std::string toast, toast_name;
     uint32_t toast_until = 0;
+    std::string activity_banner;  // Co-op+: coop_activity.h
     auto say = [&](std::string text) {
         log::info("Co-op+: {}", text);
         notice = std::move(text);
@@ -610,6 +613,15 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     net::revive_dev_teleport(tx, ty, tz);
                 }
                 tp_was_down = tp_down;
+                // [dev] script: Ctrl+Shift+F6 sends the packets written in that file (net/dev_script.h).
+                static bool script_was_down = false;
+                const bool script_down = !cfg.dev_script.empty() && (GetAsyncKeyState(VK_CONTROL) & 0x8000) &&
+                                         (GetAsyncKeyState(VK_SHIFT) & 0x8000) && (GetAsyncKeyState(VK_F6) & 0x8000);
+                if (script_down && !script_was_down) {
+                    net::dev_script_run(cfg.dev_script, net::capture_own_player_key(), s.position.x, s.position.y,
+                                        s.position.z);
+                }
+                script_was_down = script_down;
                 // Co-op+: Ctrl+F4 takes us to the other player (alive, not in a menu, 1 m beside them).
                 static bool go_was_down = false;
                 const bool go_down = connected && game_has_focus() && (GetAsyncKeyState(VK_CONTROL) & 0x8000) &&
@@ -639,6 +651,19 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 }
                 revive_prompt =
                     net::revive_prompt_tick(connected, s.health, s.health_max, partner_hp, game_has_focus(), now);
+                // Co-op+: shared cutscenes (notice, skip together) and minigame notices (coop_activity.h).
+                std::optional<std::array<float, 3>> partner_pos;
+                if (connected) {
+                    if (const auto& rs = session.remote_state()) partner_pos = std::array<float, 3>{rs->pos.x, rs->pos.y, rs->pos.z};
+                }
+                auto act = net::activity_tick(connected, game_has_focus(),
+                                              std::array<float, 3>{s.position.x, s.position.y, s.position.z}, partner_pos,
+                                              session.peer_name(), now);
+                activity_banner = std::move(act.banner);
+                if (!act.toast.empty()) {
+                    toast = std::move(act.toast);
+                    toast_until = now + 6000;
+                }
             }
             coop->update(pos, rot, now);
         }
@@ -703,6 +728,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 toast_until = now + 6000;
             }
             if (!toast.empty() && static_cast<int32_t>(now - toast_until) < 0) hud.toast = toast;
+            hud.activity = activity_banner;
             render::hud_update(std::move(hud));
         }
 
@@ -1362,6 +1388,7 @@ DWORD WINAPI worker(LPVOID) {
         net::loot_set_test_original(cfg.dev_loot_test_original);
         net::coop_set_copy_disabled(cfg.dev_no_copy);
         net::revive_set_boss_wait(cfg.coop_boss_death_wait);
+        net::activity_set_skip_test(cfg.dev_skip_test);
         if (cfg.dev_boss_hp) {
             net::boss_set_test_threshold(static_cast<int64_t>(cfg.dev_boss_hp) * 1000);
             log::info("Config: [dev] boss_hp={}: enemies with that much health count as bosses", cfg.dev_boss_hp);

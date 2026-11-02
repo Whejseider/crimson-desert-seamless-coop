@@ -206,3 +206,23 @@
 - DoTeleportAck works for our own player up to ~50 m per message; longer moves are hops (revive_prompt.cpp hop_tick).
   Used by the checkpoint revive (now reliable on one PC) and by a new Ctrl+F4 "go to your friend" (beside them, only
   when both are alive). Very long distances (km) are untested: the world may not stream in time (two-PC check).
+
+## 2026-11-02 D32: Shared cutscenes = notice + anyone's skip skips for everyone nearby
+- Cutscenes play inside each client; the server gets no start/skip message (arm wrestling intro captures). Playing the
+  host's cutscene on the guest would need the sequencer and its actors in the guest's world (often a different quest
+  state): not done. What is done (net/coop_activity.*): the game's own "cutscene playing" flag (exe+0x70D2E2F, found
+  by .data snapshot diff) is sent to the other player, who sees "<name> is watching a cutscene"; Esc during a cutscene
+  is sent too, and the other player's mod presses Esc for them if they are in a cutscene within 100 m and the game is
+  in front. "Everyone must press skip" would need to hold back the game's own Esc: not done (anyone's skip counts).
+- boss_safe now takes the same flag: its SetAvoidByCutSceneAck check never matched on 3479 (18-byte message, not 21).
+
+## 2026-11-02 D33: Minigames: each player plays in their own world; the other is told
+- Minigames are client-simulated (ScriptFunctions_MiniGameData_*): the server only starts them, spawns the NPC
+  opponent, and takes the result. A real player-vs-player match needs the minigame's live state (gauge, cards) in
+  memory on both sides: research, not done. Now: "<name> is playing a minigame" / "<name> finished arm wrestling"
+  toasts (ActivateMiniGameReq / LeaveMiniGameReq). No win/lose: MiniGameResultReq was identical for a win and a loss.
+
+## 2026-11-02 D34: Long teleports try higher, shorter and sideways hops
+- A 4 km trip stopped at a cliff wall (only height changes were tried); kHopTries now adds +130/+180 m, 15 m hops and
+  30-40 m to either side: the same trip got past the cliff, then stopped in the sea (teleports do not take while
+  swimming: swim to land and press Ctrl+F4 again).

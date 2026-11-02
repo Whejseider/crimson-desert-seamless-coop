@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <array>
+#include <iterator>
 #include <atomic>
 #include <cmath>
 #include <cstring>
@@ -84,12 +85,24 @@ bool expect_revive(uint32_t own, uint8_t type) {
 // Teleports: DoTeleportAck moves our player only up to ~50 m (30 and 51 m took; 80, 104, 150, 400 m and 5 km were
 // ignored, live tests 2026-11-02), standing or walking, and only to a point near the ground (24 m up: refused).
 // Longer moves go in hops of up to kHopM from where we actually are, one every kHopMs, at our current height; a hop
-// that did not take (we did not move) is tried again a little higher or lower (kHopDy: the ground rises and falls);
-// after kHopFailLimit misses in a row the move stops where it got. Any thread may ask; the network loop hops.
+// that did not take (we did not move) is tried again a little higher or lower (the ground rises and falls), then
+// higher still, shorter, and to the side (a cliff wall stopped a 4 km trip 1.8 km short with heights alone, travel1
+// 2026-11-02); after all of kHopTries miss in a row the move stops where it got. Any thread may ask; the network loop
+// hops.
 constexpr float kHopM = 40.0f;
 constexpr uint32_t kHopMs = 450;
-constexpr float kHopDy[] = {0.0f, 3.0f, -3.0f, 8.0f, -8.0f, 15.0f, -15.0f, 25.0f, -25.0f, 40.0f, 60.0f, 90.0f};
-constexpr int kHopFailLimit = 12;
+struct HopTry {
+    float dy;    // added to the height
+    float side;  // metres to the right (+) or left (-) of the way to the goal
+    float len;   // hop length (at most kHopM)
+};
+constexpr HopTry kHopTries[] = {
+    {0, 0, 40},    {3, 0, 40},    {-3, 0, 40},   {8, 0, 40},     {-8, 0, 40},    {15, 0, 40},   {-15, 0, 40},
+    {25, 0, 40},   {-25, 0, 40},  {40, 0, 40},   {60, 0, 40},    {90, 0, 40},    {130, 0, 40},  {180, 0, 40},
+    {5, 0, 15},    {30, 0, 15},   {5, 30, 30},   {5, -30, 30},   {40, 30, 30},   {40, -30, 30}, {90, 40, 25},
+    {90, -40, 25}, {5, 40, 0},    {5, -40, 0},   {60, 40, 0},    {60, -40, 0},
+};
+constexpr int kHopFailLimit = static_cast<int>(std::size(kHopTries));
 constexpr float kArrivedM = 3.0f;
 std::mutex g_hop_mutex;
 std::optional<std::array<float, 3>> g_hop_target;  // newly asked
@@ -146,9 +159,11 @@ void hop_tick(uint32_t now_ms) {
     } else {
         g_hop_fails = 0;
     }
-    const float step = std::min(kHopM, left) / left;
-    const float y = (left <= kHopM ? goal[1] : at->y) + kHopDy[g_hop_fails];
-    send_hop(own, {at->x + dx * step, y, at->z + dz * step});
+    const HopTry& t = kHopTries[g_hop_fails];
+    const float step = std::min(t.len, left) / left;
+    const float ux = dx / left, uz = dz / left;  // the way to the goal; (uz, -ux) is to its right
+    const float y = (left <= kHopM ? goal[1] : at->y) + t.dy;
+    send_hop(own, {at->x + dx * step + uz * t.side, y, at->z + dz * step - ux * t.side});
     g_hop_last = {at->x, at->y, at->z};
     g_hop_at = now_ms + kHopMs;
 }

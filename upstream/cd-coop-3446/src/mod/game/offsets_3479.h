@@ -139,6 +139,9 @@ inline constexpr uintptr_t kWorldSystemSlot = 0x71B6C50;  // 3460:0x71B5CA0 [wor
 inline constexpr uintptr_t kCameraSlot = 0x70D2F68;  // 3460:0x70D1FB0 [camera_global_ref]
 inline constexpr uintptr_t kStaticPlayerPos = 0x71C5DF0;  // 3460:0x71C4E40 [player_static_pos_write]
 inline constexpr uintptr_t kChunkOrigin = 0x71A2EB0;  // 3460:0x71A1F00 [world_offset_sub]
+// Co-op+: u8, 1 while a sequencer cutscene plays (minigame intro, its exit fade), 0 in free roam, menus, the minigame
+// itself (snapshot diff of .data, 2026-11-02; no signature yet: re-find by diffing on a new build).
+inline constexpr uintptr_t kCutscenePlaying = 0x70D2E2F;
 inline constexpr uintptr_t kClientClockGlobal = 0x70D2D75;  // 3460:0x70D1DB5; 15 cmp sites; live: flag 1, +0x3C 77672
 inline constexpr uintptr_t kClientFrameClockMs = 0x70D2DA9;  // = flag + 0x34
 inline constexpr uintptr_t kClientFrameClockUs = 0x70D2DB1;  // = flag + 0x3C

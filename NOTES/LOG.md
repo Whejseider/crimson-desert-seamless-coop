@@ -302,3 +302,52 @@
   take (targets in the air or in the ground are refused). go-hall4: dock -> Hernand Town plateau (-10699, 635, -3731)
   in ~13 s, over a cliff. Hernand Town: guards + carriage; quest "Unwelcomed Guests: check the commotion in front of
   the castle gate" (marker ~6 m) -> a story scene to capture for F3.
+
+## 2026-11-02 10:50-12:20 -- save editing, dragon test save, flying mount relayed
+- User (this session): finish flying mounts, cutscenes and minigames myself; making/altering TEST saves is allowed.
+- SAVE FORMAT (docs/research/save-format.md): save.save = "SAVE" header + ChaCha20(LZ4 block(blob)), HMAC-SHA256 of the
+  LZ4 block; fixed key (from NattKh's GPL CrimsonSaveEditor). tools/save/cdsave.py (pure Python decode/encode, round
+  trip verified), parc.py (schema/TOC), elements.py (list records), patch_save.py (in-place), splice.py (insert/remove
+  with self-pointer/tail/TOC repair), make_dragon_save.py. Running the downloaded editor was blocked (external code):
+  everything is our own code, written from reading theirs.
+- Mounts are MercenarySaveData records (characterKey, mercenaryNo, ownedCharacterKey, ..., item list). Dragon =
+  Riding_Dragon_1 (1000799). Needed: Knowledge_CallDragon (1000175) + 4 quests (1000354/1000212/1000305/1000319, state
+  5 = completed; 2 = active, 1 = locked), owner = Kliff (1) for the F1 wheel, and NO items: horse gear on the dragon
+  crashed the game (loop over 0xD0 equip entries with slot index -1, exe+0x26021B5 / 0x4AFB694). Test save
+  build/test-saves/slot103-dragon (Demian's horse record -> dragon, gear removed via splice); testsave.ps1 -Variant.
+- Summon: F1 (companion wheel; select with the ABSOLUTE cursor, wheel.ps1 CURSOR:760,740) -> FrameEventCallMercenaryReq
+  (hash 0x47279650, category 3, spawn point ~40 m above us) -> UpdateCallMercenaryCoolTimeAck + ActorLoadDataAck of the
+  dragon (mount slot 3). H tap = hash 0x54F1C6A6 category 4 (horse); H in the air = hash 0x95DA161E category 4. The
+  dragon as MAIN mount: the client sends nothing on H. The dragon flies to a point ~50 m away, hovers 20-30 m up, then
+  climbs to ~+65 m; Kliff never grapples on (guide: "Kliff automatically grapples onto it"; likely needs the grapple
+  ability / Axiom Force skill the early test save lacks). RideOnVehicleReq (2566: u32, u32, u8) gets no reply.
+- CO-OP RESULT (ride4, echo): the mod's capture sees the dragon as "our horse" (0xB0100003), sends it, and the copy
+  side loads a dragon copy in the air ("Puppet: horse prepared at (-10365, 578, -3862) (10232 bytes)"); screenshots
+  show two dragons flying. So a flying mount's summon/flight reaches the partner with the existing horse path.
+  Not verified: a rider on the dragon (ours or the copy's) -- needs a save where Kliff can grapple on (flag F2).
+- Dev tool: [dev] script=<file> + Ctrl+Shift+F6 sends c2s/s2c packets from a text file (net/dev_script.*; {P} {U} {POS}).
+
+## 2026-11-02 12:20-13:20 -- minigame capture, cutscene flag, long teleports
+- ForcePlayStageDevReq (3056, u32 stage key) is ignored by the retail server (4 stages tried, nothing happened).
+- Stage keys (NattKh stage_names.json): minigames are stages (Her_MiniGame_PubArmwrest 16005100 ...).
+- Long teleport (travel_test.sh, TO="x,y,z"): 2.2 km in 50 s then a cliff (fix D34), then the sea (no teleports while
+  swimming). Mission objective positions come from the save (MissionStateData _uiPosition): "Unwelcomed Guests"
+  step 0 "Head to Hernand" (-10685, 633, -3738); arriving by teleport did not advance it (no mission messages).
+- NPC finder: build/port3479/npcs.py (ActorLoadDataAck + character_names.json + Transform marker position).
+  Hernand pub cellar: NHM_GameHost_1 at (-10662, 617, -3832) runs arm wrestling ("[R] Try arm wrestling" at the
+  table; hold R, then hold E "Participate (20)"; intro skippable with Esc; then hold/mash E "Push"). Duo table players
+  (NHM_Seotda_Player*) beside it. At game time ~10:50 the table had no opponent and no prompt (NPC schedules).
+- ARM WRESTLING CAPTURE (3 matches): InteractionPreemptionStepReq/DoStepReq (player, host 0xB0100373, interaction
+  0x000F431C) -> ActivateMiniGameReq (u16 0x4240 | u32 player) -> SetAvoidByCutSceneAck pairs (stage instance
+  0x204) during the intro -> JoinMiniGameReq (04 | id | player) + SpawnMiniGameCharacterReq (04 | u64 0x204 | u16 id |
+  u32 opponent character 53220 / 54609 | u32 0x20000006) -> SpawnMiniGameCharacterAck (opponent actor) + the fee
+  (RemoveItemToInventoryAck) -> JoinMiniGameReq for the opponent + RecoveryActorForMiniGameReq -> (match simulated in
+  the client) -> LeaveMiniGameReq (04 | opponent | ... | u32 stage 16005100) -> MiniGameResultReq (u16 id | 00 |
+  opponent | 01 00 00 00 | 0 | 1 or 2) -> UnspawnMiniGameCharacterReq. The result bytes were the same for a win
+  and a loss. No LetterBox*Req and no skip message: cutscene playback and skip are client-only.
+- CUTSCENE FLAG: snapshot diff of .data (uisnap.py idle/cut/post): exe+0x70D2E2F = 1 only while a cutscene plays
+  (minigame intro and its exit fade); 0 in free roam, the pause menu, Tab, and the minigame countdown/play. The other
+  candidate (exe+0x71C78A3 bit 0) flips by itself. cutflag.py reads both.
+- Built: net/coop_activity.* (D32, D33), dev_script "tp x y z", hop tries (D34). The game autosaved into slot2 again
+  at 13:02:55 (entering the pub); savecheck --fix restored it (copy kept). Not yet verified live: the activity
+  events (the arm wrestling table was empty when retried).

@@ -96,8 +96,9 @@ enum class EventKind : uint8_t {
     Waypoint = 14,    // Co-op+: the sender set its own map waypoint (CreateOrChangeSelfDestinationReq
                       // payload: f32 x, y, z | u8 flag); shown as a pin on the receiver's map.
                       // Flag 2 = a ping (Ctrl+F3): the sender's own position, with a toast
+    Activity = 15,    // Co-op+: cutscenes and minigames (coop_activity.h): u32 seq | u8 type | ...
 };
-inline constexpr uint8_t kMaxEventKind = 14;  // newer kinds decode; the session drops them
+inline constexpr uint8_t kMaxEventKind = 15;  // newer kinds decode; the session drops them
 
 // Wire: u32 copy key | u64 game clock ms | f32 x, y, z | f32 qx, qy, qz, qw.
 inline constexpr size_t kEnemyPosEventSize = 40;

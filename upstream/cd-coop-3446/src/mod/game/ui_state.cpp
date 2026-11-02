@@ -43,4 +43,12 @@ bool ui_menu_open() {
     return safe_read(g_flag, &v, 1) && v == 0;
 }
 
+std::optional<bool> cutscene_playing() {
+    const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    if (base != off::kImageBase) return std::nullopt;
+    uint8_t v = 0;
+    if (!safe_read(base + off::kCutscenePlaying, &v, 1) || v > 1) return std::nullopt;
+    return v == 1;
+}
+
 }  // namespace cdmp::game

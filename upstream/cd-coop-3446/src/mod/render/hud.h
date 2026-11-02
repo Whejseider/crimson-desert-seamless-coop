@@ -39,6 +39,9 @@ struct HudData {
     // Co-op+: "<name> joined your world" and similar, for a few seconds ("" = none).
     // Drawn even when the panel is hidden.
     std::string toast;
+    // Co-op+: "<name> is watching a cutscene" while it lasts (coop_activity.h; "" = none). Drawn even when the panel
+    // is hidden.
+    std::string activity;
     // Co-op+: we are dead and the game's own death screen stays away: our box (net::RevivePrompt:
     // 0 none, 1 Q/U choice, 2 waiting for the other player's boss fight, 3 checkpoint only).
     // Drawn even when the panel is hidden.
