@@ -1,5 +1,5 @@
 diff --git a/upstream/cd-coop-3446/CMakeLists.txt b/upstream/cd-coop-3446/CMakeLists.txt
-index c83acf3..ef55a83 100644
+index c83acf3..2d07f80 100644
 --- a/upstream/cd-coop-3446/CMakeLists.txt
 +++ b/upstream/cd-coop-3446/CMakeLists.txt
 @@ -87,11 +87,13 @@ configure_file(cmake/build_id.h.in ${CMAKE_BINARY_DIR}/generated/build_id.h)
@@ -16,7 +16,7 @@ index c83acf3..ef55a83 100644
      src/mod/game/rtti.cpp
      src/mod/net/troc_sniffer.cpp
      src/mod/net/local_capture.cpp
-@@ -113,6 +115,15 @@ add_library(cdmp_mod SHARED
+@@ -113,6 +115,17 @@ add_library(cdmp_mod SHARED
      src/mod/game/game_clock.cpp
      src/mod/net/steam_transport.cpp
      src/mod/net/room_code.cpp
@@ -26,13 +26,15 @@ index c83acf3..ef55a83 100644
 +    src/mod/net/revive_prompt.cpp
 +    src/mod/net/dev_script.cpp
 +    src/mod/net/coop_activity.cpp
++    src/mod/net/weather_sync.cpp
++    src/mod/net/stage_cinema.cpp
 +    src/mod/net/dev_watch.cpp
 +    src/mod/net/load_trace.cpp
 +    src/mod/net/puppet_visibility.cpp
      src/mod/net/boss_safe.cpp
      src/mod/net/time_sync.cpp
      src/mod/render/dx12_hook.cpp
-@@ -122,6 +133,22 @@ cdmp_strict(cdmp_mod)
+@@ -122,6 +135,22 @@ cdmp_strict(cdmp_mod)
  target_link_libraries(cdmp_mod PRIVATE cdmp_common imgui safetyhook::safetyhook)
  target_include_directories(cdmp_mod PRIVATE ${CMAKE_BINARY_DIR}/generated)
  set_target_properties(cdmp_mod PROPERTIES OUTPUT_NAME "cdmp" PREFIX "" SUFFIX ".asi")
@@ -55,7 +57,7 @@ index c83acf3..ef55a83 100644
  # Only the symbol file's name goes into cdmp.asi, not the path of the PC that
  # built it (it named the user's folders).
  target_link_options(cdmp_mod PRIVATE "/PDBALTPATH:cdmp.pdb")
-@@ -156,6 +183,11 @@ if(TARGET Zydis)
+@@ -156,6 +185,11 @@ if(TARGET Zydis)
      endif()
  endif()
  
@@ -68,7 +70,7 @@ index c83acf3..ef55a83 100644
  enable_testing()
  add_executable(cdmp_tests tests/tests.cpp)
 diff --git a/upstream/cd-coop-3446/scripts/verify-port.ps1 b/upstream/cd-coop-3446/scripts/verify-port.ps1
-index d6c385a..9e4db40 100644
+index d6c385a..98ef058 100644
 --- a/upstream/cd-coop-3446/scripts/verify-port.ps1
 +++ b/upstream/cd-coop-3446/scripts/verify-port.ps1
 @@ -115,7 +115,7 @@ _hdr_src = _read_header('offsets.h') + '\n' + ''.join(_read_header(h) for h in _
@@ -114,14 +116,15 @@ index d6c385a..9e4db40 100644
 -    ('kClientFrameClockMs', 0x70CACAD + 0x34, 0x70CDCAD + 0x34),
 -    ('kClientFrameClockUs', 0x70CACAD + 0x3C, 0x70CDCAD + 0x3C),
 -    ('kClientClockBias',    0x71AECF8, 0x71B1CE8),
-+    ('kClientFrameClockMs', 0x70D1DB5 + 0x34, 0x70D2D75 + 0x34),
-+    ('kClientFrameClockUs', 0x70D1DB5 + 0x3C, 0x70D2D75 + 0x3C),
-+    ('kClientClockBias',    0x71B5F48, 0x71B6EF8),
-     ('kFieldTimeClient',    0x6EB2AD8, 0x6EB2AD8),
+-    ('kFieldTimeClient',    0x6EB2AD8, 0x6EB2AD8),
 -    ('kTrocInstancesBegin', 0x6E973A0, 0x6E82D10),
 -    ('kTrocInstancesEnd',   0x6EC8540, 0x6EB6378),
 -    ('kMinimapIconRoot',    0x71AEDE8, 0x71B1DD8),
 -    ('kMinimapIconRootAlt', 0x71AEDF0, 0x71B1DE0),
++    ('kClientFrameClockMs', 0x70D1DB5 + 0x34, 0x70D2D75 + 0x34),
++    ('kClientFrameClockUs', 0x70D1DB5 + 0x3C, 0x70D2D75 + 0x3C),
++    ('kClientClockBias',    0x71B5F48, 0x71B6EF8),
++    ('kFieldTimeClient',    0x6EB2AD8, 0x6EA4998),  # Co-op+: 0x6EB2AD8 was stale since 3446 (D36)
 +    ('kTrocInstancesBegin', 0x6E86D10, 0x6E87D10),
 +    ('kTrocInstancesEnd',   0x6EBA378, 0x6EBB378),
 +    ('kMinimapIconRoot',    0x71B6038, 0x71B6FE8),
@@ -177,17 +180,19 @@ index d6c385a..9e4db40 100644
      # The Troc range edges are now advisory rather than required. They were True on
      # 3424 because that range was inherited and the walk's correctness depended on
      # it; on 3446 the range was produced by running the walk itself and bracketing
-@@ -362,8 +362,8 @@ _referenced = [
+@@ -362,9 +362,9 @@ _referenced = [
      # principle: an array base is reached by a computed lea far more often than by
      # a load landing exactly on the first element, and the ability of this scan to
      # see `lea` is what the TrocInstancesBegin note below established the hard way.
 -    ('kTrocInstancesBegin', 0x6E82D10, False),
 -    ('kTrocInstancesEnd',   0x6EB6378, False),
+-    ('kFieldTimeClient',    0x6EB2AD8, False),
 +    ('kTrocInstancesBegin', 0x6E87D10, False),
 +    ('kTrocInstancesEnd',   0x6EBB378, False),
-     ('kFieldTimeClient',    0x6EB2AD8, False),
++    ('kFieldTimeClient',    0x6EA4998, False),
  ]
  
+ # ---- vtables, checked against the RTTI the binary carries -------------------
 @@ -383,7 +383,11 @@ _referenced = [
  # the readers interpret as "skip the check", so there is no address to verify.
  vt_expect = [
@@ -521,7 +526,7 @@ index 0000000..3b568f0
 +
 +}  // namespace cdmp::scaling
 diff --git a/upstream/cd-coop-3446/src/common/protocol.h b/upstream/cd-coop-3446/src/common/protocol.h
-index e7d51fb..dc8958f 100644
+index e7d51fb..577cd4c 100644
 --- a/upstream/cd-coop-3446/src/common/protocol.h
 +++ b/upstream/cd-coop-3446/src/common/protocol.h
 @@ -74,8 +74,8 @@ enum class Type : uint8_t {
@@ -535,7 +540,7 @@ index e7d51fb..dc8958f 100644
      Rotate = 3,       // RotateActorReq, 176 bytes
      WallUp = 4,       // UpdateWallUpData, 132 bytes (built from memory)
      Equip = 5,        // OtherEquipItemAck payload (9 + 6n bytes); sent reliably
-@@ -93,8 +93,12 @@ enum class EventKind : uint8_t {
+@@ -93,8 +93,13 @@ enum class EventKind : uint8_t {
                        // ProjectileInfo key | a << 8 | b
      TimeSync = 13,    // the sender's time of day (time_sync.h): u32 seq | u64 raw field time |
                        // u16 time scale | u8 flags
@@ -543,14 +548,15 @@ index e7d51fb..dc8958f 100644
 +                      // payload: f32 x, y, z | u8 flag); shown as a pin on the receiver's map.
 +                      // Flag 2 = a ping (Ctrl+F3): the sender's own position, with a toast
 +    Activity = 15,    // Co-op+: cutscenes and minigames (coop_activity.h): u32 seq | u8 type | ...
++    Weather = 16,     // Co-op+: the host's weather stages (weather_sync.h): u32 seq | u8 n | n x (u16 len | payload)
  };
 -inline constexpr uint8_t kMaxEventKind = 13;  // newer kinds decode; the session drops them
-+inline constexpr uint8_t kMaxEventKind = 15;  // newer kinds decode; the session drops them
++inline constexpr uint8_t kMaxEventKind = 16;  // newer kinds decode; the session drops them
  
  // Wire: u32 copy key | u64 game clock ms | f32 x, y, z | f32 qx, qy, qz, qw.
  inline constexpr size_t kEnemyPosEventSize = 40;
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..8b71f95 100644
+index e89d220..b72c299 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -627,7 +633,7 @@ index e89d220..8b71f95 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,19 +210,40 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,19 +210,44 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
@@ -645,6 +651,8 @@ index e89d220..8b71f95 100644
 +    c.dev_partner_alive = read_uint(ini_path, L"dev", L"partner_alive", 0) != 0;
 +    c.dev_skip_test = read_uint(ini_path, L"dev", L"skip_test", 0) != 0;
 +    c.dev_trace_op = read_uint(ini_path, L"dev", L"trace_op", 0);
++    c.dev_cinema_test = read_uint(ini_path, L"dev", L"cinema_test", 0) != 0;
++    c.dev_weather_test = read_uint(ini_path, L"dev", L"weather_test", 0);
 +    c.dev_versus_test = read_uint(ini_path, L"dev", L"versus_test", 0);
 +    c.dev_scaling_as_host = read_uint(ini_path, L"dev", L"scaling_as_host", 0) != 0;
 +    c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
@@ -670,10 +678,12 @@ index e89d220..8b71f95 100644
 +    c.coop_player_hit_lethal = read_uint(ini_path, L"coop", L"player_hit_lethal", 1) != 0;
 +    // Co-op+: 3 = auto (the host sends its time of day, the guest takes it): the user wants the time to match.
 +    c.coop_time_sync = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"time_sync", 3), 3u));
++    c.coop_stage_cinema = read_uint(ini_path, L"coop", L"stage_cinema", 1) != 0;
++    c.coop_weather_sync = read_uint(ini_path, L"coop", L"weather_sync", 1) != 0;
      c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
      c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
      c.coop_finish_arrow = read_uint(ini_path, L"coop", L"finish_arrow", 1) != 0;
-@@ -203,17 +252,20 @@ Config load_config(const std::wstring& ini_path) {
+@@ -203,17 +256,20 @@ Config load_config(const std::wstring& ini_path) {
      // Boss safety (boss_safe.h): default ON, because the failure it prevents is a
      // stuck quest in the HOST's save, not a cosmetic problem.
      c.coop_boss_safe = read_uint(ini_path, L"coop", L"boss_safe", 1) != 0;
@@ -696,7 +706,7 @@ index e89d220..8b71f95 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +278,11 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +282,11 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -709,7 +719,7 @@ index e89d220..8b71f95 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..8f31b32 100644
+index 3cd2ce2..15a9918 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -737,7 +747,7 @@ index 3cd2ce2..8f31b32 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -57,6 +68,21 @@ struct Config {
+@@ -57,6 +68,23 @@ struct Config {
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
@@ -750,6 +760,8 @@ index 3cd2ce2..8f31b32 100644
 +    int32_t dev_tp_offset_m = 30;  // Co-op+ dev: Ctrl+Shift+F4 teleports this far east ([dev] tp_offset_m)
 +    uint32_t dev_boss_hp = 0;       // Co-op+ dev: enemies with this many max HP count as bosses ([dev] boss_hp)
 +    bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
++    bool dev_cinema_test = false;  // Co-op+ dev: replay our own stage cutscenes as a guest would ([dev] cinema_test)
++    uint32_t dev_weather_test = 0;  // Co-op+ dev: act as a guest whose host has this weather stage ([dev] weather_test)
 +    uint32_t dev_versus_test = 0;  // Co-op+ dev: simulated versus opponent pushing N times/s ([dev] versus_test)
 +    uint32_t dev_trace_op = 0;  // Co-op+ dev: trace who sends this opcode ([dev] trace_op)
 +    bool dev_skip_test = false;  // Co-op+ dev: act as if the other player skipped 3 s into our cutscenes ([dev] skip_test)
@@ -759,7 +771,7 @@ index 3cd2ce2..8f31b32 100644
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
-@@ -66,7 +92,7 @@ struct Config {
+@@ -66,7 +94,7 @@ struct Config {
      float coop_offset_m = 0.0f;    // sideways offset of the remote character
      // Experimental, off by default: the copy's horse is not created by the
      // client (owned load) or crashes the game (ownerless load); live tests 1-2.
@@ -768,7 +780,7 @@ index 3cd2ce2..8f31b32 100644
      // Works since the copy got its own character number (live test 3).
      bool coop_equip = true;        // relay equipment changes
      // Mirrored damage: each world keeps its enemies; hits by the other player
-@@ -85,7 +111,7 @@ struct Config {
+@@ -85,7 +113,7 @@ struct Config {
      int coop_minimap_icon = 0x124;
      // Our enemies may attack the other player's copy (aggro_test.h). Off
      // until the hits reach the other player and they see our enemies.
@@ -777,7 +789,7 @@ index 3cd2ce2..8f31b32 100644
      // The other player's blows on the copies of our enemies hurt them
      // (guest_hits.h). Off until tested with two players.
      bool coop_guest_hits = false;
-@@ -94,15 +120,15 @@ struct Config {
+@@ -94,15 +122,19 @@ struct Config {
      bool coop_guest_hit_stagger = false;
      // Our player reacts (stagger, knock-down) to the other player's enemies'
      // blows on our copy over there: experimental until tested.
@@ -794,10 +806,14 @@ index 3cd2ce2..8f31b32 100644
      // other player's (guest).
 -    int coop_time_sync = 0;
 +    int coop_time_sync = 3;
++    // Co-op+: the guest's weather follows the host's (weather_sync.h).
++    bool coop_weather_sync = true;
++    // Co-op+: the host's stage cinematics (boss intros...) play for the guest (stage_cinema.h).
++    bool coop_stage_cinema = true;
      // Host: copies of our enemies that fight go to the guest on their own
      // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
      bool coop_enemy_auto = true;
-@@ -125,6 +151,9 @@ struct Config {
+@@ -125,6 +157,9 @@ struct Config {
      // does the finish, which is what advances its script. Off restores the old
      // behaviour exactly, for comparison.
      bool coop_boss_safe = true;
@@ -807,7 +823,7 @@ index 3cd2ce2..8f31b32 100644
      // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
      // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
      int coop_enemy_minimap_icon = 0x10A;
-@@ -146,6 +175,14 @@ struct Config {
+@@ -146,6 +181,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -1742,7 +1758,7 @@ index 0000000..1043dc5
 +
 +}  // namespace cdmp::game
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..9fbb6ed 100644
+index 79ccd06..94bbdd8 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,7 @@
@@ -1770,13 +1786,15 @@ index 79ccd06..9fbb6ed 100644
  #include "mod/net/local_capture.h"
  #include "mod/net/guest_hits.h"
  #include "mod/net/loot_twin.h"
-@@ -31,13 +36,22 @@
+@@ -31,13 +36,24 @@
  #include "mod/net/player_hits.h"
  #include "mod/net/puppet_minimap.h"
  #include "mod/net/remote_puppet.h"
 +#include "mod/net/revive_prompt.h"
 +#include "mod/net/dev_script.h"
 +#include "mod/net/coop_activity.h"
++#include "mod/net/stage_cinema.h"
++#include "mod/net/weather_sync.h"
 +#include "mod/net/party_scaling.h"
 +#include "mod/net/save_guard.h"
  #include "mod/net/boss_safe.h"
@@ -1793,7 +1811,7 @@ index 79ccd06..9fbb6ed 100644
  
  #pragma comment(lib, "version.lib")
  
-@@ -100,6 +114,16 @@ std::string file_version(const std::wstring& path) {
+@@ -100,6 +116,16 @@ std::string file_version(const std::wstring& path) {
  
  // Facts that identify the exact game build. Every offset/signature we find
  // later is only valid for one build, so the log must always say which one.
@@ -1810,7 +1828,7 @@ index 79ccd06..9fbb6ed 100644
  bool log_process_info() {
      const std::wstring exe = module_path(nullptr);
      const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-@@ -138,7 +162,7 @@ public:
+@@ -138,7 +164,7 @@ public:
      explicit LocalSource(bool in_game) : in_game_(in_game) {
          if (!in_game_) return;
          if (reader_.init()) {
@@ -1819,7 +1837,7 @@ index 79ccd06..9fbb6ed 100644
          } else {
              log::warn("Game reader DISABLED: {}. Only networking will run.",
                        reader_.last_failure());
-@@ -188,10 +212,37 @@ private:
+@@ -188,10 +214,37 @@ private:
      std::string status_;
  };
  
@@ -1859,7 +1877,7 @@ index 79ccd06..9fbb6ed 100644
      }
  
      // A guest knows whom to talk to; a host learns it from the first Hello.
-@@ -203,6 +254,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -203,6 +256,8 @@ void run_network(const Config& cfg, LocalSource& local) {
      // needs a moment to join the lobby and see the host field).
      bool room_code_pending = false;
      std::string room_code_text;
@@ -1868,7 +1886,7 @@ index 79ccd06..9fbb6ed 100644
      bool room_failed_logged = false;
      // The host's lobby creation is retried in the loop for the same reason: this
      // point in startup is reached BEFORE the save finishes loading (the mod loads
-@@ -216,7 +269,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -216,7 +271,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          if (!local.in_game()) {
              log::error("The Steam transport only works inside the game");
              net::cleanup();
@@ -1877,7 +1895,7 @@ index 79ccd06..9fbb6ed 100644
          }
          auto st = std::make_unique<net::SteamTransport>(cfg.steam_channel, host, cfg.steam_peer_id);
          steam = st.get();
-@@ -225,7 +278,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -225,7 +280,14 @@ void run_network(const Config& cfg, LocalSource& local) {
          // creates the lobby and reads the code out; the guest resolves the
          // host's SteamID64 from it. If anything fails, the old paths
          // (peer_steamid, then the "only friend playing" scan) still work.
@@ -1893,7 +1911,7 @@ index 79ccd06..9fbb6ed 100644
              if (host) {
                  // One attempt now, and the loop retries if it does not take.
                  //
-@@ -278,19 +338,19 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -278,19 +340,19 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!ep->is_loopback()) {
                  log::error("UDP only connects within this PC (tests); to play with someone use transport=steam");
                  net::cleanup();
@@ -1916,7 +1934,7 @@ index 79ccd06..9fbb6ed 100644
          }
          transport = std::move(udp);
      }
-@@ -305,6 +365,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -305,6 +367,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          [](const std::string& text) { log::info("Session: {}", text); },
          host ? ClientSession::Role::Responder : ClientSession::Role::Initiator);
      bool was_connected = false;
@@ -1924,7 +1942,7 @@ index 79ccd06..9fbb6ed 100644
      uint32_t peer_since = 0;  // host: when it locked onto its player
      uint32_t last_friend_scan = 0;
      size_t last_friend_count = SIZE_MAX;
-@@ -327,10 +388,81 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -327,10 +390,81 @@ void run_network(const Config& cfg, LocalSource& local) {
      bool mark_was_down = false;
      int marks = 0;
      std::vector<uint8_t> buf(proto::kMaxPacketSize);
@@ -2006,7 +2024,7 @@ index 79ccd06..9fbb6ed 100644
          // The host's lobby, retried until it takes. Startup runs before the save is
          // loaded, so the first attempt reliably fails on a cold start; without this
          // the host never gets a room code at all and the guest has nothing to type.
-@@ -363,7 +495,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -363,7 +497,8 @@ void run_network(const Config& cfg, LocalSource& local) {
              last_friend_scan = now_ms();
              // A room code wins over the friends scan: it names one host exactly.
              if (room_code_pending) {
@@ -2016,7 +2034,7 @@ index 79ccd06..9fbb6ed 100644
                  if (host_id) {
                      peer = net::PeerAddr::steam(host_id);
                      steam->set_peer(host_id);
-@@ -403,7 +536,13 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -403,7 +538,13 @@ void run_network(const Config& cfg, LocalSource& local) {
                  // Only a Hello of our protocol: one of another version would
                  // never connect and would keep the place (security review M2).
                  auto packet = proto::decode({buf.data(), *n});
@@ -2031,7 +2049,7 @@ index 79ccd06..9fbb6ed 100644
                      std::holds_alternative<proto::Hello>(packet->body)) {
                      peer = from;
                      peer_since = now_ms();
-@@ -417,6 +556,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -417,6 +558,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          const uint32_t now = now_ms();
          session.tick(now);
          const bool connected = session.state() == ClientSession::State::Connected;
@@ -2039,7 +2057,7 @@ index 79ccd06..9fbb6ed 100644
          if (host && was_connected && !connected && peer) {
              log::info("Network: {} left; waiting for a player", peer->str());
              peer.reset();
-@@ -426,13 +566,106 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -426,13 +568,107 @@ void run_network(const Config& cfg, LocalSource& local) {
              peer.reset();
              if (steam) steam->set_peer(0);
          }
@@ -2143,10 +2161,11 @@ index 79ccd06..9fbb6ed 100644
 +                    toast = std::move(act.toast);
 +                    toast_until = now + 6000;
 +                }
++                net::weather_tick(connected, host, own_pos.has_value(), own_pos, now);  // Co-op+: weather_sync.h
              }
              coop->update(pos, rot, now);
          }
-@@ -449,14 +682,18 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -449,14 +685,18 @@ void run_network(const Config& cfg, LocalSource& local) {
              hud.local_status = local.status();
              hud.remote = session.remote_state();
              hud.peer_problem = session.peer_problem();
@@ -2166,7 +2185,7 @@ index 79ccd06..9fbb6ed 100644
                  hud.boss_active = true;
                  hud.boss_name = b.name;
                  hud.boss_hp = b.hp;
-@@ -475,6 +712,25 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +715,25 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -2192,7 +2211,7 @@ index 79ccd06..9fbb6ed 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -491,6 +747,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,6 +750,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                  remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                       rs->pos.z, rs->health);
              }
@@ -2207,7 +2226,7 @@ index 79ccd06..9fbb6ed 100644
              log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | remote states {} | "
                        "last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
                        state, st.sent, st.received, st.rejected, st.rtt_ms, st.remote_states, remote,
-@@ -498,7 +762,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -498,7 +765,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                        transport->status());
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
@@ -2222,7 +2241,7 @@ index 79ccd06..9fbb6ed 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +780,108 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +783,108 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -2332,7 +2351,7 @@ index 79ccd06..9fbb6ed 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +983,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +986,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -2341,7 +2360,7 @@ index 79ccd06..9fbb6ed 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +1037,7 @@ void combat_test_loop() {
+@@ -669,7 +1040,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -2350,7 +2369,7 @@ index 79ccd06..9fbb6ed 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +1055,7 @@ void combat_test_loop() {
+@@ -687,7 +1058,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -2359,7 +2378,7 @@ index 79ccd06..9fbb6ed 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1120,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1123,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -2368,7 +2387,7 @@ index 79ccd06..9fbb6ed 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1134,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1137,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -2376,7 +2395,7 @@ index 79ccd06..9fbb6ed 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,6 +1163,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,6 +1166,7 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -2384,7 +2403,7 @@ index 79ccd06..9fbb6ed 100644
          net::puppet_install_rope_bend();
          // Horse and enemy copies (the other player may send theirs at any
          // time) need the crash containment (docs/INFORME-CABALLO-CRASH.md)
-@@ -902,21 +1272,67 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,21 +1275,67 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -2452,7 +2471,7 @@ index 79ccd06..9fbb6ed 100644
          const Config cfg = load_config(dir + L"cdmp.ini");
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
-@@ -925,7 +1341,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1344,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -2461,7 +2480,7 @@ index 79ccd06..9fbb6ed 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -956,6 +1372,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -956,6 +1375,7 @@ DWORD WINAPI worker(LPVOID) {
                    cfg.coop_suppress_lab ? ", suppressed by suppress_lab=1 (the one-PC lab)" : "");
          log::info("Config: time sync {}", cfg.coop_time_sync == 1   ? "send ours"
                                            : cfg.coop_time_sync == 2 ? "take the other player's"
@@ -2469,7 +2488,7 @@ index 79ccd06..9fbb6ed 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1386,26 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1389,30 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -2485,6 +2504,10 @@ index 79ccd06..9fbb6ed 100644
 +        net::activity_set_skip_test(cfg.dev_skip_test);
 +        if (cfg.dev_trace_op) net::sniffer_set_trace_op(static_cast<uint16_t>(cfg.dev_trace_op));
 +        net::activity_set_versus_test(static_cast<int>(cfg.dev_versus_test));
++        net::weather_set_enabled(cfg.coop_weather_sync);
++        net::weather_set_test(cfg.dev_weather_test);
++        net::cinema_set_enabled(cfg.coop_stage_cinema);
++        net::cinema_set_test(cfg.dev_cinema_test);
 +        if (cfg.dev_boss_hp) {
 +            net::boss_set_test_threshold(static_cast<int64_t>(cfg.dev_boss_hp) * 1000);
 +            log::info("Config: [dev] boss_hp={}: enemies with that much health count as bosses", cfg.dev_boss_hp);
@@ -2496,7 +2519,7 @@ index 79ccd06..9fbb6ed 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1457,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1464,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -2530,7 +2553,7 @@ index 79ccd06..9fbb6ed 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1480,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1487,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -2542,7 +2565,7 @@ index 79ccd06..9fbb6ed 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1505,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1512,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -2721,16 +2744,17 @@ index fb35bad..3d19d34 100644
  
  }  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop.cpp b/upstream/cd-coop-3446/src/mod/net/coop.cpp
-index 3bdc2c5..a34cea5 100644
+index 3bdc2c5..a028727 100644
 --- a/upstream/cd-coop-3446/src/mod/net/coop.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/coop.cpp
-@@ -1,4 +1,5 @@
+@@ -1,4 +1,6 @@
  #include "mod/net/coop.h"
 +#include "mod/net/coop_activity.h"
++#include "mod/net/weather_sync.h"
  
  #include <algorithm>
  #include <atomic>
-@@ -25,6 +26,8 @@ namespace cdmp::net {
+@@ -25,6 +27,8 @@ namespace cdmp::net {
  namespace {
  
  std::atomic<bool> g_ready{false};
@@ -2739,7 +2763,7 @@ index 3bdc2c5..a34cea5 100644
  constexpr size_t kMaxOutbox = 4096;            // ~1 s of events; more means the link is stuck
  constexpr uint32_t kRespawnAfterRemoveMs = 1500;  // let the old copy fade out first
  constexpr uint32_t kInWorldGraceMs = 500;        // a missing position read shorter than this is ignored
-@@ -49,7 +52,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
+@@ -49,7 +53,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
      if (ev.payload.size() < 2) return false;
      uint16_t op = 0;
      std::memcpy(&op, ev.payload.data(), 2);
@@ -2748,7 +2772,7 @@ index 3bdc2c5..a34cea5 100644
          if (r.op == op) return r.reliable;
      }
      return false;
-@@ -58,6 +61,8 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
+@@ -58,6 +62,8 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
  }  // namespace
  
  void coop_set_ready() { g_ready = true; }
@@ -2757,7 +2781,7 @@ index 3bdc2c5..a34cea5 100644
  
  CoopLink::CoopLink(ClientSession& session, uint32_t delay_ms, float offset_m, bool map_pin)
      : session_(session), delay_ms_(delay_ms), offset_m_(offset_m), map_pin_(map_pin) {
-@@ -146,6 +151,9 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
+@@ -146,6 +152,9 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
                  std::memcpy(b.data(), &seq, 4);
                  std::memcpy(b.data() + 4, ev.payload.data(), ev.payload.size());
                  session_.send_reliable(equip ? proto::RelKind::Equip : proto::RelKind::Relay, b, now_ms);
@@ -2767,7 +2791,7 @@ index 3bdc2c5..a34cea5 100644
              } else {
                  session_.send_event(std::move(ev), now_ms);
              }
-@@ -268,7 +276,8 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
+@@ -268,7 +277,8 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
      }
  
      // Load the other player once we are in the world ourselves.
@@ -2777,7 +2801,7 @@ index 3bdc2c5..a34cea5 100644
          if (puppet_spawned()) {
              remove_puppet(now_ms);
              return;
-@@ -474,6 +483,26 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
+@@ -474,6 +484,30 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
          if (local_in_world_) time_sync_on_event(ev);
          return;
      }
@@ -2801,6 +2825,10 @@ index 3bdc2c5..a34cea5 100644
 +        if (local_in_world_) activity_on_event(ev.payload);
 +        return;
 +    }
++    if (ev.kind == proto::EventKind::Weather) {  // Co-op+: the host's weather stages
++        weather_on_event(ev.payload);
++        return;
++    }
      if (ev.kind == proto::EventKind::GuestHit) {  // about our enemies
          if (local_in_world_) guest_hits_on_event(ev, delay_ms_);
          return;
@@ -2821,15 +2849,16 @@ index a328bc0..695a4fb 100644
  public:
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..c799ece
+index 0000000..4fdb87e
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,382 @@
+@@ -0,0 +1,408 @@
 +#include "mod/net/coop_activity.h"
 +
 +#include <windows.h>
 +
 +#include <atomic>
++#include <cctype>
 +#include <cmath>
 +#include <cstring>
 +#include <algorithm>
@@ -2841,6 +2870,7 @@ index 0000000..c799ece
 +#include "mod/log.h"
 +#include "mod/net/boss_safe.h"
 +#include "mod/net/local_capture.h"
++#include "mod/net/stage_cinema.h"
 +
 +namespace cdmp::net {
 +namespace {
@@ -2860,6 +2890,16 @@ index 0000000..c799ece
 +constexpr uint32_t kVersusSendMs = 100;
 +std::atomic<uint32_t> g_e_presses{0};     // E key-downs (the hook counts them; not ours)
 +std::atomic<bool> g_match_on{false};      // between SpawnMiniGameCharacterReq and LeaveMiniGameReq
++std::atomic<uint32_t> g_match_stage{0};   // the match's minigame stage key (0 = unknown)
++
++// The minigames that use the strength gauge the versus shares (arm wrestling's stages, hand wrestling). Any other
++// minigame keeps its own rules: the versus never writes into it.
++bool is_gauge_game(uint32_t stage) {
++    switch (stage) {
++        case 16005100: case 1001987: case 1001988: case 1003873: case 1003875: case 1018693: return true;
++        default: return false;
++    }
++}
 +std::atomic<int> g_versus_test_rate{0};   // [dev] versus_test: a simulated other player pushing this many times/s
 +struct Versus {
 +    bool live = false;          // our match is running (gauge readable, no cutscene)
@@ -2979,6 +3019,8 @@ index 0000000..c799ece
 +    }
 +}
 +
++void activity_send(uint8_t type, const std::vector<uint8_t>& data) { send(static_cast<Type>(type), data.data(), data.size()); }
++
 +void activity_set_skip_test(bool on) { g_skip_test = on; }
 +void activity_set_versus_test(int presses_per_s) { g_versus_test_rate = presses_per_s; }
 +
@@ -2993,7 +3035,8 @@ index 0000000..c799ece
 +    const uintptr_t ga = game::minigame_gauge_address();
 +    float g = 0.0f;
 +    if (ga) g = *reinterpret_cast<volatile float*>(ga);
-+    const bool live = g_match_on.load() && !cut && ga && g > 0.0f && g <= 100.0f;
++    const bool live = g_match_on.load() && is_gauge_game(g_match_stage.load()) && !cut && ga && g > 0.0f && g <= 100.0f;
++    const std::string game = activity_minigame_name(g_match_stage.load());
 +    const int test_rate = g_versus_test_rate.load();
 +    std::lock_guard lock(g_mutex);
 +    Versus& v = g_vs;
@@ -3032,9 +3075,9 @@ index 0000000..c799ece
 +        if (!live && v.started && !v.announced) {
 +            // The game ends the match itself near the ends of the gauge (~96 / ~4): the last value tells who won.
 +            v.announced = true;
-+            out.toast = v.last_ours > 50.0f ? std::format("You beat {} at arm wrestling!", who)
-+                                            : std::format("{} won the arm wrestling", who);
-+            log::info("Activity: versus arm wrestling over: {} ({:.0f})", v.last_ours > 50.0f ? "we won" : "they won",
++            out.toast = v.last_ours > 50.0f ? std::format("You beat {} at {}!", who, game)
++                                            : std::format("{} won the {}", who, game);
++            log::info("Activity: versus {} over: {} ({:.0f})", game, v.last_ours > 50.0f ? "we won" : "they won",
 +                      v.last_ours);
 +        }
 +        if (!live) v.started = false;
@@ -3042,7 +3085,7 @@ index 0000000..c799ece
 +    }
 +    if (!v.started) {
 +        v.started = true;
-+        log::info("Activity: versus arm wrestling with {} ({})", who, host ? "we hold the gauge" : "they hold the gauge");
++        log::info("Activity: versus {} with {} ({})", game, who, host ? "we hold the gauge" : "they hold the gauge");
 +    }
 +    if (host) {
 +        v.gauge = std::clamp(50.0f + kPushGain * (static_cast<float>(mine) - static_cast<float>(v.partner_count)), 0.0f,
@@ -3054,7 +3097,9 @@ index 0000000..c799ece
 +    }
 +    const float ours = host ? v.gauge : 100.0f - v.partner_gauge;
 +    v.last_ours = ours;
-+    out.banner = std::format("Arm wrestling vs {}: mash E!   You {:.0f} - {:.0f} {}", who, ours, 100.0f - ours, who);
++    std::string title = game;
++    if (!title.empty()) title[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(title[0])));
++    out.banner = std::format("{} vs {}: mash E!   You {:.0f} - {:.0f} {}", title, who, ours, 100.0f - ours, who);
 +}
 +
 +}  // namespace
@@ -3068,8 +3113,13 @@ index 0000000..c799ece
 +        std::memcpy(&id, packet + 5, 2);
 +        log::info("Activity: we started a minigame (id 0x{:04X})", id);
 +        send(kGameOn, &id, 2);
-+    } else if (op == kOpSpawnMiniGameCharacterReq) {
++    } else if (op == kOpSpawnMiniGameCharacterReq && size >= 5 + 9) {
++        // u8 4 | u64 the minigame's stage (sequencer) | u16 id | u32 opponent | ...
++        uint64_t seq = 0;
++        std::memcpy(&seq, packet + 6, 8);
++        g_match_stage = cinema_stage_key(seq);
 +        g_match_on = true;
++        log::info("Activity: a match of {} (stage {})", activity_minigame_name(g_match_stage.load()), g_match_stage.load());
 +    } else if (op == kOpLeaveMiniGameReq && size >= 5 + 23) {
 +        g_match_on = false;
 +        uint32_t stage = 0;
@@ -3107,8 +3157,11 @@ index 0000000..c799ece
 +            g_toasts.push_back("{} finished " + activity_minigame_name(stage));
 +            break;
 +        }
++        case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)
++            break;
 +        default: break;
 +    }
++    if (p[4] >= 7 && p[4] <= 9) cinema_on_event(p[4], p.data() + 5, p.size() - 5);
 +}
 +
 +ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
@@ -3143,6 +3196,7 @@ index 0000000..c799ece
 +            else send(kCutsceneOff, nullptr, 0);
 +        }
 +    }
++    cinema_tick(connected, host, cut, me, partner, now);  // the host's stage cinematics for the guest (D38)
 +    const std::string who = partner_name.empty() ? std::string("Your friend") : partner_name;
 +    start_hook();
 +    bool release = false, send_skip = false;
@@ -3209,10 +3263,10 @@ index 0000000..c799ece
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.h b/upstream/cd-coop-3446/src/mod/net/coop_activity.h
 new file mode 100644
-index 0000000..4f54a1a
+index 0000000..fbba7a3
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.h
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,64 @@
 +#pragma once
 +// Co-op+: shared activities (cutscenes and minigames), EventKind::Activity.
 +//
@@ -3270,16 +3324,19 @@ index 0000000..4f54a1a
 +// this many times a second (0 = off).
 +void activity_set_versus_test(int presses_per_s);
 +
++// Another Co-op+ module's Activity event (stage_cinema: types 7..9), on the same sequence as ours.
++void activity_send(uint8_t type, const std::vector<uint8_t>& data);
++
 +// Human name of a minigame stage key ("arm wrestling"...), "a minigame" when unknown.
 +std::string activity_minigame_name(uint32_t stage_key);
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/dev_script.cpp b/upstream/cd-coop-3446/src/mod/net/dev_script.cpp
 new file mode 100644
-index 0000000..37a9a36
+index 0000000..f6528b1
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/dev_script.cpp
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,195 @@
 +#include "mod/net/dev_script.h"
 +
 +#include <windows.h>
@@ -3303,7 +3360,7 @@ index 0000000..37a9a36
 +namespace {
 +
 +struct Step {
-+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch } kind;
++    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day } kind;
 +    uintptr_t addr = 0;
 +    float to[3] = {};
 +    uint16_t op = 0;
@@ -3384,6 +3441,12 @@ index 0000000..37a9a36
 +            steps.push_back(st);
 +            continue;
 +        }
++        if (kind == "day") {
++            st.kind = Step::Day;
++            in >> st.to[0];
++            steps.push_back(st);
++            continue;
++        }
 +        if (kind == "time") {
 +            char colon = 0;
 +            if (!(in >> st.to[0] >> colon >> st.to[1]) || colon != ':') {
@@ -3443,6 +3506,8 @@ index 0000000..37a9a36
 +                Sleep(st.wait_ms);
 +            } else if (st.kind == Step::Watch) {
 +                dev_watch_start(st.addr, static_cast<int>(st.to[0]), static_cast<int>(st.to[1]));
++            } else if (st.kind == Step::Day) {
++                time_sync_dev_add_days(static_cast<int>(st.to[0]));
 +            } else if (st.kind == Step::Time) {
 +                time_sync_dev_set(static_cast<int>(st.to[0]), static_cast<int>(st.to[1]));
 +            } else if (st.kind == Step::Poke) {
@@ -3469,10 +3534,10 @@ index 0000000..37a9a36
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/dev_script.h b/upstream/cd-coop-3446/src/mod/net/dev_script.h
 new file mode 100644
-index 0000000..da1ab5e
+index 0000000..f49cdc2
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/dev_script.h
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,26 @@
 +#pragma once
 +// Co-op+ dev: send hand-written Troc packets from a text file (research on one PC: dev stage/minigame requests,
 +// sequencer messages). Bound to Ctrl+Shift+F6 when [dev] script=<path> is set. Never used in normal play.
@@ -3484,6 +3549,7 @@ index 0000000..da1ab5e
 +//   tp <x> <y> <z>                 (move our player there with the hopped teleport, revive_prompt.h)
 +//   poke <hex address> <hex bytes>  (write game memory: research only; the page must be writable)
 +//   time <hh:mm>                   (set our time of day, time_sync.h)
++//   day <+N>                       (N days later, same hour)
 +//   watch <hex addr> [len] [hits]  (hardware write breakpoint, dev_watch.h; logs who writes it)
 +// Placeholders in the payload: {P} = our player key (u32), {POS} = our position (3 x f32), {U} = our user key (u32).
 +// Spaces inside the hex are ignored. Opcodes are decimal.
@@ -4571,7 +4637,7 @@ index 0000000..6b6a821
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-index 22b77f6..af5c568 100644
+index 22b77f6..d3cfa81 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 @@ -1,4 +1,6 @@
@@ -4589,7 +4655,7 @@ index 22b77f6..af5c568 100644
  #include <vector>
  
  #include <safetyhook.hpp>
-@@ -27,15 +30,18 @@
+@@ -27,15 +30,20 @@
  #include "mod/net/guest_hits.h"
  #include "mod/net/loot_twin.h"
  #include "mod/net/native_suppress.h"
@@ -4601,6 +4667,8 @@ index 22b77f6..af5c568 100644
  #include "mod/net/remote_puppet.h"
 +#include "mod/net/revive_prompt.h"
  #include "mod/net/troc_sniffer.h"
++#include "mod/net/stage_cinema.h"
++#include "mod/net/weather_sync.h"
  
  namespace cdmp::net {
  namespace {
@@ -4609,7 +4677,7 @@ index 22b77f6..af5c568 100644
  using Bytes = std::vector<uint8_t>;
  
  // Keys our own puppet uses (remote_puppet.cpp): never learn templates from those.
-@@ -44,13 +50,13 @@ constexpr uint32_t kPuppetPlayer = 0xA010F001;
+@@ -44,13 +52,13 @@ constexpr uint32_t kPuppetPlayer = 0xA010F001;
  constexpr uint32_t kPuppetBody = 0xB010F001;
  constexpr uint32_t kPuppetHorse = 0xB010F002;
  
@@ -4628,7 +4696,7 @@ index 22b77f6..af5c568 100644
  constexpr size_t kRotateTs = 0x9C;
  
  uint64_t steady_ms() {
-@@ -96,9 +102,12 @@ std::map<uint32_t, ActorSeen> g_actors;
+@@ -96,9 +104,12 @@ std::map<uint32_t, ActorSeen> g_actors;
  std::atomic<uint32_t> g_last_attack_hash{0};
  std::atomic<uint32_t> g_last_attack_target{0};
  std::set<uint32_t> g_has_hp;  // under g_actors_mutex
@@ -4644,7 +4712,7 @@ index 22b77f6..af5c568 100644
  constexpr uint32_t kStatHP = 0x000F4240;
  
  // World actors with hit points, from their loads and HP messages.
-@@ -115,9 +124,9 @@ std::map<uint32_t, Enemy> g_enemies;  // under g_actors_mutex
+@@ -115,9 +126,9 @@ std::map<uint32_t, Enemy> g_enemies;  // under g_actors_mutex
  std::atomic<bool> g_damage_enabled{false};
  std::atomic<bool> g_key_alarm{false};
  uint64_t g_damage_sent = 0, g_damage_applied = 0, g_damage_unmatched = 0;
@@ -4657,7 +4725,7 @@ index 22b77f6..af5c568 100644
  
  // ---------------------------------------------------------------- writer-thread state
  game::PlayerReader g_reader;
-@@ -132,7 +141,7 @@ float g_horse_sent_pos[3] = {NAN, NAN, NAN};
+@@ -132,7 +143,7 @@ float g_horse_sent_pos[3] = {NAN, NAN, NAN};
  uint64_t g_horse_last_synth_ms = 0;
  Bytes g_last_move;                  // last real MoveActorReq payload (template for synth)
  uint64_t g_last_move_ms = 0;        // steady_ms when it was seen
@@ -4666,7 +4734,7 @@ index 22b77f6..af5c568 100644
  float g_last_sent_pos[3] = {NAN, NAN, NAN};
  uint64_t g_last_synth_ms = 0;
  uint64_t g_synthesized = 0;
-@@ -148,7 +157,7 @@ std::atomic<uint64_t> g_clock_at{0};
+@@ -148,7 +159,7 @@ std::atomic<uint64_t> g_clock_at{0};
  // wall clock, which runs on through a pause (pausa-copia-congelada.md F2).
  // Trusted once it agrees with the timestamps of our first Reqs.
  std::atomic<int> g_clock_reader{0};  // 0 checking, 1 trusted, -1 off
@@ -4675,7 +4743,7 @@ index 22b77f6..af5c568 100644
  
  constexpr uint64_t kWallUpRepeatMs = 50;  // resend an unchanged path this often
  Bytes g_last_wallup;
-@@ -172,6 +181,7 @@ struct EquipCopy {
+@@ -172,6 +183,7 @@ struct EquipCopy {
  };
  SafetyHookMid g_equip_hook;
  std::atomic<uint32_t> g_equip_key{0};  // our player key, for the hook
@@ -4683,7 +4751,7 @@ index 22b77f6..af5c568 100644
  SRWLOCK g_equip_lock = SRWLOCK_INIT;
  // Hook -> writer thread. Fixed storage: the hooks run on game server
  // threads and must not allocate.
-@@ -336,7 +346,16 @@ void note_clock(uint64_t ts) {
+@@ -336,7 +348,16 @@ void note_clock(uint64_t ts) {
      g_clock_at.store(steady_ms(), std::memory_order_relaxed);
      if (g_clock_reader.load(std::memory_order_relaxed) != 0) return;
      const auto read = game::client_game_clock_ms();
@@ -4701,7 +4769,7 @@ index 22b77f6..af5c568 100644
      // Read a little after the Req was stamped (this runs on the capture writer).
      const int64_t diff = static_cast<int64_t>(*read) - static_cast<int64_t>(ts);
      if (diff >= -250 && diff <= 250) ++g_clock_good;
-@@ -430,10 +449,10 @@ void capture_synth(uint64_t now) {
+@@ -430,10 +451,10 @@ void capture_synth(uint64_t now) {
      Bytes req = g_last_move;
      const float pos[3] = {me->position.x, me->position.y, me->position.z};
      const float rot[4] = {me->rotation.x, me->rotation.y, me->rotation.z, me->rotation.w};
@@ -4716,7 +4784,7 @@ index 22b77f6..af5c568 100644
      // Game clock: the game's own (stops in menus), else advanced from the
      // last real Move by the wall clock.
      uint64_t ts = g_clock_reader.load(std::memory_order_relaxed) == 1 ? capture_game_clock_ms() : 0;
-@@ -464,12 +483,12 @@ void capture_horse_synth(uint64_t now) {
+@@ -464,12 +485,12 @@ void capture_horse_synth(uint64_t now) {
      if (dx * dx + dy * dy + dz * dz < kSynthMinMove * kSynthMinMove) return;
      Bytes req = g_horse_last_move;
      const float p[3] = {pos->x, pos->y, pos->z};
@@ -4733,12 +4801,13 @@ index 22b77f6..af5c568 100644
      }
      std::memcpy(req.data() + kMoveTs, &clock, 8);
      std::memcpy(g_horse_sent_pos, p, sizeof p);
-@@ -486,17 +505,13 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -486,17 +507,14 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
      guest_hits_observe_s2c(packet, size);
      piece4_observe_s2c(packet, size);
      puppet_observe_s2c(packet, size);
 +    revive_observe_s2c(packet, size);
 +    save_guard_observe_s2c(packet, size);  // Co-op+
++    cinema_observe_s2c(packet, size);      // Co-op+
      uint16_t op = 0;
      if (size >= 5) std::memcpy(&op, packet, 2);
 -    if (op == kOpSetAvoidByCutSceneAck && size >= 5 + 21) {
@@ -4756,7 +4825,7 @@ index 22b77f6..af5c568 100644
      if (op == kOpChangedEquipByQuickSlotAck && size == 5 + 6) {
          // u32 key | u16 weapon set: our player switched weapons from the quick
          // slots (no OtherEquipItemAck; capture 20261006-190309): our attacks change.
-@@ -517,7 +532,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -517,7 +535,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
          std::memcpy(&key, packet + 5, 4);
          std::memcpy(&slot, packet + 9, 2);
          std::memcpy(&serial, packet + 13, 4);
@@ -4766,7 +4835,7 @@ index 22b77f6..af5c568 100644
          return;
      }
      if (op == kOpAttackTargetAck && size >= 5 + 0x28) {
-@@ -550,6 +566,10 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -550,6 +569,10 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
              // normal monster without needing the game's stage-name tables. The
              // research measured every NPC in 58 captures at <= 220 max HP.
              if (hp_max > 0) boss_note_max_hp(key, hp_max);
@@ -4777,7 +4846,7 @@ index 22b77f6..af5c568 100644
              std::optional<Bytes> event;
              {
                  std::lock_guard lock(g_actors_mutex);
-@@ -560,6 +580,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -560,6 +583,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
                  e.hp_max = hp_max;
                  // Damage dealt by the local player: mirror it to the other world.
                  const uint32_t own = g_equip_key.load();
@@ -4787,7 +4856,7 @@ index 22b77f6..af5c568 100644
                  if (own && source == own && hp < before && e.type && g_damage_enabled) {
                      Bytes b(proto::kDamageEventSize);
                      // Where it spawned (same in both worlds); else where it is.
-@@ -692,6 +715,17 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -692,6 +718,18 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
      }
  }
  
@@ -4801,16 +4870,19 @@ index 22b77f6..af5c568 100644
 +}
 +
 +void capture_emit_activity(std::vector<uint8_t> payload) { emit(proto::EventKind::Activity, std::move(payload)); }
++void capture_emit_weather(std::vector<uint8_t> payload) { emit(proto::EventKind::Weather, std::move(payload)); }
 +
  void capture_observe_c2s(const uint8_t* packet, size_t size) {
      aggro_observe_c2s(packet, size);
      enemy_observe_c2s(packet, size);
-@@ -701,9 +735,16 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -701,9 +739,18 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      loot_observe_c2s(packet, size);
      piece4_observe_c2s(packet, size);
      attack_probe_observe_c2s(packet, size);
 +    save_guard_observe_c2s(packet, size);  // Co-op+
 +    activity_observe_c2s(packet, size);    // Co-op+
++    weather_observe_c2s(packet, size);     // Co-op+
++    cinema_observe_c2s(packet, size);      // Co-op+
      if (size < 5 + 4) return;
      uint16_t op = 0;
      std::memcpy(&op, packet, 2);
@@ -4822,7 +4894,7 @@ index 22b77f6..af5c568 100644
      proto::EventKind kind;
      size_t expected = 0, ts_off = 0;
      if (op == off::kOpMoveActorReq) {
-@@ -727,7 +768,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -727,7 +774,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (kind == proto::EventKind::Move && keys::is_class(key, keys::kClassWorld) && key != kPuppetBody &&
          key != kPuppetHorse && key != g_own_horse) {
          float p[3];
@@ -4831,7 +4903,7 @@ index 22b77f6..af5c568 100644
          std::lock_guard lock(g_actors_mutex);
          if (g_actors.size() > 4096) g_actors.clear();
          g_actors[key] = {{p[0], p[1], p[2]}, steady_ms()};
-@@ -736,7 +777,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -736,7 +783,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (g_own_horse && key == g_own_horse) {
          if (kind == proto::EventKind::Move) {
              g_horse_last_move = payload;
@@ -4840,7 +4912,7 @@ index 22b77f6..af5c568 100644
          }
          emit(kind, std::move(payload));
          return;
-@@ -748,24 +789,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -748,24 +795,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      std::memcpy(&ts, payload.data() + ts_off, 8);
      note_clock(ts);
      if (kind == proto::EventKind::Move && g_own_horse) {
@@ -4965,7 +5037,7 @@ index 22b77f6..af5c568 100644
  void capture_tick() {
      {
          std::lock_guard lock(g_mutex);
-@@ -777,14 +914,32 @@ void capture_tick() {
+@@ -777,14 +920,32 @@ void capture_tick() {
      if (!g_reader_ready) return;
      const uint64_t now = steady_ms();
      drain_equip();
@@ -5000,10 +5072,10 @@ index 22b77f6..af5c568 100644
      uint8_t head[sizeof off::kServerOtherEquipWriterHead];
      if (base != off::kImageBase || !game::safe_read(fn, head, sizeof head) ||
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.h b/upstream/cd-coop-3446/src/mod/net/local_capture.h
-index 3b3dc90..a04dec9 100644
+index 3b3dc90..9917168 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.h
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.h
-@@ -48,6 +48,11 @@ uint32_t capture_template_generation();
+@@ -48,6 +48,13 @@ uint32_t capture_template_generation();
  // Our horse's key if its template is captured and it is in the world now
  // (what capture_spawn_info would send), else 0.
  uint32_t capture_horse_present();
@@ -5012,6 +5084,8 @@ index 3b3dc90..a04dec9 100644
 +void capture_emit_ping(float x, float y, float z);
 +// Co-op+: an EventKind::Activity payload for the other player (coop_activity.h).
 +void capture_emit_activity(std::vector<uint8_t> payload);
++// Co-op+: our weather stages to the other player (weather_sync.h).
++void capture_emit_weather(std::vector<uint8_t> payload);
  // Our own player actor's key (0xA01...), 0 until a save was loaded.
  uint32_t capture_own_player_key();
  // Our own user key (0x901...), 0 until a save was loaded.
@@ -7016,6 +7090,400 @@ index 0000000..2a78d61
 +std::string save_guard_hud_text();
 +
 +}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/stage_cinema.cpp b/upstream/cd-coop-3446/src/mod/net/stage_cinema.cpp
+new file mode 100644
+index 0000000..5773fd0
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/stage_cinema.cpp
+@@ -0,0 +1,331 @@
++#include "mod/net/stage_cinema.h"
++
++#include <windows.h>
++
++#include <atomic>
++#include <cmath>
++#include <cstring>
++#include <format>
++#include <map>
++#include <mutex>
++#include <string>
++#include <utility>
++
++#include "mod/log.h"
++#include "mod/net/coop_activity.h"
++#include "mod/net/enemy_relay.h"
++#include "mod/net/local_capture.h"
++#include "mod/net/remote_puppet.h"
++#include "mod/net/troc_sniffer.h"
++
++namespace cdmp::net {
++namespace {
++
++// 3479 opcodes (layouts: weather_sync.cpp, NOTES/LOG.md 2026-11-02 17:10).
++constexpr uint16_t kOpPrepareSequencerAck = 2380;
++constexpr uint16_t kOpDeleteSequencerAck = 2292;
++constexpr uint16_t kOpStageBranchStateAck = 2920;
++constexpr uint16_t kOpStageOnBranchEventAck = 2436;
++constexpr uint16_t kOpUpdateStageChartEventReq = 2839;
++constexpr uint16_t kOpUpdateStageChartEventAck = 2187;
++constexpr uint16_t kOpSetAvoidByCutSceneAck = 2708;  // u8 4 | u32 player | u64 stage | u8 on | u32 player
++constexpr uint64_t kFakeIdBase = 0x7D000000;
++constexpr float kNearM = 100.0f;          // the user's cutscene range
++constexpr uint32_t kMaxMs = 180000;       // a copy never outlives this
++constexpr uint32_t kPickWindowMs = 5000;  // the stage named / changed this long before the cutscene started
++constexpr uint32_t kTestDelayMs = 3000;
++constexpr size_t kPrepKeyAt = 19, kPrepIdAt = 9, kPrepMin = 23, kBindingsFrom = 86;
++enum : uint8_t { kStart = 7, kEnd = 8, kBranch = 9 };
++
++using Bytes = std::vector<uint8_t>;
++
++std::atomic<bool> g_enabled{true};
++std::atomic<bool> g_test{false};
++
++struct Stage {
++    Bytes prepare, branch, on_branch;  // payloads, as our server sent them
++    uint32_t changed_ms = 0;           // GetTickCount of the last branch message
++};
++
++std::mutex g_mutex;
++// Host side (our server's stages).
++std::map<uint64_t, Stage> g_stages;
++uint64_t g_avoid_id = 0;
++uint32_t g_avoid_ms = 0;
++uint64_t g_relayed = 0;           // the stage we told the other player about (0 = none)
++uint32_t g_relayed_changed = 0;
++bool g_last_cut = false;
++uint32_t g_cut_since = 0;
++bool g_test_started = false;
++// Guest side.
++struct Copy {
++    bool pending = false, active = false;
++    Bytes prepare, branch, on_branch;
++    std::array<float, 3> where{};
++    uint64_t id = 0;
++    uint32_t key = 0, since = 0;
++    uint32_t active_key = 0;  // the stage of the copy running now (key may already name the next one)
++} g_copy;
++uint64_t g_next_fake = kFakeIdBase;
++
++template <class T>
++T rd(const uint8_t* p) {
++    T v;
++    std::memcpy(&v, p, sizeof v);
++    return v;
++}
++
++uint32_t ticks() { return static_cast<uint32_t>(GetTickCount64()); }
++
++void put_blob(Bytes& out, const Bytes& b) {
++    const auto n = static_cast<uint16_t>(b.size());
++    out.insert(out.end(), reinterpret_cast<const uint8_t*>(&n), reinterpret_cast<const uint8_t*>(&n) + 2);
++    out.insert(out.end(), b.begin(), b.end());
++}
++
++bool get_blob(const uint8_t*& p, const uint8_t* end, Bytes& b) {
++    if (end - p < 2) return false;
++    const uint16_t n = rd<uint16_t>(p);
++    p += 2;
++    if (end - p < n) return false;
++    b.assign(p, p + n);
++    p += n;
++    return true;
++}
++
++// The stage's world actors (node bindings after the fixed part) as the other player's copies of them.
++Bytes for_guest(Bytes prepare) {
++    for (size_t i = kBindingsFrom; i + 4 <= prepare.size(); ++i) {
++        const uint32_t k = rd<uint32_t>(prepare.data() + i);
++        if ((k & 0xFFF00000u) != 0xB0100000u) continue;
++        if (const uint32_t copy = enemy_copy_of(k)) {
++            std::memcpy(prepare.data() + i, &copy, 4);
++            i += 3;
++        }
++    }
++    return prepare;
++}
++
++// A payload of ours with the other player's key and the server's sequencer id replaced (ours / our copy's id).
++Bytes as_ours(Bytes p, uint32_t player, uint64_t id, size_t id_at) {
++    if (p.size() < id_at + 8 || p.size() < 5) return p;
++    const uint32_t theirs = rd<uint32_t>(p.data() + 1);
++    for (size_t i = 0; i + 4 <= p.size(); ++i) {
++        if (rd<uint32_t>(p.data() + i) == theirs) std::memcpy(p.data() + i, &player, 4);
++    }
++    std::memcpy(p.data() + id_at, &id, 8);
++    return p;
++}
++
++void send(uint8_t type, const Bytes& data) { activity_send(type, data); }
++
++}  // namespace
++
++uint32_t cinema_stage_key(uint64_t id) {
++    std::lock_guard lock(g_mutex);
++    const auto it = g_stages.find(id);
++    return it == g_stages.end() || it->second.prepare.size() < kPrepMin ? 0
++                                                                         : rd<uint32_t>(it->second.prepare.data() + kPrepKeyAt);
++}
++
++void cinema_set_enabled(bool on) { g_enabled = on; }
++void cinema_set_test(bool on) { g_test = on; }
++
++void cinema_observe_s2c(const uint8_t* packet, size_t size) {
++    if (size < 5 + 13) return;
++    const uint16_t op = rd<uint16_t>(packet);
++    const uint8_t* p = packet + 5;
++    const size_t n = size - 5;
++    if (op != kOpPrepareSequencerAck && op != kOpDeleteSequencerAck && op != kOpStageBranchStateAck &&
++        op != kOpStageOnBranchEventAck && op != kOpSetAvoidByCutSceneAck) {
++        return;
++    }
++    std::lock_guard lock(g_mutex);
++    if (op == kOpPrepareSequencerAck && n >= kPrepMin) {
++        Stage& s = g_stages[rd<uint64_t>(p + kPrepIdAt)];
++        s = Stage{};
++        s.prepare.assign(p, p + n);
++    } else if (op == kOpDeleteSequencerAck && n >= 12) {
++        g_stages.erase(rd<uint64_t>(p + 4));
++    } else if (op == kOpStageBranchStateAck || op == kOpStageOnBranchEventAck) {
++        auto it = g_stages.find(rd<uint64_t>(p + 5));
++        if (it == g_stages.end()) return;
++        (op == kOpStageBranchStateAck ? it->second.branch : it->second.on_branch).assign(p, p + n);
++        it->second.changed_ms = ticks();
++    } else if (op == kOpSetAvoidByCutSceneAck && n >= 14 && p[13]) {
++        g_avoid_id = rd<uint64_t>(p + 5);
++        g_avoid_ms = ticks();
++    }
++}
++
++void cinema_observe_c2s(const uint8_t* packet, size_t size) {
++    if (size < 5 + 17 || rd<uint16_t>(packet) != kOpUpdateStageChartEventReq) return;
++    const uint8_t* p = packet + 5;
++    const uint64_t id = rd<uint64_t>(p);
++    if (id < kFakeIdBase || id >= kFakeIdBase + 0x1000000) return;
++    const uint32_t player = capture_own_player_key();
++    if (!player) return;
++    Bytes a(13);
++    a[0] = 4;
++    std::memcpy(a.data() + 1, &player, 4);
++    std::memcpy(a.data() + 5, &id, 8);
++    a.insert(a.end(), p + 8, p + 17);
++    puppet_inject_s2c_batch({{kOpUpdateStageChartEventAck, std::move(a)}});
++}
++
++void cinema_on_event(uint8_t type, const uint8_t* d, size_t size) {
++    const uint8_t* end = d + size;
++    std::lock_guard lock(g_mutex);
++    if (type == kStart && size >= 4 + 12) {
++        Copy c;
++        c.key = rd<uint32_t>(d);
++        std::memcpy(c.where.data(), d + 4, 12);
++        const uint8_t* p = d + 16;
++        if (!get_blob(p, end, c.prepare) || !get_blob(p, end, c.branch) || !get_blob(p, end, c.on_branch)) return;
++        if (c.prepare.size() < kPrepMin) return;
++        c.pending = true;
++        c.since = ticks();
++        c.active = g_copy.active;  // a copy still running ends first
++        c.id = g_copy.id;
++        c.active_key = g_copy.active_key;
++        g_copy = std::move(c);
++        log::info("Cinema: the other player's cutscene is in stage {}", g_copy.key);
++    } else if (type == kBranch && g_copy.active) {
++        const uint8_t* p = d;
++        Bytes b, ob;
++        if (!get_blob(p, end, b) || !get_blob(p, end, ob)) return;
++        const uint32_t player = capture_own_player_key();
++        std::vector<std::pair<uint16_t, Bytes>> inject;
++        if (!b.empty()) inject.push_back({kOpStageBranchStateAck, as_ours(b, player, g_copy.id, 5)});
++        if (!ob.empty()) inject.push_back({kOpStageOnBranchEventAck, as_ours(ob, player, g_copy.id, 5)});
++        puppet_inject_s2c_batch(inject);
++    } else if (type == kEnd) {
++        g_copy.pending = false;
++        g_copy.since = 0;  // the tick ends an active copy
++    }
++}
++
++void cinema_tick(bool connected, bool host, bool cut, std::optional<std::array<float, 3>> me,
++                 std::optional<std::array<float, 3>> partner, uint32_t now) {
++    if (!g_enabled) return;
++    const uint32_t t = ticks();
++    const bool loading = sniffer_world_loading();
++    const uint32_t player = capture_own_player_key();
++    std::vector<std::pair<uint16_t, Bytes>> inject;
++    std::vector<std::pair<uint8_t, Bytes>> out;
++    std::string note;
++    {
++        std::lock_guard lock(g_mutex);
++        // ---- our cutscene: which stage, and tell the other player
++        if (cut != g_last_cut) {
++            g_last_cut = cut;
++            g_cut_since = t;
++            g_test_started = false;
++            if (cut && !loading) {
++                uint64_t pick = 0;
++                if (g_avoid_id && t - g_avoid_ms < kPickWindowMs && g_stages.count(g_avoid_id)) {
++                    pick = g_avoid_id;
++                } else {
++                    uint32_t best = kPickWindowMs;
++                    for (const auto& [id, s] : g_stages) {
++                        if (s.changed_ms && t - s.changed_ms < best) best = t - s.changed_ms, pick = id;
++                    }
++                }
++                g_relayed = pick;
++                if (pick) {
++                    const Stage& s = g_stages[pick];
++                    g_relayed_changed = s.changed_ms;
++                    const uint32_t key = rd<uint32_t>(s.prepare.data() + kPrepKeyAt);
++                    note = "Cinema: our cutscene is in stage " + std::to_string(key) + " (sequencer 0x" +
++                           std::format("{:X}", pick) + ")";
++                    if (connected) {
++                        Bytes b(16);
++                        std::memcpy(b.data(), &key, 4);
++                        const std::array<float, 3> here = me.value_or(std::array<float, 3>{});
++                        std::memcpy(b.data() + 4, here.data(), 12);
++                        put_blob(b, for_guest(s.prepare));
++                        put_blob(b, s.branch);
++                        put_blob(b, s.on_branch);
++                        if (b.size() <= 1000) out.push_back({kStart, std::move(b)});
++                        else note += "; too big to send";
++                    }
++                } else {
++                    note = "Cinema: our cutscene is not in a stage we know (not shared)";
++                }
++            } else if (!cut && g_relayed) {
++                if (connected) out.push_back({kEnd, {}});
++                g_relayed = 0;
++            }
++        } else if (cut && g_relayed && connected) {
++            // Branch changes of the stage while its cutscene plays.
++            const auto it = g_stages.find(g_relayed);
++            if (it != g_stages.end() && it->second.changed_ms != g_relayed_changed) {
++                g_relayed_changed = it->second.changed_ms;
++                Bytes b;
++                put_blob(b, it->second.branch);
++                put_blob(b, it->second.on_branch);
++                out.push_back({kBranch, std::move(b)});
++            }
++        }
++        // [dev] cinema_test: our own stage as if the host sent it, kTestDelayMs into the cutscene.
++        if (g_test && cut && g_relayed && !g_test_started && t - g_cut_since > kTestDelayMs) {
++            g_test_started = true;
++            const Stage& s = g_stages[g_relayed];
++            Copy c;
++            c.key = rd<uint32_t>(s.prepare.data() + kPrepKeyAt);
++            c.where = me.value_or(std::array<float, 3>{});
++            c.prepare = s.prepare;
++            c.branch = s.branch;
++            c.on_branch = s.on_branch;
++            c.pending = true;
++            c.since = t;
++            c.active = g_copy.active;
++            c.id = g_copy.id;
++            c.active_key = g_copy.active_key;
++            g_copy = std::move(c);
++            note = "Cinema: [dev] cinema_test: starting a copy of our own stage " + std::to_string(g_copy.key);
++        }
++        if (g_test && !cut && g_copy.active && t - g_cut_since > 1000) g_copy.since = 0;  // test: ends with ours
++
++        // ---- guest: run the copy
++        Copy& c = g_copy;
++        const bool linked = connected || g_test;
++        const bool expired = c.since == 0 || t - c.since > kMaxMs || !linked || loading;
++        if (c.active && (expired || c.pending)) {  // ended, or replaced by a new one
++            if (player) inject.push_back({kOpDeleteSequencerAck, [&] {
++                Bytes d(17, 0);
++                std::memcpy(d.data(), &player, 4);
++                std::memcpy(d.data() + 4, &c.id, 8);
++                std::memcpy(d.data() + 12, &c.active_key, 4);
++                d[16] = 7;
++                return d;
++            }()});
++            c.active = false;
++            note = "Cinema: the copy of stage " + std::to_string(c.active_key) + " ended";
++        }
++        if (c.pending && !expired && player && (!host || g_test) && (g_test || !cut)) {
++            const std::array<float, 3> here = me.value_or(c.where);
++            const bool in_range = std::hypot(here[0] - c.where[0], here[2] - c.where[2]) <= kNearM;
++            (void)partner;
++            if (in_range) {
++                c.pending = false;
++                c.active = true;
++                c.id = g_next_fake++;
++                c.active_key = c.key;
++                inject.push_back({kOpPrepareSequencerAck, as_ours(c.prepare, player, c.id, kPrepIdAt)});
++                if (!c.branch.empty()) inject.push_back({kOpStageBranchStateAck, as_ours(c.branch, player, c.id, 5)});
++                if (!c.on_branch.empty()) {
++                    inject.push_back({kOpStageOnBranchEventAck, as_ours(c.on_branch, player, c.id, 5)});
++                }
++                note = std::format("Cinema: playing the other player's cutscene (stage {} as 0x{:X}, {} bytes)", c.key,
++                                   c.id, c.prepare.size());
++            }
++        }
++    }
++    for (auto& [type, b] : out) send(type, b);
++    if (!inject.empty()) puppet_inject_s2c_batch(inject);
++    if (!note.empty()) log::info("{}", note);
++    (void)now;
++}
++
++}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/stage_cinema.h b/upstream/cd-coop-3446/src/mod/net/stage_cinema.h
+new file mode 100644
+index 0000000..ae7eba6
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/stage_cinema.h
+@@ -0,0 +1,51 @@
++#pragma once
++// Co-op+: the host's stage cinematics play for the guest too (user 2026-11-02: "you HAVE to be able to play boss
++// fights together (hence needing boss fight cutscenes to play for you)"). D38.
++//
++// A boss fight, a story scene, a minigame intro: each is a STAGE (a .pastage graph + a .paseq timeline) that the
++// player's own client runs; the server starts it (PrepareSequencerAck: the stage key and the world actors bound to its
++// nodes) and moves it between branches (StageBranchStateAck / StageOnBranchEventAck); the cinematic is a branch of
++// it, played by the client. The guest's world does not run the host's boss stage (its boss only exists in the host's
++// world; the guest's own is hidden near the host), so the guest's client never plays the cinematic.
++//
++// So, when the host's cutscene starts inside a stage (SetAvoidByCutSceneAck names the stage, or the stage that changed
++// branch just before), the host sends that stage's PrepareSequencerAck payload (the actors it binds translated to the
++// guest's copies of them, enemy_copy_of) with its current branch messages; branch changes follow while the cutscene
++// plays. A guest within 100 m starts a copy of the stage in its client under a sequencer id of its own (kFakeIdBase +
++// n, its server never hears of it), at the host's branch, answers the client's chart requests for it as the server
++// would (weather_sync does the same), and ends the copy when the host's cutscene ends (or after kMaxMs). The skip
++// rule of coop_activity (everyone must press Esc) then covers both cutscenes.
++
++#include <array>
++#include <cstddef>
++#include <cstdint>
++#include <optional>
++#include <vector>
++
++namespace cdmp::net {
++
++// Game network thread (troc_sniffer's OnRecvPacket hook), real server packets: records stages and their branches.
++// Never drops anything.
++void cinema_observe_s2c(const uint8_t* packet, size_t size);
++
++// Sniffer thread (capture_observe_c2s): chart requests of our client for a stage copy we started.
++void cinema_observe_c2s(const uint8_t* packet, size_t size);
++
++// coop_activity: the other player's cinema events (Activity types 7 start, 8 end, 9 branch).
++void cinema_on_event(uint8_t type, const uint8_t* data, size_t size);
++
++// coop_activity's tick (every frame). `cut`: our cutscene flag.
++void cinema_tick(bool connected, bool host, bool cut, std::optional<std::array<float, 3>> me,
++                 std::optional<std::array<float, 3>> partner, uint32_t now_ms);
++
++// The stage key of one of our server's running stages (0 = unknown), e.g. the minigame a match is in.
++uint32_t cinema_stage_key(uint64_t sequencer);
++
++// [coop] stage_cinema (default on).
++void cinema_set_enabled(bool on);
++
++// [dev] cinema_test: one-PC test: 3 s into each of our own stage cutscenes, start a copy of that stage as if the
++// host had sent it (shows whether a second copy at the same branch plays, and that ending it cleans up).
++void cinema_set_test(bool on);
++
++}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/steam_join.cpp b/upstream/cd-coop-3446/src/mod/net/steam_join.cpp
 new file mode 100644
 index 0000000..47775d6
@@ -7403,7 +7871,7 @@ index 0000000..fa07127
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/time_sync.cpp b/upstream/cd-coop-3446/src/mod/net/time_sync.cpp
-index 64b6fc9..93d2076 100644
+index 64b6fc9..4eae999 100644
 --- a/upstream/cd-coop-3446/src/mod/net/time_sync.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/time_sync.cpp
 @@ -19,7 +19,7 @@
@@ -7451,7 +7919,7 @@ index 64b6fc9..93d2076 100644
      std::vector<uint8_t> pk(5 + 36, 0);
      const uint16_t op = off::kOpSetFieldTimeReq, len = 36;
      std::memcpy(pk.data(), &op, 2);
-@@ -117,6 +119,20 @@ void time_sync_set_dev_key(bool on) {
+@@ -117,6 +119,29 @@ void time_sync_set_dev_key(bool on) {
      if (on) log::warn("Time sync (dev): Ctrl+Shift+F12 = our time of day 3 hours forward");
  }
  
@@ -7469,27 +7937,42 @@ index 64b6fc9..93d2076 100644
 +    return ok;
 +}
 +
++bool time_sync_dev_add_days(int days) {
++    const auto own = own_time();
++    if (!own || days <= 0) return false;
++    const uint64_t target = own->second + static_cast<uint64_t>(days) * FieldTime::kRawDay;
++    const bool ok = set_time(own->first, target);
++    log::info("Time sync (dev): {} -> {}{}", hhmm(own->second), hhmm(target), ok ? "" : " (NOT sent)");
++    return ok;
++}
++
  std::optional<proto::GameEvent> time_sync_tick(uint32_t now_ms) {
      if (g_dev_key.load()) {
          const bool down = (GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState(VK_SHIFT) & 0x8000) &&
 diff --git a/upstream/cd-coop-3446/src/mod/net/time_sync.h b/upstream/cd-coop-3446/src/mod/net/time_sync.h
-index 5fba898..242988c 100644
+index 5fba898..7675ffd 100644
 --- a/upstream/cd-coop-3446/src/mod/net/time_sync.h
 +++ b/upstream/cd-coop-3446/src/mod/net/time_sync.h
-@@ -17,6 +17,8 @@ void time_sync_set_mode(TimeSyncMode mode);
+@@ -17,6 +17,10 @@ void time_sync_set_mode(TimeSyncMode mode);
  // same SetFieldTimeReq the guest uses (a one-PC check of the mechanism).
  void time_sync_set_dev_key(bool on);
  
 +// Dev: set our own time of day to the next hh:mm (dev_script "time"); false if our clock is not readable.
 +bool time_sync_dev_set(int hour, int minute);
++// Dev: move our time of day by whole days (dev_script "day +N"), same hour.
++bool time_sync_dev_add_days(int days);
  // Sender: an event to send now, if it is time to.
  std::optional<proto::GameEvent> time_sync_tick(uint32_t now_ms);
  // Receiver: the other player's time of day.
 diff --git a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
-index 82b334d..7555265 100644
+index 82b334d..3bf12f8 100644
 --- a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
-@@ -30,7 +30,7 @@
+@@ -27,10 +27,11 @@
+ #include "mod/net/loot_twin.h"
+ #include "mod/net/native_suppress.h"
+ #include "mod/net/remote_puppet.h"
++#include "mod/net/weather_sync.h"
  
  namespace cdmp::net {
  namespace {
@@ -7498,7 +7981,7 @@ index 82b334d..7555265 100644
  
  enum class Dir : uint8_t { ClientToServer = 1, ServerToClient = 2 };
  
-@@ -141,7 +141,8 @@ thread_local bool t_posting = false;
+@@ -141,7 +142,8 @@ thread_local bool t_posting = false;
  // LoadingCompleteAck (S>C 2762), nothing of ours goes in either way: they
  // wait in their queues (analisis-ia2/P5: the horse copy's action went in
  // mid-load; both of Shadow's crashes were in the tunnel). At most 120 s.
@@ -7508,7 +7991,7 @@ index 82b334d..7555265 100644
  constexpr uint64_t kAfterLoadingMs = 1500, kMaxLoadingMs = 120000;
  std::atomic<bool> g_loading{false};
  std::atomic<uint64_t> g_loading_start_ms{0}, g_loading_done_ms{0};
-@@ -179,6 +180,23 @@ bool read_post_args(uint64_t rsp, uint8_t& channel, uint16_t& flags) {
+@@ -179,6 +181,23 @@ bool read_post_args(uint64_t rsp, uint8_t& channel, uint16_t& flags) {
      }
  }
  
@@ -7532,7 +8015,7 @@ index 82b334d..7555265 100644
  void on_post_packet(safetyhook::Context& ctx) {
      capture(Dir::ClientToServer, static_cast<uint32_t>(ctx.r8),
              reinterpret_cast<const uint8_t*>(ctx.r9), ctx.rsp);
-@@ -195,6 +213,7 @@ void on_post_packet(safetyhook::Context& ctx) {
+@@ -195,6 +214,7 @@ void on_post_packet(safetyhook::Context& ctx) {
      if (!read_post_args(ctx.rsp, channel, flags) || !guarded_copy(&op, reinterpret_cast<const void*>(ctx.r9), 2)) {
          return;
      }
@@ -7540,7 +8023,18 @@ index 82b334d..7555265 100644
      const uint32_t packed = 0x80000000u | (static_cast<uint32_t>(flags) << 8) | channel;
      if (op < 4096) g_post_args[op].store(packed, std::memory_order_relaxed);
      g_post_args_any.store(packed, std::memory_order_relaxed);
-@@ -379,8 +398,6 @@ const std::string& name_for(uint16_t op) {
+@@ -339,7 +359,9 @@ void on_recv_packet(safetyhook::Context& ctx) {
+         // The guest's loot twin (loot_twin.h): its load and messages never
+         // show; its loot ones are renamed after the copy in place.
+         (loot_filter_s2c(reinterpret_cast<uint8_t*>(ctx.r9), size) ||
+-         suppress_filter_s2c(reinterpret_cast<const uint8_t*>(ctx.r9), size))) {
++         suppress_filter_s2c(reinterpret_cast<const uint8_t*>(ctx.r9), size) ||
++         // Co-op+: our server's weather while we follow the host's (weather_sync.h).
++         weather_filter_s2c(reinterpret_cast<const uint8_t*>(ctx.r9), size))) {
+         ctx.rip = reinterpret_cast<uintptr_t>(g_ret_stub);
+     }
+ }
+@@ -379,8 +401,6 @@ const std::string& name_for(uint16_t op) {
      return it == g_name_by_opcode.end() ? unknown : it->second;
  }
  
@@ -7549,7 +8043,23 @@ index 82b334d..7555265 100644
  // ---------------------------------------------------------------- writer
  
  // cdmp_packets_*.bin: "CDPK" u32 version u32 pe_timestamp, then records:
-@@ -614,6 +631,11 @@ uint16_t opcode_for(const char* name, uint16_t fallback) {
+@@ -536,8 +556,14 @@ DWORD WINAPI writer_thread(LPVOID p) {
+         log::info("Sniffer: not recording packets to disk ([sniffer] record=0)");
+     }
+ 
+-    ULONGLONG last_stats = GetTickCount64();
++    ULONGLONG last_stats = GetTickCount64(), last_flush = last_stats;
+     for (;;) {
++        // Co-op+: flush every 2 s, so a recording read while the game runs (or after it was killed) is complete.
++        if (w.text && GetTickCount64() - last_flush >= 2000) {
++            last_flush = GetTickCount64();
++            std::fflush(w.text);
++            std::fflush(w.bin);
++        }
+         AcquireSRWLockExclusive(&g_lock);
+         const uint64_t head = g_ring->head();
+         const uint64_t tail = g_ring->tail();  // only this thread moves the tail
+@@ -614,6 +640,11 @@ uint16_t opcode_for(const char* name, uint16_t fallback) {
      return found;
  }
  
@@ -7561,7 +8071,7 @@ index 82b334d..7555265 100644
  bool sniffer_world_loading() { return world_loading(); }
  
  bool sniffer_inject_c2s(std::vector<uint8_t> packet) {
-@@ -743,4 +765,6 @@ bool sniffer_install(const std::wstring& dir, HANDLE stop, bool record) {
+@@ -743,4 +774,6 @@ bool sniffer_install(const std::wstring& dir, HANDLE stop, bool record) {
      return true;
  }
  
@@ -7596,6 +8106,409 @@ index b6efad7..da78c29 100644
  // has not been read yet or the name is not there, so behaviour is identical to
  // before on a build where resolution is unavailable.
  uint16_t opcode_for(const char* name, uint16_t fallback);
+diff --git a/upstream/cd-coop-3446/src/mod/net/weather_sync.cpp b/upstream/cd-coop-3446/src/mod/net/weather_sync.cpp
+new file mode 100644
+index 0000000..2c8eee4
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/weather_sync.cpp
+@@ -0,0 +1,341 @@
++#include "mod/net/weather_sync.h"
++
++#include <atomic>
++#include <cstring>
++#include <map>
++#include <mutex>
++#include <utility>
++
++#include "mod/log.h"
++#include "mod/net/local_capture.h"
++#include "mod/net/remote_puppet.h"
++#include "mod/net/troc_sniffer.h"
++
++namespace cdmp::net {
++namespace {
++
++constexpr uint16_t kOpPrepareSequencerAck = 2380;  // 3479
++constexpr uint16_t kOpDeleteSequencerAck = 2292;   // 3479
++constexpr uint16_t kOpStageBranchStateAck = 2920;     // u8 4 | u32 player | u64 sequencer | u32 branch | u32 previous |
++                                                      // u32 hash | u32 0 | u32 hash | u32 counter
++constexpr uint16_t kOpStageBranchStateReq = 2880;     // u64 sequencer | u32 branch | u16 0 (every ~60 s)
++constexpr uint16_t kOpStageOnBranchEventAck = 2436;   // u8 4 | u32 player | u64 sequencer | u32 branch | u8 0
++constexpr uint16_t kOpUpdateStageChartEventReq = 2839;  // u64 sequencer | u32 branch | u32 index | u8 value
++constexpr uint16_t kOpUpdateStageChartEventAck = 2187;  // u8 4 | u32 player | + the request
++constexpr uint8_t kDeleteReason = 7;               // what the server sends when a stage ends normally
++constexpr uint64_t kFakeIdBase = 0x7E000000;       // our own sequencer ids for the host's stages (the server's: ~0x200)
++constexpr uint32_t kSendEveryMs = 5000;
++constexpr uint32_t kHostStaleMs = 20000;           // no report for this long: our own weather comes back
++constexpr size_t kMaxStages = 8;
++constexpr size_t kPrepKeyAt = 19, kPrepIdAt = 9, kPrepPosAt = 35, kPrepMin = 23;
++
++// stage_names.json (NattKh), every Weather_* stage but the Wayward Woods quest one.
++constexpr std::pair<uint32_t, const char*> kWeatherStages[] = {
++    {1001373, "Rainy_Desert"},      {1001492, "Sunny"},             {1001600, "Windy_Degree45"},
++    {1001619, "Windy_Degree90"},    {1001621, "Windy_Degree135"},   {1001624, "Windy_Degree180"},
++    {1001625, "Windy_Degree225"},   {1001836, "Windy_Degree270"},   {1001887, "Windy_Degree315"},
++    {1002670, "Windy_Speed08"},     {1002671, "Windy_Speed07"},     {1002672, "Windy_Speed06"},
++    {1002673, "Windy_Speed05"},     {1002674, "Windy_Speed04"},     {1002675, "Windy_Speed03"},
++    {1002676, "Cloudy_85"},         {1002677, "Cloudy_80"},         {1002678, "Cloudy_75"},
++    {1002679, "Cloudy_70"},         {1002680, "Cloudy_65"},         {1002681, "Cloudy_60"},
++    {1002682, "Cloudy_55"},         {1002683, "Cloudy_45"},         {1004464, "Rainy_Jungle"},
++    {19990011, "Rainy_Short"},      {19990020, "Rainy_Normal"},     {19990030, "Rainy_Hard"},
++};
++
++// A weather PrepareSequencerAck seen live (3479, Weather_Rainy_Hard), the template for [dev] weather_test.
++constexpr uint8_t kTemplate[103] = {
++    0x04, 0x01, 0x00, 0x10, 0xA0, 0x01, 0x00, 0x10, 0xA0, 0x60, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
++    0x00, 0x0E, 0x06, 0x31, 0x01, 0x00, 0x00, 0x00, 0x00, 0x17, 0x37, 0xB0, 0x18, 0x0E, 0x06, 0x31, 0x01, 0xB3,
++    0xB5, 0x21, 0xC6, 0xD6, 0xE0, 0x05, 0x44, 0x68, 0xFB, 0x74, 0xC5, 0xC7, 0x3A, 0x02, 0x40, 0x00, 0x00, 0x00,
++    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF,
++    0x7F, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
++    0xFF, 0x0D, 0x01, 0x00, 0x00, 0x20, 0x01, 0x00, 0x10, 0xA0, 0x05, 0x00, 0x00,
++};
++
++using Bytes = std::vector<uint8_t>;
++
++std::atomic<bool> g_enabled{true};
++std::atomic<uint32_t> g_test_key{0};
++std::atomic<bool> g_follow{false};  // read by the S>C hook: drop our server's weather stages
++
++std::mutex g_mutex;
++std::map<uint64_t, Bytes> g_own;    // our server's weather stages: sequencer id -> PrepareSequencerAck payload
++bool g_own_changed = false;
++uint32_t g_seq_out = 1, g_seq_in = 0;
++uint32_t g_last_send = 0;
++std::map<uint32_t, Bytes> g_host;   // the host's stages by stage key (payloads)
++uint32_t g_host_ms = 0;
++bool g_host_fresh = false;     // a report came in; the tick stamps it with its own clock
++bool g_host_new = false;
++std::map<uint32_t, uint64_t> g_started;  // host stages running in our client: stage key -> our sequencer id
++uint64_t g_next_fake = kFakeIdBase;
++bool g_own_ended = false;
++bool g_was_loading = false;
++struct Branch {
++    uint32_t branch = 0, previous = 0xFFFFFFFF, counter = 0;
++};
++std::map<uint64_t, Branch> g_branch;  // our stand-in for the server's branch state of the host's stages in our client
++uint32_t g_hash1 = 0x22B6EC91, g_hash2 = 0xDAD73925;  // every weather stage's (captures 2026-11-02)
++
++template <class T>
++T rd(const uint8_t* p) {
++    T v;
++    std::memcpy(&v, p, sizeof v);
++    return v;
++}
++
++bool is_weather(uint32_t key) {
++    for (const auto& [k, n] : kWeatherStages) {
++        if (k == key) return true;
++    }
++    return false;
++}
++
++Bytes branch_state_payload(uint32_t player, uint64_t id, const Branch& b) {
++    Bytes p(37, 0);
++    p[0] = 4;
++    std::memcpy(p.data() + 1, &player, 4);
++    std::memcpy(p.data() + 5, &id, 8);
++    std::memcpy(p.data() + 13, &b.branch, 4);
++    std::memcpy(p.data() + 17, &b.previous, 4);
++    std::memcpy(p.data() + 21, &g_hash1, 4);
++    std::memcpy(p.data() + 29, &g_hash2, 4);
++    std::memcpy(p.data() + 33, &b.counter, 4);
++    return p;
++}
++
++Bytes delete_payload(uint32_t player, uint64_t id, uint32_t key) {
++    Bytes b(17, 0);
++    std::memcpy(b.data(), &player, 4);
++    std::memcpy(b.data() + 4, &id, 8);
++    std::memcpy(b.data() + 12, &key, 4);
++    b[16] = kDeleteReason;
++    return b;
++}
++
++// The host's payload as one of ours: our player, our sequencer id, where we stand.
++Bytes prepare_payload(Bytes p, uint32_t player, uint64_t id, const std::optional<std::array<float, 3>>& me) {
++    const uint32_t theirs = rd<uint32_t>(p.data() + 1);
++    for (size_t i = 0; i + 4 <= p.size(); ++i) {
++        if (rd<uint32_t>(p.data() + i) == theirs) std::memcpy(p.data() + i, &player, 4);
++    }
++    std::memcpy(p.data() + kPrepIdAt, &id, 8);
++    if (me && p.size() >= kPrepPosAt + 12) std::memcpy(p.data() + kPrepPosAt, me->data(), 12);
++    return p;
++}
++
++std::string names_of(const std::map<uint32_t, Bytes>& m) {
++    std::string s;
++    for (const auto& [k, p] : m) s += std::string(s.empty() ? "" : ", ") + weather_stage_name(k);
++    return s.empty() ? "none" : s;
++}
++
++}  // namespace
++
++const char* weather_stage_name(uint32_t key) {
++    for (const auto& [k, n] : kWeatherStages) {
++        if (k == key) return n;
++    }
++    return "";
++}
++
++void weather_set_enabled(bool on) { g_enabled = on; }
++
++void weather_set_test(uint32_t key) {
++    g_test_key = key;
++    if (key) log::info("Weather (dev): acting as a guest whose host has {} ({})", weather_stage_name(key), key);
++}
++
++bool weather_filter_s2c(const uint8_t* packet, size_t size) {
++    if (size < 5) return false;
++    const uint16_t op = rd<uint16_t>(packet);
++    const uint8_t* p = packet + 5;
++    const size_t n = size - 5;
++    if (op == kOpPrepareSequencerAck && n >= kPrepMin) {
++        if (!is_weather(rd<uint32_t>(p + kPrepKeyAt))) return false;
++        std::lock_guard lock(g_mutex);
++        g_own[rd<uint64_t>(p + kPrepIdAt)] = Bytes(p, p + n);
++        g_own_changed = true;
++        return g_follow.load();
++    }
++    if (op == kOpStageBranchStateAck && n >= 37) {  // the branch hashes, should a build change them
++        std::lock_guard lock(g_mutex);
++        if (g_own.count(rd<uint64_t>(p + 5))) {
++            g_hash1 = rd<uint32_t>(p + 21);
++            g_hash2 = rd<uint32_t>(p + 29);
++        }
++        return false;
++    }
++    if (op == kOpDeleteSequencerAck && n >= 16) {
++        std::lock_guard lock(g_mutex);
++        if (g_own.erase(rd<uint64_t>(p + 4)) == 0) return false;
++        g_own_changed = true;
++        return g_follow.load();
++    }
++    return false;
++}
++
++void weather_observe_c2s(const uint8_t* packet, size_t size) {
++    if (size < 5 + 8) return;
++    const uint16_t op = rd<uint16_t>(packet);
++    if (op != kOpStageBranchStateReq && op != kOpUpdateStageChartEventReq) return;
++    const uint8_t* p = packet + 5;
++    const uint64_t id = rd<uint64_t>(p);
++    if (id < kFakeIdBase || id >= kFakeIdBase + 0x1000000) return;
++    const uint32_t player = capture_own_player_key();
++    if (!player) return;
++    std::vector<std::pair<uint16_t, Bytes>> inject;
++    Bytes head(13);
++    head[0] = 4;
++    std::memcpy(head.data() + 1, &player, 4);
++    std::memcpy(head.data() + 5, &id, 8);
++    if (op == kOpUpdateStageChartEventReq && size >= 5 + 17) {
++        Bytes a = head;
++        a.insert(a.end(), p + 8, p + 17);
++        inject.push_back({kOpUpdateStageChartEventAck, std::move(a)});
++    } else if (op == kOpStageBranchStateReq && size >= 5 + 12) {
++        // As the server answers a weather stage: the event for the branch the client is in, then the state "in branch
++        // 1, came from that one" (0 -> 1, then 1 -> 1 every minute).
++        const uint32_t b = rd<uint32_t>(p + 8);
++        Bytes ev = head;
++        ev.insert(ev.end(), {static_cast<uint8_t>(b), static_cast<uint8_t>(b >> 8), static_cast<uint8_t>(b >> 16),
++                             static_cast<uint8_t>(b >> 24), 0});
++        inject.push_back({kOpStageOnBranchEventAck, std::move(ev)});
++        std::lock_guard lock(g_mutex);
++        auto it = g_branch.find(id);
++        if (it == g_branch.end()) return;  // ended meanwhile
++        it->second.previous = b;
++        it->second.branch = b == 0 ? 1 : b;
++        ++it->second.counter;
++        inject.push_back({kOpStageBranchStateAck, branch_state_payload(player, id, it->second)});
++        static int logged = 0;
++        if (logged++ < 10) log::info("Weather: answered our client's branch request for 0x{:X} (branch {})", id, b);
++    }
++    puppet_inject_s2c_batch(inject);
++}
++
++void weather_on_event(const std::vector<uint8_t>& b) {
++    if (b.size() < 5) return;
++    const uint32_t seq = rd<uint32_t>(b.data());
++    std::map<uint32_t, Bytes> stages;
++    size_t at = 5;
++    for (int i = 0; i < b[4] && at + 2 <= b.size(); ++i) {
++        const uint16_t len = rd<uint16_t>(b.data() + at);
++        at += 2;
++        if (len < kPrepMin || at + len > b.size()) return;  // malformed: keep what we had
++        Bytes p(b.data() + at, b.data() + at + len);
++        at += len;
++        const uint32_t key = rd<uint32_t>(p.data() + kPrepKeyAt);
++        if (is_weather(key)) stages[key] = std::move(p);
++    }
++    std::lock_guard lock(g_mutex);
++    if (seq <= g_seq_in && seq + 1000 > g_seq_in) return;  // a repeat or older (a restart of theirs starts at 1)
++    g_seq_in = seq;
++    g_host_fresh = true;
++    if (stages != g_host) {
++        g_host = std::move(stages);
++        g_host_new = true;
++    }
++}
++
++void weather_tick(bool connected, bool host, bool in_world, std::optional<std::array<float, 3>> me, uint32_t now) {
++    std::vector<std::pair<uint16_t, Bytes>> inject;
++    std::string log_line;
++    Bytes send;
++    {
++        std::lock_guard lock(g_mutex);
++        const uint32_t test = g_test_key.load();
++        if (test) {  // [dev] a simulated host with exactly that stage
++            if (g_host.size() != 1 || !g_host.count(test)) {
++                Bytes p(std::begin(kTemplate), std::end(kTemplate));
++                std::memcpy(p.data() + kPrepKeyAt, &test, 4);
++                std::memcpy(p.data() + kPrepKeyAt + 12, &test, 4);
++                g_host = {{test, std::move(p)}};
++                g_host_new = true;
++            }
++            g_host_fresh = true;
++        }
++        if (g_host_fresh) {
++            g_host_fresh = false;
++            g_host_ms = now;
++        }
++        // Host: our stages to the other player, on change and every few seconds.
++        if (g_enabled && connected && host && (g_own_changed || now - g_last_send >= kSendEveryMs)) {
++            g_own_changed = false;
++            g_last_send = now;
++            send.resize(5);
++            const uint32_t seq = g_seq_out++;
++            std::memcpy(send.data(), &seq, 4);
++            uint8_t count = 0;
++            for (const auto& [id, p] : g_own) {
++                if (count == kMaxStages || send.size() + 2 + p.size() > 1000) break;
++                const auto len = static_cast<uint16_t>(p.size());
++                send.insert(send.end(), reinterpret_cast<const uint8_t*>(&len), reinterpret_cast<const uint8_t*>(&len) + 2);
++                send.insert(send.end(), p.begin(), p.end());
++                ++count;
++            }
++            send[4] = count;
++        }
++        // Guest: follow the host's stages.
++        const uint32_t player = capture_own_player_key();
++        const bool loading = sniffer_world_loading();
++        // Our position goes away in a minigame or a cutscene: that does not stop following.
++        const bool follow = g_enabled && player && (in_world || g_follow.load()) && !loading && (test || (connected && !host)) &&
++                            g_host_ms && now - g_host_ms < kHostStaleMs;
++        if (loading && !g_was_loading && !g_started.empty()) {
++            // A loading screen: the client may drop its sequencers. Ours start again under new ids after it (the
++            // old ids are ended first, in case it kept them).
++            for (const auto& [key, id] : g_started) inject.push_back({kOpDeleteSequencerAck, delete_payload(player, id, key)});
++            g_started.clear();
++            g_branch.clear();
++        }
++        g_was_loading = loading;
++        if (follow) {
++            if (!g_follow.exchange(true) || !g_own_ended) {
++                for (const auto& [id, p] : g_own) {
++                    inject.push_back({kOpDeleteSequencerAck, delete_payload(player, id, rd<uint32_t>(p.data() + kPrepKeyAt))});
++                }
++                g_own_ended = true;
++                log_line = "Weather: following the host's (" + names_of(g_host) + "); ours held back";
++            }
++            for (auto it = g_started.begin(); it != g_started.end();) {
++                if (g_host.count(it->first)) {
++                    ++it;
++                    continue;
++                }
++                inject.push_back({kOpDeleteSequencerAck, delete_payload(player, it->second, it->first)});
++                g_branch.erase(it->second);
++                it = g_started.erase(it);
++            }
++            for (const auto& [key, p] : g_host) {
++                if (g_started.count(key)) continue;
++                const uint64_t id = g_next_fake++;
++                g_started[key] = id;
++                inject.push_back({kOpPrepareSequencerAck, prepare_payload(p, player, id, me)});
++                g_branch[id] = Branch{};
++                inject.push_back({kOpStageBranchStateAck, branch_state_payload(player, id, g_branch[id])});
++            }
++            if (g_host_new && log_line.empty()) log_line = "Weather: the host's is now " + names_of(g_host);
++            g_host_new = false;
++        } else if (g_follow.exchange(false)) {
++            // Back to our own weather: the host's end, ours start again (the stages our server holds now).
++            for (const auto& [key, id] : g_started) {
++                if (player) inject.push_back({kOpDeleteSequencerAck, delete_payload(player, id, key)});
++            }
++            g_started.clear();
++            g_branch.clear();
++            if (player) {
++                for (const auto& [id, p] : g_own) inject.push_back({kOpPrepareSequencerAck, prepare_payload(p, player, id, std::nullopt)});
++            }
++            g_own_ended = false;
++            g_host.clear();
++            g_host_ms = 0;
++            log_line = "Weather: our own again (" + std::to_string(g_own.size()) + " stages)";
++        }
++    }
++    if (!send.empty()) capture_emit_weather(std::move(send));
++    if (!inject.empty()) puppet_inject_s2c_batch(inject);
++    if (!log_line.empty()) log::info("{}", log_line);
++}
++
++}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/weather_sync.h b/upstream/cd-coop-3446/src/mod/net/weather_sync.h
+new file mode 100644
+index 0000000..01f53b7
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/weather_sync.h
+@@ -0,0 +1,50 @@
++#pragma once
++// Co-op+: the guest's weather follows the host's (user 2026-11-02: "weather HAS to match"), EventKind::Weather.
++//
++// Weather is not computed from the time of day. The local server picks weather STAGES (stage names Weather_Sunny,
++// Weather_Cloudy_65, Weather_Windy_Degree90, Weather_Windy_Speed05, Weather_Rainy_Hard ...) at random when the world
++// loads and now and then later, and starts each in the client with PrepareSequencerAck
++//   u8 4 | u32 player | u32 player | u64 sequencer | u16 1 | u32 stage key | u32 0 | u32 hash | u32 stage key |
++//   f32 x, y, z (where we stood) | ...                                     (103 bytes for a weather stage on 3479)
++// and ends one with DeleteSequencerAck (u32 player | u64 sequencer | u32 stage key | u8 reason). Same save, same
++// game time, nine loads: nine different sets (packet captures 2026-11-02). So:
++// - the host sends its current weather stages (their whole PrepareSequencerAck payloads) on every change and every
++//   few seconds;
++// - the guest holds back its own server's weather stages (dropped in the sniffer's S>C hook, the ones already
++//   running ended once), starts the host's under sequencer ids of its own (kFakeIdBase + n) and ends them when the
++//   host's end. After a loading screen they are started again. When the guest leaves (or the host's reports stop),
++//   the host's are ended and the guest's own weather stages come back.
++
++#include <array>
++#include <cstddef>
++#include <cstdint>
++#include <optional>
++#include <vector>
++
++namespace cdmp::net {
++
++// Game network thread (troc_sniffer's OnRecvPacket hook), real server packets only: records our server's weather
++// stages. True = drop this packet (we follow the host's weather).
++bool weather_filter_s2c(const uint8_t* packet, size_t size);
++
++// Sniffer thread (capture_observe_c2s): our client's branch and chart requests for the host's stages it plays are
++// answered here as the server answers them (our server never heard of those sequencers).
++void weather_observe_c2s(const uint8_t* packet, size_t size);
++
++// A Weather event from the other player.
++void weather_on_event(const std::vector<uint8_t>& payload);
++
++// Network loop, every frame. `me`: our position (for the stages we start). `in_world`: our position is readable
++// (needed to start following; a minigame or cutscene hides it for a while without stopping it).
++void weather_tick(bool connected, bool host, bool in_world, std::optional<std::array<float, 3>> me, uint32_t now_ms);
++
++// [coop] weather_sync (default on).
++void weather_set_enabled(bool on);
++
++// [dev] weather_test=<stage key>: one-PC test: act as a guest whose host has exactly that weather stage.
++void weather_set_test(uint32_t stage_key);
++
++// For the panel / log: the stage name of a weather key ("Rainy_Hard"), "" when not a weather stage.
++const char* weather_stage_name(uint32_t stage_key);
++
++}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/wire_layout.h b/upstream/cd-coop-3446/src/mod/net/wire_layout.h
 new file mode 100644
 index 0000000..a3b4be2
