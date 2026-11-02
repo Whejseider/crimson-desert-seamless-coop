@@ -1593,7 +1593,7 @@ index 0000000..3a01aaf
 +
 +}  // namespace cdmp::game
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..652f19f 100644
+index 79ccd06..3bbdf4c 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,7 @@
@@ -1875,7 +1875,7 @@ index 79ccd06..652f19f 100644
                      std::holds_alternative<proto::Hello>(packet->body)) {
                      peer = from;
                      peer_since = now_ms();
-@@ -426,7 +560,26 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -426,13 +560,34 @@ void run_network(const Config& cfg, LocalSource& local) {
              peer.reset();
              if (steam) steam->set_peer(0);
          }
@@ -1902,7 +1902,15 @@ index 79ccd06..652f19f 100644
          if (coop) {
              std::optional<proto::Vec3> pos;
              proto::Quat rot;
-@@ -455,6 +608,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+             if (local.snapshot()) {
+                 pos = local.snapshot()->position;
+                 rot = local.snapshot()->rotation;
++                const auto& s = *local.snapshot();
++                coop->set_local_dead(s.health_max > 0.0f && s.health <= 0.0f, now);
+             }
+             coop->update(pos, rot, now);
+         }
+@@ -455,6 +610,8 @@ void run_network(const Config& cfg, LocalSource& local) {
                  if (auto pos = net::puppet_position()) hud.remote->pos = *pos;
              }
              if (coop) hud.enemy_zone = net::suppress_hud_text();
@@ -1911,7 +1919,7 @@ index 79ccd06..652f19f 100644
              // Boss bar (boss_safe.h): the guest has no native one.
              if (const net::BossHud b = net::boss_hud(); b.active) {
                  hud.boss_active = true;
-@@ -475,6 +630,17 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +632,17 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -1929,7 +1937,7 @@ index 79ccd06..652f19f 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -491,6 +657,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,6 +659,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                  remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                       rs->pos.z, rs->health);
              }
@@ -1944,7 +1952,7 @@ index 79ccd06..652f19f 100644
              log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | remote states {} | "
                        "last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
                        state, st.sent, st.received, st.rejected, st.rtt_ms, st.remote_states, remote,
-@@ -499,6 +673,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -499,6 +675,7 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
              if (coop) log::info("{}", coop->describe());
@@ -1952,7 +1960,7 @@ index 79ccd06..652f19f 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +684,104 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +686,104 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -2058,7 +2066,7 @@ index 79ccd06..652f19f 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +883,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +885,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -2067,7 +2075,7 @@ index 79ccd06..652f19f 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +937,7 @@ void combat_test_loop() {
+@@ -669,7 +939,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -2076,7 +2084,7 @@ index 79ccd06..652f19f 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +955,7 @@ void combat_test_loop() {
+@@ -687,7 +957,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -2085,7 +2093,7 @@ index 79ccd06..652f19f 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1020,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1022,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -2094,7 +2102,7 @@ index 79ccd06..652f19f 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1034,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1036,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -2102,7 +2110,7 @@ index 79ccd06..652f19f 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,6 +1063,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,6 +1065,7 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -2110,7 +2118,7 @@ index 79ccd06..652f19f 100644
          net::puppet_install_rope_bend();
          // Horse and enemy copies (the other player may send theirs at any
          // time) need the crash containment (docs/INFORME-CABALLO-CRASH.md)
-@@ -902,21 +1172,67 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,21 +1174,67 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -2178,7 +2186,7 @@ index 79ccd06..652f19f 100644
          const Config cfg = load_config(dir + L"cdmp.ini");
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
-@@ -925,7 +1241,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1243,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -2187,7 +2195,7 @@ index 79ccd06..652f19f 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -969,6 +1285,16 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1287,16 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -2204,7 +2212,7 @@ index 79ccd06..652f19f 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1346,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1348,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -2237,7 +2245,7 @@ index 79ccd06..652f19f 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1369,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1371,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -2249,7 +2257,7 @@ index 79ccd06..652f19f 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1394,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1396,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -2325,7 +2333,7 @@ index 4e09fdc..5a743d9 100644
  constexpr uint64_t kRecentMs = 5000;
  constexpr uint32_t kMaxListed = 16;
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop.cpp b/upstream/cd-coop-3446/src/mod/net/coop.cpp
-index 3bdc2c5..30abc9e 100644
+index 3bdc2c5..b58fb02 100644
 --- a/upstream/cd-coop-3446/src/mod/net/coop.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/coop.cpp
 @@ -49,7 +49,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
@@ -2337,6 +2345,72 @@ index 3bdc2c5..30abc9e 100644
          if (r.op == op) return r.reliable;
      }
      return false;
+@@ -84,6 +84,30 @@ CoopLink::~CoopLink() {
+     puppet_remove();
+ }
+ 
++void CoopLink::set_local_dead(bool dead, uint32_t now_ms) {
++    constexpr uint32_t kDeadForMs = 1500;  // a real death, not an HP read glitch
++    if (!dead) {
++        dead_since_ms_ = 0;
++        if (copy_out_for_death_) {
++            copy_out_for_death_ = false;
++            if (last_spawn_ && !remote_spawn_) {
++                remote_spawn_ = last_spawn_;
++                if (const auto& rs = session_.remote_state()) remote_spawn_->pos = rs->pos;
++                spawn_not_before_ms_ = now_ms;
++                log::info("Co-op: we are alive again; loading the other player's character back");
++            }
++        }
++        return;
++    }
++    if (!dead_since_ms_) dead_since_ms_ = now_ms ? now_ms : 1;
++    if (copy_out_for_death_ || now_ms - dead_since_ms_ < kDeadForMs || !puppet_spawned()) return;
++    remove_puppet(now_ms);
++    remote_spawn_.reset();
++    copy_out_for_death_ = true;
++    log::info("Co-op: we died; the other player's character leaves our world until we revive (else the game "
++              "never offers the revive)");
++}
++
+ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::Quat& local_rot,
+                       uint32_t now_ms) {
+     const bool connected = session_.state() == ClientSession::State::Connected;
+@@ -268,7 +292,8 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
+     }
+ 
+     // Load the other player once we are in the world ourselves.
+-    if (remote_spawn_ && local_pos && !loading && static_cast<int32_t>(now_ms - spawn_not_before_ms_) >= 0) {
++    if (remote_spawn_ && local_pos && !loading && !copy_out_for_death_ &&
++        static_cast<int32_t>(now_ms - spawn_not_before_ms_) >= 0) {
+         if (puppet_spawned()) {
+             remove_puppet(now_ms);
+             return;
+diff --git a/upstream/cd-coop-3446/src/mod/net/coop.h b/upstream/cd-coop-3446/src/mod/net/coop.h
+index a328bc0..1baee35 100644
+--- a/upstream/cd-coop-3446/src/mod/net/coop.h
++++ b/upstream/cd-coop-3446/src/mod/net/coop.h
+@@ -35,6 +35,10 @@ public:
+ 
+     // Every network loop. `local_pos` is set while the local player is in
+     // the world (nothing is spawned or announced otherwise).
++    // Co-op+ (3479): while our player is dead the game never shows its death screen (no revive) if the
++    // other player's copy -- a player-class actor -- is in our world: one-PC tests, with and without the copy
++    // and with and without co-op, all agree. So the copy goes while we are dead and comes back once we live.
++    void set_local_dead(bool dead, uint32_t now_ms);
+     void update(const std::optional<proto::Vec3>& local_pos, const proto::Quat& local_rot,
+                 uint32_t now_ms);
+ 
+@@ -92,6 +96,9 @@ private:
+     uint32_t last_remote_ms_ = 0;
+     uint64_t last_remote_states_ = 0;
+     bool remote_silent_ = false;
++    // Co-op+ (3479): our player is dead and the other player's copy was taken out for it (see set_local_dead).
++    bool copy_out_for_death_ = false;
++    uint32_t dead_since_ms_ = 0;
+     // The game drops remote characters on its own loading screens: watch that
+     // the copy still exists and reload it when it vanished.
+     uint32_t spawned_at_ms_ = 0;
 diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 index 72da385..7fdab6e 100644
 --- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp

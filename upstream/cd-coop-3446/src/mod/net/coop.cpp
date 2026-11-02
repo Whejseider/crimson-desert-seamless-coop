@@ -84,6 +84,30 @@ CoopLink::~CoopLink() {
     puppet_remove();
 }
 
+void CoopLink::set_local_dead(bool dead, uint32_t now_ms) {
+    constexpr uint32_t kDeadForMs = 1500;  // a real death, not an HP read glitch
+    if (!dead) {
+        dead_since_ms_ = 0;
+        if (copy_out_for_death_) {
+            copy_out_for_death_ = false;
+            if (last_spawn_ && !remote_spawn_) {
+                remote_spawn_ = last_spawn_;
+                if (const auto& rs = session_.remote_state()) remote_spawn_->pos = rs->pos;
+                spawn_not_before_ms_ = now_ms;
+                log::info("Co-op: we are alive again; loading the other player's character back");
+            }
+        }
+        return;
+    }
+    if (!dead_since_ms_) dead_since_ms_ = now_ms ? now_ms : 1;
+    if (copy_out_for_death_ || now_ms - dead_since_ms_ < kDeadForMs || !puppet_spawned()) return;
+    remove_puppet(now_ms);
+    remote_spawn_.reset();
+    copy_out_for_death_ = true;
+    log::info("Co-op: we died; the other player's character leaves our world until we revive (else the game "
+              "never offers the revive)");
+}
+
 void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::Quat& local_rot,
                       uint32_t now_ms) {
     const bool connected = session_.state() == ClientSession::State::Connected;
@@ -268,7 +292,8 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     }
 
     // Load the other player once we are in the world ourselves.
-    if (remote_spawn_ && local_pos && !loading && static_cast<int32_t>(now_ms - spawn_not_before_ms_) >= 0) {
+    if (remote_spawn_ && local_pos && !loading && !copy_out_for_death_ &&
+        static_cast<int32_t>(now_ms - spawn_not_before_ms_) >= 0) {
         if (puppet_spawned()) {
             remove_puppet(now_ms);
             return;

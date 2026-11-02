@@ -1,6 +1,7 @@
 # STATE (single source of truth for resuming)
 
 ## NOW (2026-11-01 evening) -- read this first
+- FIRST read NOTES/HANDOFF-2026-11-01.md (detailed state, the open death-screen blocker, test kit).
 - Work from NOTES/PLAN.md (user's standing instruction: plan, then carry it out without stopping to ask).
 - Game **1.0.0.3479**. Package `dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+bf1b4122.zip` built from HEAD, Defender-clean,
   installed (user's cdmp.ini kept). verify-port: run it FROM upstream/cd-coop-3446 (it reads headers relative to cwd).

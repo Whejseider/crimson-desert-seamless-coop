@@ -35,6 +35,10 @@ public:
 
     // Every network loop. `local_pos` is set while the local player is in
     // the world (nothing is spawned or announced otherwise).
+    // Co-op+ (3479): while our player is dead the game never shows its death screen (no revive) if the
+    // other player's copy -- a player-class actor -- is in our world: one-PC tests, with and without the copy
+    // and with and without co-op, all agree. So the copy goes while we are dead and comes back once we live.
+    void set_local_dead(bool dead, uint32_t now_ms);
     void update(const std::optional<proto::Vec3>& local_pos, const proto::Quat& local_rot,
                 uint32_t now_ms);
 
@@ -92,6 +96,9 @@ private:
     uint32_t last_remote_ms_ = 0;
     uint64_t last_remote_states_ = 0;
     bool remote_silent_ = false;
+    // Co-op+ (3479): our player is dead and the other player's copy was taken out for it (see set_local_dead).
+    bool copy_out_for_death_ = false;
+    uint32_t dead_since_ms_ = 0;
     // The game drops remote characters on its own loading screens: watch that
     // the copy still exists and reload it when it vanished.
     uint32_t spawned_at_ms_ = 0;

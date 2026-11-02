@@ -38,6 +38,9 @@ installed package updated. Status: [x] done, [~] in progress, [ ] to do.
 - [ ] A11 No friendly fire (user request 2026-11-01): players never hurt each other. By design already (hits are only
       relayed for copied ENEMIES; a blow on the other player's copy goes nowhere); keep it so when A10 lands and
       check it in the two-PC test
+- [~] A12 Independent deaths (user 2026-11-01): each player dies/respawns normally (game's own respawn point), the other
+      is unaffected; the copy follows. BLOCKER found: while connected the death screen never appears (see
+      NOTES/HANDOFF-2026-11-01.md, bisect in progress)
 - [ ] A9 Boss-fight deaths (user request 2026-11-01): a player who dies during a boss fight does not respawn until the
       teammates beat the boss (then everyone respawns/revives) or everyone is down (then the whole party restarts
       the fight)

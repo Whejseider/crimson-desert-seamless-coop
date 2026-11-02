@@ -586,6 +586,8 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             if (local.snapshot()) {
                 pos = local.snapshot()->position;
                 rot = local.snapshot()->rotation;
+                const auto& s = *local.snapshot();
+                coop->set_local_dead(s.health_max > 0.0f && s.health <= 0.0f, now);
             }
             coop->update(pos, rot, now);
         }
