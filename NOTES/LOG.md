@@ -442,3 +442,15 @@
 - verify-port checks kFieldTimeClient at the real 0x6EA4998: ALL OFFLINE CHECKS PASSED.
 - Versus now only for arm/hand wrestling stages (stage key of the match from SpawnMiniGameCharacterReq's stage
   sequencer via cinema_stage_key); banner names the game.
+- Wyvern keys (ptr_multi.py, record = name ptr | key at +8): Item_Egg_Wyvern 1004389, Animal_Baby_Wyvern_1 1004045,
+  Riding_Wyvern_1000 1004233 (again), Knowledge_Wyvern 1001881, CallVehicleWyvern_Owner 1000010 (other record type).
+- wyvern-k-main (wyvern as Kliff's main mount + Knowledge_Wyvern): H sends nothing; an injected
+  FrameEventCallMercenaryReq for that record (kind 3, as H does for the horse) gets NO answer from the server. So the
+  server validates the call against the character (the grown wyvern comes another way: the egg).
+- slot103-wyvern-egg (tools/save/make_egg_save.py): inventory slot 7 (22007 x9) -> 1 x Item_Egg_Wyvern, + Knowledge_
+  Wyvern. Next: use it from the inventory (UI), see what hatches; growth = days? (dev "day N" can skip them).
+- EGG (slot103-wyvern-egg): inventory shows "Wyvern Egg, Keepsake: ... Keep it safe and warm in a nest, and it won't
+  be long before the beast inside breaks free." Space = Use -> UseItemReq 3060 (38 B: player | u64 item no 0xFA | u32
+  item key | u16 slot 7 | ...) -> HideInventoryByUseItemAck; Kliff carries it (Place Ctrl / Throw Q / Drop R / Store F).
+  Dropped = a "Wyvern Egg [E] Carry" object. dev "day 1" (27 -> 28): not hatched. Hopped to Pororin Village
+  (-10172, 573, -5243 = Reachwood Ruins, Grace Estate): no nest seen. Flagged F7 (how does it hatch?).
