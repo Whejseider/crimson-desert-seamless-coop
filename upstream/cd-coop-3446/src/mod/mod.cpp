@@ -35,6 +35,7 @@
 #include "mod/net/player_hits.h"
 #include "mod/net/puppet_minimap.h"
 #include "mod/net/remote_puppet.h"
+#include "mod/net/revive_prompt.h"
 #include "mod/net/party_scaling.h"
 #include "mod/net/save_guard.h"
 #include "mod/net/boss_safe.h"
@@ -551,6 +552,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         const uint32_t now = now_ms();
         session.tick(now);
         const bool connected = session.state() == ClientSession::State::Connected;
+        bool revive_prompt = false;
         if (host && was_connected && !connected && peer) {
             log::info("Network: {} left; waiting for a player", peer->str());
             peer.reset();
@@ -587,7 +589,16 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 pos = local.snapshot()->position;
                 rot = local.snapshot()->rotation;
                 const auto& s = *local.snapshot();
-                coop->set_local_dead(s.health_max > 0.0f && s.health <= 0.0f, now);
+                // [dev] kill_key: Ctrl+Shift+F9 kills us (repeatable death tests on one PC).
+                static bool kill_was_down = false;
+                const bool kill_down = cfg.dev_kill_key && (GetAsyncKeyState(VK_CONTROL) & 0x8000) &&
+                                       (GetAsyncKeyState(VK_SHIFT) & 0x8000) && (GetAsyncKeyState(VK_F9) & 0x8000);
+                if (kill_down && !kill_was_down && s.health > 0.0f) {
+                    net::hits_dev_kill_self(static_cast<int64_t>(s.health * 1000.0f));
+                }
+                kill_was_down = kill_down;
+                // Co-op+: our own revive choices when the game's death screen stays away (revive_prompt.h).
+                revive_prompt = net::revive_prompt_tick(connected, s.health, s.health_max, game_has_focus(), now);
             }
             coop->update(pos, rot, now);
         }
@@ -604,6 +615,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             hud.local_status = local.status();
             hud.remote = session.remote_state();
             hud.peer_problem = session.peer_problem();
+            hud.revive_prompt = revive_prompt;
             // In co-op, put the marker on the character actually drawn (it
             // plays the network state `delay` ms later).
             if (coop && hud.remote) {
@@ -1294,6 +1306,8 @@ DWORD WINAPI worker(LPVOID) {
         net::enemy_set_copies_allowed(cfg.dev_enemy_copies);
         net::enemy_set_keep_origin(cfg.dev_enemy_keep_origin);
         net::loot_set_test_original(cfg.dev_loot_test_original);
+        net::coop_set_copy_disabled(cfg.dev_no_copy);
+        if (cfg.dev_no_copy) log::info("Config: [dev] no_copy=1: the other player's character is never loaded");
         log::info("Config: who can join: {}", cfg.net_join_invite_only
                                                   ? "invited friends only ([net] join=invite)"
                                                   : "any Steam friend playing (\"Join Game\")");

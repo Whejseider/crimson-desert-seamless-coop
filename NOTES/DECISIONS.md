@@ -157,3 +157,23 @@
   request logs the player out on 3479).
 - No friendly fire: hits between players are never relayed (by design; kept explicit, user request).
 
+
+## 2026-11-01 D26: Our own revive prompt while the game's death screen stays away
+- One-PC bisect (LOG, 21:00-23:50): once the other player's copy has been LOADED in our world, the game never opens
+  its death screen for our player again -- not with the copy removed before the death, not with its user entity
+  removed too, not with zero replayed events. Copy never loaded (`[dev] no_copy=1`) -> screen. The screen is a
+  data-driven UI script (UIGamePlayControlReviveModal); its condition was not found in a few hours.
+- Decision: in co-op, after a copy has been loaded and 4 s without the game's screen, the overlay shows the same
+  choice and sends the game's own requests (net/revive_prompt.*). Q = Instant Revive works exactly as the game's.
+  U = Revive at Checkpoint: the server revives us at the checkpoint (full health), but the client only moves there
+  in its own loading flow; our DoTeleportAck took in 1 of 4 tests. Shipped as best effort (documented in README and
+  the playtest checklist) rather than withholding U, because with no instant revives left U is the only way up.
+- The earlier rule "the copy leaves while we are dead" is gone: it did not help, and the dead player keeps seeing
+  the friend now.
+- Possibly echo-only: the one-PC copy is a clone of our own character; the two-PC test must note which screen shows.
+
+## 2026-11-01 D27: Opcode tables are checked against the live table after every port
+- The relay table (kRelayedAcks) and two inline AttackByCollisionReq sites kept 3424 numbers on 3460/3479, so the
+  copy got none of our HP/buff/death/revive messages and a lethal blow sent a guild request. Renumbered; new
+  tools/port/check_opcodes.py fails on any hardcoded opcode whose name does not match the live Troc table, and on
+  opcode tables inherited from an older build's header. Part of the port routine (C6).

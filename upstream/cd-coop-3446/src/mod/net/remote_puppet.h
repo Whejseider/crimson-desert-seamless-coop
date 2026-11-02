@@ -25,6 +25,9 @@ namespace cdmp::net {
 bool puppet_spawn(const proto::SpawnInfo& info);
 // Any thread. Queue its removal (with fade-out); false if there is none.
 bool puppet_remove();
+// Co-op+: a copy was loaded at least once this game session (after that the game no longer
+// opens its death screen for us: revive_prompt.h).
+bool puppet_ever_spawned();
 bool puppet_spawned();
 // True while this game sits paused in a menu (its clock stopped).
 bool puppet_local_paused();

@@ -210,6 +210,8 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_enemy_copies = read_uint(ini_path, L"coop", L"enemy_copies", read_uint(ini_path, L"dev", L"enemy_copies", 1)) != 0;
     c.dev_enemy_keep_origin = read_uint(ini_path, L"dev", L"enemy_keep_origin", 0) != 0;
     c.dev_loot_test_original = read_uint(ini_path, L"dev", L"loot_test_original", 0) != 0;
+    c.dev_no_copy = read_uint(ini_path, L"dev", L"no_copy", 0) != 0;
+    c.dev_kill_key = read_uint(ini_path, L"dev", L"kill_key", 0) != 0;
     c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
     c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
     c.coop_delay_ms = std::clamp(read_uint(ini_path, L"coop", L"delay_ms", c.coop_delay_ms), 50u, 5000u);

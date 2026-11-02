@@ -70,7 +70,9 @@ struct Config {
     bool dev_attack_probe = false;
     bool dev_enemy_copies = true;  // Co-op+: load the other player's enemy copies ([coop] enemy_copies)
     bool dev_enemy_keep_origin = false;
-    bool dev_loot_test_original = false;  // Co-op+ dev: loot_twin uses the copy's original (one-PC test)  // Co-op+ experiment: send enemy loads with their spawn identity  // Co-op+: load the other player's enemy copies (crash on 3479, enemy_relay.cpp)
+    bool dev_no_copy = false;   // Co-op+ dev: never load the other player's character ([dev] no_copy)
+    bool dev_kill_key = false;  // Co-op+ dev: Ctrl+Shift+F9 kills our player ([dev] kill_key)
+    bool dev_loot_test_original = false;  // Co-op+ dev: loot_twin uses the copy's original (one-PC test)
     int dev_load_trace = 0;  // Co-op+: 1 = log actor load-state steps, 2 = + unhide experiment (load_trace.h)
 
     // Co-op over the network ([coop]): the other player (or, through

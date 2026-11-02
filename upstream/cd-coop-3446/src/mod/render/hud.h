@@ -39,6 +39,9 @@ struct HudData {
     // Co-op+: "<name> joined your world" and similar, for a few seconds ("" = none).
     // Drawn even when the panel is hidden.
     std::string toast;
+    // Co-op+: we are dead and the game's own death screen stays away: our Q / U choices
+    // (revive_prompt.h). Drawn even when the panel is hidden.
+    bool revive_prompt = false;
     // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
     // copy. The guest has no native boss bar -- the stage that draws it exists
     // only in the host's world -- so we draw our own.

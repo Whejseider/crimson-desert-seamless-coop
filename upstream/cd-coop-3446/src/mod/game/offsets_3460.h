@@ -72,7 +72,6 @@ using build_3446::kPinColourCount;
 using build_3446::kPinGroupNormal;
 using build_3446::kPinShapeCount;
 using build_3446::kPointClimbEnterHead;
-using build_3446::kRelayedAcks;
 using build_3446::kRemoteCatchSceneId;
 using build_3446::kRideEnterHead;
 using build_3446::kServerActor_Key;
@@ -153,6 +152,26 @@ inline constexpr uint16_t kOpRemovePinMarkerAck = 2376;  // 2976-era header: 299
 inline constexpr uint16_t kOpChangeDockingSocketByFrameEventAck = 2907;  // 2976-era header: 2747
 inline constexpr uint16_t kOpRemoteCatchResultAck = 2395;  // 2976-era header: 2763
 inline constexpr uint16_t kOpUpdateOnDemandGimmickAck = 2923;  // 2976-era header: 2145
+
+// Relayed server messages (layout: build_3424::RelayedAck). Same messages, sizes and key fields as
+// before (sizes re-measured in the 3479 captures); only the opcodes moved. The 3424 numbers had been
+// kept by mistake on 3460/3479, where they name other messages (2530 = AutoSpawnRoadReq, 3053 =
+// ReviveAck, 2642 = SetMinStatRateAck...): Co-op+ 2026-11-02.
+inline constexpr RelayedAck kRelayedAcks[] = {
+    {2740, false, 92, {0x54}},              // VaryHPAck: HP; +0x54 = who caused it
+    {2305, false, 90, {0x54}},              // DataDefinedRegenerateValueAck; +0x54 = source
+    {2362, false, 41, {}},                  // VaryDataDefinedStaticStatAck
+    {2677, true, 77, {0x18, 0x1C, 0x21}},   // ApplyBuffAck: caster, target, tagged source (0x22 = actor)
+    {2521, true, 77, {0x18, 0x1C, 0x21}},   // UnapplyBuffAck
+    {2386, false, 42, {}},                  // UpdateChangeBuffLevelAck
+    {3143, false, 118, {0x28}},             // UpdateElementalAck (wet, burning...); +0x28 = source
+    {2985, true, 19, {0x04}},               // NotifyHandleDeadAck: +0 dead (the sender), +4 killer
+    {2225, true, 0, {}},                    // NotifyHandleFatalAck
+    {3043, true, 0, {}},                    // NotifyHandleReviveAck
+    {3053, true, 18, {}},                   // ReviveAck
+    {2101, true, 279, {}},                  // CharacterCustomizationAck
+    {kOpRemoteCatchResultAck, true, 97, {}, true, {0x0A}},  // RemoteCatchResultAck (see build_3424)
+};
 
 // ---- copies' visibility (Co-op+, measured on 3460) -----------------------------------
 // The status component keeps "hide" flags in two u64 at +0x3B8/+0x3C0. While any is set, the

@@ -1,21 +1,18 @@
 # STATE (single source of truth for resuming)
 
-## NOW (2026-11-01 evening) -- read this first
-- FIRST read NOTES/HANDOFF-2026-11-01.md (detailed state, the open death-screen blocker, test kit).
+## NOW (2026-11-01 late) -- read this first
+- FIRST read NOTES/HANDOFF-2026-11-01.md (test kit; its "OPEN BUG" section is now RESOLVED-ish, see its top note).
 - Work from NOTES/PLAN.md (user's standing instruction: plan, then carry it out without stopping to ask).
-- Game **1.0.0.3479**. Package `dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+bf1b4122.zip` built from HEAD, Defender-clean,
-  installed (user's cdmp.ini kept). verify-port: run it FROM upstream/cd-coop-3446 (it reads headers relative to cwd).
-- Verified on one PC (echo): friend's character drawn, gear changes live, name tags (hidden over menus); shared enemies:
-  bandit copies load and fight without crashing (3 guarded crash paths), follow and die with the real ones, the friend's
-  hits on copies kill the host's enemies (attack layout 677/0x1FB on 3479), enemies target either player and hurt the
-  friend (aggro ported), the friend's own natives are hidden/restored (lab). All on by default.
-- Open: loot for the friend from shared kills (new design: their own hidden native is killed for it; pickup needs two
-  PCs); bosses (A6, A8 scaling 2-4 players, A9 boss-death rule); riding together; Steam session checks; docs for the
-  playtest. Test save "COOP TEST bandits" (Rodbel Fishing Dock): build/port3460/testsave.ps1 -Mode In/Out; it is IN the
-  save folder now as slot103 -- take it Out before handing over.
-- Test helpers: build/port3479/bandit_test.sh (echo round at the dock), walkto.py (camera-steered), attack.ps1,
-  loads.py / cdmp_loadcheck (capture analysis), reqsizes.py (a Req's field sizes from its handler), port_scan.py (tools/port).
-- 2026-10-31 20:55 the PC powered off mid-test (Kernel-Power 41). Keep sessions short.
+- Game **1.0.0.3479**. verify-port ALL PASS (run from upstream/cd-coop-3446 with -Exe "D:\SteamLibrary\...\CrimsonDesert.exe");
+  tools/port/check_opcodes.py build/port3479/troc_3479.txt -> all match.
+- Death blocker (A12): once the other player's copy has been loaded, the game never shows its death screen again
+  (bisect in LOG). Co-op+ now shows its own Q/U box (net/revive_prompt.*, D26): Q verified; U = full health at the
+  checkpoint server-side, client moved there only sometimes. Relay table + AttackByCollisionReq were stale (D27): fixed.
+- Verified on one PC (echo) earlier: friend's character, gear, name tags, shared enemies (copies, hits, aggro,
+  hiding), all on by default. Open: loot pickup (two PCs), bosses (A6/A8/A9), riding, Steam checks, playtest docs
+  (docs/tests/PLAYTEST-1.md drafted). Test save "COOP TEST bandits" is IN as slot103 -- take it Out before handing over.
+- Test helpers: build/port3479/kill_test.sh (deterministic death, Ctrl+Shift+F9 via [dev] kill_key=1, REVIVE=Q|U,
+  WALK_X/WALK_Z), death_test.sh (bandit fight; NOATTACK=1), bandit_test.sh, walkto.py, reqsizes.py, loads.py.
 
 ## Where the project lives now
 - `C:\Users\asher\CrimsonDesert-SeamlessCoop` (D15; short path because MSVC breaks on deep folders).

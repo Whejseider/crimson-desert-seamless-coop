@@ -238,6 +238,21 @@ void hud_draw(float width, float height) {
         ImGui::End();
     }
 
+    if (d.revive_prompt) {
+        // Co-op+: the game's death screen, in the overlay (revive_prompt.h), centre of the screen.
+        ImGui::SetNextWindowPos(ImVec2(width * 0.5f, height * 0.45f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowBgAlpha(0.7f);
+        ImGui::Begin("cdmp_revive", nullptr,
+                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize |
+                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
+        ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.6f);
+        ImGui::TextColored(ImVec4(0.85f, 0.25f, 0.2f, 1.0f), "Death has found you.");
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.95f, 0.95f, 0.95f, 1.0f), "[Q] Instant Revive      [U] Revive at Checkpoint");
+        ImGui::PopFont();
+        ImGui::End();
+    }
+
     // ---- world markers (not over a full-screen menu: they showed on top of the map)
     if (!cam || !cam_world || game::ui_menu_open()) return;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();

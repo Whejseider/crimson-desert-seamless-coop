@@ -226,3 +226,26 @@
   friend's copy and its blows hurt the friend; defaults on with reactions and lethal blows.
 - Packages 6e2b1940 -> 801f3f51 -> bf1b4122; saves verified equal to backup after the test save was made in an empty slot.
 
+
+## 2026-11-01 21:00-23:55 -- death screen blocker: cause narrowed, revive prompt, stale opcodes
+- Found while reading: kRelayedAcks still had 3424 opcodes on 3460/3479 (2530 = AutoSpawnRoadReq now, 3053 =
+  ReviveAck...), and player_hits/piece4 sent 2815 (now AcceptJoinGuildMemberReq) as AttackByCollisionReq (2150, 44 B
+  checked with reqsizes). Fixed; tools/port/check_opcodes.py added (catches both on the old code).
+- Bisect with new test kit (build/port3479/death_test.sh, kill_test.sh; `[dev] kill_key=1` = Ctrl+Shift+F9 kills us
+  the way a lethal relayed blow does; `[dev] no_copy=1` never loads the copy):
+  * connected, every shipping feature on, copy never loaded -> death screen (bandit death).
+  * copy loaded, removed (body+player+user) 1.5 s after death -> no screen. Removed as our NotifyHandleDeadAck
+    arrives (before the game handles it) -> no screen. Removed 5 s before the kill, with/without its user, with no
+    replayed events at all -> no screen. No peer, kill key -> screen (kill key is a valid stand-in).
+  => loading the copy once leaves state that keeps the screen away for the rest of the session.
+- Death screen class: UIGamePlayControlReviveModal (uiCommonScript), created by name from UI tables; trigger not found.
+- Captures (no peer): Instant Revive = ReviveReq u32 player | 00 01 00 00. Checkpoint = ReviveLoadingStartReq
+  04 02 00, +1 s ReviveLoadingReq 02, client GameLoadingStartReq, ReviveReq type 2; server answers
+  LoadingFieldDataAck (+28: checkpoint position/rotation/scale) and reloads the field.
+- New net/revive_prompt: overlay box after 4 s dead (connected, copy loaded once, no menu). Q verified live (gets up
+  at ~110 hp, copy stays). U: server revive at checkpoint verified (full hp); the client ignores the field reload
+  outside its own flow; DoTeleportAck to the checkpoint took once (1/4). Client accepts ReviveLoadingStartAck only
+  for the type at status+0x471 (16 = none, handler exe+0x6F33D0); setting it is not enough for the loading screen.
+- Crash seen in a throwaway experiment: a copy load and its removal in the same instant (exe+0xB6290E). The final
+  code never removes the copy around deaths.
+- Saves: tests never saved; the shipped cdmp.ini restored after the tests. Test save still IN as slot103.

@@ -65,6 +65,12 @@ WHAT WORKS / WHAT DOESN'T (YET)
   players can hit and kill them; enemies attack whichever of you they choose
   (usually whoever hit them), and their blows hurt either player for real.
 - No friendly fire: you cannot hurt each other.
+- Deaths: each of you dies and revives in your own world; the other keeps playing.
+  Once your friend's character has been in your world, the game's own death screen
+  no longer appears, so Co-op+ shows the same choice in its place ("Death has found
+  you": Q = Instant Revive, U = Revive at Checkpoint). The checkpoint revive moves you
+  there without a loading screen (not always yet: sometimes you get up where you fell,
+  with full health).
 - Loot is per player: chests and items in the world are in each player's own
   world, so you each get your own. Loot from enemies you kill together: the host
   loots normally; for the guest it is new and still being tested.

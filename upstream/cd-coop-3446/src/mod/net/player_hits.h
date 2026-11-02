@@ -31,6 +31,9 @@ std::vector<proto::GameEvent> hits_take_events();
 void hits_on_event(const proto::GameEvent& ev);
 
 void hits_set_enabled(bool on);
+// Co-op+ dev ([dev] kill_key=1, Ctrl+Shift+F9): our player dies the way a lethal relayed blow kills it
+// (HP to 1, then a collision from ourselves). For repeatable death tests on one PC.
+bool hits_dev_kill_self(int64_t hp_x1000);
 // [coop] player_hit_react: PlayerHits carry how the sender's player reacts to
 // that attack, and we react the same (stagger, knock-down, push).
 // [coop] player_hit_lethal: a blow that takes all our HP kills us (a normal

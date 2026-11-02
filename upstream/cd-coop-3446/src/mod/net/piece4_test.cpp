@@ -163,7 +163,7 @@ void die_test(const char* what, uint32_t attacker) {
     std::memcpy(b.data() + 24, dir, sizeof dir);
     std::memcpy(b.data() + 36, &projectile, 4);
     Bytes pkt(5 + b.size());
-    const uint16_t op = 2815, len = static_cast<uint16_t>(b.size());
+    const uint16_t op = 2150, len = static_cast<uint16_t>(b.size());  // AttackByCollisionReq (3424: 2815)
     std::memcpy(pkt.data(), &op, 2);
     std::memcpy(pkt.data() + 3, &len, 2);
     std::memcpy(pkt.data() + 5, b.data(), b.size());

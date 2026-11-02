@@ -7,6 +7,14 @@ Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC with the echo peer):
 - Every address re-found for 3479 (a small patch: code moved by up to 0x70 bytes, data by ~0xFB0, message numbers
   unchanged). The other player's character loads, is drawn and stands next to you again.
+- Deaths work while connected: once the other player's character had been in your world, the game never showed its
+  "Death has found you" screen again and you stayed dead. Co-op+ now shows the same choice itself (Q Instant
+  Revive, U Revive at Checkpoint) and sends the game's own revive requests. The checkpoint revive gives full
+  health but only sometimes moves you to the checkpoint yet (no loading screen). The other player's character
+  stays in your world meanwhile.
+- The server messages relayed onto the other player's character (health, buffs, death, revive, wetness...) were
+  still matched by their 1.0.0.3424 numbers, so none of them were passed on (and a few unrelated messages were).
+  Renumbered, plus one more stale number in the "lethal blow" path (it sent a guild request instead).
 - Gear changes are shared live: take off or put on a piece of gear and your friend sees it on your character
   (tested both ways). The old way of catching them did not exist in these builds; the mod now reads your
   character's equipped slots itself.

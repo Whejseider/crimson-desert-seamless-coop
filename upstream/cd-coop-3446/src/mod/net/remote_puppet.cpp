@@ -40,6 +40,8 @@ using Bytes = std::vector<uint8_t>;
 // Fresh keys for the puppet. Real serials seen so far are below 0x1000, so
 // 0xF001 will not collide with anything the server allocates in a session.
 constexpr uint32_t kPuppetUser = 0x9010F001;
+// Co-op+: a copy was loaded at least once this game session (revive_prompt.h).
+std::atomic<bool> g_ever_spawned{false};
 constexpr uint32_t kPuppetPlayer = 0xA010F001;
 constexpr uint32_t kPuppetBody = 0xB010F001;
 // The sender's horse (caballo-coop.md §2.3) and the extra member of the
@@ -1163,6 +1165,7 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
         g_horse_spawned = true;
         g_src_horse_key = info.horse_key;
     }
+    g_ever_spawned = true;
     log::info("Puppet: spawn queued at ({:.1f}, {:.1f}, {:.1f}) (2 packets, {} + {} bytes, "
               "sender player 0x{:08X}, generation {})",
               pos[0], pos[1], pos[2], user.size(), body.size(), info.player_key, info.generation);
@@ -1196,6 +1199,8 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
     }
     return true;
 }
+
+bool puppet_ever_spawned() { return g_ever_spawned; }
 
 bool puppet_remove() {
     {

@@ -518,11 +518,28 @@ bool die_by_collision(uint32_t own) {
     std::memcpy(b + 24, dir, sizeof dir);
     std::memcpy(b + 36, &projectile, 4);
     Bytes pkt(5 + sizeof b);
-    const uint16_t op = 2815, len = sizeof b;  // AttackByCollisionReq
+    const uint16_t op = 2150, len = sizeof b;  // AttackByCollisionReq on 3460/3479 (3424: 2815), 44 B
     std::memcpy(pkt.data(), &op, 2);
     std::memcpy(pkt.data() + 3, &len, 2);
     std::memcpy(pkt.data() + 5, b, sizeof b);
     return sniffer_inject_c2s(std::move(pkt));
+}
+
+bool hits_dev_kill_self(int64_t hp_x1000) {
+    const uint32_t own = capture_own_player_key();
+    if (!own) return false;
+    Bytes pkt(5 + 16);
+    const uint16_t op = kOpVaryStatByAccInputReq, len = 16;
+    const int64_t delta = -std::max<int64_t>(hp_x1000 - 1000, 0);
+    std::memcpy(pkt.data(), &op, 2);
+    pkt[2] = 0;
+    std::memcpy(pkt.data() + 3, &len, 2);
+    std::memcpy(pkt.data() + 5, &own, 4);
+    std::memcpy(pkt.data() + 9, &kStatHP, 4);
+    std::memcpy(pkt.data() + 13, &delta, 8);
+    const bool ok = (delta == 0 || sniffer_inject_c2s(std::move(pkt))) && die_by_collision(own);
+    log::info("Dev: kill key: our player 0x{:08X} dies{}", own, ok ? "" : " (NOT sent)");
+    return ok;
 }
 
 void hits_on_event(const proto::GameEvent& ev) {

@@ -25,6 +25,7 @@ namespace cdmp::net {
 namespace {
 
 std::atomic<bool> g_ready{false};
+std::atomic<bool> g_no_copy{false};
 constexpr size_t kMaxOutbox = 4096;            // ~1 s of events; more means the link is stuck
 constexpr uint32_t kRespawnAfterRemoveMs = 1500;  // let the old copy fade out first
 constexpr uint32_t kInWorldGraceMs = 500;        // a missing position read shorter than this is ignored
@@ -58,6 +59,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
 }  // namespace
 
 void coop_set_ready() { g_ready = true; }
+void coop_set_copy_disabled(bool off) { g_no_copy = off; }
 
 CoopLink::CoopLink(ClientSession& session, uint32_t delay_ms, float offset_m, bool map_pin)
     : session_(session), delay_ms_(delay_ms), offset_m_(offset_m), map_pin_(map_pin) {
@@ -82,30 +84,6 @@ CoopLink::~CoopLink() {
     session_.set_game_handlers({}, {});
     if (pin_owner_) puppet_map_pin(pin_owner_, std::nullopt);
     puppet_remove();
-}
-
-void CoopLink::set_local_dead(bool dead, uint32_t now_ms) {
-    constexpr uint32_t kDeadForMs = 1500;  // a real death, not an HP read glitch
-    if (!dead) {
-        dead_since_ms_ = 0;
-        if (copy_out_for_death_) {
-            copy_out_for_death_ = false;
-            if (last_spawn_ && !remote_spawn_) {
-                remote_spawn_ = last_spawn_;
-                if (const auto& rs = session_.remote_state()) remote_spawn_->pos = rs->pos;
-                spawn_not_before_ms_ = now_ms;
-                log::info("Co-op: we are alive again; loading the other player's character back");
-            }
-        }
-        return;
-    }
-    if (!dead_since_ms_) dead_since_ms_ = now_ms ? now_ms : 1;
-    if (copy_out_for_death_ || now_ms - dead_since_ms_ < kDeadForMs || !puppet_spawned()) return;
-    remove_puppet(now_ms);
-    remote_spawn_.reset();
-    copy_out_for_death_ = true;
-    log::info("Co-op: we died; the other player's character leaves our world until we revive (else the game "
-              "never offers the revive)");
 }
 
 void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::Quat& local_rot,
@@ -292,7 +270,7 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     }
 
     // Load the other player once we are in the world ourselves.
-    if (remote_spawn_ && local_pos && !loading && !copy_out_for_death_ &&
+    if (remote_spawn_ && local_pos && !loading && !g_no_copy &&
         static_cast<int32_t>(now_ms - spawn_not_before_ms_) >= 0) {
         if (puppet_spawned()) {
             remove_puppet(now_ms);

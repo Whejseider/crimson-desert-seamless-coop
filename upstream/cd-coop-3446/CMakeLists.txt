@@ -118,6 +118,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/steam_join.cpp
     src/mod/net/party_scaling.cpp
     src/mod/net/save_guard.cpp
+    src/mod/net/revive_prompt.cpp
     src/mod/net/load_trace.cpp
     src/mod/net/puppet_visibility.cpp
     src/mod/net/boss_safe.cpp

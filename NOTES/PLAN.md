@@ -35,12 +35,15 @@ installed package updated. Status: [x] done, [~] in progress, [ ] to do.
       blows on the friend's copy reach the friend as real damage (aggro + player_hits; port the 2976-era aggro
       addresses to 3479, then turn it on). Done: on by default; enemies switch to whoever hits them; their blows
       on the friend's copy arrive as real damage (-29 hp), with reactions and lethal blows on
-- [ ] A11 No friendly fire (user request 2026-11-01): players never hurt each other. By design already (hits are only
+- [~] A11 No friendly fire (user request 2026-11-01): players never hurt each other. By design already (hits are only
       relayed for copied ENEMIES; a blow on the other player's copy goes nowhere); keep it so when A10 lands and
-      check it in the two-PC test
+      check it in the two-PC test. Code checked 2026-11-01: blows are relayed only onto enemy copies and only from
+      enemies; the two-PC check is in docs/tests/PLAYTEST-1.md
 - [~] A12 Independent deaths (user 2026-11-01): each player dies/respawns normally (game's own respawn point), the other
-      is unaffected; the copy follows. BLOCKER found: while connected the death screen never appears (see
-      NOTES/HANDOFF-2026-11-01.md, bisect in progress)
+      is unaffected; the copy follows. Blocker resolved as far as one PC allows (D26): once a copy has been loaded
+      the game's death screen never comes, so Co-op+ shows the same Q/U choice. Instant revive verified; checkpoint
+      revive gives full health but moves you only sometimes (best effort). Left: the real loading-screen path for
+      U, and the two-PC check (the problem may be echo-only)
 - [ ] A9 Boss-fight deaths (user request 2026-11-01): a player who dies during a boss fight does not respawn until the
       teammates beat the boss (then everyone respawns/revives) or everyone is down (then the whole party restarts
       the fight)
@@ -57,11 +60,12 @@ installed package updated. Status: [x] done, [~] in progress, [ ] to do.
 - [ ] C3 Game error logger (stale since 3446): port it or drop the warning
 - [ ] C4 Panel and messages read well (join/leave toasts, errors in plain words)
 - [ ] C5 Installer, uninstaller and "Vanilla mode" checked end to end on 3479
-- [ ] C6 Next-update readiness: one script that re-finds every address after a game patch (port tools), exe kept
+- [~] C6 Next-update readiness: one script that re-finds every address after a game patch (port tools), exe kept;
+      tools/port/check_opcodes.py checks every hardcoded opcode against the live table (D27)
 
 ## D. Hand-off for the playtest
 - [ ] D1 A one-page "How to play with a friend" (install, invite, join, what to expect, how to send logs)
-- [ ] D2 A two-PC test checklist (what to try in what order, what to look for)
+- [~] D2 A two-PC test checklist (what to try in what order, what to look for): docs/tests/PLAYTEST-1.md drafted
 - [ ] D3 Final package: Defender-clean, installed here, link ready for the friend
 
 ## E. Needs the second player (after D)
