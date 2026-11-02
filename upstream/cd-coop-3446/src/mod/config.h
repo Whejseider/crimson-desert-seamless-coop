@@ -72,6 +72,9 @@ struct Config {
     bool dev_enemy_keep_origin = false;
     bool dev_no_copy = false;   // Co-op+ dev: never load the other player's character ([dev] no_copy)
     bool dev_kill_key = false;  // Co-op+ dev: Ctrl+Shift+F9 kills our player ([dev] kill_key)
+    uint32_t dev_boss_hp = 0;       // Co-op+ dev: enemies with this many max HP count as bosses ([dev] boss_hp)
+    bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
+    bool dev_partner_alive = false;  // Co-op+ dev: the revive prompt sees the other player alive ([dev] partner_alive)
     bool dev_loot_test_original = false;  // Co-op+ dev: loot_twin uses the copy's original (one-PC test)
     int dev_load_trace = 0;  // Co-op+: 1 = log actor load-state steps, 2 = + unhide experiment (load_trace.h)
 
@@ -142,6 +145,9 @@ struct Config {
     // does the finish, which is what advances its script. Off restores the old
     // behaviour exactly, for comparison.
     bool coop_boss_safe = true;
+    // Co-op+ (A9, user request): a player who dies during a boss fight waits until the other player beats
+    // the boss (then gets up) or is down too (then both revive at the checkpoint). [coop] boss_death_wait
+    bool coop_boss_death_wait = true;
     // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
     // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
     int coop_enemy_minimap_icon = 0x10A;
@@ -164,8 +170,8 @@ struct Config {
     // the relay of our enemies is off then.
     bool coop_suppress_lab = false;
     // [scaling] (Co-op+, party_scaling.h): with a guest in the host's world the
-    // host's enemies take 1/health_2p of every blow. Experimental: off by default.
-    bool scaling_enabled = false;
+    // host's enemies take 1/health_2p of every blow. On by default since 2026-11-02 (D28).
+    bool scaling_enabled = true;  // Co-op+ D28: on by default
     // [coop] save_guard (Co-op+, save_guard.h): back up the saves when a session
     // starts and warn when the game saves during one.
     bool coop_save_guard = true;

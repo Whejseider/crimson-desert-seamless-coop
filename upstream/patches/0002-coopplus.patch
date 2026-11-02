@@ -533,7 +533,7 @@ index e7d51fb..ad0020e 100644
      WallUp = 4,       // UpdateWallUpData, 132 bytes (built from memory)
      Equip = 5,        // OtherEquipItemAck payload (9 + 6n bytes); sent reliably
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..846e314 100644
+index e89d220..8a8ac06 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -558,7 +558,18 @@ index e89d220..846e314 100644
      L"\r\n"
      L"[sniffer]\r\n"
      L"; Needed for co-op (reads and sends the game's internal messages)\r\n"
-@@ -95,7 +102,17 @@ constexpr wchar_t kDefaultIni[] =
+@@ -87,6 +94,10 @@ constexpr wchar_t kDefaultIni[] =
+     L";              while the host is inside a stage cinematic.\r\n"
+     L"; 0: the old behaviour, for comparison. Only with a save backup.\r\n"
+     L"boss_safe=1\r\n"
++    L"; Co-op+: dying during a boss fight. 1 (default): you wait until your partner beats the\r\n"
++    L";   boss (then you get up) or is down too (then you both revive at the checkpoint).\r\n"
++    L";   0: revive as usual.\r\n"
++    L"boss_death_wait=1\r\n"
+     L"; Shared loot (GUEST only). When you help the host kill one of their enemies,\r\n"
+     L"; your own world was never going to give you anything for it: the creature only\r\n"
+     L"; really exists in the host's world. With this on, your server makes its own\r\n"
+@@ -95,7 +106,18 @@ constexpr wchar_t kDefaultIni[] =
      L"; same kill, and your own quests and XP are untouched.\r\n"
      L"; It only ever fires for an enemy you actually helped kill, close to you\r\n"
      L"; (30 m), and rate-limited. Hosts do not need it (it is the host's own world).\r\n"
@@ -571,13 +582,14 @@ index e89d220..846e314 100644
 +    L"[scaling]\r\n"
 +    L"; Co-op+: with a guest in the HOST's world, the host's enemies are tougher:\r\n"
 +    L"; they take 1/health_2p of every blow (same as health_2p times the health).\r\n"
-+    L"; Experimental (it heals enemies back after the host's blows): 0 = off.\r\n"
-+    L"enabled=0\r\n"
++    L"; It heals enemies back by part of each blow (bosses: config\\scaling.toml, up to 4 players).\r\n"
++    L"; 0 = off.\r\n"
++    L"enabled=1\r\n"
 +    L"health_2p=1.7\r\n";
  
  std::wstring read_string(const std::wstring& path, const wchar_t* section, const wchar_t* key,
                           const std::string& fallback) {
-@@ -164,13 +181,19 @@ Config load_config(const std::wstring& ini_path) {
+@@ -164,13 +186,19 @@ Config load_config(const std::wstring& ini_path) {
      c.peer_port = static_cast<uint16_t>(read_uint(ini_path, L"net", L"peer_port", c.peer_port));
      c.send_rate_hz = std::clamp(read_uint(ini_path, L"net", L"send_rate_hz", c.send_rate_hz), 1u, 60u);
      c.net_transport_steam = read_string(ini_path, L"net", L"transport", "udp") == L"steam";
@@ -598,7 +610,7 @@ index e89d220..846e314 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,6 +205,14 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,6 +210,17 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
@@ -609,11 +621,14 @@ index e89d220..846e314 100644
 +    c.dev_loot_test_original = read_uint(ini_path, L"dev", L"loot_test_original", 0) != 0;
 +    c.dev_no_copy = read_uint(ini_path, L"dev", L"no_copy", 0) != 0;
 +    c.dev_kill_key = read_uint(ini_path, L"dev", L"kill_key", 0) != 0;
++    c.dev_boss_hp = read_uint(ini_path, L"dev", L"boss_hp", 0);
++    c.dev_partner_alive = read_uint(ini_path, L"dev", L"partner_alive", 0) != 0;
++    c.dev_scaling_as_host = read_uint(ini_path, L"dev", L"scaling_as_host", 0) != 0;
 +    c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
      c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
      c.coop_delay_ms = std::clamp(read_uint(ini_path, L"coop", L"delay_ms", c.coop_delay_ms), 50u, 5000u);
      c.coop_offset_m = read_metres(ini_path, L"coop", L"offset_m", c.coop_offset_m);
-@@ -189,11 +220,14 @@ Config load_config(const std::wstring& ini_path) {
+@@ -189,11 +228,14 @@ Config load_config(const std::wstring& ini_path) {
      c.coop_equip = read_uint(ini_path, L"coop", L"equip", 1) != 0;
      c.coop_damage = read_uint(ini_path, L"coop", L"damage", 0) != 0;
      c.coop_map_pin = read_uint(ini_path, L"coop", L"map_pin", 1) != 0;
@@ -631,7 +646,13 @@ index e89d220..846e314 100644
      c.coop_time_sync = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"time_sync", 0), 2u));
      c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
      c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
-@@ -208,12 +242,14 @@ Config load_config(const std::wstring& ini_path) {
+@@ -203,17 +245,20 @@ Config load_config(const std::wstring& ini_path) {
+     // Boss safety (boss_safe.h): default ON, because the failure it prevents is a
+     // stuck quest in the HOST's save, not a cosmetic problem.
+     c.coop_boss_safe = read_uint(ini_path, L"coop", L"boss_safe", 1) != 0;
++    c.coop_boss_death_wait = read_uint(ini_path, L"coop", L"boss_death_wait", 1) != 0;
+     c.dev_rope_bend = read_uint(ini_path, L"dev", L"rope_bend", 0) != 0;
+     {
          const std::wstring v = read_string(ini_path, L"coop", L"enemy_minimap_icon", "");
          if (!v.empty()) c.coop_enemy_minimap_icon = static_cast<int>(std::wcstol(v.c_str(), nullptr, 0));
      }
@@ -648,11 +669,12 @@ index e89d220..846e314 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +262,10 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +271,11 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
-+        c.scaling_enabled = read_uint(ini_path, L"scaling", L"enabled", 0) != 0;
++        // Co-op+ D28: on by default (one-PC check 2026-11-02; user asked for bosses scaled to the party).
++        c.scaling_enabled = read_uint(ini_path, L"scaling", L"enabled", 1) != 0;
 +        c.coop_save_guard = read_uint(ini_path, L"coop", L"save_guard", 1) != 0;
 +        c.scaling_health_2p = read_float(ini_path, L"scaling", L"health_2p", 1.7f, 1.0f, 4.0f);
 +        c.scaling_boss_health_2p = c.scaling_health_2p;
@@ -660,7 +682,7 @@ index e89d220..846e314 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..254866a 100644
+index 3cd2ce2..7006ee2 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -688,7 +710,7 @@ index 3cd2ce2..254866a 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -57,6 +68,12 @@ struct Config {
+@@ -57,6 +68,15 @@ struct Config {
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
@@ -696,12 +718,15 @@ index 3cd2ce2..254866a 100644
 +    bool dev_enemy_keep_origin = false;
 +    bool dev_no_copy = false;   // Co-op+ dev: never load the other player's character ([dev] no_copy)
 +    bool dev_kill_key = false;  // Co-op+ dev: Ctrl+Shift+F9 kills our player ([dev] kill_key)
++    uint32_t dev_boss_hp = 0;       // Co-op+ dev: enemies with this many max HP count as bosses ([dev] boss_hp)
++    bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
++    bool dev_partner_alive = false;  // Co-op+ dev: the revive prompt sees the other player alive ([dev] partner_alive)
 +    bool dev_loot_test_original = false;  // Co-op+ dev: loot_twin uses the copy's original (one-PC test)
 +    int dev_load_trace = 0;  // Co-op+: 1 = log actor load-state steps, 2 = + unhide experiment (load_trace.h)
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
-@@ -85,7 +102,7 @@ struct Config {
+@@ -85,7 +105,7 @@ struct Config {
      int coop_minimap_icon = 0x124;
      // Our enemies may attack the other player's copy (aggro_test.h). Off
      // until the hits reach the other player and they see our enemies.
@@ -710,7 +735,7 @@ index 3cd2ce2..254866a 100644
      // The other player's blows on the copies of our enemies hurt them
      // (guest_hits.h). Off until tested with two players.
      bool coop_guest_hits = false;
-@@ -94,12 +111,12 @@ struct Config {
+@@ -94,12 +114,12 @@ struct Config {
      bool coop_guest_hit_stagger = false;
      // Our player reacts (stagger, knock-down) to the other player's enemies'
      // blows on our copy over there: experimental until tested.
@@ -726,13 +751,23 @@ index 3cd2ce2..254866a 100644
      // Time of day (hora-del-dia.md): 0 off, 1 send ours (host), 2 take the
      // other player's (guest).
      int coop_time_sync = 0;
-@@ -146,6 +163,14 @@ struct Config {
+@@ -125,6 +145,9 @@ struct Config {
+     // does the finish, which is what advances its script. Off restores the old
+     // behaviour exactly, for comparison.
+     bool coop_boss_safe = true;
++    // Co-op+ (A9, user request): a player who dies during a boss fight waits until the other player beats
++    // the boss (then gets up) or is down too (then both revive at the checkpoint). [coop] boss_death_wait
++    bool coop_boss_death_wait = true;
+     // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
+     // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
+     int coop_enemy_minimap_icon = 0x10A;
+@@ -146,6 +169,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
 +    // [scaling] (Co-op+, party_scaling.h): with a guest in the host's world the
-+    // host's enemies take 1/health_2p of every blow. Experimental: off by default.
-+    bool scaling_enabled = false;
++    // host's enemies take 1/health_2p of every blow. On by default since 2026-11-02 (D28).
++    bool scaling_enabled = true;  // Co-op+ D28: on by default
 +    // [coop] save_guard (Co-op+, save_guard.h): back up the saves when a session
 +    // starts and warn when the game saves during one.
 +    bool coop_save_guard = true;
@@ -1617,7 +1652,7 @@ index 0000000..3a01aaf
 +
 +}  // namespace cdmp::game
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..17c2db0 100644
+index 79ccd06..2e763bd 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,7 @@
@@ -1904,11 +1939,11 @@ index 79ccd06..17c2db0 100644
          const uint32_t now = now_ms();
          session.tick(now);
          const bool connected = session.state() == ClientSession::State::Connected;
-+        bool revive_prompt = false;
++        net::RevivePrompt revive_prompt = net::RevivePrompt::None;
          if (host && was_connected && !connected && peer) {
              log::info("Network: {} left; waiting for a player", peer->str());
              peer.reset();
-@@ -426,13 +562,43 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -426,13 +562,51 @@ void run_network(const Config& cfg, LocalSource& local) {
              peer.reset();
              if (steam) steam->set_peer(0);
          }
@@ -1927,7 +1962,9 @@ index 79ccd06..17c2db0 100644
          was_connected = connected;
 +        if (coop) {
 +            // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
-+            net::scaling_set_party(host && connected ? 2 : 1, host);
++            // [dev] scaling_as_host: one-PC test of party scaling (the echo session runs as guest).
++            const bool scale_host = host || cfg.dev_scaling_as_host;
++            net::scaling_set_party(scale_host && connected ? 2 : 1, scale_host);
 +            net::scaling_tick();
 +            // Co-op+ save safety: a backup when a session starts, a warning on saves during it.
 +            net::save_guard_set_connected(connected, session.peer_name());
@@ -1948,15 +1985,21 @@ index 79ccd06..17c2db0 100644
 +                }
 +                kill_was_down = kill_down;
 +                // Co-op+: our own revive choices when the game's death screen stays away (revive_prompt.h).
-+                revive_prompt = net::revive_prompt_tick(connected, s.health, s.health_max, game_has_focus(), now);
++                std::optional<float> partner_hp;
++                if (connected) {
++                    if (const auto& rs = session.remote_state()) partner_hp = rs->health;
++                    if (cfg.dev_partner_alive) partner_hp = 100.0f;  // one-PC test of the boss-fight wait
++                }
++                revive_prompt =
++                    net::revive_prompt_tick(connected, s.health, s.health_max, partner_hp, game_has_focus(), now);
              }
              coop->update(pos, rot, now);
          }
-@@ -449,12 +615,15 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -449,14 +623,18 @@ void run_network(const Config& cfg, LocalSource& local) {
              hud.local_status = local.status();
              hud.remote = session.remote_state();
              hud.peer_problem = session.peer_problem();
-+            hud.revive_prompt = revive_prompt;
++            hud.revive_prompt = static_cast<uint8_t>(revive_prompt);
              // In co-op, put the marker on the character actually drawn (it
              // plays the network state `delay` ms later).
              if (coop && hud.remote) {
@@ -1966,9 +2009,13 @@ index 79ccd06..17c2db0 100644
 +            if (coop) hud.scaling = net::scaling_hud_text();
 +            if (coop) hud.save_notice = net::save_guard_hud_text();
              // Boss bar (boss_safe.h): the guest has no native one.
-             if (const net::BossHud b = net::boss_hud(); b.active) {
+-            if (const net::BossHud b = net::boss_hud(); b.active) {
++            // Co-op+: guest only (now that the boss's health reaches boss_safe, the host would get two bars).
++            if (const net::BossHud b = net::boss_hud(); b.active && !host) {
                  hud.boss_active = true;
-@@ -475,6 +644,17 @@ void run_network(const Config& cfg, LocalSource& local) {
+                 hud.boss_name = b.name;
+                 hud.boss_hp = b.hp;
+@@ -475,6 +653,17 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -1986,7 +2033,7 @@ index 79ccd06..17c2db0 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -491,6 +671,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,6 +680,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                  remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                       rs->pos.z, rs->health);
              }
@@ -2001,7 +2048,7 @@ index 79ccd06..17c2db0 100644
              log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | remote states {} | "
                        "last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
                        state, st.sent, st.received, st.rejected, st.rtt_ms, st.remote_states, remote,
-@@ -499,6 +687,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -499,6 +696,7 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
              if (coop) log::info("{}", coop->describe());
@@ -2009,7 +2056,7 @@ index 79ccd06..17c2db0 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +698,104 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +707,104 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -2115,7 +2162,7 @@ index 79ccd06..17c2db0 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +897,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +906,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -2124,7 +2171,7 @@ index 79ccd06..17c2db0 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +951,7 @@ void combat_test_loop() {
+@@ -669,7 +960,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -2133,7 +2180,7 @@ index 79ccd06..17c2db0 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +969,7 @@ void combat_test_loop() {
+@@ -687,7 +978,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -2142,7 +2189,7 @@ index 79ccd06..17c2db0 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1034,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1043,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -2151,7 +2198,7 @@ index 79ccd06..17c2db0 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1048,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1057,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -2159,7 +2206,7 @@ index 79ccd06..17c2db0 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,6 +1077,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,6 +1086,7 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -2167,7 +2214,7 @@ index 79ccd06..17c2db0 100644
          net::puppet_install_rope_bend();
          // Horse and enemy copies (the other player may send theirs at any
          // time) need the crash containment (docs/INFORME-CABALLO-CRASH.md)
-@@ -902,21 +1186,67 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,21 +1195,67 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -2235,7 +2282,7 @@ index 79ccd06..17c2db0 100644
          const Config cfg = load_config(dir + L"cdmp.ini");
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
-@@ -925,7 +1255,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1264,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -2244,7 +2291,7 @@ index 79ccd06..17c2db0 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -969,6 +1299,18 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1308,23 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -2256,6 +2303,11 @@ index 79ccd06..17c2db0 100644
 +        net::enemy_set_keep_origin(cfg.dev_enemy_keep_origin);
 +        net::loot_set_test_original(cfg.dev_loot_test_original);
 +        net::coop_set_copy_disabled(cfg.dev_no_copy);
++        net::revive_set_boss_wait(cfg.coop_boss_death_wait);
++        if (cfg.dev_boss_hp) {
++            net::boss_set_test_threshold(static_cast<int64_t>(cfg.dev_boss_hp) * 1000);
++            log::info("Config: [dev] boss_hp={}: enemies with that much health count as bosses", cfg.dev_boss_hp);
++        }
 +        if (cfg.dev_no_copy) log::info("Config: [dev] no_copy=1: the other player's character is never loaded");
 +        log::info("Config: who can join: {}", cfg.net_join_invite_only
 +                                                  ? "invited friends only ([net] join=invite)"
@@ -2263,7 +2315,7 @@ index 79ccd06..17c2db0 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1362,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1376,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -2296,7 +2348,7 @@ index 79ccd06..17c2db0 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1385,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1399,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -2308,7 +2360,7 @@ index 79ccd06..17c2db0 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1410,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1424,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -2383,6 +2435,109 @@ index 4e09fdc..5a743d9 100644
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
  constexpr uint64_t kRecentMs = 5000;
  constexpr uint32_t kMaxListed = 16;
+diff --git a/upstream/cd-coop-3446/src/mod/net/boss_safe.cpp b/upstream/cd-coop-3446/src/mod/net/boss_safe.cpp
+index c9788e0..2ccd748 100644
+--- a/upstream/cd-coop-3446/src/mod/net/boss_safe.cpp
++++ b/upstream/cd-coop-3446/src/mod/net/boss_safe.cpp
+@@ -22,6 +22,7 @@ std::atomic<bool> g_no_stagger{true};
+ std::atomic<bool> g_cutscene{false};
+ std::atomic<uint64_t> g_cutscene_since{0};
+ std::atomic<uint64_t> g_boss_seen_ms{0};
++std::atomic<int64_t> g_test_threshold{0};  // Co-op+ dev: boss_set_test_threshold
+ 
+ std::mutex g_mutex;
+ // Spawn-origin hashes known to be boss stages, learned from the stage names the
+@@ -38,6 +39,8 @@ struct BossInfo {
+     std::string name;
+     float hp = 0.0f;
+     float hp_max = 0.0f;
++    uint64_t seen_ms = 0;  // Co-op+: last HP update
++    uint64_t died_ms = 0;  // Co-op+: when its HP reached 0 (0 = alive)
+ };
+ std::unordered_map<uint32_t, BossInfo> g_bosses;
+ 
+@@ -116,7 +119,8 @@ bool boss_origin_is_boss(uint32_t hash) {
+ 
+ bool boss_note_max_hp(uint32_t enemy_key, int64_t max_hp_x1000) {
+     if (enemy_key == 0 || max_hp_x1000 <= 0) return false;
+-    if (!is_boss_sized_hp(max_hp_x1000)) return false;
++    const int64_t test = g_test_threshold.load();
++    if (test ? max_hp_x1000 < test : !is_boss_sized_hp(max_hp_x1000)) return false;
+     std::lock_guard lock(g_mutex);
+     auto [it, fresh] = g_bosses.try_emplace(enemy_key);
+     if (fresh) {
+@@ -128,6 +132,8 @@ bool boss_note_max_hp(uint32_t enemy_key, int64_t max_hp_x1000) {
+     return true;
+ }
+ 
++void boss_set_test_threshold(int64_t max_hp_x1000) { g_test_threshold = max_hp_x1000; }
++
+ bool boss_is_boss(uint32_t enemy_key) {
+     if (enemy_key == 0) return false;
+     std::lock_guard lock(g_mutex);
+@@ -139,9 +145,35 @@ void boss_note_hp(uint32_t enemy_key, float hp, float hp_max) {
+     std::lock_guard lock(g_mutex);
+     auto it = g_bosses.find(enemy_key);
+     if (it == g_bosses.end()) return;
++    const uint64_t now = now_ms();
++    if (hp <= 0.0f && it->second.hp > 0.0f) {
++        it->second.died_ms = now;
++        log::info("Boss: enemy 0x{:08X} is down", enemy_key);
++    } else if (hp > 0.0f) {
++        it->second.died_ms = 0;
++    }
+     it->second.hp = hp;
+     if (hp_max > 0) it->second.hp_max = hp_max;
+-    g_boss_seen_ms = now_ms();
++    it->second.seen_ms = now;
++    g_boss_seen_ms = now;
++}
++
++bool boss_fight_active(uint64_t window_ms) {
++    const uint64_t now = now_ms();
++    std::lock_guard lock(g_mutex);
++    for (const auto& [key, info] : g_bosses) {
++        if (info.hp > 0.0f && info.seen_ms && now - info.seen_ms < window_ms) return true;
++    }
++    return false;
++}
++
++bool boss_killed_within(uint64_t window_ms) {
++    const uint64_t now = now_ms();
++    std::lock_guard lock(g_mutex);
++    for (const auto& [key, info] : g_bosses) {
++        if (info.died_ms && now - info.died_ms < window_ms) return true;
++    }
++    return false;
+ }
+ 
+ BossHud boss_hud() {
+diff --git a/upstream/cd-coop-3446/src/mod/net/boss_safe.h b/upstream/cd-coop-3446/src/mod/net/boss_safe.h
+index fb35bad..3d19d34 100644
+--- a/upstream/cd-coop-3446/src/mod/net/boss_safe.h
++++ b/upstream/cd-coop-3446/src/mod/net/boss_safe.h
+@@ -96,6 +96,9 @@ bool boss_origin_is_boss(uint32_t hash);
+ // monster. `max_hp_x1000` is the scale the mod uses elsewhere (value * 1000).
+ // Returns true once the enemy has been seen with a boss-sized pool.
+ bool boss_note_max_hp(uint32_t enemy_key, int64_t max_hp_x1000);
++// Co-op+ dev ([dev] boss_hp=N): enemies with at least N max HP count as bosses (0 = the real rule).
++// For one-PC tests of the boss rules with ordinary enemies.
++void boss_set_test_threshold(int64_t max_hp_x1000);
+ 
+ // Is this enemy already known to be a boss? False when unknown.
+ bool boss_is_boss(uint32_t enemy_key);
+@@ -110,6 +113,11 @@ struct BossHud {
+     bool cutscene = false;
+ };
+ void boss_note_hp(uint32_t enemy_key, float hp, float hp_max);
++
++// Co-op+ (A9, boss-fight deaths): a known boss with HP left had its HP updated within `window_ms`.
++bool boss_fight_active(uint64_t window_ms);
++// A known boss's HP reached 0 within `window_ms`.
++bool boss_killed_within(uint64_t window_ms);
+ BossHud boss_hud();
+ 
+ }  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop.cpp b/upstream/cd-coop-3446/src/mod/net/coop.cpp
 index 3bdc2c5..4a33d1f 100644
 --- a/upstream/cd-coop-3446/src/mod/net/coop.cpp
@@ -3358,7 +3513,7 @@ index 0000000..6b6a821
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-index 22b77f6..6e758bb 100644
+index 22b77f6..30c27dd 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 @@ -1,4 +1,5 @@
@@ -3536,7 +3691,18 @@ index 22b77f6..6e758bb 100644
          return;
      }
      if (op == kOpAttackTargetAck && size >= 5 + 0x28) {
-@@ -560,6 +579,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -550,6 +569,10 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+             // normal monster without needing the game's stage-name tables. The
+             // research measured every NPC in 58 captures at <= 220 max HP.
+             if (hp_max > 0) boss_note_max_hp(key, hp_max);
++            // Co-op+: the boss bar and the boss-fight death rule (A9) follow its HP from here.
++            if (hp_max > 0 && boss_is_boss(key)) {
++                boss_note_hp(key, static_cast<float>(hp) / 1000.0f, static_cast<float>(hp_max) / 1000.0f);
++            }
+             std::optional<Bytes> event;
+             {
+                 std::lock_guard lock(g_actors_mutex);
+@@ -560,6 +583,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
                  e.hp_max = hp_max;
                  // Damage dealt by the local player: mirror it to the other world.
                  const uint32_t own = g_equip_key.load();
@@ -3546,7 +3712,7 @@ index 22b77f6..6e758bb 100644
                  if (own && source == own && hp < before && e.type && g_damage_enabled) {
                      Bytes b(proto::kDamageEventSize);
                      // Where it spawned (same in both worlds); else where it is.
-@@ -701,6 +723,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -701,6 +727,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      loot_observe_c2s(packet, size);
      piece4_observe_c2s(packet, size);
      attack_probe_observe_c2s(packet, size);
@@ -3554,7 +3720,7 @@ index 22b77f6..6e758bb 100644
      if (size < 5 + 4) return;
      uint16_t op = 0;
      std::memcpy(&op, packet, 2);
-@@ -727,7 +750,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -727,7 +754,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (kind == proto::EventKind::Move && keys::is_class(key, keys::kClassWorld) && key != kPuppetBody &&
          key != kPuppetHorse && key != g_own_horse) {
          float p[3];
@@ -3563,7 +3729,7 @@ index 22b77f6..6e758bb 100644
          std::lock_guard lock(g_actors_mutex);
          if (g_actors.size() > 4096) g_actors.clear();
          g_actors[key] = {{p[0], p[1], p[2]}, steady_ms()};
-@@ -736,7 +759,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -736,7 +763,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (g_own_horse && key == g_own_horse) {
          if (kind == proto::EventKind::Move) {
              g_horse_last_move = payload;
@@ -3572,7 +3738,7 @@ index 22b77f6..6e758bb 100644
          }
          emit(kind, std::move(payload));
          return;
-@@ -748,24 +771,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -748,24 +775,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      std::memcpy(&ts, payload.data() + ts_off, 8);
      note_clock(ts);
      if (kind == proto::EventKind::Move && g_own_horse) {
@@ -3697,7 +3863,7 @@ index 22b77f6..6e758bb 100644
  void capture_tick() {
      {
          std::lock_guard lock(g_mutex);
-@@ -777,14 +896,32 @@ void capture_tick() {
+@@ -777,14 +900,32 @@ void capture_tick() {
      if (!g_reader_ready) return;
      const uint64_t now = steady_ms();
      drain_equip();
@@ -4010,7 +4176,7 @@ index 2146651..e78a877 100644
  }  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp b/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp
 new file mode 100644
-index 0000000..4a26c2b
+index 0000000..5e89a72
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp
 @@ -0,0 +1,155 @@
@@ -4077,7 +4243,7 @@ index 0000000..4a26c2b
 +    std::lock_guard lock(g_mutex);
 +    g_settings = s;
 +    g_enabled = s.enabled;
-+    log::info("Scaling: enemy toughness with a guest {} (health x{:.2f}, bosses x{:.2f}; experimental)",
++    log::info("Scaling: enemy toughness with a guest {} (health x{:.2f}, bosses x{:.2f})",
 +              s.enabled ? "ON" : "off", scaling::health_multiplier(s, 2),
 +              scaling::health_multiplier(scaling::for_boss(s, true), 2));
 +}
@@ -4922,10 +5088,10 @@ index 7f8f56d..26f97e6 100644
  bool puppet_local_paused();
 diff --git a/upstream/cd-coop-3446/src/mod/net/revive_prompt.cpp b/upstream/cd-coop-3446/src/mod/net/revive_prompt.cpp
 new file mode 100644
-index 0000000..f758c79
+index 0000000..4846e5d
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/revive_prompt.cpp
-@@ -0,0 +1,191 @@
+@@ -0,0 +1,243 @@
 +#include "mod/net/revive_prompt.h"
 +
 +#include <windows.h>
@@ -4938,6 +5104,7 @@ index 0000000..f758c79
 +#include "mod/game/offsets.h"
 +#include "mod/game/safe_memory.h"
 +#include "mod/game/ui_state.h"
++#include "mod/net/boss_safe.h"
 +#include "mod/log.h"
 +#include "mod/net/local_capture.h"
 +#include "mod/net/remote_puppet.h"
@@ -4960,6 +5127,8 @@ index 0000000..f758c79
 +constexpr uint32_t kTeleportCheckMs = 1000; // after the revive: still farther than kTeleportNearM -> again
 +constexpr float kTeleportNearM = 10.0f;
 +constexpr int kTeleportTries = 3;
++constexpr uint64_t kBossFightWindowMs = 30000;  // a boss whose HP changed this recently: the fight is on
++constexpr uint32_t kBossReviveRetryMs = 4000;
 +
 +uint32_t g_dead_since = 0;
 +uint32_t g_chosen_at = 0;
@@ -4971,6 +5140,10 @@ index 0000000..f758c79
 +float g_checkpoint[3] = {};
 +uint32_t g_teleport_at = 0;
 +int g_teleport_tries = 0;
++// A9 (boss-fight deaths).
++bool g_boss_wait = true;
++bool g_boss_hold = false;       // we died during a boss fight and wait for the other player
++uint32_t g_boss_revive_at = 0;  // the boss is down: we were sent up; checked again at this time
 +
 +// The status component keeps the revive type the client itself asked for at +0x471 (16 = none);
 +// its ReviveLoadingStartAck handler (exe+0x6F33D0) drops an answer of another type. Set as the
@@ -5005,6 +5178,18 @@ index 0000000..f758c79
 +    puppet_inject_s2c_batch({{kOpDoTeleportAck, b}});
 +}
 +
++bool send(uint16_t op, const std::vector<uint8_t>& body);
++
++// The checkpoint revive (see the header). `move`: also move the client to the checkpoint.
++void ask_checkpoint(uint32_t own, uint32_t now_ms, bool move) {
++    expect_revive(own, kCheckpoint);
++    const bool ok = send(kOpReviveLoadingStartReq, {0x04, kCheckpoint, 0x00});
++    g_chosen_at = now_ms ? now_ms : 1;
++    g_loading_req_at = (now_ms + kLoadingStepMs) | 1;
++    g_checkpoint_asked = move;
++    log::info("Revive: checkpoint revive{}, step 1{}", move ? "" : " (staying here)", ok ? "" : " (NOT sent)");
++}
++
 +bool send(uint16_t op, const std::vector<uint8_t>& body) {
 +    std::vector<uint8_t> pkt(5 + body.size());
 +    const uint16_t len = static_cast<uint16_t>(body.size());
@@ -5024,7 +5209,10 @@ index 0000000..f758c79
 +
 +}  // namespace
 +
-+bool revive_prompt_tick(bool connected, float hp, float hp_max, bool focused, uint32_t now_ms) {
++void revive_set_boss_wait(bool on) { g_boss_wait = on; }
++
++RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::optional<float> partner_hp, bool focused,
++                                uint32_t now_ms) {
 +    // The checkpoint revive's second step goes in on time even if we are no longer "dead" by then.
 +    if (g_loading_req_at && static_cast<int32_t>(now_ms - g_loading_req_at) >= 0) {
 +        g_loading_req_at = 0;
@@ -5036,7 +5224,7 @@ index 0000000..f758c79
 +        g_revive_req_at = 0;
 +        if (sniffer_world_loading()) {
 +            log::info("Revive: checkpoint revive: the game is loading the checkpoint itself");
-+            return false;
++            return RevivePrompt::None;
 +        }
 +        std::vector<uint8_t> b(8, 0);
 +        const uint32_t own = capture_own_player_key();
@@ -5069,19 +5257,54 @@ index 0000000..f758c79
 +    }
 +    if (!dead) {
 +        if (g_dead_since && g_chosen_at) log::info("Revive: we are alive again");
-+        g_dead_since = g_chosen_at = 0;
++        g_dead_since = g_chosen_at = g_boss_revive_at = 0;
++        g_boss_hold = false;
 +        g_q_was = g_u_was = false;
-+        return false;
++        return RevivePrompt::None;
 +    }
-+    if (!g_dead_since) g_dead_since = now_ms ? now_ms : 1;
++    if (!g_dead_since) {
++        g_dead_since = now_ms ? now_ms : 1;
++        // A9: died during a boss fight -> wait for the other player (decided once, at the death).
++        g_boss_hold = g_boss_wait && connected && partner_hp && boss_fight_active(kBossFightWindowMs);
++        if (g_boss_hold) log::info("Revive: we died in a boss fight: waiting for the other player");
++    }
 +    // Only where the game's screen is known to stay away, and never over it or another menu.
-+    if (!connected || !puppet_ever_spawned() || game::ui_menu_open()) return false;
-+    if (now_ms - g_dead_since < kWaitForGameMs) return false;
-+    if (g_chosen_at && now_ms - g_chosen_at < kRetryAfterMs) return false;
-+
++    if (!connected || !puppet_ever_spawned() || game::ui_menu_open()) return RevivePrompt::None;
++    if (now_ms - g_dead_since < kWaitForGameMs) return RevivePrompt::None;
 +    const uint32_t own = capture_own_player_key();
-+    if (!own) return false;
-+    if (pressed('Q', g_q_was, focused)) {
++    if (!own) return RevivePrompt::None;
++
++    bool checkpoint_only = false;
++    if (g_boss_hold) {
++        if (g_boss_revive_at) {
++            // The boss is down and we were sent back up; still dead after a while: ask once more.
++            if (static_cast<int32_t>(now_ms - g_boss_revive_at) >= 0) {
++                g_boss_revive_at = (now_ms + kBossReviveRetryMs) | 1;
++                ask_checkpoint(own, now_ms, /*move=*/false);
++                log::info("Revive: the boss is down: we get up (again)");
++            }
++            return RevivePrompt::None;
++        }
++        if (!partner_hp) {
++            g_boss_hold = false;
++            log::info("Revive: the other player is gone: revive as usual");
++        } else if (boss_killed_within(now_ms - g_dead_since + 2000)) {
++            // Up where we fell, full health: the server's checkpoint revive without the move.
++            ask_checkpoint(own, now_ms, /*move=*/false);
++            g_boss_revive_at = (now_ms + kBossReviveRetryMs) | 1;
++            log::info("Revive: the other player beat the boss: we get up");
++            return RevivePrompt::None;
++        } else if (*partner_hp <= 0.0f) {
++            checkpoint_only = true;  // everyone is down: the fight starts again from the checkpoint
++        } else if (!boss_fight_active(kBossFightWindowMs)) {
++            g_boss_hold = false;
++            log::info("Revive: the boss fight is over without a kill: revive as usual");
++        } else {
++            return RevivePrompt::WaitBoss;
++        }
++    }
++    if (g_chosen_at && now_ms - g_chosen_at < kRetryAfterMs) return RevivePrompt::None;
++    if (!checkpoint_only && pressed('Q', g_q_was, focused)) {
 +        std::vector<uint8_t> b(8, 0);
 +        std::memcpy(b.data(), &own, 4);
 +        b[4] = 0;
@@ -5089,18 +5312,13 @@ index 0000000..f758c79
 +        const bool ok = send(kOpReviveReq, b);
 +        g_chosen_at = now_ms ? now_ms : 1;
 +        log::info("Revive: instant revive asked{}", ok ? "" : " (NOT sent)");
-+        return false;
++        return RevivePrompt::None;
 +    }
 +    if (pressed('U', g_u_was, focused)) {
-+        expect_revive(own, kCheckpoint);
-+        const bool ok = send(kOpReviveLoadingStartReq, {0x04, kCheckpoint, 0x00});
-+        g_chosen_at = now_ms ? now_ms : 1;
-+        g_loading_req_at = (now_ms + kLoadingStepMs) | 1;
-+        g_checkpoint_asked = true;
-+        log::info("Revive: checkpoint revive, step 1{}", ok ? "" : " (NOT sent)");
-+        return false;
++        ask_checkpoint(own, now_ms, /*move=*/true);
++        return RevivePrompt::None;
 +    }
-+    return true;
++    return checkpoint_only ? RevivePrompt::CheckpointOnly : RevivePrompt::Choice;
 +}
 +
 +void revive_observe_s2c(const uint8_t* packet, size_t size) {
@@ -5119,10 +5337,10 @@ index 0000000..f758c79
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/revive_prompt.h b/upstream/cd-coop-3446/src/mod/net/revive_prompt.h
 new file mode 100644
-index 0000000..4411860
+index 0000000..a848a42
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/revive_prompt.h
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,54 @@
 +#pragma once
 +// Co-op+ (3479): our own revive prompt, for when the game's death screen does not come.
 +//
@@ -5150,12 +5368,28 @@ index 0000000..4411860
 +
 +#include <cstddef>
 +#include <cstdint>
++#include <optional>
 +
 +namespace cdmp::net {
 +
-+// Network loop, every pass. `hp`/`hp_max`: our player (hp_max 0 = unknown). `focused`: the game
-+// window has the keyboard. Returns true while the prompt should be drawn.
-+bool revive_prompt_tick(bool connected, float hp, float hp_max, bool focused, uint32_t now_ms);
++// What the overlay shows.
++enum class RevivePrompt : uint8_t {
++    None,
++    Choice,          // Q Instant Revive, U Revive at Checkpoint
++    WaitBoss,        // A9: died in a boss fight, the other player still fights: wait
++    CheckpointOnly,  // A9: everyone is down: the fight starts again from the checkpoint (U only)
++};
++
++// A9 ([coop] boss_death_wait, user request 2026-11-01): a player who dies during a boss fight
++// (boss_safe.h: a boss whose HP changed in the last 30 s) waits. When the other player beats the
++// boss we get up where we fell with full health (the server's checkpoint revive, client not
++// moved); when the other player is down too, only the checkpoint revive is offered.
++void revive_set_boss_wait(bool on);
++
++// Network loop, every pass. `hp`/`hp_max`: our player (hp_max 0 = unknown). `partner_hp`: the other
++// player's health (none when nobody is connected). `focused`: the game window has the keyboard.
++RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::optional<float> partner_hp, bool focused,
++                                uint32_t now_ms);
 +
 +// Sniffer thread (capture_observe_s2c): the checkpoint the server revives us at (LoadingFieldDataAck).
 +void revive_observe_s2c(const uint8_t* packet, size_t size);
@@ -6203,7 +6437,7 @@ index 0516c86..64c81fe 100644
          return false;
      }
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..3339482 100644
+index 14edc91..b8e37f2 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 @@ -11,14 +11,18 @@
@@ -6368,7 +6602,7 @@ index 14edc91..3339482 100644
  
      // The room code, ALWAYS shown -- with the code when we have one, and an explicit
      // "no code" plus the reason when we do not.
-@@ -189,13 +174,90 @@ void hud_draw(float width, float height) {
+@@ -189,13 +174,93 @@ void hud_draw(float width, float height) {
          // read a file to find out what went wrong.
          ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
      }
@@ -6446,7 +6680,10 @@ index 14edc91..3339482 100644
 +        ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.6f);
 +        ImGui::TextColored(ImVec4(0.85f, 0.25f, 0.2f, 1.0f), "Death has found you.");
 +        ImGui::Spacing();
-+        ImGui::TextColored(ImVec4(0.95f, 0.95f, 0.95f, 1.0f), "[Q] Instant Revive      [U] Revive at Checkpoint");
++        const char* line = d.revive_prompt == 2 ? "Your partner is still fighting the boss. Hold on..."
++                           : d.revive_prompt == 3 ? "Everyone is down.      [U] Revive at Checkpoint"
++                                                  : "[Q] Instant Revive      [U] Revive at Checkpoint";
++        ImGui::TextColored(ImVec4(0.95f, 0.95f, 0.95f, 1.0f), "%s", line);
 +        ImGui::PopFont();
 +        ImGui::End();
 +    }
@@ -6463,10 +6700,10 @@ index 14edc91..3339482 100644
          if (auto p = game::project(*cam, *cam_world, head, width, height)) {
              draw_remote_marker(dl, *p, d, remote_distance);
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.h b/upstream/cd-coop-3446/src/mod/render/hud.h
-index 532564a..4ad4ee0 100644
+index 532564a..3a45323 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.h
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.h
-@@ -29,6 +29,19 @@ struct HudData {
+@@ -29,6 +29,20 @@ struct HudData {
      // where the code would be, so a missing code explains itself on screen instead
      // of only in the log.
      std::string room_status;
@@ -6480,13 +6717,14 @@ index 532564a..4ad4ee0 100644
 +    // Co-op+: "<name> joined your world" and similar, for a few seconds ("" = none).
 +    // Drawn even when the panel is hidden.
 +    std::string toast;
-+    // Co-op+: we are dead and the game's own death screen stays away: our Q / U choices
-+    // (revive_prompt.h). Drawn even when the panel is hidden.
-+    bool revive_prompt = false;
++    // Co-op+: we are dead and the game's own death screen stays away: our box (net::RevivePrompt:
++    // 0 none, 1 Q/U choice, 2 waiting for the other player's boss fight, 3 checkpoint only).
++    // Drawn even when the panel is hidden.
++    uint8_t revive_prompt = 0;
      // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
      // copy. The guest has no native boss bar -- the stage that draws it exists
      // only in the host's world -- so we draw our own.
-@@ -42,6 +55,9 @@ struct HudData {
+@@ -42,6 +56,9 @@ struct HudData {
  struct HudOptions {
      bool self_marker = false;  // dev aid: draw a cross on our own character
      bool english = true;       // the panel's texts in English (else Spanish)

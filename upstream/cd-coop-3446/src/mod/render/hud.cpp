@@ -248,7 +248,10 @@ void hud_draw(float width, float height) {
         ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.6f);
         ImGui::TextColored(ImVec4(0.85f, 0.25f, 0.2f, 1.0f), "Death has found you.");
         ImGui::Spacing();
-        ImGui::TextColored(ImVec4(0.95f, 0.95f, 0.95f, 1.0f), "[Q] Instant Revive      [U] Revive at Checkpoint");
+        const char* line = d.revive_prompt == 2 ? "Your partner is still fighting the boss. Hold on..."
+                           : d.revive_prompt == 3 ? "Everyone is down.      [U] Revive at Checkpoint"
+                                                  : "[Q] Instant Revive      [U] Revive at Checkpoint";
+        ImGui::TextColored(ImVec4(0.95f, 0.95f, 0.95f, 1.0f), "%s", line);
         ImGui::PopFont();
         ImGui::End();
     }

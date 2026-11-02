@@ -177,3 +177,21 @@
   copy got none of our HP/buff/death/revive messages and a lethal blow sent a guild request. Renumbered; new
   tools/port/check_opcodes.py fails on any hardcoded opcode whose name does not match the live Troc table, and on
   opcode tables inherited from an older build's header. Part of the port routine (C6).
+
+## 2026-11-02 D28: Party scaling on by default
+- One-PC check (echo, [dev] scaling_as_host=1): with 2 players the host's blows on bandits got 1/3 back (x1.5),
+  relayed blows were not given back twice, enemies still died, no failed requests. The user asked for bosses scaled
+  to the party (A8), so `[scaling] enabled` now defaults to 1 (the user's ini has no [scaling] section, so both
+  players get it). Bosses (x1.7/2.3/2.8 from scaling.toml) and 3-4 players are not tested.
+- The mod's own boss bar is now guest-only: the boss's health never reached it before (boss_note_hp had no caller),
+  and with it fed the host would have seen two bars.
+
+## 2026-11-02 D29: Boss-fight deaths (A9) on the revive prompt
+- "In a boss fight" = a boss (health pool >= 500 HP, or the host's flag on a copy) whose HP changed in the last
+  30 s. Dying then: no Q/U, "Your partner is still fighting the boss". Boss down after our death -> we get up where
+  we fell with full health (the server's checkpoint revive without the move: reliable, unlike the move). The other
+  player down too -> only U ("Everyone is down"). Partner disconnected or 30 s without boss HP changes -> normal box.
+- Only possible where Co-op+'s box replaces the game's screen (always, so far, once a copy has loaded); if the
+  game's own screen shows on two PCs, the wait cannot hold it (noted in the checklist).
+- Verified on one PC with bandits as bosses ([dev] boss_hp=20, [dev] partner_alive=1): wait box, release after 30 s,
+  everyone-down box + U. Not verified: the auto revive when the partner wins (needs two players).

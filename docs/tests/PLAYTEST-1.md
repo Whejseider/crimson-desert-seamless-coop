@@ -48,8 +48,11 @@ with two real players, that is good news (the one-PC test clones your own charac
 
 ## 5. Bosses (15 min, only if a boss is handy)
 - [ ] B helps; A lands the final blow; the boss's cinematic plays normally on A.
-- [ ] (A9, if it is in this build: see the panel notes) a player who dies during the fight waits; when the other
-      player wins, both are back; if both go down, the fight restarts.
+- [ ] Both logs: "Boss: enemy 0x... treated as a boss" for the boss (it is recognised by its health pool).
+- [ ] A9: B dies during the fight: B sees "Your partner is still fighting the boss. Hold on..." (no Q/U). A wins:
+      B gets up where they fell with full health within a few seconds (log: "the other player beat the boss").
+      This step was never tested (needs two players).
+- [ ] Both go down: each sees "Everyone is down. [U] Revive at Checkpoint"; both press U.
 
 ## 6. Ending (5 min)
 - [ ] B leaves (Ctrl+F2): A's world is normal, no leftover copies; B's own enemies are back.

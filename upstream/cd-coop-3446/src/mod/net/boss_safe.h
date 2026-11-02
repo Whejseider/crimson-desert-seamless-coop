@@ -96,6 +96,9 @@ bool boss_origin_is_boss(uint32_t hash);
 // monster. `max_hp_x1000` is the scale the mod uses elsewhere (value * 1000).
 // Returns true once the enemy has been seen with a boss-sized pool.
 bool boss_note_max_hp(uint32_t enemy_key, int64_t max_hp_x1000);
+// Co-op+ dev ([dev] boss_hp=N): enemies with at least N max HP count as bosses (0 = the real rule).
+// For one-PC tests of the boss rules with ordinary enemies.
+void boss_set_test_threshold(int64_t max_hp_x1000);
 
 // Is this enemy already known to be a boss? False when unknown.
 bool boss_is_boss(uint32_t enemy_key);
@@ -110,6 +113,11 @@ struct BossHud {
     bool cutscene = false;
 };
 void boss_note_hp(uint32_t enemy_key, float hp, float hp_max);
+
+// Co-op+ (A9, boss-fight deaths): a known boss with HP left had its HP updated within `window_ms`.
+bool boss_fight_active(uint64_t window_ms);
+// A known boss's HP reached 0 within `window_ms`.
+bool boss_killed_within(uint64_t window_ms);
 BossHud boss_hud();
 
 }  // namespace cdmp::net

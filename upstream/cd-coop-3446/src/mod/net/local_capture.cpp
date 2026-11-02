@@ -569,6 +569,10 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
             // normal monster without needing the game's stage-name tables. The
             // research measured every NPC in 58 captures at <= 220 max HP.
             if (hp_max > 0) boss_note_max_hp(key, hp_max);
+            // Co-op+: the boss bar and the boss-fight death rule (A9) follow its HP from here.
+            if (hp_max > 0 && boss_is_boss(key)) {
+                boss_note_hp(key, static_cast<float>(hp) / 1000.0f, static_cast<float>(hp_max) / 1000.0f);
+            }
             std::optional<Bytes> event;
             {
                 std::lock_guard lock(g_actors_mutex);

@@ -94,6 +94,10 @@ constexpr wchar_t kDefaultIni[] =
     L";              while the host is inside a stage cinematic.\r\n"
     L"; 0: the old behaviour, for comparison. Only with a save backup.\r\n"
     L"boss_safe=1\r\n"
+    L"; Co-op+: dying during a boss fight. 1 (default): you wait until your partner beats the\r\n"
+    L";   boss (then you get up) or is down too (then you both revive at the checkpoint).\r\n"
+    L";   0: revive as usual.\r\n"
+    L"boss_death_wait=1\r\n"
     L"; Shared loot (GUEST only). When you help the host kill one of their enemies,\r\n"
     L"; your own world was never going to give you anything for it: the creature only\r\n"
     L"; really exists in the host's world. With this on, your server makes its own\r\n"
@@ -110,8 +114,9 @@ constexpr wchar_t kDefaultIni[] =
     L"[scaling]\r\n"
     L"; Co-op+: with a guest in the HOST's world, the host's enemies are tougher:\r\n"
     L"; they take 1/health_2p of every blow (same as health_2p times the health).\r\n"
-    L"; Experimental (it heals enemies back after the host's blows): 0 = off.\r\n"
-    L"enabled=0\r\n"
+    L"; It heals enemies back by part of each blow (bosses: config\\scaling.toml, up to 4 players).\r\n"
+    L"; 0 = off.\r\n"
+    L"enabled=1\r\n"
     L"health_2p=1.7\r\n";
 
 std::wstring read_string(const std::wstring& path, const wchar_t* section, const wchar_t* key,
@@ -212,6 +217,9 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_loot_test_original = read_uint(ini_path, L"dev", L"loot_test_original", 0) != 0;
     c.dev_no_copy = read_uint(ini_path, L"dev", L"no_copy", 0) != 0;
     c.dev_kill_key = read_uint(ini_path, L"dev", L"kill_key", 0) != 0;
+    c.dev_boss_hp = read_uint(ini_path, L"dev", L"boss_hp", 0);
+    c.dev_partner_alive = read_uint(ini_path, L"dev", L"partner_alive", 0) != 0;
+    c.dev_scaling_as_host = read_uint(ini_path, L"dev", L"scaling_as_host", 0) != 0;
     c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
     c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
     c.coop_delay_ms = std::clamp(read_uint(ini_path, L"coop", L"delay_ms", c.coop_delay_ms), 50u, 5000u);
@@ -237,6 +245,7 @@ Config load_config(const std::wstring& ini_path) {
     // Boss safety (boss_safe.h): default ON, because the failure it prevents is a
     // stuck quest in the HOST's save, not a cosmetic problem.
     c.coop_boss_safe = read_uint(ini_path, L"coop", L"boss_safe", 1) != 0;
+    c.coop_boss_death_wait = read_uint(ini_path, L"coop", L"boss_death_wait", 1) != 0;
     c.dev_rope_bend = read_uint(ini_path, L"dev", L"rope_bend", 0) != 0;
     {
         const std::wstring v = read_string(ini_path, L"coop", L"enemy_minimap_icon", "");
@@ -262,7 +271,8 @@ Config load_config(const std::wstring& ini_path) {
         c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
         c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
         c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
-        c.scaling_enabled = read_uint(ini_path, L"scaling", L"enabled", 0) != 0;
+        // Co-op+ D28: on by default (one-PC check 2026-11-02; user asked for bosses scaled to the party).
+        c.scaling_enabled = read_uint(ini_path, L"scaling", L"enabled", 1) != 0;
         c.coop_save_guard = read_uint(ini_path, L"coop", L"save_guard", 1) != 0;
         c.scaling_health_2p = read_float(ini_path, L"scaling", L"health_2p", 1.7f, 1.0f, 4.0f);
         c.scaling_boss_health_2p = c.scaling_health_2p;

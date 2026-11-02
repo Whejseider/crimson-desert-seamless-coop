@@ -7,6 +7,11 @@ Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC with the echo peer):
 - Every address re-found for 3479 (a small patch: code moved by up to 0x70 bytes, data by ~0xFB0, message numbers
   unchanged). The other player's character loads, is drawn and stands next to you again.
+- Party scaling is on by default: with a guest in, the host's enemies are tougher (x1.5 health, bosses x1.7,
+  more for 3-4 players in scaling.toml).
+- Boss fights (user request): if you die during one you wait until your partner beats the boss (then you get up
+  where you fell, full health) or is down too (then only "Revive at Checkpoint" is offered). The guest's boss
+  health bar can now show (the boss's health was never passed to it). [coop] boss_death_wait=0 turns the wait off.
 - Deaths work while connected: once the other player's character had been in your world, the game never showed its
   "Death has found you" screen again and you stayed dead. Co-op+ now shows the same choice itself (Q Instant
   Revive, U Revive at Checkpoint) and sends the game's own revive requests. The checkpoint revive gives full

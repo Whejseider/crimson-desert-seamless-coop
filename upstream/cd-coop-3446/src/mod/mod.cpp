@@ -552,7 +552,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         const uint32_t now = now_ms();
         session.tick(now);
         const bool connected = session.state() == ClientSession::State::Connected;
-        bool revive_prompt = false;
+        net::RevivePrompt revive_prompt = net::RevivePrompt::None;
         if (host && was_connected && !connected && peer) {
             log::info("Network: {} left; waiting for a player", peer->str());
             peer.reset();
@@ -577,7 +577,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         was_connected = connected;
         if (coop) {
             // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
-            net::scaling_set_party(host && connected ? 2 : 1, host);
+            // [dev] scaling_as_host: one-PC test of party scaling (the echo session runs as guest).
+            const bool scale_host = host || cfg.dev_scaling_as_host;
+            net::scaling_set_party(scale_host && connected ? 2 : 1, scale_host);
             net::scaling_tick();
             // Co-op+ save safety: a backup when a session starts, a warning on saves during it.
             net::save_guard_set_connected(connected, session.peer_name());
@@ -598,7 +600,13 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 }
                 kill_was_down = kill_down;
                 // Co-op+: our own revive choices when the game's death screen stays away (revive_prompt.h).
-                revive_prompt = net::revive_prompt_tick(connected, s.health, s.health_max, game_has_focus(), now);
+                std::optional<float> partner_hp;
+                if (connected) {
+                    if (const auto& rs = session.remote_state()) partner_hp = rs->health;
+                    if (cfg.dev_partner_alive) partner_hp = 100.0f;  // one-PC test of the boss-fight wait
+                }
+                revive_prompt =
+                    net::revive_prompt_tick(connected, s.health, s.health_max, partner_hp, game_has_focus(), now);
             }
             coop->update(pos, rot, now);
         }
@@ -615,7 +623,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             hud.local_status = local.status();
             hud.remote = session.remote_state();
             hud.peer_problem = session.peer_problem();
-            hud.revive_prompt = revive_prompt;
+            hud.revive_prompt = static_cast<uint8_t>(revive_prompt);
             // In co-op, put the marker on the character actually drawn (it
             // plays the network state `delay` ms later).
             if (coop && hud.remote) {
@@ -625,7 +633,8 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             if (coop) hud.scaling = net::scaling_hud_text();
             if (coop) hud.save_notice = net::save_guard_hud_text();
             // Boss bar (boss_safe.h): the guest has no native one.
-            if (const net::BossHud b = net::boss_hud(); b.active) {
+            // Co-op+: guest only (now that the boss's health reaches boss_safe, the host would get two bars).
+            if (const net::BossHud b = net::boss_hud(); b.active && !host) {
                 hud.boss_active = true;
                 hud.boss_name = b.name;
                 hud.boss_hp = b.hp;
@@ -1307,6 +1316,11 @@ DWORD WINAPI worker(LPVOID) {
         net::enemy_set_keep_origin(cfg.dev_enemy_keep_origin);
         net::loot_set_test_original(cfg.dev_loot_test_original);
         net::coop_set_copy_disabled(cfg.dev_no_copy);
+        net::revive_set_boss_wait(cfg.coop_boss_death_wait);
+        if (cfg.dev_boss_hp) {
+            net::boss_set_test_threshold(static_cast<int64_t>(cfg.dev_boss_hp) * 1000);
+            log::info("Config: [dev] boss_hp={}: enemies with that much health count as bosses", cfg.dev_boss_hp);
+        }
         if (cfg.dev_no_copy) log::info("Config: [dev] no_copy=1: the other player's character is never loaded");
         log::info("Config: who can join: {}", cfg.net_join_invite_only
                                                   ? "invited friends only ([net] join=invite)"

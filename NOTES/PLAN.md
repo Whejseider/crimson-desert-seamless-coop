@@ -26,10 +26,12 @@ installed package updated. Status: [x] done, [~] in progress, [ ] to do.
       pickup itself needs the two-PC test (one PC cannot hide natives)
 - [x] A5 The friend's own enemies near the host are hidden (no doubles) and come back when apart (lab: 25 hidden,
       all restored); real hiding is now the default
-- [ ] A6 Bosses: safety rules (host lands the killing blow; boss copies refused) still hold on 3479
+- [~] A6 Bosses: safety rules (host lands the killing blow; boss copies refused) still hold on 3479. Code paths
+      checked (opcodes match 3479); boss HP now reaches boss_safe (it never did). Live boss test: two-PC session
 - [x] A7 Enemy copies on by default ([coop] enemy_copies)
-- [ ] A8 Boss scaling by player count, for up to 4 players (user request 2026-11-01): boss health/damage grow with
-      the party (curve in config/scaling.toml, e.g. x1.0 / 1.7 / 2.3 / 2.8); bosses must stay hard with a full party
+- [x] A8 Boss scaling by player count, for up to 4 players (user request 2026-11-01): boss health/damage grow with
+      the party (curve in config/scaling.toml, e.g. x1.0 / 1.7 / 2.3 / 2.8); bosses must stay hard with a full party.
+      Done (D28): checked on one PC with 2 players, on by default; bosses and 3-4 players unchecked
 - [x] A10 Enemies choose between both players (user question 2026-11-01): make the friend's copy a valid target in
       the host's world so the game's own AI picks between the two players (distance, who hits it...), and
       blows on the friend's copy reach the friend as real damage (aggro + player_hits; port the 2976-era aggro
@@ -44,14 +46,14 @@ installed package updated. Status: [x] done, [~] in progress, [ ] to do.
       the game's death screen never comes, so Co-op+ shows the same Q/U choice. Instant revive verified; checkpoint
       revive gives full health but moves you only sometimes (best effort). Left: the real loading-screen path for
       U, and the two-PC check (the problem may be echo-only)
-- [ ] A9 Boss-fight deaths (user request 2026-11-01): a player who dies during a boss fight does not respawn until the
+- [~] A9 Boss-fight deaths (user request 2026-11-01): a player who dies during a boss fight does not respawn until the
       teammates beat the boss (then everyone respawns/revives) or everyone is down (then the whole party restarts
-      the fight)
+      the fight). Built (D29) on the revive prompt; wait + everyone-down verified on one PC; "partner wins" needs 2 PCs
 
 ## B. Riding, movement and looks
 - [ ] B1 Horse copy (riding together): test, fix, decide default (currently off)
 - [ ] B2 Animation spot-check: combat moves, gliding, swimming, climbing, mounting
-- [ ] B3 Party scaling (experimental): sanity check numbers on 3479
+- [x] B3 Party scaling: sanity check numbers on 3479 (a8-scaling: 1/3 back at x1.5, kills normal)
 - [ ] B4 Time of day / weather sync check (time_sync is off; decide)
 
 ## C. Session, safety and polish

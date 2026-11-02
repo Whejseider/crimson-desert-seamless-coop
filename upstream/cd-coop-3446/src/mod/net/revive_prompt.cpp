@@ -10,6 +10,7 @@
 #include "mod/game/offsets.h"
 #include "mod/game/safe_memory.h"
 #include "mod/game/ui_state.h"
+#include "mod/net/boss_safe.h"
 #include "mod/log.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/remote_puppet.h"
@@ -32,6 +33,8 @@ constexpr uint32_t kRetryAfterMs = 5000;    // still dead this long after a choi
 constexpr uint32_t kTeleportCheckMs = 1000; // after the revive: still farther than kTeleportNearM -> again
 constexpr float kTeleportNearM = 10.0f;
 constexpr int kTeleportTries = 3;
+constexpr uint64_t kBossFightWindowMs = 30000;  // a boss whose HP changed this recently: the fight is on
+constexpr uint32_t kBossReviveRetryMs = 4000;
 
 uint32_t g_dead_since = 0;
 uint32_t g_chosen_at = 0;
@@ -43,6 +46,10 @@ std::atomic<bool> g_checkpoint_asked{false}, g_teleport_due{false};
 float g_checkpoint[3] = {};
 uint32_t g_teleport_at = 0;
 int g_teleport_tries = 0;
+// A9 (boss-fight deaths).
+bool g_boss_wait = true;
+bool g_boss_hold = false;       // we died during a boss fight and wait for the other player
+uint32_t g_boss_revive_at = 0;  // the boss is down: we were sent up; checked again at this time
 
 // The status component keeps the revive type the client itself asked for at +0x471 (16 = none);
 // its ReviveLoadingStartAck handler (exe+0x6F33D0) drops an answer of another type. Set as the
@@ -77,6 +84,18 @@ void teleport(uint32_t own) {
     puppet_inject_s2c_batch({{kOpDoTeleportAck, b}});
 }
 
+bool send(uint16_t op, const std::vector<uint8_t>& body);
+
+// The checkpoint revive (see the header). `move`: also move the client to the checkpoint.
+void ask_checkpoint(uint32_t own, uint32_t now_ms, bool move) {
+    expect_revive(own, kCheckpoint);
+    const bool ok = send(kOpReviveLoadingStartReq, {0x04, kCheckpoint, 0x00});
+    g_chosen_at = now_ms ? now_ms : 1;
+    g_loading_req_at = (now_ms + kLoadingStepMs) | 1;
+    g_checkpoint_asked = move;
+    log::info("Revive: checkpoint revive{}, step 1{}", move ? "" : " (staying here)", ok ? "" : " (NOT sent)");
+}
+
 bool send(uint16_t op, const std::vector<uint8_t>& body) {
     std::vector<uint8_t> pkt(5 + body.size());
     const uint16_t len = static_cast<uint16_t>(body.size());
@@ -96,7 +115,10 @@ bool pressed(int vk, bool& was, bool focused) {
 
 }  // namespace
 
-bool revive_prompt_tick(bool connected, float hp, float hp_max, bool focused, uint32_t now_ms) {
+void revive_set_boss_wait(bool on) { g_boss_wait = on; }
+
+RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::optional<float> partner_hp, bool focused,
+                                uint32_t now_ms) {
     // The checkpoint revive's second step goes in on time even if we are no longer "dead" by then.
     if (g_loading_req_at && static_cast<int32_t>(now_ms - g_loading_req_at) >= 0) {
         g_loading_req_at = 0;
@@ -108,7 +130,7 @@ bool revive_prompt_tick(bool connected, float hp, float hp_max, bool focused, ui
         g_revive_req_at = 0;
         if (sniffer_world_loading()) {
             log::info("Revive: checkpoint revive: the game is loading the checkpoint itself");
-            return false;
+            return RevivePrompt::None;
         }
         std::vector<uint8_t> b(8, 0);
         const uint32_t own = capture_own_player_key();
@@ -141,19 +163,54 @@ bool revive_prompt_tick(bool connected, float hp, float hp_max, bool focused, ui
     }
     if (!dead) {
         if (g_dead_since && g_chosen_at) log::info("Revive: we are alive again");
-        g_dead_since = g_chosen_at = 0;
+        g_dead_since = g_chosen_at = g_boss_revive_at = 0;
+        g_boss_hold = false;
         g_q_was = g_u_was = false;
-        return false;
+        return RevivePrompt::None;
     }
-    if (!g_dead_since) g_dead_since = now_ms ? now_ms : 1;
+    if (!g_dead_since) {
+        g_dead_since = now_ms ? now_ms : 1;
+        // A9: died during a boss fight -> wait for the other player (decided once, at the death).
+        g_boss_hold = g_boss_wait && connected && partner_hp && boss_fight_active(kBossFightWindowMs);
+        if (g_boss_hold) log::info("Revive: we died in a boss fight: waiting for the other player");
+    }
     // Only where the game's screen is known to stay away, and never over it or another menu.
-    if (!connected || !puppet_ever_spawned() || game::ui_menu_open()) return false;
-    if (now_ms - g_dead_since < kWaitForGameMs) return false;
-    if (g_chosen_at && now_ms - g_chosen_at < kRetryAfterMs) return false;
-
+    if (!connected || !puppet_ever_spawned() || game::ui_menu_open()) return RevivePrompt::None;
+    if (now_ms - g_dead_since < kWaitForGameMs) return RevivePrompt::None;
     const uint32_t own = capture_own_player_key();
-    if (!own) return false;
-    if (pressed('Q', g_q_was, focused)) {
+    if (!own) return RevivePrompt::None;
+
+    bool checkpoint_only = false;
+    if (g_boss_hold) {
+        if (g_boss_revive_at) {
+            // The boss is down and we were sent back up; still dead after a while: ask once more.
+            if (static_cast<int32_t>(now_ms - g_boss_revive_at) >= 0) {
+                g_boss_revive_at = (now_ms + kBossReviveRetryMs) | 1;
+                ask_checkpoint(own, now_ms, /*move=*/false);
+                log::info("Revive: the boss is down: we get up (again)");
+            }
+            return RevivePrompt::None;
+        }
+        if (!partner_hp) {
+            g_boss_hold = false;
+            log::info("Revive: the other player is gone: revive as usual");
+        } else if (boss_killed_within(now_ms - g_dead_since + 2000)) {
+            // Up where we fell, full health: the server's checkpoint revive without the move.
+            ask_checkpoint(own, now_ms, /*move=*/false);
+            g_boss_revive_at = (now_ms + kBossReviveRetryMs) | 1;
+            log::info("Revive: the other player beat the boss: we get up");
+            return RevivePrompt::None;
+        } else if (*partner_hp <= 0.0f) {
+            checkpoint_only = true;  // everyone is down: the fight starts again from the checkpoint
+        } else if (!boss_fight_active(kBossFightWindowMs)) {
+            g_boss_hold = false;
+            log::info("Revive: the boss fight is over without a kill: revive as usual");
+        } else {
+            return RevivePrompt::WaitBoss;
+        }
+    }
+    if (g_chosen_at && now_ms - g_chosen_at < kRetryAfterMs) return RevivePrompt::None;
+    if (!checkpoint_only && pressed('Q', g_q_was, focused)) {
         std::vector<uint8_t> b(8, 0);
         std::memcpy(b.data(), &own, 4);
         b[4] = 0;
@@ -161,18 +218,13 @@ bool revive_prompt_tick(bool connected, float hp, float hp_max, bool focused, ui
         const bool ok = send(kOpReviveReq, b);
         g_chosen_at = now_ms ? now_ms : 1;
         log::info("Revive: instant revive asked{}", ok ? "" : " (NOT sent)");
-        return false;
+        return RevivePrompt::None;
     }
     if (pressed('U', g_u_was, focused)) {
-        expect_revive(own, kCheckpoint);
-        const bool ok = send(kOpReviveLoadingStartReq, {0x04, kCheckpoint, 0x00});
-        g_chosen_at = now_ms ? now_ms : 1;
-        g_loading_req_at = (now_ms + kLoadingStepMs) | 1;
-        g_checkpoint_asked = true;
-        log::info("Revive: checkpoint revive, step 1{}", ok ? "" : " (NOT sent)");
-        return false;
+        ask_checkpoint(own, now_ms, /*move=*/true);
+        return RevivePrompt::None;
     }
-    return true;
+    return checkpoint_only ? RevivePrompt::CheckpointOnly : RevivePrompt::Choice;
 }
 
 void revive_observe_s2c(const uint8_t* packet, size_t size) {

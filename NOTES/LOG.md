@@ -255,3 +255,15 @@
   16:04 backup at 23:55; all user save files verified equal to it. The rewritten version is kept in
   Documents\CrimsonDesert-CoopPlus-SaveBackups\overwritten-slot2-by-test-2026-11-01_21-22. Cause unknown (a game
   write path the guard does not see, or Steam Cloud). From now on: run the save check after EVERY test session.
+
+## 2026-11-02 00:00-00:40 -- A6 review, A9 built, A8 scaling on
+- A6: boss safety paths use 3479 opcodes (SetAvoidByCutSceneAck 2708, VaryHPAck 2740: match the live table). Found
+  boss_note_hp never called: the guest's boss bar and any "fight in progress" state never worked. Fed from VaryHPAck.
+  No boss near the test save: the live boss check stays for the two-PC test.
+- A9 (D29): tests a9-wait2 (wait box, then normal box 28 s after the last boss HP change), a9-alldown ("Everyone is
+  down", U revived at full health). The copy now falls dead beside us when we die (relay table fix): A12 "copy
+  plays the death" seen.
+- A8 (D28): a8-scaling: 11 give-backs, 56 HP, 12 relayed blows skipped, 0 failed; default on.
+- New dev switches: [dev] boss_hp=N, partner_alive=1, scaling_as_host=1. Test kit: savecheck.sh (run after every
+  session: SAVES OK after each run tonight), savewatch.sh (logs every write in the save folder to savewatch.log).
+- Save watcher: Steam rewrites 1160582305/steam_autocloud.vdf at every game launch (Steam Cloud is on for this game): a likely writer of last night's slot2 change. Watch for slot2 writes at launch/exit.

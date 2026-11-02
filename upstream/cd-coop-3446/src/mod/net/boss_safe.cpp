@@ -22,6 +22,7 @@ std::atomic<bool> g_no_stagger{true};
 std::atomic<bool> g_cutscene{false};
 std::atomic<uint64_t> g_cutscene_since{0};
 std::atomic<uint64_t> g_boss_seen_ms{0};
+std::atomic<int64_t> g_test_threshold{0};  // Co-op+ dev: boss_set_test_threshold
 
 std::mutex g_mutex;
 // Spawn-origin hashes known to be boss stages, learned from the stage names the
@@ -38,6 +39,8 @@ struct BossInfo {
     std::string name;
     float hp = 0.0f;
     float hp_max = 0.0f;
+    uint64_t seen_ms = 0;  // Co-op+: last HP update
+    uint64_t died_ms = 0;  // Co-op+: when its HP reached 0 (0 = alive)
 };
 std::unordered_map<uint32_t, BossInfo> g_bosses;
 
@@ -116,7 +119,8 @@ bool boss_origin_is_boss(uint32_t hash) {
 
 bool boss_note_max_hp(uint32_t enemy_key, int64_t max_hp_x1000) {
     if (enemy_key == 0 || max_hp_x1000 <= 0) return false;
-    if (!is_boss_sized_hp(max_hp_x1000)) return false;
+    const int64_t test = g_test_threshold.load();
+    if (test ? max_hp_x1000 < test : !is_boss_sized_hp(max_hp_x1000)) return false;
     std::lock_guard lock(g_mutex);
     auto [it, fresh] = g_bosses.try_emplace(enemy_key);
     if (fresh) {
@@ -127,6 +131,8 @@ bool boss_note_max_hp(uint32_t enemy_key, int64_t max_hp_x1000) {
     g_boss_seen_ms = now_ms();
     return true;
 }
+
+void boss_set_test_threshold(int64_t max_hp_x1000) { g_test_threshold = max_hp_x1000; }
 
 bool boss_is_boss(uint32_t enemy_key) {
     if (enemy_key == 0) return false;
@@ -139,9 +145,35 @@ void boss_note_hp(uint32_t enemy_key, float hp, float hp_max) {
     std::lock_guard lock(g_mutex);
     auto it = g_bosses.find(enemy_key);
     if (it == g_bosses.end()) return;
+    const uint64_t now = now_ms();
+    if (hp <= 0.0f && it->second.hp > 0.0f) {
+        it->second.died_ms = now;
+        log::info("Boss: enemy 0x{:08X} is down", enemy_key);
+    } else if (hp > 0.0f) {
+        it->second.died_ms = 0;
+    }
     it->second.hp = hp;
     if (hp_max > 0) it->second.hp_max = hp_max;
-    g_boss_seen_ms = now_ms();
+    it->second.seen_ms = now;
+    g_boss_seen_ms = now;
+}
+
+bool boss_fight_active(uint64_t window_ms) {
+    const uint64_t now = now_ms();
+    std::lock_guard lock(g_mutex);
+    for (const auto& [key, info] : g_bosses) {
+        if (info.hp > 0.0f && info.seen_ms && now - info.seen_ms < window_ms) return true;
+    }
+    return false;
+}
+
+bool boss_killed_within(uint64_t window_ms) {
+    const uint64_t now = now_ms();
+    std::lock_guard lock(g_mutex);
+    for (const auto& [key, info] : g_bosses) {
+        if (info.died_ms && now - info.died_ms < window_ms) return true;
+    }
+    return false;
 }
 
 BossHud boss_hud() {

@@ -64,6 +64,10 @@ WHAT WORKS / WHAT DOESN'T (YET)
   guest's own enemies there are hidden (they come back when you are apart). Both
   players can hit and kill them; enemies attack whichever of you they choose
   (usually whoever hit them), and their blows hurt either player for real.
+- With a guest in, the host's enemies are tougher (about 1.5x health, bosses 1.7x;
+  set in bin64\cdcoop\config\scaling.toml, up to 4 players). Their health bar dips and
+  partly refills after each blow: that is the extra toughness. Off: enabled=0
+  under [scaling] in cdmp.ini.
 - No friendly fire: you cannot hurt each other.
 - Deaths: each of you dies and revives in your own world; the other keeps playing.
   Once your friend's character has been in your world, the game's own death screen
@@ -75,7 +79,10 @@ WHAT WORKS / WHAT DOESN'T (YET)
   world, so you each get your own. Loot from enemies you kill together: the host
   loots normally; for the guest it is new and still being tested.
 - Bosses: the guest helps, the host lands the final blow (protects the host's
-  quest).
+  quest). If you die during a boss fight you wait ("Your partner is still
+  fighting the boss"): when your partner wins you get up where you fell; if you
+  both go down, you both revive at the checkpoint and try again. To turn the
+  wait off: boss_death_wait=0 under [coop] in cdmp.ini.
 - Not shared yet: quests and story progress, civilians, time of day.
 - Two players at a time.
 

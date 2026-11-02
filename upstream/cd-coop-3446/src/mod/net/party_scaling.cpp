@@ -61,7 +61,7 @@ void scaling_configure(const scaling::Settings& s) {
     std::lock_guard lock(g_mutex);
     g_settings = s;
     g_enabled = s.enabled;
-    log::info("Scaling: enemy toughness with a guest {} (health x{:.2f}, bosses x{:.2f}; experimental)",
+    log::info("Scaling: enemy toughness with a guest {} (health x{:.2f}, bosses x{:.2f})",
               s.enabled ? "ON" : "off", scaling::health_multiplier(s, 2),
               scaling::health_multiplier(scaling::for_boss(s, true), 2));
 }

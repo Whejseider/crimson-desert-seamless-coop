@@ -25,12 +25,28 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 namespace cdmp::net {
 
-// Network loop, every pass. `hp`/`hp_max`: our player (hp_max 0 = unknown). `focused`: the game
-// window has the keyboard. Returns true while the prompt should be drawn.
-bool revive_prompt_tick(bool connected, float hp, float hp_max, bool focused, uint32_t now_ms);
+// What the overlay shows.
+enum class RevivePrompt : uint8_t {
+    None,
+    Choice,          // Q Instant Revive, U Revive at Checkpoint
+    WaitBoss,        // A9: died in a boss fight, the other player still fights: wait
+    CheckpointOnly,  // A9: everyone is down: the fight starts again from the checkpoint (U only)
+};
+
+// A9 ([coop] boss_death_wait, user request 2026-11-01): a player who dies during a boss fight
+// (boss_safe.h: a boss whose HP changed in the last 30 s) waits. When the other player beats the
+// boss we get up where we fell with full health (the server's checkpoint revive, client not
+// moved); when the other player is down too, only the checkpoint revive is offered.
+void revive_set_boss_wait(bool on);
+
+// Network loop, every pass. `hp`/`hp_max`: our player (hp_max 0 = unknown). `partner_hp`: the other
+// player's health (none when nobody is connected). `focused`: the game window has the keyboard.
+RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::optional<float> partner_hp, bool focused,
+                                uint32_t now_ms);
 
 // Sniffer thread (capture_observe_s2c): the checkpoint the server revives us at (LoadingFieldDataAck).
 void revive_observe_s2c(const uint8_t* packet, size_t size);
