@@ -357,3 +357,17 @@
   SaveBackups\overwritten-by-test-2026-11-02_13-54 / _13-55); SAVES OK. Nothing was saved by me. Fix: --fix now
   touches the test save after a restore so it stays the newest (restored files keep the current time, so Steam Cloud
   prefers them over any autosaved copy it uploaded). Told the user (FLAGS F5).
+
+## 2026-11-02 13:55-14:30 -- activity verified, knowledge/weather probes, package a7810297
+- act_test.sh (fixed: the travel output pipe never closed with the echo peer): from a clean load of the test save
+  the activity module saw a cutscene during the load-in, the [dev] skip_test pressed Esc 3 s in ("skipping ours
+  too"), and the cutscene ended: detection + injected skip verified. The arm wrestling table had no seated opponent
+  in the later runs (10:35-10:55 game time; turned a full circle with R): the minigame notices are not seen live;
+  their triggers match the captured layouts byte for byte.
+- LearnKnowledgeByCheatReq (2986: player | key | u8 | u8) gets no reply: cheats are off in retail (like
+  ForcePlayStageDevReq). Knowledge cannot be granted through the server.
+- Weather: SyncWeatherStateReq floats (e.g. 23.15, 0.400, 0.0087, 2.75) are not stored as such in the heap (one hit,
+  in a packet buffer): the client computes them when reporting. Matching weather needs the weather system's own
+  state (not found).
+- Dev script: "poke <hex addr> <hex bytes>" (writable pages only) for memory experiments.
+- Package 0.1.0-alpha+a7810297 built, verify-port ALL PASS, Defender clean, installed (DLL hash matches, ini kept).

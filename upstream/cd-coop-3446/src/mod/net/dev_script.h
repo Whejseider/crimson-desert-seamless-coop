@@ -7,6 +7,7 @@
 //   s2c <opcode> <hex payload>     (injected as if the server sent it)
 //   wait <ms>                      (pause before the next line, at most 10 s)
 //   tp <x> <y> <z>                 (move our player there with the hopped teleport, revive_prompt.h)
+//   poke <hex address> <hex bytes>  (write game memory: research only; the page must be writable)
 // Placeholders in the payload: {P} = our player key (u32), {POS} = our position (3 x f32), {U} = our user key (u32).
 // Spaces inside the hex are ignored. Opcodes are decimal.
 

@@ -19,7 +19,8 @@ namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke } kind;
+    uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
     std::vector<uint8_t> payload;
@@ -88,6 +89,19 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "poke") {
+            std::string a, rest;
+            in >> a;
+            std::getline(in, rest);
+            st.kind = Step::Poke;
+            st.addr = static_cast<uintptr_t>(std::stoull(a, nullptr, 16));
+            if (!st.addr || !parse_hex(rest, st.payload) || st.payload.empty()) {
+                log::warn("Dev script: line {} needs poke <hex address> <hex bytes>", lineno);
+                continue;
+            }
+            steps.push_back(std::move(st));
+            continue;
+        }
         if (kind == "tp") {
             st.kind = Step::Teleport;
             if (!(in >> st.to[0] >> st.to[1] >> st.to[2])) {
@@ -122,6 +136,12 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
         for (const auto& st : steps) {
             if (st.kind == Step::Wait) {
                 Sleep(st.wait_ms);
+            } else if (st.kind == Step::Poke) {
+                MEMORY_BASIC_INFORMATION mbi{};
+                const bool ok = VirtualQuery(reinterpret_cast<void*>(st.addr), &mbi, sizeof mbi) &&
+                                mbi.State == MEM_COMMIT && (mbi.Protect & (PAGE_READWRITE | PAGE_EXECUTE_READWRITE));
+                if (ok) std::memcpy(reinterpret_cast<void*>(st.addr), st.payload.data(), st.payload.size());
+                log::info("Dev script: poke 0x{:X} ({} bytes){}", st.addr, st.payload.size(), ok ? "" : " REFUSED (not writable)");
             } else if (st.kind == Step::Teleport) {
                 revive_teleport_to(st.to[0], st.to[1], st.to[2]);
                 log::info("Dev script: teleport to ({:.0f}, {:.0f}, {:.0f})", st.to[0], st.to[1], st.to[2]);
