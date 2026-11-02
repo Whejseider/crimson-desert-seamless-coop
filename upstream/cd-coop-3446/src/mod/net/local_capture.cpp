@@ -38,6 +38,7 @@
 #include "mod/net/remote_puppet.h"
 #include "mod/net/revive_prompt.h"
 #include "mod/net/troc_sniffer.h"
+#include "mod/net/weather_sync.h"
 
 namespace cdmp::net {
 namespace {
@@ -725,6 +726,7 @@ void capture_emit_ping(float x, float y, float z) {
 }
 
 void capture_emit_activity(std::vector<uint8_t> payload) { emit(proto::EventKind::Activity, std::move(payload)); }
+void capture_emit_weather(std::vector<uint8_t> payload) { emit(proto::EventKind::Weather, std::move(payload)); }
 
 void capture_observe_c2s(const uint8_t* packet, size_t size) {
     aggro_observe_c2s(packet, size);
@@ -737,6 +739,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
     attack_probe_observe_c2s(packet, size);
     save_guard_observe_c2s(packet, size);  // Co-op+
     activity_observe_c2s(packet, size);    // Co-op+
+    weather_observe_c2s(packet, size);     // Co-op+
     if (size < 5 + 4) return;
     uint16_t op = 0;
     std::memcpy(&op, packet, 2);

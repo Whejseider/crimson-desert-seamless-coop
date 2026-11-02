@@ -27,6 +27,7 @@
 #include "mod/net/loot_twin.h"
 #include "mod/net/native_suppress.h"
 #include "mod/net/remote_puppet.h"
+#include "mod/net/weather_sync.h"
 
 namespace cdmp::net {
 namespace {
@@ -358,7 +359,9 @@ void on_recv_packet(safetyhook::Context& ctx) {
         // The guest's loot twin (loot_twin.h): its load and messages never
         // show; its loot ones are renamed after the copy in place.
         (loot_filter_s2c(reinterpret_cast<uint8_t*>(ctx.r9), size) ||
-         suppress_filter_s2c(reinterpret_cast<const uint8_t*>(ctx.r9), size))) {
+         suppress_filter_s2c(reinterpret_cast<const uint8_t*>(ctx.r9), size) ||
+         // Co-op+: our server's weather while we follow the host's (weather_sync.h).
+         weather_filter_s2c(reinterpret_cast<const uint8_t*>(ctx.r9), size))) {
         ctx.rip = reinterpret_cast<uintptr_t>(g_ret_stub);
     }
 }
@@ -553,8 +556,14 @@ DWORD WINAPI writer_thread(LPVOID p) {
         log::info("Sniffer: not recording packets to disk ([sniffer] record=0)");
     }
 
-    ULONGLONG last_stats = GetTickCount64();
+    ULONGLONG last_stats = GetTickCount64(), last_flush = last_stats;
     for (;;) {
+        // Co-op+: flush every 2 s, so a recording read while the game runs (or after it was killed) is complete.
+        if (w.text && GetTickCount64() - last_flush >= 2000) {
+            last_flush = GetTickCount64();
+            std::fflush(w.text);
+            std::fflush(w.bin);
+        }
         AcquireSRWLockExclusive(&g_lock);
         const uint64_t head = g_ring->head();
         const uint64_t tail = g_ring->tail();  // only this thread moves the tail

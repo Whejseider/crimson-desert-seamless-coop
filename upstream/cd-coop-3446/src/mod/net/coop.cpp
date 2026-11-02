@@ -1,5 +1,6 @@
 #include "mod/net/coop.h"
 #include "mod/net/coop_activity.h"
+#include "mod/net/weather_sync.h"
 
 #include <algorithm>
 #include <atomic>
@@ -501,6 +502,10 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
     }
     if (ev.kind == proto::EventKind::Activity) {  // Co-op+: the other player's cutscenes and minigames
         if (local_in_world_) activity_on_event(ev.payload);
+        return;
+    }
+    if (ev.kind == proto::EventKind::Weather) {  // Co-op+: the host's weather stages
+        weather_on_event(ev.payload);
         return;
     }
     if (ev.kind == proto::EventKind::GuestHit) {  // about our enemies

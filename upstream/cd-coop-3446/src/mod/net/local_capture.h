@@ -53,6 +53,8 @@ uint32_t capture_horse_present();
 void capture_emit_ping(float x, float y, float z);
 // Co-op+: an EventKind::Activity payload for the other player (coop_activity.h).
 void capture_emit_activity(std::vector<uint8_t> payload);
+// Co-op+: our weather stages to the other player (weather_sync.h).
+void capture_emit_weather(std::vector<uint8_t> payload);
 // Our own player actor's key (0xA01...), 0 until a save was loaded.
 uint32_t capture_own_player_key();
 // Our own user key (0x901...), 0 until a save was loaded.

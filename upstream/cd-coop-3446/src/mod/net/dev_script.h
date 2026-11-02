@@ -9,6 +9,7 @@
 //   tp <x> <y> <z>                 (move our player there with the hopped teleport, revive_prompt.h)
 //   poke <hex address> <hex bytes>  (write game memory: research only; the page must be writable)
 //   time <hh:mm>                   (set our time of day, time_sync.h)
+//   day <+N>                       (N days later, same hour)
 //   watch <hex addr> [len] [hits]  (hardware write breakpoint, dev_watch.h; logs who writes it)
 // Placeholders in the payload: {P} = our player key (u32), {POS} = our position (3 x f32), {U} = our user key (u32).
 // Spaces inside the hex are ignored. Opcodes are decimal.

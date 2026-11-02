@@ -133,6 +133,15 @@ bool time_sync_dev_set(int hour, int minute) {
     return ok;
 }
 
+bool time_sync_dev_add_days(int days) {
+    const auto own = own_time();
+    if (!own || days <= 0) return false;
+    const uint64_t target = own->second + static_cast<uint64_t>(days) * FieldTime::kRawDay;
+    const bool ok = set_time(own->first, target);
+    log::info("Time sync (dev): {} -> {}{}", hhmm(own->second), hhmm(target), ok ? "" : " (NOT sent)");
+    return ok;
+}
+
 std::optional<proto::GameEvent> time_sync_tick(uint32_t now_ms) {
     if (g_dev_key.load()) {
         const bool down = (GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState(VK_SHIFT) & 0x8000) &&

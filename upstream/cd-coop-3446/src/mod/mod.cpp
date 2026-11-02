@@ -39,6 +39,7 @@
 #include "mod/net/revive_prompt.h"
 #include "mod/net/dev_script.h"
 #include "mod/net/coop_activity.h"
+#include "mod/net/weather_sync.h"
 #include "mod/net/party_scaling.h"
 #include "mod/net/save_guard.h"
 #include "mod/net/boss_safe.h"
@@ -666,6 +667,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     toast = std::move(act.toast);
                     toast_until = now + 6000;
                 }
+                net::weather_tick(connected, host, own_pos.has_value(), own_pos, now);  // Co-op+: weather_sync.h
             }
             coop->update(pos, rot, now);
         }
@@ -1398,6 +1400,8 @@ DWORD WINAPI worker(LPVOID) {
         net::activity_set_skip_test(cfg.dev_skip_test);
         if (cfg.dev_trace_op) net::sniffer_set_trace_op(static_cast<uint16_t>(cfg.dev_trace_op));
         net::activity_set_versus_test(static_cast<int>(cfg.dev_versus_test));
+        net::weather_set_enabled(cfg.coop_weather_sync);
+        net::weather_set_test(cfg.dev_weather_test);
         if (cfg.dev_boss_hp) {
             net::boss_set_test_threshold(static_cast<int64_t>(cfg.dev_boss_hp) * 1000);
             log::info("Config: [dev] boss_hp={}: enemies with that much health count as bosses", cfg.dev_boss_hp);

@@ -77,6 +77,7 @@ struct Config {
     int32_t dev_tp_offset_m = 30;  // Co-op+ dev: Ctrl+Shift+F4 teleports this far east ([dev] tp_offset_m)
     uint32_t dev_boss_hp = 0;       // Co-op+ dev: enemies with this many max HP count as bosses ([dev] boss_hp)
     bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
+    uint32_t dev_weather_test = 0;  // Co-op+ dev: act as a guest whose host has this weather stage ([dev] weather_test)
     uint32_t dev_versus_test = 0;  // Co-op+ dev: simulated versus opponent pushing N times/s ([dev] versus_test)
     uint32_t dev_trace_op = 0;  // Co-op+ dev: trace who sends this opcode ([dev] trace_op)
     bool dev_skip_test = false;  // Co-op+ dev: act as if the other player skipped 3 s into our cutscenes ([dev] skip_test)
@@ -129,6 +130,8 @@ struct Config {
     // Time of day (hora-del-dia.md): 0 off, 1 send ours (host), 2 take the
     // other player's (guest).
     int coop_time_sync = 3;
+    // Co-op+: the guest's weather follows the host's (weather_sync.h).
+    bool coop_weather_sync = true;
     // Host: copies of our enemies that fight go to the guest on their own
     // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
     bool coop_enemy_auto = true;
