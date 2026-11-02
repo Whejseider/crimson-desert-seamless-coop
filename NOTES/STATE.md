@@ -5,6 +5,7 @@
 - Work from NOTES/PLAN.md (user's standing instruction: plan, then carry it out without stopping to ask).
 - Game **1.0.0.3479**. verify-port ALL PASS (run from upstream/cd-coop-3446 with -Exe "D:\SteamLibrary\...\CrimsonDesert.exe");
   tools/port/check_opcodes.py build/port3479/troc_3479.txt -> all match.
+- Installed: dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+23264c32.zip (Defender clean, user cdmp.ini kept).
 - Death blocker (A12): once the other player's copy has been loaded, the game never shows its death screen again
   (bisect in LOG). Co-op+ now shows its own Q/U box (net/revive_prompt.*, D26): Q verified; U = full health at the
   checkpoint server-side, client moved there only sometimes. Relay table + AttackByCollisionReq were stale (D27): fixed.
