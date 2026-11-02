@@ -199,7 +199,7 @@ inferred = [
     ('kClientFrameClockMs', 0x70D1DB5 + 0x34, 0x70D2D75 + 0x34),
     ('kClientFrameClockUs', 0x70D1DB5 + 0x3C, 0x70D2D75 + 0x3C),
     ('kClientClockBias',    0x71B5F48, 0x71B6EF8),
-    ('kFieldTimeClient',    0x6EB2AD8, 0x6EB2AD8),
+    ('kFieldTimeClient',    0x6EB2AD8, 0x6EA4998),  # Co-op+: 0x6EB2AD8 was stale since 3446 (D36)
     ('kTrocInstancesBegin', 0x6E86D10, 0x6E87D10),
     ('kTrocInstancesEnd',   0x6EBA378, 0x6EBB378),
     ('kMinimapIconRoot',    0x71B6038, 0x71B6FE8),
@@ -364,7 +364,7 @@ _referenced = [
     # see `lea` is what the TrocInstancesBegin note below established the hard way.
     ('kTrocInstancesBegin', 0x6E87D10, False),
     ('kTrocInstancesEnd',   0x6EBB378, False),
-    ('kFieldTimeClient',    0x6EB2AD8, False),
+    ('kFieldTimeClient',    0x6EA4998, False),
 ]
 
 # ---- vtables, checked against the RTTI the binary carries -------------------
