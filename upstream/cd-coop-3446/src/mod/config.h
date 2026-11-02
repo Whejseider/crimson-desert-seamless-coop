@@ -86,7 +86,7 @@ struct Config {
     float coop_offset_m = 0.0f;    // sideways offset of the remote character
     // Experimental, off by default: the copy's horse is not created by the
     // client (owned load) or crashes the game (ownerless load); live tests 1-2.
-    bool coop_horse = false;       // the other player's horse + mount/dismount fixes
+    bool coop_horse = true;        // the other player's horse + mount/dismount fixes (on since 2026-11-02, D30)
     // Works since the copy got its own character number (live test 3).
     bool coop_equip = true;        // relay equipment changes
     // Mirrored damage: each world keeps its enemies; hits by the other player

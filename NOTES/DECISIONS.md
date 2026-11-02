@@ -195,3 +195,9 @@
   game's own screen shows on two PCs, the wait cannot hold it (noted in the checklist).
 - Verified on one PC with bandits as bosses ([dev] boss_hp=20, [dev] partner_alive=1): wait box, release after 30 s,
   everyone-down box + U. Not verified: the auto revive when the partner wins (needs two players).
+
+## 2026-11-02 D30: The other player's horse is on by default
+- One-PC echo rounds (build/port3479/horse_test.sh; H calls the horse, E rides, R dismounts on PC): the horse copy
+  loads with its first action (no crash in 5 rounds; the 2976-era crash is contained), the copy MOUNTS its horse copy
+  when we mount (RideOn fix), rides along (panel: 3 m away after ~80 m of riding), and dismounts with us.
+  [coop] horse now defaults to 1 (the user's ini has no horse key). Other mounts and flying: see FLAGS F2.

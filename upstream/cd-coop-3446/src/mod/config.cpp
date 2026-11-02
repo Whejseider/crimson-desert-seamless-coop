@@ -224,7 +224,7 @@ Config load_config(const std::wstring& ini_path) {
     c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
     c.coop_delay_ms = std::clamp(read_uint(ini_path, L"coop", L"delay_ms", c.coop_delay_ms), 50u, 5000u);
     c.coop_offset_m = read_metres(ini_path, L"coop", L"offset_m", c.coop_offset_m);
-    c.coop_horse = read_uint(ini_path, L"coop", L"horse", 0) != 0;
+    c.coop_horse = read_uint(ini_path, L"coop", L"horse", 1) != 0;
     c.coop_equip = read_uint(ini_path, L"coop", L"equip", 1) != 0;
     c.coop_damage = read_uint(ini_path, L"coop", L"damage", 0) != 0;
     c.coop_map_pin = read_uint(ini_path, L"coop", L"map_pin", 1) != 0;

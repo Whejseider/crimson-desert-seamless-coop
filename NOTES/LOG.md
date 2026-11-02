@@ -267,3 +267,15 @@
 - New dev switches: [dev] boss_hp=N, partner_alive=1, scaling_as_host=1. Test kit: savecheck.sh (run after every
   session: SAVES OK after each run tonight), savewatch.sh (logs every write in the save folder to savewatch.log).
 - Save watcher: Steam rewrites 1160582305/steam_autocloud.vdf at every game launch (Steam Cloud is on for this game): a likely writer of last night's slot2 change. Watch for slot2 writes at launch/exit.
+
+## 2026-11-02 01:00-01:50 -- feature backlog, horse riding together
+- New rule from the user (whole project): work every completable task, flag needs-user items in NOTES/FLAGS.md,
+  never ask "continue?". Saved in memory and PLAN.
+- Research: docs/research/game-features-web.md (minigames, mounts, systems from wikis), docs/research/
+  game-features-troc.md (all 1,175 messages grouped by system), backlog docs/COOP-FEATURES.md (8 areas).
+  Key finds: full minigame protocol (JoinMiniGameReq, SpawnMiniGameCharacterReq = the NPC opponent, results,
+  leaderboards), dormant MMO party system (OpenPartyReq, InvitePartyMemberReq...), knowledge sharing messages,
+  LetterBoxEnterReq/ExitReq (cinematic letterbox), ChangeRideSeatAck (seats; upstream found it a stub on 2976).
+- Horse (D30): horse_test.sh rounds horse-on..horse-ride1; mount key is E ("Ride" prompt), dismount R. Status line
+  now logs "Local: our horse 0x... at (x, y, z)" (walk-to-mount in tests).
+- No cutscene seen in any of 35 captures (only PlayAllPreLoadSequencerAck at loads): cutscene work needs one (F3).

@@ -16,13 +16,13 @@ as copies driven by relayed packets. "Co-op for feature X" therefore means one o
 ## 1. Mounts and vehicles  (user: "guests can ride mounts, flying and on the ground", "mounts work for both")
 | # | Feature | Co-op meaning | Status | Approach / messages | Test |
 |---|---|---|---|---|---|
-| 1.1 | Horse riding: see the other player ride | (a) | partial: upstream horse copy exists, OFF by default ([coop] horse) | remote_puppet horse load + RideOn/MoveActor relays; enable, fix, default on | 1PC |
+| 1.1 | Horse riding: see the other player ride | (a) | DONE on one PC (D30): copy mounts its horse copy, rides along, dismounts; on by default | remote_puppet horse load + RideOn/MoveActor relays; enable, fix, default on | 1PC |
 | 1.2 | Horse mounted combat (blows from horseback on shared enemies) | (a)+(b) | todo | DoFrameEventReq from rider; same path as guest_hits | 1PC/2PC |
 | 1.3 | Other ground mounts: bears, direwolf, raptor, lion, cow, red dodo, giant iguana | (a) | todo | same load path as horse (type differs); mounts are "mercenaries"/vehicles (CallVehicleMercenaryAck, ReserveSummonAndRideAck) | 1PC if one is reachable |
-| 1.4 | Flying: Blackstar Dragon (Chapter 11), Wyvern?, Cloudcart balloon | (a) | todo | flying move data (3D, no ground snap); test needs a save with the dragon | flagged: needs a late save |
+| 1.4 | Flying: Blackstar Dragon (Chapter 11), Wyvern?, Cloudcart balloon | (a) | flagged F2 (needs a save with a flying mount) | flying move data (3D, no ground snap); test needs a save with the dragon | flagged: needs a late save |
 | 1.5 | Vehicles: ATAG mech, Pywel Wagon, Skiff, Delesyia train | (a) | todo | AttachLinkVehicle*, RideOnVehicleReq, ChangeVehiclePhysicsState* | RE + late save |
 | 1.6 | Ride together (passenger seat, both on one horse/dragon) | (c) | todo | ChangeRideSeatAck exists: the engine has seats; research if a second seat is usable | RE |
-| 1.7 | Guest summons own horse in host's world | (b) | todo | guest's horse is in guest's world; host sees copy via 1.1 | 1PC |
+| 1.7 | Guest summons own horse in host's world | (b) | done by 1.1 (each side shows the other's horse); 2PC check | guest's horse is in guest's world; host sees copy via 1.1 | 1PC |
 | 1.8 | Ships / naval (DLC "Charting the Unknown": crew stations) | (c) | todo | ShipCrewStationChangeReq; only if DLC installed | flagged: DLC |
 | 1.9 | Taming wild horses/bears with the other watching | (a) | todo | taming minigame actions relayed | 1PC |
 

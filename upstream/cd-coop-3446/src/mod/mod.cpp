@@ -26,6 +26,7 @@
 #include "mod/net/puppet_visibility.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/horse_diag.h"
+#include "mod/game/actor_lookup.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/guest_hits.h"
 #include "mod/net/loot_twin.h"
@@ -695,6 +696,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                       transport->status());
             if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
             log::info("Local: {}", local.describe());
+            // Co-op+: where our horse is (mount tests walk to it; the other player's copy rides it).
+            if (const uint32_t hk = net::capture_horse_present()) {
+                if (const auto hp = game::actor_world_position(hk)) {
+                    log::info("Local: our horse 0x{:08X} at ({:.2f}, {:.2f}, {:.2f})", hk, hp->x, hp->y, hp->z);
+                }
+            }
             if (coop) log::info("{}", coop->describe());
             if (coop && cfg.scaling_enabled) log::info("{}", net::scaling_describe());
             if (cfg.overlay_enabled) {
