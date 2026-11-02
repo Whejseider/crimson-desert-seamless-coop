@@ -1956,8 +1956,7 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
     if (!g_copies_allowed) {
         static bool told_off = false;
         if (!told_off) {
-            log::info("Enemy relay: the other player's enemy copies are off on this game version "
-                      "(they crash it while loading; [dev] enemy_copies=1 to test)");
+            log::info("Enemy relay: the other player's enemy copies are off ([coop] enemy_copies=0)");
         }
         told_off = true;
         return;

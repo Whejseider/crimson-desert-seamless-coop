@@ -19,6 +19,8 @@ namespace cdmp::net {
 
 // [coop] guest_loot.
 void loot_set_enabled(bool on);
+// Co-op+ dev ([dev] loot_test_original=1): on one PC, loot from the copy's original when no hidden native fits.
+void loot_set_test_original(bool on);
 
 // Sniffer writer thread: our own DoFrameEventReq (blows on copies).
 void loot_observe_c2s(const uint8_t* packet, size_t size);

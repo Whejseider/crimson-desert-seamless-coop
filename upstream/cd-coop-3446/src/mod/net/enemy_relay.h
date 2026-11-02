@@ -90,9 +90,8 @@ std::vector<proto::GameEvent> enemy_host_tick();
 // Copies of the other player's enemies are loaded only once their crash
 // guards are installed (mod.cpp).
 void enemy_set_receive_enabled(bool on);
-// Co-op+: the other player's enemy copies are loaded only with [dev] enemy_copies=1 for now: on
-// 1.0.0.3479 a copy finishes loading before it has an action and the game crashes in its
-// "just loaded" code (docs/research/port-3479.md). Off, they are refused with one log line.
+// Co-op+: the other player's enemy copies ([coop] enemy_copies, default on). Off, they are refused
+// with one log line.
 void enemy_set_copies_allowed(bool on);
 // Co-op+ experiment ([dev] enemy_keep_origin=1): do not strip the spawn identity (schedule, sequence,
 // camp node) from the loads we send.

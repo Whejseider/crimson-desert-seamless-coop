@@ -1283,6 +1283,7 @@ DWORD WINAPI worker(LPVOID) {
         net::load_trace_set_mode(cfg.dev_load_trace);
         net::enemy_set_copies_allowed(cfg.dev_enemy_copies);
         net::enemy_set_keep_origin(cfg.dev_enemy_keep_origin);
+        net::loot_set_test_original(cfg.dev_loot_test_original);
         log::info("Config: who can join: {}", cfg.net_join_invite_only
                                                   ? "invited friends only ([net] join=invite)"
                                                   : "any Steam friend playing (\"Join Game\")");

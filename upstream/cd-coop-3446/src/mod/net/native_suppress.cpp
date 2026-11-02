@@ -1322,6 +1322,34 @@ std::optional<proto::EnemyZoneMsg> suppress_stop(bool restore) {
 
 bool suppress_zone_on() { return g_dropping.load() && !g_dry.load(); }
 
+std::optional<uint32_t> suppress_take_native_for_loot(uint32_t variant, const float pos[3], float max_m) {
+    static std::set<uint32_t> taken;  // under g_lock
+    AcquireSRWLockExclusive(&g_lock);
+    std::optional<uint32_t> best;
+    float best_d = max_m;
+    for (const auto& [key, h] : g_held) {
+        if (taken.count(key) || g_dead.count(key) || h.load.size() < 0x40 || h.load[2] != 3) continue;
+        if (u32_at(h.load.data() + 0x18) != variant) continue;
+        proto::Vec3 at{};
+        if (h.pos) {
+            at = *h.pos;
+        } else if (const auto t = enemy_load::last_transform(h.load)) {
+            at = t->pos;
+        } else {
+            continue;
+        }
+        const float dx = at.x - pos[0], dy = at.y - pos[1], dz = at.z - pos[2];
+        const float d = std::sqrt(dx * dx + dy * dy + dz * dz);
+        if (d <= best_d) best_d = d, best = key;
+    }
+    if (best) {
+        if (taken.size() > 512) taken.clear();
+        taken.insert(*best);
+    }
+    ReleaseSRWLockExclusive(&g_lock);
+    return best;
+}
+
 bool suppress_is_hidden(uint32_t key) {
     if (g_held_count.load(std::memory_order_relaxed) == 0) return false;
     AcquireSRWLockShared(&g_lock);

@@ -205,8 +205,11 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
     c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
     c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
-    c.dev_enemy_copies = read_uint(ini_path, L"dev", L"enemy_copies", 0) != 0;
+    // Co-op+: the other player's enemy copies, on by default since they load and fight safely on 3479
+    // ([coop] enemy_copies; the older [dev] key still turns them on).
+    c.dev_enemy_copies = read_uint(ini_path, L"coop", L"enemy_copies", read_uint(ini_path, L"dev", L"enemy_copies", 1)) != 0;
     c.dev_enemy_keep_origin = read_uint(ini_path, L"dev", L"enemy_keep_origin", 0) != 0;
+    c.dev_loot_test_original = read_uint(ini_path, L"dev", L"loot_test_original", 0) != 0;
     c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
     c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
     c.coop_delay_ms = std::clamp(read_uint(ini_path, L"coop", L"delay_ms", c.coop_delay_ms), 50u, 5000u);
@@ -239,7 +242,9 @@ Config load_config(const std::wstring& ini_path) {
     c.coop_map_pin_colour = static_cast<uint8_t>(std::min(read_uint(ini_path, L"coop", L"map_pin_colour", 14), 14u));
     {
         // 0 / off, dry, 1 / on; anything else is the dry run.
-        const std::wstring v = read_string(ini_path, L"coop", L"suppress", "dry");
+        // Co-op+: real hiding by default (lab-tested on 3479: groups removed and restored intact), so the guest
+        // fights the host's enemies and not doubles of its own. "dry" logs only; 0 turns it off.
+        const std::wstring v = read_string(ini_path, L"coop", L"suppress", "1");
         c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
         c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
         c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,

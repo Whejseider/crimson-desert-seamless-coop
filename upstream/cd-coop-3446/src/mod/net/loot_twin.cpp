@@ -22,6 +22,7 @@
 #include "mod/net/enemy_relay.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/remote_puppet.h"
+#include "mod/net/native_suppress.h"
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::net {
@@ -64,6 +65,8 @@ constexpr size_t kMaxSpawnsPer5Min = 30;
 constexpr uint64_t kTwinWaitMs = 15000;
 constexpr uint64_t kKillOnSightMs = 120000;
 constexpr float kTwinMatchDistance = 3.0f;
+// Co-op+: how far our own hidden native may be from the copy it stands in for (same camp).
+constexpr float kNativeLootRadius = 40.0f;
 // A twin not seen dead this long after KillCheatReq: asked again, a few times.
 constexpr uint64_t kKillConfirmMs = 3000;
 constexpr int kKillTries = 3;
@@ -84,6 +87,7 @@ struct Twin {
 };
 
 std::atomic<bool> g_enabled{false};
+std::atomic<bool> g_test_original{false};  // Co-op+ dev: [dev] loot_test_original
 SRWLOCK g_lock = SRWLOCK_INIT;
 std::map<uint32_t, uint64_t> g_hit_ms;  // copy -> our last blow on it
 std::set<uint32_t> g_done;              // copies already decided
@@ -182,9 +186,11 @@ void unalias_locked(uint32_t copy) {
 
 }  // namespace
 
+void loot_set_test_original(bool on) { g_test_original = on; }
+
 void loot_set_enabled(bool on) {
     g_enabled = on;
-    log::info("Co-op: loot from the other player's enemies we help kill: {}", on ? "on (a twin on our server)" : "off");
+    log::info("Co-op: loot from the other player's enemies we help kill: {}", on ? "on (our own hidden enemy of the same kind)" : "off");
 }
 
 void loot_observe_c2s(const uint8_t* packet, size_t size) {
@@ -248,39 +254,45 @@ bool loot_on_copy_died(uint32_t copy, uint32_t variant, uint64_t /*delay_ms*/) {
         const float mine[3] = {me->x, me->y, me->z};
         if (distance(pos, mine) > kMaxLootDistance) why = "we are too far from it";
     }
-    // Co-op+ (3479): no twins on this build. The 21-byte SpawnCharacterCheatReq of 2976..3446 is refused
-    // for its length (the parser now reads u32|u32|vec3|u8|u8), and both 22-byte forms tried logged the
-    // player out ("critical error 1126375326", live test 2026-11-01). Until a safe request is known the
-    // guest gets no loot from the host's enemies (their own world's loot is untouched).
-    if (!why) why = "loot twins are off on this game version (their request logs the player out)";
     if (why) {
         if (g_logged++ < 40) log::info("Loot: copy 0x{:08X} died; no loot for us: {}", copy, why);
         return false;
     }
-    // Co-op+ (3479): the server's parser (TrocTrSpawnCharacterCheatReq vf2, exe+0x2C38EB0) reads
-    // u32 | u32 | vec3 | u8 | u8 and refuses any other length (the 21 bytes of 2976..3446 did nothing).
-    // The reason stays where it was (+20); the new trailing byte is 0. Reason 33 in the LAST byte
-    // logged the player out ("critical error 1126375326", live test).
-    Bytes b(22);
-    std::memcpy(b.data(), &variant, 4);
-    std::memcpy(b.data() + 8, pos, 12);
-    b[20] = kSpawnReasonCheat;
-    if (!sniffer_inject_c2s(make_packet(kOpSpawnCharacterCheatReq, b))) {
-        log::info("Loot: copy 0x{:08X} died; its twin could not be asked for", copy);
+    // Co-op+ (3479): our own hidden native of the same kind stands in for the twin. The spawn request the
+    // twins used is no good on this build: the parser now reads u32|u32|vec3|u8|u8, the old 21 bytes did
+    // nothing and both 22-byte forms logged the player out ("critical error 1126375326", live test
+    // 2026-11-01). Inside the host's zone our natives of that camp are held out of our client (suppress),
+    // alive on our server: one of them is killed for its loot, and our looting of the copy goes to it,
+    // exactly as it went to a twin. No native of that kind near: no loot from this kill (as before).
+    auto native = suppress_take_native_for_loot(variant, pos, kNativeLootRadius);
+    // Dev ([dev] loot_test_original=1, one PC with cdmp_peer): the hiding is a dry run there, so the copy's
+    // own original -- an actor of this same client -- stands in, to exercise the looting path.
+    bool already_dead = false;
+    if (!native && g_test_original.load()) {
+        if (const uint32_t original = enemy_original_of(copy)) native = original, already_dead = true;  // it just died
+    }
+    if (!native) {
+        if (g_logged++ < 40) {
+            log::info("Loot: copy 0x{:08X} died; no loot for us: none of our own hidden enemies of its kind (variant "
+                      "{}) is within {:.0f} m",
+                      copy, variant, kNativeLootRadius);
+        }
         return false;
     }
     {
         Lock lock;
-        Pending p;
-        p.copy = copy, p.variant = variant, p.asked_ms = now;
-        std::memcpy(p.pos, pos, sizeof pos);
-        if (g_pending.size() >= kMaxTracked) g_pending.pop_front();
-        g_pending.push_back(p);
+        g_twins[*native] = Twin{copy, now, 0, already_dead};
+        g_twin_of[copy] = *native;
         g_spawns.push_back(now);
     }
+    const bool ok = already_dead || send_kill(*native);
     if (g_logged++ < 40) {
-        log::info("Loot: copy 0x{:08X} died; asking our server for its twin (variant {}) at ({:.1f}, {:.1f}, {:.1f})",
-                  copy, variant, pos[0], pos[1], pos[2]);
+        log::info("Loot: copy 0x{:08X} died; our own hidden enemy 0x{:08X} (same kind) dies for our loot{}", copy,
+                  *native, ok ? "" : " (KillCheatReq NOT sent; tried again)");
+    }
+    if (!ok) {
+        Lock lock;
+        if (auto t = g_twins.find(*native); t != g_twins.end()) t->second.kill_ms = 0;  // retried at the next tick
     }
     return true;
 }
