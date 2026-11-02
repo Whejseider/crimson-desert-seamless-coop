@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <atomic>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <algorithm>
@@ -34,6 +35,16 @@ constexpr float kPushGain = 2.0f;
 constexpr uint32_t kVersusSendMs = 100;
 std::atomic<uint32_t> g_e_presses{0};     // E key-downs (the hook counts them; not ours)
 std::atomic<bool> g_match_on{false};      // between SpawnMiniGameCharacterReq and LeaveMiniGameReq
+std::atomic<uint32_t> g_match_stage{0};   // the match's minigame stage key (0 = unknown)
+
+// The minigames that use the strength gauge the versus shares (arm wrestling's stages, hand wrestling). Any other
+// minigame keeps its own rules: the versus never writes into it.
+bool is_gauge_game(uint32_t stage) {
+    switch (stage) {
+        case 16005100: case 1001987: case 1001988: case 1003873: case 1003875: case 1018693: return true;
+        default: return false;
+    }
+}
 std::atomic<int> g_versus_test_rate{0};   // [dev] versus_test: a simulated other player pushing this many times/s
 struct Versus {
     bool live = false;          // our match is running (gauge readable, no cutscene)
@@ -169,7 +180,8 @@ void versus_tick(ActivityTick& out, bool connected, bool host, bool cut, const s
     const uintptr_t ga = game::minigame_gauge_address();
     float g = 0.0f;
     if (ga) g = *reinterpret_cast<volatile float*>(ga);
-    const bool live = g_match_on.load() && !cut && ga && g > 0.0f && g <= 100.0f;
+    const bool live = g_match_on.load() && is_gauge_game(g_match_stage.load()) && !cut && ga && g > 0.0f && g <= 100.0f;
+    const std::string game = activity_minigame_name(g_match_stage.load());
     const int test_rate = g_versus_test_rate.load();
     std::lock_guard lock(g_mutex);
     Versus& v = g_vs;
@@ -208,9 +220,9 @@ void versus_tick(ActivityTick& out, bool connected, bool host, bool cut, const s
         if (!live && v.started && !v.announced) {
             // The game ends the match itself near the ends of the gauge (~96 / ~4): the last value tells who won.
             v.announced = true;
-            out.toast = v.last_ours > 50.0f ? std::format("You beat {} at arm wrestling!", who)
-                                            : std::format("{} won the arm wrestling", who);
-            log::info("Activity: versus arm wrestling over: {} ({:.0f})", v.last_ours > 50.0f ? "we won" : "they won",
+            out.toast = v.last_ours > 50.0f ? std::format("You beat {} at {}!", who, game)
+                                            : std::format("{} won the {}", who, game);
+            log::info("Activity: versus {} over: {} ({:.0f})", game, v.last_ours > 50.0f ? "we won" : "they won",
                       v.last_ours);
         }
         if (!live) v.started = false;
@@ -218,7 +230,7 @@ void versus_tick(ActivityTick& out, bool connected, bool host, bool cut, const s
     }
     if (!v.started) {
         v.started = true;
-        log::info("Activity: versus arm wrestling with {} ({})", who, host ? "we hold the gauge" : "they hold the gauge");
+        log::info("Activity: versus {} with {} ({})", game, who, host ? "we hold the gauge" : "they hold the gauge");
     }
     if (host) {
         v.gauge = std::clamp(50.0f + kPushGain * (static_cast<float>(mine) - static_cast<float>(v.partner_count)), 0.0f,
@@ -230,7 +242,9 @@ void versus_tick(ActivityTick& out, bool connected, bool host, bool cut, const s
     }
     const float ours = host ? v.gauge : 100.0f - v.partner_gauge;
     v.last_ours = ours;
-    out.banner = std::format("Arm wrestling vs {}: mash E!   You {:.0f} - {:.0f} {}", who, ours, 100.0f - ours, who);
+    std::string title = game;
+    if (!title.empty()) title[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(title[0])));
+    out.banner = std::format("{} vs {}: mash E!   You {:.0f} - {:.0f} {}", title, who, ours, 100.0f - ours, who);
 }
 
 }  // namespace
@@ -244,8 +258,13 @@ void activity_observe_c2s(const uint8_t* packet, size_t size) {
         std::memcpy(&id, packet + 5, 2);
         log::info("Activity: we started a minigame (id 0x{:04X})", id);
         send(kGameOn, &id, 2);
-    } else if (op == kOpSpawnMiniGameCharacterReq) {
+    } else if (op == kOpSpawnMiniGameCharacterReq && size >= 5 + 9) {
+        // u8 4 | u64 the minigame's stage (sequencer) | u16 id | u32 opponent | ...
+        uint64_t seq = 0;
+        std::memcpy(&seq, packet + 6, 8);
+        g_match_stage = cinema_stage_key(seq);
         g_match_on = true;
+        log::info("Activity: a match of {} (stage {})", activity_minigame_name(g_match_stage.load()), g_match_stage.load());
     } else if (op == kOpLeaveMiniGameReq && size >= 5 + 23) {
         g_match_on = false;
         uint32_t stage = 0;

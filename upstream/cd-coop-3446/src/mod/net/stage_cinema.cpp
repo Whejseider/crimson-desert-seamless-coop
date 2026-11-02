@@ -121,6 +121,13 @@ void send(uint8_t type, const Bytes& data) { activity_send(type, data); }
 
 }  // namespace
 
+uint32_t cinema_stage_key(uint64_t id) {
+    std::lock_guard lock(g_mutex);
+    const auto it = g_stages.find(id);
+    return it == g_stages.end() || it->second.prepare.size() < kPrepMin ? 0
+                                                                         : rd<uint32_t>(it->second.prepare.data() + kPrepKeyAt);
+}
+
 void cinema_set_enabled(bool on) { g_enabled = on; }
 void cinema_set_test(bool on) { g_test = on; }
 

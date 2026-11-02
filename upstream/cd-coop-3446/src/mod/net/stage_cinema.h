@@ -34,9 +34,12 @@ void cinema_observe_c2s(const uint8_t* packet, size_t size);
 // coop_activity: the other player's cinema events (Activity types 7 start, 8 end, 9 branch).
 void cinema_on_event(uint8_t type, const uint8_t* data, size_t size);
 
-// coop_activity's tick. `cut`: our cutscene flag. Returns a log-worthy note ("" = none).
+// coop_activity's tick (every frame). `cut`: our cutscene flag.
 void cinema_tick(bool connected, bool host, bool cut, std::optional<std::array<float, 3>> me,
                  std::optional<std::array<float, 3>> partner, uint32_t now_ms);
+
+// The stage key of one of our server's running stages (0 = unknown), e.g. the minigame a match is in.
+uint32_t cinema_stage_key(uint64_t sequencer);
 
 // [coop] stage_cinema (default on).
 void cinema_set_enabled(bool on);
