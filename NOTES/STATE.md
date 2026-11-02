@@ -30,6 +30,15 @@
 - Test helpers: build/port3479/kill_test.sh (deterministic death, Ctrl+Shift+F9 via [dev] kill_key=1, REVIVE=Q|U,
   WALK_X/WALK_Z), death_test.sh (bandit fight; NOATTACK=1), bandit_test.sh, walkto.py, reqsizes.py, loads.py.
 
+- 2026-11-02 (evening, user: minigames vs friends, wyvern/griffin flight, time + weather MUST match, boss fights with
+  their cutscenes, skip = everyone presses): Installed dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+aff91978.zip
+  (Defender clean, cdmp.ini kept, DLL hash matches). Test save OUT, shipped ini restored, SAVES OK.
+  Done: everyone-must-skip (D32 rev.), versus arm/hand wrestling (D35, only gauge games), time sync on by default
+  (D36), WEATHER sync (D37: weather = random server stages; guest runs the host's; verified with rain), boss/story
+  cutscene relay (D38: the host's stage copied into the guest's client; safe on one PC, plays only provable on 2 PCs).
+  Flags: F3 (boss cutscene needs a 2-PC boss test), F7 (wyvern: egg test save ready, how does it hatch?).
+  Open (mine): RPS versus (boy busy at 10:35-10:45; design in LOG), other contests' scores.
+
 ## Where the project lives now
 - `C:\Users\asher\CrimsonDesert-SeamlessCoop` (D15; short path because MSVC breaks on deep folders).
 - Work branch: `phase-a/local-pc-setup` (pushed after each milestone). `main` = Phase A from session 1.
