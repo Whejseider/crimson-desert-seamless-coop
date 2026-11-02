@@ -1,26 +1,20 @@
 # STATE (single source of truth for resuming)
 
-## NOW (2026-11-01 afternoon) -- read this first
-- Game is **1.0.0.3479** (2.04.05, Steam update 2026-11-01 15:09); the mod targets it only. Package
-  `dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+801f3f51.zip` is built from HEAD, Defender-clean, installed (user's
-  cdmp.ini kept). A copy of each game exe is now kept in build/exe-archive (git-ignored) for the next port.
-- **Single-PC echo test on 3479 passes:** every hook installs; the other player's character loads, is drawn, stands
-  next to ours; **gear changes are shared live** (helmet off/on relayed both ways, the copy follows).
-- New since 3460: equipment watcher (reads our equip slots, replaces the dead writer hook); overlay finds Streamline's
-  swap chain class by RTTI instead of creating a throwaway swap chain (fixed a ~1-in-5 startup crash with DLSS frame
-  generation); name tag 1.95 m and hidden over full-screen menus (map etc.). Details: docs/research/port-3479.md, port-3460.md.
-- Loot is per player, Lootr-style (user request, D24): the design already gives it; verify on two PCs.
-- The user is choosing a second player. Not verified yet: anything between two PCs (Steam join/invite live,
-  two real players, enemies, hits, scaling), animations in detail.
-- **Enemy copies: blocker.** Recognition fixed (T0 +4 on 3460+), clock fallback fixed; a bandit copy now loads and
-  then CRASHES the game in its load-complete path (null main-layer action; port-3479.md). Gated off by default
-  (`[dev] enemy_copies=1`). Each player fights their own world's enemies meanwhile. Test save "COOP TEST bandits"
-  (Rodbel Fishing Dock) is in build/test-saves; copy it into the save folder as slot103 to test, then move it out.
-- 2026-10-31 20:55 the PC powered off mid-test (Kernel-Power 41, no bugcheck, no dump; the mod was steady). Keep
-  game sessions short; watch for it again.
-- Dev tools: `[dev] load_trace=1`; test helpers in build/port3460 (trial/keys/shot/mouse/click/run_echo .ps1,
-  live.py/actor.py) and build/port3479 (heads/near/vt/globals/troc .py for the next port).
-- Upstream issue with our 3460 findings: https://github.com/nouzert1/cd-coop-3446/issues/1
+## NOW (2026-11-01 evening) -- read this first
+- Work from NOTES/PLAN.md (user's standing instruction: plan, then carry it out without stopping to ask).
+- Game **1.0.0.3479**. Package `dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+bf1b4122.zip` built from HEAD, Defender-clean,
+  installed (user's cdmp.ini kept). verify-port: run it FROM upstream/cd-coop-3446 (it reads headers relative to cwd).
+- Verified on one PC (echo): friend's character drawn, gear changes live, name tags (hidden over menus); shared enemies:
+  bandit copies load and fight without crashing (3 guarded crash paths), follow and die with the real ones, the friend's
+  hits on copies kill the host's enemies (attack layout 677/0x1FB on 3479), enemies target either player and hurt the
+  friend (aggro ported), the friend's own natives are hidden/restored (lab). All on by default.
+- Open: loot for the friend from shared kills (new design: their own hidden native is killed for it; pickup needs two
+  PCs); bosses (A6, A8 scaling 2-4 players, A9 boss-death rule); riding together; Steam session checks; docs for the
+  playtest. Test save "COOP TEST bandits" (Rodbel Fishing Dock): build/port3460/testsave.ps1 -Mode In/Out; it is IN the
+  save folder now as slot103 -- take it Out before handing over.
+- Test helpers: build/port3479/bandit_test.sh (echo round at the dock), walkto.py (camera-steered), attack.ps1,
+  loads.py / cdmp_loadcheck (capture analysis), reqsizes.py (a Req's field sizes from its handler), port_scan.py (tools/port).
+- 2026-10-31 20:55 the PC powered off mid-test (Kernel-Power 41). Keep sessions short.
 
 ## Where the project lives now
 - `C:\Users\asher\CrimsonDesert-SeamlessCoop` (D15; short path because MSVC breaks on deep folders).

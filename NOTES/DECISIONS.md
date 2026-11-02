@@ -148,3 +148,12 @@
   loots natively.
 - To verify on two PCs: both open the same chest and both get the items; both loot the same enemy. Still to build
   (brief 6.4): currency and quest items to every nearby player; optional alternative modes (shared pile etc.).
+
+## 2026-11-01 D25: Shared combat on by default
+- Enemy copies, real hiding of the guest's natives in the zone, enemies targeting either player (2 at a time on the
+  copy), hit reactions and lethal blows for the guest: all default on. Each was verified on one PC; the two-PC test is
+  where they get confirmed. Every one has a [coop] key to turn it off.
+- Loot for the guest from shared kills uses the guest's own hidden native of the same kind (no spawned twin: its
+  request logs the player out on 3479).
+- No friendly fire: hits between players are never relayed (by design; kept explicit, user request).
+

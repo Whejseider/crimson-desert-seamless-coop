@@ -213,3 +213,16 @@
   gated off by default ([dev] enemy_copies=1); verified refused + no crash.
 - Package 0.1.0-alpha+801f3f51 built, Defender clean, installed (cdmp.ini kept).
 
+## 2026-11-01 17:15-19:55 -- shared combat working on 3479
+- Plan written (NOTES/PLAN.md) per the user's instruction; user added: bosses scale to 4 players, boss-fight respawn
+  rule, no friendly fire, explain enemy targeting.
+- Enemy copies: game error logger re-found (0x15FAF40) and it showed unpack failures; 3 crash paths of actionless
+  copies guarded (CC tick 0x944080, animation update 0x975B60, late update 0x94EA00). 6 copies through a fight, no crash.
+- DoFrameEventReq on 3479: entries 677 B, accessor 0x1FB -> guest hits on copies kill the host's enemies.
+- Loot twins: SpawnCharacterCheatReq now 22 B; both forms tried logged the player out -> replaced by the friend's own
+  hidden native as stand-in (pickup untested on one PC).
+- Suppress lab on 3479: 25 natives hidden, all restored. Defaults: enemy_copies=1, suppress=1.
+- Aggro ported (IsTargetable 0x23E4C40, SetCurrentTarget 0x23E84C0, CheckAIBattleType 0x24BE2F0): enemies target the
+  friend's copy and its blows hurt the friend; defaults on with reactions and lethal blows.
+- Packages 6e2b1940 -> 801f3f51 -> bf1b4122; saves verified equal to backup after the test save was made in an empty slot.
+

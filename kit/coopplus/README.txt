@@ -58,11 +58,19 @@ into cdmp.ini under [room] code=  and restart the game.
 WHAT WORKS / WHAT DOESN'T (YET)
 -------------------------------
 - Each player plays in THEIR OWN save and sees the other walking, running,
-  climbing, gliding, fighting and riding, with matching gear.
-- Hostile enemies near the host are shared: the guest sees the host's enemies and
-  can damage and kill them. Bosses: the guest helps, the host lands the final
-  blow (protects the host's quest).
-- Not shared yet: quests, story progress, most loot (experimental), civilians.
+  climbing, gliding, fighting and riding, with matching gear (gear changes show
+  live).
+- Enemies near the host are shared: the guest sees the host's enemies, and the
+  guest's own enemies there are hidden (they come back when you are apart). Both
+  players can hit and kill them; enemies attack whichever of you they choose
+  (usually whoever hit them), and their blows hurt either player for real.
+- No friendly fire: you cannot hurt each other.
+- Loot is per player: chests and items in the world are in each player's own
+  world, so you each get your own. Loot from enemies you kill together: the host
+  loots normally; for the guest it is new and still being tested.
+- Bosses: the guest helps, the host lands the final blow (protects the host's
+  quest).
+- Not shared yet: quests and story progress, civilians, time of day.
 - Two players at a time.
 
 IMPORTANT: do not save while the other player is in your world. Quit without
