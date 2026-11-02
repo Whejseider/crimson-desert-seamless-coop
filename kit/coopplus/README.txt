@@ -52,10 +52,16 @@ PLAYING TOGETHER
 - Ctrl+F4: go to your friend (you are moved next to them in short hops; works best
   within a few hundred metres; it stops if you are swimming).
 - Cutscenes: when your friend is watching one near you (within 100 m), you see
-  "<name> is watching a cutscene". If you are both in one, either of you pressing
-  Esc skips it for both.
-- Minigames (arm wrestling, contests, card games...): each of you plays in your
-  own world; your friend sees "<name> is playing a minigame" and when you finish.
+  "<name> is watching a cutscene". When the host's cutscene belongs to a boss or
+  story scene, the guest's game starts the same scene too (new, not yet tried by
+  two players). A shared cutscene is skipped only when EVERYONE in it pressed Esc:
+  your Esc says "waiting for <name>" until they press it too.
+- Time of day and weather follow the host (rain, clouds and wind included).
+- Arm wrestling / hand wrestling against your friend: both sit at a table (each in
+  your own world) and start a match at the same time; mash E: whoever pushes
+  faster wins on both screens.
+- Other minigames (contests, card games...): each of you plays in your own world;
+  your friend sees "<name> is playing a minigame" and when you finish.
 - Mounts: your friend sees you ride your horse, and sees your flying mount too.
 
 Privacy: by default any Steam friend who plays with Co-op+ can "Join Game" into your

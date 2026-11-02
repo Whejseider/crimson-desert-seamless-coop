@@ -1,7 +1,8 @@
 """Build the "dragon" TEST save from the COOP TEST bandits save (slot103 test save; never a user slot).
 
-  python tools/save/make_dragon_save.py <bandits save.save> <out save.save> [main|wheel] [character key]
+  python tools/save/make_dragon_save.py <bandits save.save> <out save.save> [main|wheel] [character key] [knowledge key]
   (character key: default Blackstar 1000799; Riding_Wyvern_1000 = 1004233, read from the live game's data, 2026-11-02)
+  (knowledge key: default Knowledge_CallDragon 1000175; Knowledge_Wyvern = 1001881, knowledge_keys_all.json)
 
 - wheel (default): Demian's horse record (MercenarySaveData, key 1001173) becomes Blackstar (Riding_Dragon_1,
   1000799) owned by Kliff (1). It shows on the F1 companion wheel; picking it summons the dragon.
@@ -54,13 +55,14 @@ def strip_items(raw, sent):
 
 mode = sys.argv[3] if len(sys.argv) > 3 else "wheel"
 new_key = int(sys.argv[4]) if len(sys.argv) > 4 else 1000799
+knowledge = int(sys.argv[5]) if len(sys.argv) > 5 else 1000175
 sent, old_key, old_owner = RECORDS[mode]
 header, raw = cdsave.decode(sys.argv[1])
 blob = bytearray(raw)
 put(blob, sent + 16, "<I", old_key, new_key)
 if old_owner != 1:
     put(blob, sent + 28, "<I", old_owner, 1)
-put(blob, 0x27E9C2, "<I", 35008, 1000175)
+put(blob, 0x27E9C2, "<I", 35008, knowledge)
 for key_off, old, new in ((0x27408D, 1001315, 1000354), (0x2740AC, 1001316, 1000212),
                           (0x2740CB, 1001318, 1000305), (0x2740EA, 1000817, 1000319)):
     put(blob, key_off, "<I", old, new)

@@ -7,9 +7,16 @@ Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC with the echo peer):
 - Every address re-found for 3479 (a small patch: code moved by up to 0x70 bytes, data by ~0xFB0, message numbers
   unchanged). The other player's character loads, is drawn and stands next to you again.
-- Cutscenes: "<name> is watching a cutscene" when your friend is in one within 100 m; if you are both in one, either
-  player's Esc skips it for both (the game's own "cutscene playing" flag). Boss safety now uses the same flag (its
-  old cinematic check never fired on 3479).
+- Cutscenes: "<name> is watching a cutscene" when your friend is in one within 100 m. A shared cutscene skips only
+  when everyone in it pressed Esc (user rule). Boss safety now uses the game's own "cutscene playing" flag (its old
+  cinematic check never fired on 3479).
+- Boss and story cutscenes of the host are started in the guest's game as well (the stage the cutscene belongs to is
+  copied into the guest's client and ended with the host's cutscene; [coop] stage_cinema). Needs the two-PC test.
+- Weather follows the host: the game picks random weather stages per load; the guest now runs the host's instead of
+  its own ([coop] weather_sync). Time of day follows the host by default ([coop] time_sync=3; it never worked on
+  3479 before: wrong address).
+- Versus arm wrestling / hand wrestling: both players in a match at once share one strength gauge; the faster
+  masher wins on both screens.
 - Minigames: "<name> is playing a minigame" / "<name> finished arm wrestling" (each player plays in their own world).
 - Flying mounts: a summoned dragon is sent to your friend like a horse (seen flying on one PC with a test save).
 - Long trips with Ctrl+F4 / checkpoint revive: hops also try higher, shorter and sideways (past cliff walls).

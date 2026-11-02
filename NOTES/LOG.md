@@ -429,3 +429,16 @@
 - cine.sh (pub table, [dev] cinema_test=1): "our cutscene is in stage 16005100 (sequencer 0x1FE)" -> copy 0x7D000000
   (180 bytes) 3 s in -> ended 1 s after ours; the client sent no chart/trigger traffic for the copy (duplicate of a
   running stage). Game fine, match finished. Pub entry autosaved slot2 again; restored (SAVES OK).
+
+## 2026-11-02 17:50-18:10 -- wyvern names, verify-port, versus gating
+- Live string scan (strscan.py, 417 hits, build/port3479/wyv_strings.txt): Item_Egg_Wyvern (+ _item_use_0),
+  Animal_Baby_Wyvern_1, Riding_Wyvern_1000, Riding_Wyvern_Common, Actor_Vehicle_Wyvern, CallVehicleWyvern_Owner,
+  KeepRidingWyvern_Owner, Player_Ride_Wyvern, Knowledge_Wyvern (= 1001881, knowledge_keys_all.json), PetArmor_Fabric_
+  Helm_WyvernBaby, Wyvern's Cradle (Knowledge_HiddenPororin_Cradle 1000722). So: egg item -> baby wyvern (pet) ->
+  grows into Riding_Wyvern_1000. No griffin mount name in memory (only "Griffin" text).
+- Mount calls seen: FrameEventCallMercenaryReq 2643 = u64 mercenary no | u32 kind (3 = H main mount, 2 = F1 wheel) |
+  FF | f32 pos | u32 n | 01 -> CallVehicleMercenaryAck 2720. Test saves slot103-wyvern-k(-main) = wyvern records +
+  Knowledge_Wyvern in place of the Haunted Hill discovery (make_dragon_save.py now takes the knowledge key).
+- verify-port checks kFieldTimeClient at the real 0x6EA4998: ALL OFFLINE CHECKS PASSED.
+- Versus now only for arm/hand wrestling stages (stage key of the match from SpawnMiniGameCharacterReq's stage
+  sequencer via cinema_stage_key); banner names the game.
