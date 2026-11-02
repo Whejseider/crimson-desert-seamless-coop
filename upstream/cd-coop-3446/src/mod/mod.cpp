@@ -657,6 +657,14 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                      rs->pos.z, rs->health);
             }
+            // Co-op+: whether our enemies on the other player's copy get to attack it (only when it changes).
+            if (static std::string last_bt; true) {
+                std::string bt = net::aggro_battle_type_stats();
+                if (bt != last_bt) {
+                    log::info("Aggro: {} | attack slots on the copy {}", bt, net::aggro_copy_attack_slots());
+                    last_bt = std::move(bt);
+                }
+            }
             log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | remote states {} | "
                       "last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
                       state, st.sent, st.received, st.rejected, st.rtt_ms, st.remote_states, remote,

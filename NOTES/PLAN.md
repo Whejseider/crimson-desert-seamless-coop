@@ -30,10 +30,11 @@ installed package updated. Status: [x] done, [~] in progress, [ ] to do.
 - [x] A7 Enemy copies on by default ([coop] enemy_copies)
 - [ ] A8 Boss scaling by player count, for up to 4 players (user request 2026-11-01): boss health/damage grow with
       the party (curve in config/scaling.toml, e.g. x1.0 / 1.7 / 2.3 / 2.8); bosses must stay hard with a full party
-- [ ] A10 Enemies choose between both players (user question 2026-11-01): make the friend's copy a valid target in
+- [x] A10 Enemies choose between both players (user question 2026-11-01): make the friend's copy a valid target in
       the host's world so the game's own AI picks between the two players (distance, who hits it...), and
       blows on the friend's copy reach the friend as real damage (aggro + player_hits; port the 2976-era aggro
-      addresses to 3479, then turn it on)
+      addresses to 3479, then turn it on). Done: on by default; enemies switch to whoever hits them; their blows
+      on the friend's copy arrive as real damage (-29 hp), with reactions and lethal blows on
 - [ ] A11 No friendly fire (user request 2026-11-01): players never hurt each other. By design already (hits are only
       relayed for copied ENEMIES; a blow on the other player's copy goes nowhere); keep it so when A10 lands and
       check it in the two-PC test

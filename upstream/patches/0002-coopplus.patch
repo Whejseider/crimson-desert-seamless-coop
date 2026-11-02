@@ -532,7 +532,7 @@ index e7d51fb..ad0020e 100644
      WallUp = 4,       // UpdateWallUpData, 132 bytes (built from memory)
      Equip = 5,        // OtherEquipItemAck payload (9 + 6n bytes); sent reliably
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..3329d28 100644
+index e89d220..3a26d60 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -610,7 +610,31 @@ index e89d220..3329d28 100644
      c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
      c.coop_delay_ms = std::clamp(read_uint(ini_path, L"coop", L"delay_ms", c.coop_delay_ms), 50u, 5000u);
      c.coop_offset_m = read_metres(ini_path, L"coop", L"offset_m", c.coop_offset_m);
-@@ -213,7 +242,9 @@ Config load_config(const std::wstring& ini_path) {
+@@ -189,11 +218,14 @@ Config load_config(const std::wstring& ini_path) {
+     c.coop_equip = read_uint(ini_path, L"coop", L"equip", 1) != 0;
+     c.coop_damage = read_uint(ini_path, L"coop", L"damage", 0) != 0;
+     c.coop_map_pin = read_uint(ini_path, L"coop", L"map_pin", 1) != 0;
+-    c.coop_enemies_target_copy = read_uint(ini_path, L"coop", L"enemies_target_copy", 0) != 0;
++    // Co-op+ (3479): on by default -- the host's enemies may pick the guest's copy as a target, so the game's own
++    // AI chooses between the two players, and their blows on the copy hurt the guest (live: targets switched to
++    // the copy, its blow arrived as -29 hp). Hits react and can kill like any blow.
++    c.coop_enemies_target_copy = read_uint(ini_path, L"coop", L"enemies_target_copy", 1) != 0;
+     c.coop_guest_hits = read_uint(ini_path, L"coop", L"guest_hits", 0) != 0;
+     c.coop_guest_hit_stagger = read_uint(ini_path, L"coop", L"guest_hit_stagger", 0) != 0;
+-    c.coop_player_hit_react = read_uint(ini_path, L"coop", L"player_hit_react", 0) != 0;
+-    c.coop_player_hit_lethal = read_uint(ini_path, L"coop", L"player_hit_lethal", 0) != 0;
++    c.coop_player_hit_react = read_uint(ini_path, L"coop", L"player_hit_react", 1) != 0;
++    c.coop_player_hit_lethal = read_uint(ini_path, L"coop", L"player_hit_lethal", 1) != 0;
+     c.coop_time_sync = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"time_sync", 0), 2u));
+     c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
+     c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
+@@ -208,12 +240,14 @@ Config load_config(const std::wstring& ini_path) {
+         const std::wstring v = read_string(ini_path, L"coop", L"enemy_minimap_icon", "");
+         if (!v.empty()) c.coop_enemy_minimap_icon = static_cast<int>(std::wcstol(v.c_str(), nullptr, 0));
+     }
+-    c.coop_copy_attack_slots = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"copy_attack_slots", 0), 8u));
++    c.coop_copy_attack_slots = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"copy_attack_slots", 2), 8u));  // Co-op+: 2 at once (the game gives the copy none)
+     c.coop_map_pin_shape = static_cast<uint8_t>(std::min(read_uint(ini_path, L"coop", L"map_pin_shape", 4), 13u));
      c.coop_map_pin_colour = static_cast<uint8_t>(std::min(read_uint(ini_path, L"coop", L"map_pin_colour", 14), 14u));
      {
          // 0 / off, dry, 1 / on; anything else is the dry run.
@@ -621,7 +645,7 @@ index e89d220..3329d28 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +257,10 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +260,10 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -633,7 +657,7 @@ index e89d220..3329d28 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..eb69d08 100644
+index 3cd2ce2..cb6467a 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -672,6 +696,31 @@ index 3cd2ce2..eb69d08 100644
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
+@@ -85,7 +100,7 @@ struct Config {
+     int coop_minimap_icon = 0x124;
+     // Our enemies may attack the other player's copy (aggro_test.h). Off
+     // until the hits reach the other player and they see our enemies.
+-    bool coop_enemies_target_copy = false;
++    bool coop_enemies_target_copy = true;
+     // The other player's blows on the copies of our enemies hurt them
+     // (guest_hits.h). Off until tested with two players.
+     bool coop_guest_hits = false;
+@@ -94,12 +109,12 @@ struct Config {
+     bool coop_guest_hit_stagger = false;
+     // Our player reacts (stagger, knock-down) to the other player's enemies'
+     // blows on our copy over there: experimental until tested.
+-    bool coop_player_hit_react = false;
++    bool coop_player_hit_react = true;
+     // ...and can die from them (a normal death): experimental until tested.
+-    bool coop_player_hit_lethal = false;
++    bool coop_player_hit_lethal = true;
+     // How many of our enemies at a time may attack the other player's copy
+     // (copia-objetivo-sin-ataques.md); 0 = the game decides (they mostly wait).
+-    int coop_copy_attack_slots = 0;
++    int coop_copy_attack_slots = 2;
+     // Time of day (hora-del-dia.md): 0 off, 1 send ours (host), 2 take the
+     // other player's (guest).
+     int coop_time_sync = 0;
 @@ -146,6 +161,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
@@ -1544,7 +1593,7 @@ index 0000000..3a01aaf
 +
 +}  // namespace cdmp::game
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..69585da 100644
+index 79ccd06..652f19f 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,7 @@
@@ -1880,7 +1929,22 @@ index 79ccd06..69585da 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -499,6 +665,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,6 +657,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+                 remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
+                                      rs->pos.z, rs->health);
+             }
++            // Co-op+: whether our enemies on the other player's copy get to attack it (only when it changes).
++            if (static std::string last_bt; true) {
++                std::string bt = net::aggro_battle_type_stats();
++                if (bt != last_bt) {
++                    log::info("Aggro: {} | attack slots on the copy {}", bt, net::aggro_copy_attack_slots());
++                    last_bt = std::move(bt);
++                }
++            }
+             log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | remote states {} | "
+                       "last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
+                       state, st.sent, st.received, st.rejected, st.rtt_ms, st.remote_states, remote,
+@@ -499,6 +673,7 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
              if (coop) log::info("{}", coop->describe());
@@ -1888,7 +1952,7 @@ index 79ccd06..69585da 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +676,104 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +684,104 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -1994,7 +2058,7 @@ index 79ccd06..69585da 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +875,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +883,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -2003,7 +2067,7 @@ index 79ccd06..69585da 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +929,7 @@ void combat_test_loop() {
+@@ -669,7 +937,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -2012,7 +2076,7 @@ index 79ccd06..69585da 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +947,7 @@ void combat_test_loop() {
+@@ -687,7 +955,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -2021,7 +2085,7 @@ index 79ccd06..69585da 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1012,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1020,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -2030,7 +2094,7 @@ index 79ccd06..69585da 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1026,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1034,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -2038,7 +2102,7 @@ index 79ccd06..69585da 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,6 +1055,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,6 +1063,7 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -2046,7 +2110,7 @@ index 79ccd06..69585da 100644
          net::puppet_install_rope_bend();
          // Horse and enemy copies (the other player may send theirs at any
          // time) need the crash containment (docs/INFORME-CABALLO-CRASH.md)
-@@ -902,21 +1164,67 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,21 +1172,67 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -2114,7 +2178,7 @@ index 79ccd06..69585da 100644
          const Config cfg = load_config(dir + L"cdmp.ini");
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
-@@ -925,7 +1233,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1241,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -2123,7 +2187,7 @@ index 79ccd06..69585da 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -969,6 +1277,16 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1285,16 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -2140,7 +2204,7 @@ index 79ccd06..69585da 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1338,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1346,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -2173,7 +2237,7 @@ index 79ccd06..69585da 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1361,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1369,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -2185,7 +2249,7 @@ index 79ccd06..69585da 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1386,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1394,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -2197,10 +2261,10 @@ index 79ccd06..69585da 100644
          log::error("Unhandled exception in worker: {}", e.what());
      } catch (...) {
 diff --git a/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp b/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
-index 355b8df..37888f7 100644
+index 355b8df..be88b8a 100644
 --- a/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
-@@ -23,12 +23,14 @@
+@@ -23,17 +23,23 @@
  
  namespace cdmp::net {
  namespace {
@@ -2211,14 +2275,37 @@ index 355b8df..37888f7 100644
 -constexpr uint16_t kOpCurrentTargetChangeReq = 2984;   // u32 actor | u32 target | u64 seq | u8 | u8 reason
 -constexpr uint16_t kOpCurrentTargetChangedAck = 3040;  // same 18 B; u8 at +0x10 = force
 -constexpr uint16_t kOpDoFrameEventReq = 2380;
+-
+-constexpr uintptr_t kIsTargetable = 0x22141E0;    // (target comp, actor* candidate, u8 mode)
 +// Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
 +// TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
 +constexpr uint16_t kOpCurrentTargetChangeReq = 2820;   // u32 actor | u32 target | u64 seq | u8 | u8 reason
 +constexpr uint16_t kOpCurrentTargetChangedAck = 2609;  // same 18 B; u8 at +0x10 = force
 +constexpr uint16_t kOpDoFrameEventReq = 3030;
- 
- constexpr uintptr_t kIsTargetable = 0x22141E0;    // (target comp, actor* candidate, u8 mode)
++
++// Co-op+ (3479): these were still the 2976 addresses. Re-found on 3479: SetCurrentTarget is slot 40 of
++// CommonTargetActorComponent's vtable (and ServerTargetActorComponent's), head unchanged; IsTargetable keeps
++// its 0x30B0 gap below it, head unchanged, 52 callers, the only one there reading actor+0x96 ("local
++// character"); CheckAIBattleType is slot 1 of AICondition_CheckAIBattleType's vtable (0x5C76508).
++constexpr uintptr_t kIsTargetable = 0x23E4C40;    // (target comp, actor* candidate, u8 mode); 2976: 0x22141E0
  constexpr uint8_t kIsTargetableHead[] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74,
+                                          0x24, 0x18, 0x48, 0x89, 0x7C, 0x24, 0x20, 0x55};
+-constexpr uintptr_t kSetCurrentTarget = 0x2217290;  // (comp, int* res, u32 target, u64* seq, ...)
++constexpr uintptr_t kSetCurrentTarget = 0x23E84C0;  // (comp, int* res, u32 target, u64* seq, ...); 2976: 0x2217290
+ constexpr uint8_t kSetCurrentTargetHead[] = {0x48, 0x8B, 0xC4, 0x4C, 0x89, 0x48, 0x20, 0x44,
+                                              0x89, 0x40, 0x18, 0x48, 0x89, 0x50, 0x10, 0x55};
+ 
+@@ -44,8 +50,8 @@ constexpr uint8_t kSetCurrentTargetHead[] = {0x48, 0x8B, 0xC4, 0x4C, 0x89, 0x48,
+ // never fills for the other player's copy (it only does for actors this
+ // client controls): enemies on the copy always wait and circle
+ // (copia-objetivo-sin-ataques.md section 7). The entry is a 5-byte jmp into .xtls.
+-constexpr uintptr_t kCheckAIBattleType = 0x22E0A30;
+-constexpr uint8_t kCheckAIBattleTypeHead[] = {0xE9, 0x3B, 0xB4, 0x8A, 0x0C};
++constexpr uintptr_t kCheckAIBattleType = 0x24BE2F0;  // 2976: 0x22E0A30
++constexpr uint8_t kCheckAIBattleTypeHead[] = {0xE9, 0xEB, 0xF7, 0xDB, 0x0A};
+ 
+ SafetyHookInline g_is_targetable;
+ SafetyHookInline g_battle_type;
 diff --git a/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp b/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp
 index 4e09fdc..5a743d9 100644
 --- a/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp

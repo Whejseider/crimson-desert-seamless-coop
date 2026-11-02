@@ -218,11 +218,14 @@ Config load_config(const std::wstring& ini_path) {
     c.coop_equip = read_uint(ini_path, L"coop", L"equip", 1) != 0;
     c.coop_damage = read_uint(ini_path, L"coop", L"damage", 0) != 0;
     c.coop_map_pin = read_uint(ini_path, L"coop", L"map_pin", 1) != 0;
-    c.coop_enemies_target_copy = read_uint(ini_path, L"coop", L"enemies_target_copy", 0) != 0;
+    // Co-op+ (3479): on by default -- the host's enemies may pick the guest's copy as a target, so the game's own
+    // AI chooses between the two players, and their blows on the copy hurt the guest (live: targets switched to
+    // the copy, its blow arrived as -29 hp). Hits react and can kill like any blow.
+    c.coop_enemies_target_copy = read_uint(ini_path, L"coop", L"enemies_target_copy", 1) != 0;
     c.coop_guest_hits = read_uint(ini_path, L"coop", L"guest_hits", 0) != 0;
     c.coop_guest_hit_stagger = read_uint(ini_path, L"coop", L"guest_hit_stagger", 0) != 0;
-    c.coop_player_hit_react = read_uint(ini_path, L"coop", L"player_hit_react", 0) != 0;
-    c.coop_player_hit_lethal = read_uint(ini_path, L"coop", L"player_hit_lethal", 0) != 0;
+    c.coop_player_hit_react = read_uint(ini_path, L"coop", L"player_hit_react", 1) != 0;
+    c.coop_player_hit_lethal = read_uint(ini_path, L"coop", L"player_hit_lethal", 1) != 0;
     c.coop_time_sync = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"time_sync", 0), 2u));
     c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
     c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
@@ -237,7 +240,7 @@ Config load_config(const std::wstring& ini_path) {
         const std::wstring v = read_string(ini_path, L"coop", L"enemy_minimap_icon", "");
         if (!v.empty()) c.coop_enemy_minimap_icon = static_cast<int>(std::wcstol(v.c_str(), nullptr, 0));
     }
-    c.coop_copy_attack_slots = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"copy_attack_slots", 0), 8u));
+    c.coop_copy_attack_slots = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"copy_attack_slots", 2), 8u));  // Co-op+: 2 at once (the game gives the copy none)
     c.coop_map_pin_shape = static_cast<uint8_t>(std::min(read_uint(ini_path, L"coop", L"map_pin_shape", 4), 13u));
     c.coop_map_pin_colour = static_cast<uint8_t>(std::min(read_uint(ini_path, L"coop", L"map_pin_colour", 14), 14u));
     {

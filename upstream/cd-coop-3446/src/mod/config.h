@@ -100,7 +100,7 @@ struct Config {
     int coop_minimap_icon = 0x124;
     // Our enemies may attack the other player's copy (aggro_test.h). Off
     // until the hits reach the other player and they see our enemies.
-    bool coop_enemies_target_copy = false;
+    bool coop_enemies_target_copy = true;
     // The other player's blows on the copies of our enemies hurt them
     // (guest_hits.h). Off until tested with two players.
     bool coop_guest_hits = false;
@@ -109,12 +109,12 @@ struct Config {
     bool coop_guest_hit_stagger = false;
     // Our player reacts (stagger, knock-down) to the other player's enemies'
     // blows on our copy over there: experimental until tested.
-    bool coop_player_hit_react = false;
+    bool coop_player_hit_react = true;
     // ...and can die from them (a normal death): experimental until tested.
-    bool coop_player_hit_lethal = false;
+    bool coop_player_hit_lethal = true;
     // How many of our enemies at a time may attack the other player's copy
     // (copia-objetivo-sin-ataques.md); 0 = the game decides (they mostly wait).
-    int coop_copy_attack_slots = 0;
+    int coop_copy_attack_slots = 2;
     // Time of day (hora-del-dia.md): 0 off, 1 send ours (host), 2 take the
     // other player's (guest).
     int coop_time_sync = 0;
