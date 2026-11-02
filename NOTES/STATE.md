@@ -16,6 +16,14 @@
   shared waypoints + Ctrl+F3 ping, Ctrl+F4 go-to-friend and a reliable checkpoint revive via hopped DoTeleportAck
   (D31), save guard sees server autosaves (slot 2). Flags F2 (flying needs a late save), F3 (cutscene capture),
   F4 (minigame captures), F5 (info: autosave into slot2; test kit restores it: savecheck.sh --fix).
+- 2026-11-02 (afternoon, user: "complete everything; make test saves yourself"): save format cracked (tools/save,
+  docs/research/save-format.md); dragon test save (build/test-saves/slot103-dragon, testsave.ps1 -Variant dragon):
+  Blackstar is summoned from the F1 wheel and the friend's side gets a flying dragon copy; riding it not reached.
+  Cutscene flag exe+0x70D2E2F (D32: notice + shared skip, verified: skip_test pressed Esc in our cutscene). Arm
+  wrestling captured; minigame notices (D33). Long hops (D34). Dev script Ctrl+Shift+F6 ([dev] script=file: c2s/s2c/
+  wait/tp). Test helpers: travel_test.sh (TO=x,y,z), act_test.sh (pub arm wrestling; needs game time ~10:30, i.e.
+  within ~2 real minutes of loading), dragon_ride.sh, mount_probe.sh, stage_test.sh, npcs.py, heapscan.py,
+  gaugehunt.py, wheel.ps1 (F1 wheel; CURSOR:x,y selects), cutflag.py.
 - Verified on one PC (echo) earlier: friend's character, gear, name tags, shared enemies (copies, hits, aggro,
   hiding), all on by default. Open: loot pickup (two PCs), bosses (A6/A8/A9), riding, Steam checks, playtest docs
   (docs/tests/PLAYTEST-1.md drafted). Test save "COOP TEST bandits" is IN as slot103 -- take it Out before handing over.

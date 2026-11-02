@@ -50,7 +50,13 @@ PLAYING TOGETHER
 - Ctrl+F8: show/hide your friend's name over their head.
 - Ctrl+F3: ping your position: your friend gets a message and a pin on their map.
 - Ctrl+F4: go to your friend (you are moved next to them in short hops; works best
-  within a few hundred metres).
+  within a few hundred metres; it stops if you are swimming).
+- Cutscenes: when your friend is watching one near you (within 100 m), you see
+  "<name> is watching a cutscene". If you are both in one, either of you pressing
+  Esc skips it for both.
+- Minigames (arm wrestling, contests, card games...): each of you plays in your
+  own world; your friend sees "<name> is playing a minigame" and when you finish.
+- Mounts: your friend sees you ride your horse, and sees your flying mount too.
 
 Privacy: by default any Steam friend who plays with Co-op+ can "Join Game" into your
 world. To allow only friends you invite, open the game's bin64\cdmp.ini and set

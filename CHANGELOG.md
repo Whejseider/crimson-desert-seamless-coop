@@ -7,6 +7,12 @@ Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC with the echo peer):
 - Every address re-found for 3479 (a small patch: code moved by up to 0x70 bytes, data by ~0xFB0, message numbers
   unchanged). The other player's character loads, is drawn and stands next to you again.
+- Cutscenes: "<name> is watching a cutscene" when your friend is in one within 100 m; if you are both in one, either
+  player's Esc skips it for both (the game's own "cutscene playing" flag). Boss safety now uses the same flag (its
+  old cinematic check never fired on 3479).
+- Minigames: "<name> is playing a minigame" / "<name> finished arm wrestling" (each player plays in their own world).
+- Flying mounts: a summoned dragon is sent to your friend like a horse (seen flying on one PC with a test save).
+- Long trips with Ctrl+F4 / checkpoint revive: hops also try higher, shorter and sideways (past cliff walls).
 - Riding together: your friend's horse appears in your world and their character rides it beside you
   (on by default).
 - Shared waypoints and pings: your map waypoint shows on your friend's map; Ctrl+F3 pings your position with a

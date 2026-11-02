@@ -351,3 +351,9 @@
 - Built: net/coop_activity.* (D32, D33), dev_script "tp x y z", hop tries (D34). The game autosaved into slot2 again
   at 13:02:55 (entering the pub); savecheck --fix restored it (copy kept). Not yet verified live: the activity
   events (the arm wrestling table was empty when retried).
+- INCIDENT 13:10-13:55: savecheck --fix restored slot2 with plain `cp` (new file time), so the title's "Continue"
+  loaded the USER's slot2 instead of the test save in the act2/act3 runs; the game then autosaved into slot2 (13:33)
+  and slot0 (13:52). Both restored from the 2026-11-01 16:04 backup (overwritten copies kept in
+  SaveBackups\overwritten-by-test-2026-11-02_13-54 / _13-55); SAVES OK. Nothing was saved by me. Fix: --fix now
+  touches the test save after a restore so it stays the newest (restored files keep the current time, so Steam Cloud
+  prefers them over any autosaved copy it uploaded). Told the user (FLAGS F5).
