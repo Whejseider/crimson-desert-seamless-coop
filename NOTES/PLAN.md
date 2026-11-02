@@ -52,7 +52,7 @@ item: commit, push, notes, installed package updated, save check. Status: [x] do
       the fight). Built (D29) on the revive prompt; wait + everyone-down verified on one PC; "partner wins" needs 2 PCs
 
 ## B. Riding, movement and looks
-- [ ] B1 Horse copy (riding together): test, fix, decide default (currently off)
+- [x] B1 Horse copy (riding together): verified on one PC, on by default (D30)
 - [ ] B2 Animation spot-check: combat moves, gliding, swimming, climbing, mounting
 - [x] B3 Party scaling: sanity check numbers on 3479 (a8-scaling: 1/3 back at x1.5, kills normal)
 - [ ] B4 Time of day / weather sync check (time_sync is off; decide)
@@ -74,3 +74,10 @@ item: commit, push, notes, installed package updated, save check. Status: [x] do
 ## E. Needs the second player (after D)
 - [ ] E1 Live two-PC session through Steam, following D2
 - [ ] E2 Fix what that session finds, then repeat
+
+## F. Feature backlog (docs/COOP-FEATURES.md) -- worked 2026-11-02
+- [x] Shared waypoints (5.7), Ctrl+F3 ping (7.3), Ctrl+F4 go to friend (5.8 partial), checkpoint revive move (8.2)
+- [x] Horse riding together (1.1); [~] mounted combat (1.2: visuals seen)
+- [F] Flying mounts / late vehicles (F2), cutscenes (F3), minigames (F4)
+- [ ] RE items without user input (long): native death screen trigger, weather sync (client weather state), party UI,
+      quest progress sharing (3.2), knowledge sharing capture (3.5), gimmick/door sharing (5.5)

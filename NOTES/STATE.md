@@ -11,6 +11,11 @@
   checkpoint server-side, client moved there only sometimes. Relay table + AttackByCollisionReq were stale (D27): fixed.
 - 2026-11-02: A9 boss-fight deaths built (D29), party scaling on by default (D28), boss HP now reaches boss_safe.
   After EVERY test session run build/port3479/savecheck.sh (SAVES OK); savewatch.sh logs save-folder writes.
+- 2026-11-02 (later): new user rule (NOTES/FLAGS.md: work everything doable, flag the rest, never ask "continue?").
+  Backlog docs/COOP-FEATURES.md + research docs/research/*. Done on one PC: horse riding together (D30, default on),
+  shared waypoints + Ctrl+F3 ping, Ctrl+F4 go-to-friend and a reliable checkpoint revive via hopped DoTeleportAck
+  (D31), save guard sees server autosaves (slot 2). Flags F2 (flying needs a late save), F3 (cutscene capture),
+  F4 (minigame captures), F5 (info: autosave into slot2; test kit restores it: savecheck.sh --fix).
 - Verified on one PC (echo) earlier: friend's character, gear, name tags, shared enemies (copies, hits, aggro,
   hiding), all on by default. Open: loot pickup (two PCs), bosses (A6/A8/A9), riding, Steam checks, playtest docs
   (docs/tests/PLAYTEST-1.md drafted). Test save "COOP TEST bandits" is IN as slot103 -- take it Out before handing over.
