@@ -371,3 +371,32 @@
   state (not found).
 - Dev script: "poke <hex addr> <hex bytes>" (writable pages only) for memory experiments.
 - Package 0.1.0-alpha+a7810297 built, verify-port ALL PASS, Defender clean, installed (DLL hash matches, ini kept).
+
+## 2026-11-02 14:50-16:40 -- user round 3: skip together, versus arm wrestling, time sync, wyvern
+- User: minigames vs friends (most popular first), wyvern/griffin flying test, time + weather MUST match, boss fights
+  together incl. their cutscenes, and cutscene skip = everyone must press skip (D32 revised).
+- SKIP: coop_activity keyboard hook (WH_KEYBOARD_LL thread) holds the player's Esc while the other player is in a
+  cutscene within 100 m; both pressed -> each mod presses Esc (marked dwExtraInfo 0xC0C0A7). Verified 4x with [dev]
+  skip_test (simulated partner presses 6 s in): "we pressed skip; waiting" -> "both pressed; skipping" -> ended.
+  Bug found + fixed: send() inside g_mutex -> std::system_error "resource deadlock" killed the network worker; and the
+  activity tick sat inside the player-snapshot block (no snapshot in a minigame). Hook stops blocking if the tick
+  stalls (500 ms heartbeat).
+- ARM WRESTLING table: game time ~10:27-10:58 only (fresh load = 10:25; dev "time 10:30" reopens it). The prompt
+  check by grep of the packet LOG failed because the text log is buffered: detect via cdmp.log Activity lines.
+  pub.sh (load + stand at the table facing it, 1500 px turn) then hold R ("Try arm wrestling"), hold E (Participate).
+- GAUGE: hardware write breakpoint (dev "watch") on the UI gauge (+0x1B8 of the live UIGamePlayControlCommon_
+  MiniGameGauge@uiCommonScript) -> writer exe+0xE3235D (percent = int/100) <- caller exe+0x101D3D0, which reads float
+  [[exe+0x71B6CA8] + 0x90] + 0xD30 via locked getter exe+0xA25630. Live: 50 at the start, falls ~15/s idle; poked 100
+  = match ends (win), 0 = loss ("Haha! You can't possibly be scared!"), 90 held = match goes on. (MiniGameData +0xE0/
+  +0xF4 are animation blend weights, not the gauge.)
+- VERSUS (D35): both in a match -> host gauge = 50 + 2 x (host E presses - guest E presses), written every tick; guest
+  writes 100 - it. [dev] versus_test=N simulates the partner: idle -> 50..0, "they won"; mashing -> 96, game ended
+  (win). Banner "Arm wrestling vs <name>: mash E! You 62 - 38". Result toast from the last gauge value.
+- TIME: kFieldTimeClient was stale since 3446 (0x6EB2AD8 = garbage): real exe+0x6EA4998 (copy +0x20). The game clock
+  read fails on 3479 -> time sync now uses the capture's estimate (capture_game_clock_ms). [coop] time_sync default 3
+  = auto (host sends, guest follows). dev "time 10:30" -> "day 27 10:37 -> day 28 10:30" (read + set verified).
+- WEATHER: SyncWeatherStateReq floats not stored as such; trace_op=2689 stack = generic send pipeline (exe+0xAB3xxx);
+  ServerWeatherManager = a 0x50-byte helper. Client classes WeatherSimulatorScriptComponent etc. (other namespace).
+- WYVERN: Riding_Wyvern_1000 character key = 1004233 (live: string object <- record, key at +8; Bear_1000 = 1003911
+  checks the layout). As main mount (Kliff's horse record) H sends nothing; on Demian's record it is not on the F1
+  wheel. Guides: adult wyvern needs full growth + a saddle (removed with the gear). Not solved yet.
