@@ -289,3 +289,7 @@
   their position (see your map)". Verified in echo (ping1). keys.ps1 now knows F1-F5, F11, R, Q, U, H.
 - Mounted combat (1.2): horse-combat round: the copy rides beside us and mirrors the mounted swings; no bandit was in
   reach, so damage from horseback stays unverified.
+- TELEPORT (big): DoTeleportAck (3052: u32 actor | vec3 | 8 B) moves our player standing or walking, but only up to ~50 m
+  per message (30 m and 51 m took; 80, 104 (valid ground), 150, 400 m and 5 km ignored). Hops of 40 m every 0.4 s work
+  (tp-hop: 104 m in 3 hops, exact). Fixes the checkpoint revive (far-hopU: dock -> checkpoint, "at the checkpoint") and
+  gives Ctrl+F4 "go to your friend". Dev: [dev] kill_key=1 also enables Ctrl+Shift+F4 (tp_offset_m / tp_to "x,y,z").

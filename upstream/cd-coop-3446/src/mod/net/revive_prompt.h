@@ -14,10 +14,10 @@
 //                           then, as the game does when it starts its loading screen, GameLoadingStartReq
 //                           (2294) + ReviveReq (type 2). The server revives us at the checkpoint and names it
 //                           in LoadingFieldDataAck (+28 position); the client, not in its own loading flow,
-//                           ignores that. We send it DoTeleportAck (3052: u32 actor | vec3 | 8 B) to the
-//                           checkpoint, at once and up to 2 more times. BEST EFFORT: it took in 1 of 4 live
-//                           tests (the one where we were still moving); otherwise we are revived in place
-//                           with full health. No loading screen either way.
+//                           ignores that. We move it there with DoTeleportAck (3052: u32 actor | vec3 | 8 B),
+//                           which moves us at most ~50 m per message, so in hops of 40 m (revive_prompt.cpp),
+//                           retried for ~12 s (ignored during the get-up animation). Verified: dock -> checkpoint
+//                           (105 m). No loading screen; very long distances (km) untested.
 // Lead for the real fix: the client only accepts ReviveLoadingStartAck of the type it asked for itself
 // (status component +0x471, 16 = none; handler exe+0x6F33D0). We set it (the teleport took with it), but
 // that alone does not bring the loading screen: the next step still waits for the screen.
@@ -50,5 +50,13 @@ RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::opt
 
 // Sniffer thread (capture_observe_s2c): the checkpoint the server revives us at (LoadingFieldDataAck).
 void revive_observe_s2c(const uint8_t* packet, size_t size);
+
+// Co-op+ dev ([dev] kill_key=1, Ctrl+Shift+F4): DoTeleportAck for our player to (x, y, z). Research for
+// "teleport to your friend": does the client honour it (only while moving?).
+void revive_dev_teleport(float x, float y, float z);
+
+// Co-op+ (Ctrl+F4): our player to (x, y, z) -- the other player's position -- with DoTeleportAck (works standing
+// and walking, live test 2026-11-02). Returns false when we have no key yet.
+bool revive_teleport_to(float x, float y, float z);
 
 }  // namespace cdmp::net

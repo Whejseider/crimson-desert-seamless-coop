@@ -72,6 +72,8 @@ struct Config {
     bool dev_enemy_keep_origin = false;
     bool dev_no_copy = false;   // Co-op+ dev: never load the other player's character ([dev] no_copy)
     bool dev_kill_key = false;  // Co-op+ dev: Ctrl+Shift+F9 kills our player ([dev] kill_key)
+    std::string dev_tp_to;  // Co-op+ dev: "x,y,z" -> Ctrl+Shift+F4 teleports there instead ([dev] tp_to)
+    int32_t dev_tp_offset_m = 30;  // Co-op+ dev: Ctrl+Shift+F4 teleports this far east ([dev] tp_offset_m)
     uint32_t dev_boss_hp = 0;       // Co-op+ dev: enemies with this many max HP count as bosses ([dev] boss_hp)
     bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
     bool dev_partner_alive = false;  // Co-op+ dev: the revive prompt sees the other player alive ([dev] partner_alive)

@@ -20,6 +20,13 @@ A = host (you), B = friend. Both on game 1.0.0.3479, both installed from the SAM
 - [ ] Glide, climb, swim, ledge pull-up, attack, ride: note anything that freezes or snaps.
 - [ ] B changes helmet or weapon: A sees it within a couple of seconds (and the other way round).
 
+## 2b. Riding, waypoints, pings, teleport (10 min)
+- [ ] Both call a horse (H) and ride (E; R dismounts): each sees the other ride their own horse beside them.
+- [ ] Ride 300 m together: no snapping or vanishing; dismount together.
+- [ ] A sets a waypoint on the map (right-click): B sees a second pin there.
+- [ ] A presses Ctrl+F3: B gets "<A> pinged their position" and a pin.
+- [ ] B walks 200 m away, then presses Ctrl+F4: B lands next to A. Try 800 m too and note what happens.
+
 ## 3. Fighting together (20 min)
 Go somewhere with ordinary enemies near A (a bandit camp).
 - [ ] B sees A's enemies; B's own enemies there are gone (and come back when B walks 250 m away).
@@ -39,7 +46,7 @@ with two real players, that is good news (the one-PC test clones your own charac
 - [ ] B presses Q (Instant Revive): B gets up in place with part of their health; on A's screen B gets up too.
 - [ ] B dies FAR from the last checkpoint (walk a few hundred metres first) and presses U: with the game's own
       screen B goes to the checkpoint (loading screen). With Co-op+'s box B gets full health and is moved to the
-      checkpoint only sometimes (known, one-PC: 1 in 4); note which. If moved: watch for falling through the
+      checkpoint in a few quick hops. If moved: watch for falling through the
       ground; on A's screen B's character should jump there too.
 - [ ] Same with A dying while B fights on.
 - [ ] A fall death (jump off a cliff): same death screen, same revive.

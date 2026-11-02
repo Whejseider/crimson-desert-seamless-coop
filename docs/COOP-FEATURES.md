@@ -81,7 +81,7 @@ JOIN where the game has two sides (the friend takes the NPC opponent's place) --
 | 5.5 | Gimmicks: doors, levers, breakable objects, puzzles opened by one open for both | todo | UpdateGimmickReq/Ack, GimmickExecuteFrameEventReq, BreakSceneObjectReq, ApplyPuzzleSavePresetAck; rope/hook tree already relayed | 1PC capture |
 | 5.6 | Civilians / NPC schedules shared | todo (large) | NPC loads like enemy copies | RE |
 | 5.7 | Map pins and waypoints shared | DONE on one PC: partner pin + partner's waypoint pin (EventKind::Waypoint) | CreateOrChangePinMarkerReq, CreateOrChangeSelfDestinationReq: share custom waypoints | 1PC |
-| 5.8 | Fast travel: guest follows host (Abyss Nexus) | todo | on host loading screen, offer the guest "follow"; teleport via DoTeleportAck/loading | 1PC partly |
+| 5.8 | Go to your friend / follow after fast travel | partial: Ctrl+F4 = DoTeleportAck in 40 m hops (limit ~50 m per message), verified 105 m; long distances untested | 2PC |
 | 5.9 | Ocean / water levels, fishing pond state | per player | - | - |
 
 ## 6. Life skills, economy, base
@@ -110,7 +110,7 @@ JOIN where the game has two sides (the friend takes the NPC opponent's place) --
 | # | Feature | Status | Approach | Test |
 |---|---|---|---|---|
 | 8.1 | More than 2 players (scaling is built for 4) | todo | protocol is 1:1 today; star topology on the host | RE, 3PC |
-| 8.2 | Death and revive | partial (D26 prompt, checkpoint move best effort) | real loading path for checkpoint | RE |
+| 8.2 | Death and revive | DONE on one PC (D26 prompt; checkpoint move by hopped DoTeleportAck, verified 105 m) | real loading screen would be nicer | 2PC |
 | 8.3 | Boss-fight deaths (A9) | partial (needs 2PC for "partner wins") | - | 2PC |
 | 8.4 | Save safety (backups, warnings, Steam Cloud) | partial | find the 2026-11-01 slot2 writer | 1PC |
 | 8.5 | Game update readiness | partial (port_scan, check_opcodes) | - | - |

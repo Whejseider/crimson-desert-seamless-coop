@@ -49,6 +49,8 @@ PLAYING TOGETHER
 - F8: show/hide the co-op panel (top left): connection, ping, room code.
 - Ctrl+F8: show/hide your friend's name over their head.
 - Ctrl+F3: ping your position: your friend gets a message and a pin on their map.
+- Ctrl+F4: go to your friend (you are moved next to them in short hops; works best
+  within a few hundred metres).
 
 Privacy: by default any Steam friend who plays with Co-op+ can "Join Game" into your
 world. To allow only friends you invite, open the game's bin64\cdmp.ini and set
@@ -76,8 +78,7 @@ WHAT WORKS / WHAT DOESN'T (YET)
   Once your friend's character has been in your world, the game's own death screen
   no longer appears, so Co-op+ shows the same choice in its place ("Death has found
   you": Q = Instant Revive, U = Revive at Checkpoint). The checkpoint revive moves you
-  there without a loading screen (not always yet: sometimes you get up where you fell,
-  with full health).
+  there without a loading screen.
 - Loot is per player: chests and items in the world are in each player's own
   world, so you each get your own. Loot from enemies you kill together: the host
   loots normally; for the guest it is new and still being tested.

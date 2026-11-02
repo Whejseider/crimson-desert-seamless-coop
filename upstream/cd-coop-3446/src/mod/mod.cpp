@@ -600,6 +600,27 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     net::hits_dev_kill_self(static_cast<int64_t>(s.health * 1000.0f));
                 }
                 kill_was_down = kill_down;
+                // [dev] kill_key also gives Ctrl+Shift+F4: teleport 30 m east (DoTeleportAck research).
+                static bool tp_was_down = false;
+                const bool tp_down = cfg.dev_kill_key && (GetAsyncKeyState(VK_CONTROL) & 0x8000) &&
+                                     (GetAsyncKeyState(VK_SHIFT) & 0x8000) && (GetAsyncKeyState(VK_F4) & 0x8000);
+                if (tp_down && !tp_was_down) {
+                    float tx = s.position.x + static_cast<float>(cfg.dev_tp_offset_m), ty = s.position.y, tz = s.position.z;
+                    if (!cfg.dev_tp_to.empty()) std::sscanf(cfg.dev_tp_to.c_str(), "%f,%f,%f", &tx, &ty, &tz);
+                    net::revive_dev_teleport(tx, ty, tz);
+                }
+                tp_was_down = tp_down;
+                // Co-op+: Ctrl+F4 takes us to the other player (alive, not in a menu, 1 m beside them).
+                static bool go_was_down = false;
+                const bool go_down = connected && game_has_focus() && (GetAsyncKeyState(VK_CONTROL) & 0x8000) &&
+                                     !(GetAsyncKeyState(VK_SHIFT) & 0x8000) && (GetAsyncKeyState(VK_F4) & 0x8000);
+                if (go_down && !go_was_down && s.health > 0.0f) {
+                    if (const auto& rs = session.remote_state(); rs && rs->health > 0.0f) {
+                        net::revive_teleport_to(rs->pos.x + 1.0f, rs->pos.y + 0.5f, rs->pos.z);
+                        log::info("Co-op: to the other player at ({:.0f}, {:.0f})", rs->pos.x, rs->pos.z);
+                    }
+                }
+                go_was_down = go_down;
                 // Co-op+: Ctrl+F3 pings our position to the other player (their map + a toast).
                 static bool ping_was_down = false;
                 const bool ping_down = connected && game_has_focus() && (GetAsyncKeyState(VK_CONTROL) & 0x8000) &&

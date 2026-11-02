@@ -217,6 +217,8 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_loot_test_original = read_uint(ini_path, L"dev", L"loot_test_original", 0) != 0;
     c.dev_no_copy = read_uint(ini_path, L"dev", L"no_copy", 0) != 0;
     c.dev_kill_key = read_uint(ini_path, L"dev", L"kill_key", 0) != 0;
+    c.dev_tp_to = narrow(read_string(ini_path, L"dev", L"tp_to", ""));
+    c.dev_tp_offset_m = static_cast<int32_t>(std::min(read_uint(ini_path, L"dev", L"tp_offset_m", 30), 5000u));
     c.dev_boss_hp = read_uint(ini_path, L"dev", L"boss_hp", 0);
     c.dev_partner_alive = read_uint(ini_path, L"dev", L"partner_alive", 0) != 0;
     c.dev_scaling_as_host = read_uint(ini_path, L"dev", L"scaling_as_host", 0) != 0;

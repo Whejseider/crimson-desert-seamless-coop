@@ -7,6 +7,10 @@ Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC with the echo peer):
 - Every address re-found for 3479 (a small patch: code moved by up to 0x70 bytes, data by ~0xFB0, message numbers
   unchanged). The other player's character loads, is drawn and stands next to you again.
+- Riding together: your friend's horse appears in your world and their character rides it beside you
+  (on by default).
+- Shared waypoints and pings: your map waypoint shows on your friend's map; Ctrl+F3 pings your position with a
+  message; Ctrl+F4 takes you to your friend.
 - Party scaling is on by default: with a guest in, the host's enemies are tougher (x1.5 health, bosses x1.7,
   more for 3-4 players in scaling.toml).
 - Boss fights (user request): if you die during one you wait until your partner beats the boss (then you get up
@@ -15,7 +19,7 @@ Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC
 - Deaths work while connected: once the other player's character had been in your world, the game never showed its
   "Death has found you" screen again and you stayed dead. Co-op+ now shows the same choice itself (Q Instant
   Revive, U Revive at Checkpoint) and sends the game's own revive requests. The checkpoint revive gives full
-  health but only sometimes moves you to the checkpoint yet (no loading screen). The other player's character
+  health and moves you to the checkpoint in short hops (no loading screen). The other player's character
   stays in your world meanwhile.
 - The server messages relayed onto the other player's character (health, buffs, death, revive, wetness...) were
   still matched by their 1.0.0.3424 numbers, so none of them were passed on (and a few unrelated messages were).

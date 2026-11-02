@@ -201,3 +201,8 @@
   loads with its first action (no crash in 5 rounds; the 2976-era crash is contained), the copy MOUNTS its horse copy
   when we mount (RideOn fix), rides along (panel: 3 m away after ~80 m of riding), and dismounts with us.
   [coop] horse now defaults to 1 (the user's ini has no horse key). Other mounts and flying: see FLAGS F2.
+
+## 2026-11-02 D31: Teleports in 40 m hops; Ctrl+F4 = go to your friend
+- DoTeleportAck works for our own player up to ~50 m per message; longer moves are hops (revive_prompt.cpp hop_tick).
+  Used by the checkpoint revive (now reliable on one PC) and by a new Ctrl+F4 "go to your friend" (beside them, only
+  when both are alive). Very long distances (km) are untested: the world may not stream in time (two-PC check).

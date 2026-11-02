@@ -2,8 +2,12 @@
 
 #include <windows.h>
 
+#include <array>
 #include <atomic>
+#include <cmath>
 #include <cstring>
+#include <deque>
+#include <mutex>
 #include <vector>
 
 #include "mod/game/actor_lookup.h"
@@ -30,9 +34,9 @@ constexpr uint8_t kInstant = 1, kCheckpoint = 2;
 constexpr uint32_t kWaitForGameMs = 4000;   // the game's own screen shows ~2 s after the death
 constexpr uint32_t kLoadingStepMs = 1000;   // the game's gap between its two checkpoint requests
 constexpr uint32_t kRetryAfterMs = 5000;    // still dead this long after a choice: offer it again
-constexpr uint32_t kTeleportCheckMs = 1000; // after the revive: still farther than kTeleportNearM -> again
+constexpr uint32_t kTeleportCheckMs = 1500; // after the revive: still farther than kTeleportNearM -> again
 constexpr float kTeleportNearM = 10.0f;
-constexpr int kTeleportTries = 3;
+constexpr int kTeleportTries = 8;  // ~12 s: a teleport during the get-up animation is ignored (live tests)
 constexpr uint64_t kBossFightWindowMs = 30000;  // a boss whose HP changed this recently: the fight is on
 constexpr uint32_t kBossReviveRetryMs = 4000;
 
@@ -77,11 +81,57 @@ bool expect_revive(uint32_t own, uint8_t type) {
     return ok;
 }
 
-void teleport(uint32_t own) {
+// Teleports: DoTeleportAck moves our player only up to ~50 m (30 and 51 m took; 80, 104, 150, 400 m and 5 km were
+// ignored, live tests 2026-11-02), standing or walking. Longer moves go in hops of kHopM, one every kHopMs,
+// planned from where we are when the move starts (height interpolated). Any thread may ask; the network loop hops.
+constexpr float kHopM = 40.0f;
+constexpr uint32_t kHopMs = 400;
+std::mutex g_hop_mutex;
+std::optional<std::array<float, 3>> g_hop_target;
+std::deque<std::array<float, 3>> g_hops;
+uint32_t g_hop_at = 0;
+
+void request_move(float x, float y, float z) {
+    std::lock_guard lock(g_hop_mutex);
+    g_hop_target = std::array<float, 3>{x, y, z};
+}
+
+void teleport(uint32_t /*own*/) { request_move(g_checkpoint[0], g_checkpoint[1], g_checkpoint[2]); }
+
+void send_hop(uint32_t own, const std::array<float, 3>& p) {
     std::vector<uint8_t> b(24, 0);
     std::memcpy(b.data(), &own, 4);
-    std::memcpy(b.data() + 4, g_checkpoint, 12);
+    std::memcpy(b.data() + 4, p.data(), 12);
     puppet_inject_s2c_batch({{kOpDoTeleportAck, b}});
+}
+
+// Network loop: plan a newly asked move, and send the next hop when due.
+void hop_tick(uint32_t now_ms) {
+    std::optional<std::array<float, 3>> target;
+    {
+        std::lock_guard lock(g_hop_mutex);
+        target.swap(g_hop_target);
+    }
+    const uint32_t own = capture_own_player_key();
+    if (!own) return;
+    if (target) {
+        g_hops.clear();
+        const auto at = game::actor_world_position(own);
+        const std::array<float, 3> from = at ? std::array<float, 3>{at->x, at->y, at->z} : *target;
+        const float dx = (*target)[0] - from[0], dy = (*target)[1] - from[1], dz = (*target)[2] - from[2];
+        const int n = std::max(1, static_cast<int>(std::ceil(std::sqrt(dx * dx + dz * dz) / kHopM)));
+        for (int i = 1; i <= n; ++i) {
+            const float t = static_cast<float>(i) / static_cast<float>(n);
+            g_hops.push_back({from[0] + dx * t, from[1] + dy * t, from[2] + dz * t});
+        }
+        g_hop_at = now_ms;
+        if (n > 1) log::info("Teleport: {} hops of up to {:.0f} m", n, kHopM);
+    }
+    if (!g_hops.empty() && static_cast<int32_t>(now_ms - g_hop_at) >= 0) {
+        send_hop(own, g_hops.front());
+        g_hops.pop_front();
+        g_hop_at = now_ms + kHopMs;
+    }
 }
 
 bool send(uint16_t op, const std::vector<uint8_t>& body);
@@ -119,6 +169,7 @@ void revive_set_boss_wait(bool on) { g_boss_wait = on; }
 
 RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::optional<float> partner_hp, bool focused,
                                 uint32_t now_ms) {
+    hop_tick(now_ms);
     // The checkpoint revive's second step goes in on time even if we are no longer "dead" by then.
     if (g_loading_req_at && static_cast<int32_t>(now_ms - g_loading_req_at) >= 0) {
         g_loading_req_at = 0;
@@ -225,6 +276,17 @@ RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::opt
         return RevivePrompt::None;
     }
     return checkpoint_only ? RevivePrompt::CheckpointOnly : RevivePrompt::Choice;
+}
+
+bool revive_teleport_to(float x, float y, float z) {
+    if (!capture_own_player_key()) return false;
+    request_move(x, y, z);
+    return true;
+}
+
+void revive_dev_teleport(float x, float y, float z) {
+    request_move(x, y, z);
+    log::info("Dev: teleport to ({:.1f}, {:.1f}, {:.1f})", x, y, z);
 }
 
 void revive_observe_s2c(const uint8_t* packet, size_t size) {
