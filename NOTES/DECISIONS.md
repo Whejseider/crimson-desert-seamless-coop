@@ -226,3 +226,19 @@
 - A 4 km trip stopped at a cliff wall (only height changes were tried); kHopTries now adds +130/+180 m, 15 m hops and
   30-40 m to either side: the same trip got past the cliff, then stopped in the sea (teleports do not take while
   swimming: swim to land and press Ctrl+F4 again).
+
+## 2026-11-02 D32 (revised by the user): a cutscene skips only when everyone in it pressed skip
+- While the other player is in a cutscene within 100 m, our Esc is held back (low-level keyboard hook) and only sent
+  to them as "pressed"; when both pressed, each mod gives its own game the Esc. Banners: "waiting for <name>",
+  "<name> wants to skip: press Esc". Alone in a cutscene (or the other player far away / not in one): Esc as normal.
+
+## 2026-11-02 D35: Versus arm wrestling
+- Both players at their own arm wrestling table (each in their own world, each vs the game's NPC as usual) and both in
+  a match at the same time: the host's mod owns the gauge (0..100, the game's own strength gauge, found with a
+  hardware breakpoint) = 50 + 2 x (host E presses - guest E presses) and writes it every tick; the guest writes the
+  mirror. The game ends each match itself at ~96 / ~4, so the faster masher wins on both screens. The QTE "[R]" prompts
+  of the NPC match play no part in the versus. Same mechanism should carry hand wrestling (same gauge), not tested.
+
+## 2026-11-02 D36: Time of day follows the host by default ([coop] time_sync=3)
+- It never ran on 3479: the FieldTime address was the 3446 one (fixed: exe+0x6EA4998) and the game clock it needed
+  cannot be read (now: the capture's estimate). Only the time of day is matched (each keeps its own day count).
