@@ -19,17 +19,24 @@ installed package updated. Status: [x] done, [~] in progress, [ ] to do.
 ## A. Shared enemies (the big one; all testable on one PC with the test save)
 - [x] A1 Enemy copies load without crashing (3 crash paths guarded: CC tick, animation update, late update;
       6 bandit copies through a full fight, no crash)
-- [~] A2 Enemy copies move, attack and die in step with the host's enemies (follow at ~300 ms and die together:
-      verified; attack animations not yet checked by eye)
+- [x] A2 Enemy copies move, attack and die in step with the host's enemies (follow at ~300 ms, attack, die together)
 - [x] A3 The friend's hits on a copy damage the host's real enemy (attack layout fixed for 3479; verified kill)
-- [ ] A4 Loot from shared kills: the friend loots their own roll from the copy. BLOCKED on 3479: the "twin" spawn
-      request logs the player out; twins are off. Needs a new, safe way to give the friend their roll
-- [ ] A5 The friend's own enemies near the host are hidden (no doubles) and come back when apart (suppress:
-      lab test on one PC, then switch the default from "dry run" to real once A1-A3 hold)
+- [~] A4 Loot from shared kills: the friend loots their own roll from the copy. New design (the twin spawn logs the
+      player out on 3479): the friend's own hidden native of the same kind is killed for the loot. Built; the
+      pickup itself needs the two-PC test (one PC cannot hide natives)
+- [x] A5 The friend's own enemies near the host are hidden (no doubles) and come back when apart (lab: 25 hidden,
+      all restored); real hiding is now the default
 - [ ] A6 Bosses: safety rules (host lands the killing blow; boss copies refused) still hold on 3479
-- [ ] A7 Turn enemy copies back on by default once A1-A6 pass
+- [x] A7 Enemy copies on by default ([coop] enemy_copies)
 - [ ] A8 Boss scaling by player count, for up to 4 players (user request 2026-11-01): boss health/damage grow with
       the party (curve in config/scaling.toml, e.g. x1.0 / 1.7 / 2.3 / 2.8); bosses must stay hard with a full party
+- [ ] A10 Enemies choose between both players (user question 2026-11-01): make the friend's copy a valid target in
+      the host's world so the game's own AI picks between the two players (distance, who hits it...), and
+      blows on the friend's copy reach the friend as real damage (aggro + player_hits; port the 2976-era aggro
+      addresses to 3479, then turn it on)
+- [ ] A11 No friendly fire (user request 2026-11-01): players never hurt each other. By design already (hits are only
+      relayed for copied ENEMIES; a blow on the other player's copy goes nowhere); keep it so when A10 lands and
+      check it in the two-PC test
 - [ ] A9 Boss-fight deaths (user request 2026-11-01): a player who dies during a boss fight does not respawn until the
       teammates beat the boss (then everyone respawns/revives) or everyone is down (then the whole party restarts
       the fight)
