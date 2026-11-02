@@ -285,3 +285,7 @@
   Flag 0 taken as "removed" (not seen yet). Map controls seen: right-click = marker, "Remove Destination", R = centre on Kliff.
 - Weather: SyncWeatherStateReq (2689) C>S, 24 B = 2 x u32 0 + 4 floats: the weather is simulated client-side; syncing it
   needs the guest's weather state in memory (later). Time: SetFieldTime not seen in these captures.
+- Ping (7.3): Ctrl+F3 sends our position as a Waypoint event with flag 2; the receiver gets the pin + toast "<name> pinged
+  their position (see your map)". Verified in echo (ping1). keys.ps1 now knows F1-F5, F11, R, Q, U, H.
+- Mounted combat (1.2): horse-combat round: the copy rides beside us and mirrors the mounted swings; no bandit was in
+  reach, so damage from horseback stays unverified.

@@ -23,6 +23,8 @@ namespace cdmp::net {
 void coop_set_ready();
 // Co-op+ dev ([dev] no_copy=1): the other player's character is never loaded here (bisects).
 void coop_set_copy_disabled(bool off);
+// Co-op+: how many pings (Ctrl+F3) the other player sent us so far (the HUD shows a toast for each).
+uint32_t coop_pings_received();
 
 class CoopLink {
 public:

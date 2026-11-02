@@ -17,7 +17,7 @@ as copies driven by relayed packets. "Co-op for feature X" therefore means one o
 | # | Feature | Co-op meaning | Status | Approach / messages | Test |
 |---|---|---|---|---|---|
 | 1.1 | Horse riding: see the other player ride | (a) | DONE on one PC (D30): copy mounts its horse copy, rides along, dismounts; on by default | remote_puppet horse load + RideOn/MoveActor relays; enable, fix, default on | 1PC |
-| 1.2 | Horse mounted combat (blows from horseback on shared enemies) | (a)+(b) | todo | DoFrameEventReq from rider; same path as guest_hits | 1PC/2PC |
+| 1.2 | Horse mounted combat (blows from horseback on shared enemies) | (a)+(b) | partial: the copy mirrors mounted attacks (seen); damage on enemies from horseback unverified | DoFrameEventReq from rider; same path as guest_hits | 1PC/2PC |
 | 1.3 | Other ground mounts: bears, direwolf, raptor, lion, cow, red dodo, giant iguana | (a) | todo | same load path as horse (type differs); mounts are "mercenaries"/vehicles (CallVehicleMercenaryAck, ReserveSummonAndRideAck) | 1PC if one is reachable |
 | 1.4 | Flying: Blackstar Dragon (Chapter 11), Wyvern?, Cloudcart balloon | (a) | flagged F2 (needs a save with a flying mount) | flying move data (3D, no ground snap); test needs a save with the dragon | flagged: needs a late save |
 | 1.5 | Vehicles: ATAG mech, Pywel Wagon, Skiff, Delesyia train | (a) | todo | AttachLinkVehicle*, RideOnVehicleReq, ChangeVehiclePhysicsState* | RE + late save |
@@ -101,7 +101,7 @@ JOIN where the game has two sides (the friend takes the NPC opponent's place) --
 |---|---|---|---|---|
 | 7.1 | Emotes / gestures seen by the other | todo (actions likely relay) | StartActionReq relay covers it if the action exists on the copy | 1PC |
 | 7.2 | Photo mode with the friend posed | todo | client-only; copy can be posed by its own emotes | 1PC |
-| 7.3 | Text/quick chat on the overlay | todo | Steam overlay chat exists; add quick pings (Ctrl+F9 "come here" etc.) | 1PC |
+| 7.3 | Text/quick chat on the overlay | partial: Ctrl+F3 ping (toast + map pin) DONE on one PC; Steam overlay chat for text | - | 1PC |
 | 7.4 | Pets / companions (mercenaries) visible to both | todo | mercenary loads like the horse | 1PC |
 | 7.5 | Customization changes (CharacterCustomizationAck relayed) | partial (relay fixed 2026-11-01) | verify | 1PC |
 | 7.6 | Name tag, map pin, minimap icon | done | - | - |

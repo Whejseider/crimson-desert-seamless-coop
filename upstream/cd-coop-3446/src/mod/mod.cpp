@@ -600,6 +600,16 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     net::hits_dev_kill_self(static_cast<int64_t>(s.health * 1000.0f));
                 }
                 kill_was_down = kill_down;
+                // Co-op+: Ctrl+F3 pings our position to the other player (their map + a toast).
+                static bool ping_was_down = false;
+                const bool ping_down = connected && game_has_focus() && (GetAsyncKeyState(VK_CONTROL) & 0x8000) &&
+                                       (GetAsyncKeyState(VK_F3) & 0x8000);
+                if (ping_down && !ping_was_down) {
+                    net::capture_emit_ping(s.position.x, s.position.y, s.position.z);
+                    log::info("Co-op: pinged our position ({:.0f}, {:.0f}) to the other player", s.position.x,
+                              s.position.z);
+                }
+                ping_was_down = ping_down;
                 // Co-op+: our own revive choices when the game's death screen stays away (revive_prompt.h).
                 std::optional<float> partner_hp;
                 if (connected) {
@@ -663,6 +673,13 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 } else {
                     hud.coop_hint = "Ctrl+F2: leave and go back to your world";
                 }
+            }
+            // Co-op+: the other player pinged their position (Ctrl+F3).
+            if (static uint32_t pings_seen = 0; net::coop_pings_received() != pings_seen) {
+                pings_seen = net::coop_pings_received();
+                const std::string who = session.peer_name().empty() ? "Your friend" : session.peer_name();
+                toast = std::format("{} pinged their position (see your map)", who);
+                toast_until = now + 6000;
             }
             if (!toast.empty() && static_cast<int32_t>(now - toast_until) < 0) hud.toast = toast;
             render::hud_update(std::move(hud));

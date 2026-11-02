@@ -26,6 +26,7 @@ namespace {
 
 std::atomic<bool> g_ready{false};
 std::atomic<bool> g_no_copy{false};
+std::atomic<uint32_t> g_pings{0};
 constexpr size_t kMaxOutbox = 4096;            // ~1 s of events; more means the link is stuck
 constexpr uint32_t kRespawnAfterRemoveMs = 1500;  // let the old copy fade out first
 constexpr uint32_t kInWorldGraceMs = 500;        // a missing position read shorter than this is ignored
@@ -60,6 +61,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
 
 void coop_set_ready() { g_ready = true; }
 void coop_set_copy_disabled(bool off) { g_no_copy = off; }
+uint32_t coop_pings_received() { return g_pings; }
 
 CoopLink::CoopLink(ClientSession& session, uint32_t delay_ms, float offset_m, bool map_pin)
     : session_(session), delay_ms_(delay_ms), offset_m_(offset_m), map_pin_(map_pin) {
@@ -487,8 +489,9 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
                 std::memcpy(&p.x, ev.payload.data(), 4);
                 std::memcpy(&p.y, ev.payload.data() + 4, 4);
                 std::memcpy(&p.z, ev.payload.data() + 8, 4);
-                // Flag 1 = set (seen live); 0 taken as "removed" (not seen yet).
+                // Flag 1 = set (seen live); 0 taken as "removed" (not seen yet); 2 = a ping (Ctrl+F3).
                 const bool set = ev.payload[12] != 0;
+                if (ev.payload[12] == 2) ++g_pings;
                 puppet_waypoint_pin(owner, set ? std::optional<proto::Vec3>(p) : std::nullopt);
                 log::info("Co-op: the other player's waypoint {} ({:.0f}, {:.0f})", set ? "at" : "removed", p.x, p.z);
             }

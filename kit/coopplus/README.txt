@@ -48,6 +48,7 @@ PLAYING TOGETHER
 - Ctrl+F2 (guest): leave and go back to your own world.
 - F8: show/hide the co-op panel (top left): connection, ping, room code.
 - Ctrl+F8: show/hide your friend's name over their head.
+- Ctrl+F3: ping your position: your friend gets a message and a pin on their map.
 
 Privacy: by default any Steam friend who plays with Co-op+ can "Join Game" into your
 world. To allow only friends you invite, open the game's bin64\cdmp.ini and set

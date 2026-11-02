@@ -719,6 +719,15 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     }
 }
 
+void capture_emit_ping(float x, float y, float z) {
+    Bytes b(13, 0);
+    std::memcpy(b.data(), &x, 4);
+    std::memcpy(b.data() + 4, &y, 4);
+    std::memcpy(b.data() + 8, &z, 4);
+    b[12] = 2;
+    emit(proto::EventKind::Waypoint, std::move(b));
+}
+
 void capture_observe_c2s(const uint8_t* packet, size_t size) {
     aggro_observe_c2s(packet, size);
     enemy_observe_c2s(packet, size);
