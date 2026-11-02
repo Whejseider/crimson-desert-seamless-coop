@@ -454,3 +454,9 @@
   item key | u16 slot 7 | ...) -> HideInventoryByUseItemAck; Kliff carries it (Place Ctrl / Throw Q / Drop R / Store F).
   Dropped = a "Wyvern Egg [E] Carry" object. dev "day 1" (27 -> 28): not hatched. Hopped to Pororin Village
   (-10172, 573, -5243 = Reachwood Ruins, Grace Estate): no nest seen. Flagged F7 (how does it hatch?).
+- RPS (rps_go.sh: dev tp to the Hernand rock-paper-scissors spot -10611, 609, -3873): "[R] Play Rock, Paper,
+  Scissors" with a Boy (two kids, NPC schedule); at 10:35-10:44 the kids played each other (InteractionPreemption/
+  DoStepReq between B0100350/351 and B0100658/65E, interaction 0x0F42B1) and our R did nothing; up close only
+  "[E] Greet". Planned versus design (not built): hold our pick key (keyboard hook, like the skip) until both players
+  picked, then write the partner's pick as the NPC's and release; needs the pick/NPC-pick fields (gaugehunt.py diff
+  during rounds) at a time the boy is free.
