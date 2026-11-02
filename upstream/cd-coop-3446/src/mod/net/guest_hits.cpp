@@ -1,4 +1,5 @@
 #include "mod/net/guest_hits.h"
+#include "mod/net/wire_layout.h"
 
 #include <windows.h>
 
@@ -61,9 +62,9 @@ constexpr uint32_t kStatHP = 0x000F4240;
 constexpr uint32_t kPuppetPlayer = 0xA010F001;
 constexpr size_t kAarSize = 77;
 constexpr size_t kBuffSize = 77;
-constexpr size_t kTargetEntry = 665;  // DoFrameEventReq target entry size
-constexpr size_t kAccessor = 0x1F7;   // FrameEventAccessor: u8 type | u8 slot | u32 hash | u16 id | u32 frame
-constexpr size_t kFirstEntry = 0x203;
+constexpr size_t kTargetEntry = wire::kFrameEventTargetEntry;  // DoFrameEventReq target entry size (wire_layout.h)
+constexpr size_t kAccessor = wire::kFrameEventAccessor;   // FrameEventAccessor: u8 type | u8 slot | u32 hash | u16 id | u32 frame
+constexpr size_t kFirstEntry = wire::kFrameEventFixed;
 constexpr size_t kGuestHitSize = 17;  // u32 copy | u32 action hash | u32 frame | u8 accessor type | i32 base x1000
 constexpr uint8_t kFlagsClean = 0xF7;  // AttackTargetAck +8: a clean blow
 constexpr uint8_t kFlagsNoDamage = 0xE3;  // frames that never hurt (pieza4-capturas.md §2.1)

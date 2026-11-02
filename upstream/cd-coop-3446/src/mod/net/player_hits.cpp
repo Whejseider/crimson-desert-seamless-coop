@@ -1,4 +1,5 @@
 #include "mod/net/player_hits.h"
+#include "mod/net/wire_layout.h"
 
 #include <windows.h>
 
@@ -48,10 +49,10 @@ constexpr size_t kHitBaseSize = 16;
 constexpr uint8_t kHitHasTemplates = 1, kHitStaggers = 2;
 constexpr uint32_t kStatHP = 0x000F4240;
 constexpr uint32_t kPuppetPlayer = 0xA010F001;
-constexpr size_t kTargetEntry = 665;     // DoFrameEventReq target entry size
-constexpr size_t kAccessor = 0x1F7;      // FrameEventAccessor: u8 type | ...
+constexpr size_t kTargetEntry = wire::kFrameEventTargetEntry;     // DoFrameEventReq target entry size
+constexpr size_t kAccessor = wire::kFrameEventAccessor;      // FrameEventAccessor: u8 type | ...
 constexpr size_t kAccessorHash = 0x1F9;  // type 0: u8 type | u8 slot | u32 action hash
-constexpr size_t kFirstEntry = 0x203;
+constexpr size_t kFirstEntry = wire::kFrameEventFixed;
 constexpr uint64_t kLearnWindowMs = 600;  // a blow on us and its HP loss
 constexpr double kDefaultShare = 0.05;    // unknown attack: 5% of max HP
 

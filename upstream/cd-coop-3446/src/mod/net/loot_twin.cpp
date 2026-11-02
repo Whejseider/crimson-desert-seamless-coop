@@ -1,4 +1,5 @@
 #include "mod/net/loot_twin.h"
+#include "mod/net/wire_layout.h"
 
 #include <windows.h>
 
@@ -31,8 +32,8 @@ using Bytes = std::vector<uint8_t>;
 // Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
 // TrocTr handler instance: RTTI name, opcode). The values here before were 2976-era.
 constexpr uint16_t kOpActorLoadDataAck = 2005;
-constexpr uint16_t kOpDoFrameEventReq = 3030;              // u8 4 | u32 attacker | ... | 665-byte targets at the end
-constexpr uint16_t kOpSpawnCharacterCheatReq = 2185;       // u32 variant | u32 0 | vec3 | u8 spawn reason
+constexpr uint16_t kOpDoFrameEventReq = 3030;              // u8 4 | u32 attacker | ... | target entries at the end (wire_layout.h)
+constexpr uint16_t kOpSpawnCharacterCheatReq = 2185;       // u32 variant | u32 0 | vec3 | u8 0 | u8 spawn reason (3479)
 constexpr uint16_t kOpKillCheatReq = 2210;                 // u32 victim | u32 option (0 = dies at once)
 constexpr uint16_t kOpNotifyHandleDeadAck = 2985;          // u32 dead | ...
 constexpr uint16_t kOpLootDropCharacterRewardListAck = 2414;  // u8 4 | u32 dead | n x 37 B
@@ -48,7 +49,7 @@ constexpr uint16_t kOpInteractionDoStepSuccessAck = 2794;          // u32 player
 constexpr uint16_t kOpAttackerAck = 2181;           // PostProcessAttackResult_AttackerAck: u32 attacker | u32 target
 constexpr uint16_t kOpRemoveActorAck = 3067;        // 04 | u32 0 | u8 reason | n x u32 key
 constexpr uint8_t kSpawnReasonCheat = 33;
-constexpr size_t kTargetEntry = 665, kFirstEntry = 0x203;
+constexpr size_t kTargetEntry = wire::kFrameEventTargetEntry, kFirstEntry = wire::kFrameEventFixed;
 
 // The guest earns loot from a copy it hit lately, close to it; a few at most.
 constexpr uint64_t kHitWindowMs = 30000;
@@ -247,11 +248,20 @@ bool loot_on_copy_died(uint32_t copy, uint32_t variant, uint64_t /*delay_ms*/) {
         const float mine[3] = {me->x, me->y, me->z};
         if (distance(pos, mine) > kMaxLootDistance) why = "we are too far from it";
     }
+    // Co-op+ (3479): no twins on this build. The 21-byte SpawnCharacterCheatReq of 2976..3446 is refused
+    // for its length (the parser now reads u32|u32|vec3|u8|u8), and both 22-byte forms tried logged the
+    // player out ("critical error 1126375326", live test 2026-11-01). Until a safe request is known the
+    // guest gets no loot from the host's enemies (their own world's loot is untouched).
+    if (!why) why = "loot twins are off on this game version (their request logs the player out)";
     if (why) {
         if (g_logged++ < 40) log::info("Loot: copy 0x{:08X} died; no loot for us: {}", copy, why);
         return false;
     }
-    Bytes b(21);
+    // Co-op+ (3479): the server's parser (TrocTrSpawnCharacterCheatReq vf2, exe+0x2C38EB0) reads
+    // u32 | u32 | vec3 | u8 | u8 and refuses any other length (the 21 bytes of 2976..3446 did nothing).
+    // The reason stays where it was (+20); the new trailing byte is 0. Reason 33 in the LAST byte
+    // logged the player out ("critical error 1126375326", live test).
+    Bytes b(22);
     std::memcpy(b.data(), &variant, 4);
     std::memcpy(b.data() + 8, pos, 12);
     b[20] = kSpawnReasonCheat;

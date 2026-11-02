@@ -1,4 +1,5 @@
 #include "mod/net/native_suppress.h"
+#include "mod/net/wire_layout.h"
 
 #include <windows.h>
 
@@ -1175,11 +1176,11 @@ void suppress_observe_c2s(const uint8_t* packet, size_t size) {
         if (!g_natives.count(k)) return;
         if (g_battle.size() < kMaxSmallSet || g_battle.count(k)) g_battle[k] = {p[4], now};
         if (p[4] != 0) g_fought[k] = now;
-    } else if (op == kOpDoFrameEventReq && n >= 0x203 + 665 && p[0] == 0x04) {
+    } else if (op == kOpDoFrameEventReq && n >= wire::kFrameEventFixed + wire::kFrameEventTargetEntry && p[0] == 0x04) {
         if (!own) return;
         bool at_us = false;
-        for (size_t k = 1; k <= 30 && n >= k * 665 + 0x203; ++k) {
-            const uint32_t t = u32_at(p + n - k * 665);
+        for (size_t k = 1; k <= 30 && n >= k * wire::kFrameEventTargetEntry + wire::kFrameEventFixed; ++k) {
+            const uint32_t t = u32_at(p + n - k * wire::kFrameEventTargetEntry);
             if (!keys::is_actor_key(t)) break;
             at_us = at_us || t == own;
         }

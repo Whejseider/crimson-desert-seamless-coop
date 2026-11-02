@@ -50,4 +50,14 @@ inline constexpr size_t kActionTarget = kActionAfterMove + 4;                   
 // Ack offset of a StartAction Req offset at or past kActionMoveData.
 constexpr size_t ack_at(size_t req_offset) { return req_offset + 1; }
 
+
+// ---- DoFrameEventReq (an attack's frame event) -- measured on 3479 -------------------------
+// u8 4 | u32 attacker | ... | FrameEventAccessor at kFrameEventAccessor (u8 type | u8 slot | u32 hash |
+// u16 id | u32 frame) | ... | one entry per target at the end, target key first. 2976..3446: accessor at
+// 0x1F7, entries of 665 bytes, fixed header 0x203. 3479 capture (95 events, 1-4 targets): the accessor
+// moved 4 bytes (hash 0x5CC91323, frame counting 0, 1, 2...), entries are 677 bytes (keys at 647, 1324,
+// 2001, 2678 in a 4-target event, the last 677 from the end), the shortest event is 522 bytes.
+inline constexpr size_t kFrameEventAccessor = 0x1FB;
+inline constexpr size_t kFrameEventTargetEntry = 677;
+inline constexpr size_t kFrameEventFixed = 0x207;  // header bytes before the first possible target entry (lower bound)
 }  // namespace cdmp::net::wire

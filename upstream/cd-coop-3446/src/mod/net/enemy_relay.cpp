@@ -1243,13 +1243,13 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size) {
         }
         return;
     }
-    if (op == kOpDoFrameEventReq && size >= 5 + 0x203 + 665 && packet[5] == 0x04) {
+    if (op == kOpDoFrameEventReq && size >= 5 + wire::kFrameEventFixed + wire::kFrameEventTargetEntry && packet[5] == 0x04) {
         const uint32_t attacker = u32_at(packet + 6), own = capture_own_player_key();
         const uint8_t* p = packet + 5;
         const size_t n = size - 5;
         bool at_us = false;
-        for (size_t k = 1; k <= 30 && n >= k * 665 + 0x203; ++k) {
-            const uint32_t t = u32_at(p + n - k * 665);
+        for (size_t k = 1; k <= 30 && n >= k * wire::kFrameEventTargetEntry + wire::kFrameEventFixed; ++k) {
+            const uint32_t t = u32_at(p + n - k * wire::kFrameEventTargetEntry);
             if (!keys::is_actor_key(t)) break;
             at_us = at_us || (own && t == own) || t == kPuppetPlayer;
         }
