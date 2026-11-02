@@ -3,10 +3,11 @@
 Goal: you and a friend can install one zip, join through Steam, and play together in your world. Each of you sees
 the other, fights the same enemies, and gets your own loot, without crashes and without touching your saves.
 
-How I work it (the user's standing instructions, 2026-11-01): I go through this list in order, decide routine
-things myself (logged in DECISIONS.md), and don't stop to ask. I only ask about changes that would really alter
-gameplay. While waiting on any answer, I work on the next item. After each item: commit, push, notes, and the
-installed package updated. Status: [x] done, [~] in progress, [ ] to do.
+How I work it (the user's standing instructions, 2026-11-01, sharpened 2026-11-02): I work every task I can
+complete, prioritising those; decide routine things myself (DECISIONS.md); when a task needs the user I flag it in
+NOTES/FLAGS.md and move on; I stop only when everything is done or flagged, and never ask "continue?". After each
+item: commit, push, notes, installed package updated, save check. Status: [x] done, [~] in progress, [ ] to do,
+[F] flagged (needs the user). The full feature backlog is docs/COOP-FEATURES.md (section F below tracks it).
 
 ## Already done (single PC, game 1.0.0.3479)
 - [x] Port to 3460, then 3479; the mod switches itself off on unknown game versions
