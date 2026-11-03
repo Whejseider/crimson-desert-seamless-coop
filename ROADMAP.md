@@ -112,7 +112,7 @@ Steam join/invite/leave and room code, friends-only vs invite-only, join/leave n
 - [x] **T34 — Per-player colors.** Consistent color coding across map pins, compass markers, nameplates and pings, with a colorblind-safe option.
 - [~] **T35 — Emotes and resting together.** Synced emotes and sitting or resting at campfires together.
 - [~] **T36 — Combat feedback sync.** Status effects, stagger, knockback, damage numbers and kill feed visible for the partner's hits, plus per-player lock-on.
-- [ ] **T37 — Crash and log reporting.** Extend Diagnose into a one-click "copy report" bundle with personal info redacted.
+- [x] **T37 — Crash and log reporting.** Extend Diagnose into a one-click "copy report" bundle with personal info redacted.
 - [ ] **T38 — Post-patch playbook.** A doc and script to quickly find which hooks or offsets broke after a game update and verify the fixes.
 - [ ] **T39 — Story spoiler protection.** Optional setting so the guest isn't pushed ahead of or spoiled on the host's story.
 - [x] **T40 — In-game difficulty controls.** Change party scaling multipliers from the F8 panel instead of only `scaling.toml`.

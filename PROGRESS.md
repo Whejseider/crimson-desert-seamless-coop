@@ -396,3 +396,4 @@ Done: killfeed_test: KillCheatReq on 6 animals near the start: "Kill feed: we to
 "(an enemy)", "(Scolt)"; the screen shows the echoed lines "cdmp_peer (relay) defeated a Goose ..." in gold.
 Not done: per-player lock-on (the game's lock-on is local; nothing to sync found), status-effect check, enemy names.
 [~] PLAYTEST 3b.
+- Pushed T36 (9ddd859).
