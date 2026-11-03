@@ -40,6 +40,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T35: emotes and resting - the game has no emote system to sync (none found); sitting and campfire rest are the game's own actions, which the copy already replays, and the host's Wait moves both clocks (time sync); two-PC step PLAYTEST 2.7e.
 - T36: kill feed on the right of the screen for both players' kills (animal names from the hunting table, "an enemy" otherwise); stagger and knockback come from real hits already; lock-on and status effects left to the two-PC test.
 - T37: Diagnose makes a one-click bundle (report + whole log, zipped, on the clipboard) with Steam names, SteamIDs, lobby ids, room codes, Windows user / PC name, IPs and e-mails taken out; tools/test-diagnose-redact.ps1 checks it.
+- T38: post-patch playbook (docs/post-patch-playbook.md) and tools/port/post_patch_check.ps1 (offline verifier + the hook problems in the last log), checked on the current exe and on a copy with two hook sites changed.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

@@ -412,3 +412,12 @@ Done: test: 9/9 secrets gone, game version 1.0.0.3479, coordinates and 127.0.0.1
 written, no Windows user / PC name in them. [x]
 (The first T37 commit a069441 missed these notes and the README lines: a Python escape error; added in the next.)
 - Pushed T37 (a069441 code, notes in the next commit).
+
+## T38 -- Post-patch playbook
+Plan (drafted with T21, commit 7541ce4): docs/post-patch-playbook.md (keep the old exe, what changed, re-find what
+moved with the build/port3479 tools, the order to bring features back, the tests) and tools/port/post_patch_check.ps1
+(runs upstream's verify-port.ps1 against the installed exe and lists every hook / offset problem in the last cdmp.log).
+Done: on the installed 1.0.0.3479: "RESULT: ALL OFFLINE CHECKS PASSED", "no hook or offset problems logged".
+A copy of the exe with 4 bytes changed at kClientPostPacket (exe+0x3A5A30) and kActionLayerAdvance (exe+0x214C070):
+"FAIL kClientPostPacket ... expected 48 89 5C 24 10 4C 89 4C, found CC CC CC CC ...", "FAIL kActionLayerAdvance",
+"RESULT: 2 CHECK(S) FAILED" -- exactly the two, named with the feature each one guards. Copy deleted. [x]
