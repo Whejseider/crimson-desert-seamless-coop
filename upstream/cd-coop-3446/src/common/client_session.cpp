@@ -71,8 +71,10 @@ bool ClientSession::other_version(const proto::Packet& packet, uint32_t now_ms) 
     const std::string* name = nullptr;
     if (auto* h = std::get_if<proto::Hello>(&packet.body)) name = &h->name;
     if (auto* w = std::get_if<proto::Welcome>(&packet.body)) name = &w->name;
-    peer_problem_ = "'" + (name ? *name : std::string("?")) + "' uses protocol " + std::to_string(packet.version) +
-                    ", we use " + std::to_string(proto::kVersion) + ": both need the same mod version";
+    // Co-op+ (T29): plain words and the next step (the numbers stay, for bug reports).
+    peer_problem_ = "Can't play together: " + (name ? *name : std::string("your friend")) +
+                    " has a different Co-op+ version (protocol " + std::to_string(packet.version) + ", yours " +
+                    std::to_string(proto::kVersion) + "). Both install the same Co-op+ zip.";
     if (last_problem_event_ms_ == 0 || now_ms - last_problem_event_ms_ >= 10000) {
         last_problem_event_ms_ = now_ms;
         event("cannot connect: peer " + peer_problem_);

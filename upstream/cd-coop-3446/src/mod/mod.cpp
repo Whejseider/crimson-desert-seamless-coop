@@ -273,6 +273,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     using Kind = SessionEnd::Kind;
     if (!net::startup()) {
         log::error("Winsock startup failed");
+        render::hud_set_problem(render::Problem::Network,
+                                "Co-op can't start: Windows networking did not start. Restart the PC; if it stays, "
+                                "send cdmp.log (Diagnose Co-op+).");
         return {};
     }
 
@@ -347,6 +350,10 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             if (!net::room_code_decode(cfg.room_code, lobby)) {
                 log::warn("Room: '{}' is not a valid code ({} characters, letters and digits)",
                           cfg.room_code, net::kRoomCodeLen);
+                render::hud_set_problem(render::Problem::Join,
+                                        std::format("The room code '{}' in cdmp.ini is not valid ({} letters and digits)."
+                                                    " Fix it under [room] code= and restart the game, or use Join Game "
+                                                    "in Steam instead.", cfg.room_code, net::kRoomCodeLen));
             } else {
                 room_code_pending = true;
                 room_code_text = net::room_code_normalise(cfg.room_code);
@@ -385,6 +392,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         }
         transport = std::move(udp);
     }
+    render::hud_set_problem(render::Problem::Network, {});  // Co-op+ (T29)
     log::info("Network: {} as {}; peer {}", transport->status(), host ? "host" : "guest",
               peer ? peer->str() : (host ? "= whoever connects" : "= the only friend playing"));
 
@@ -472,7 +480,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 if (!host) {
                     say("only the host can invite (you are in a friend's world)");
                 } else if (!net::room_lobby_id()) {
-                    say("no room yet: the invite works once your room is open");
+                    say("no room yet: load a save, wait a few seconds, then invite again");
                 } else if (!net::join_open_invite(net::room_lobby_id())) {
                     say("the Steam overlay is not available (Steam > Settings > In Game)");
                 } else {
@@ -615,9 +623,33 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             toast_until = now + 6000;
         } else if (!connected && was_connected) {
             toast = host ? std::format("Co-op\n{} left your world", toast_name)
-                         : std::format("Co-op\nLost the connection to {}'s world", toast_name);
+                         : std::format("Co-op\nLost the connection to {}'s world. Reconnecting by itself;"
+                                       " {{Leave}} goes back to your own world", toast_name);
             toast_until = now + 6000;
         }
+        // Co-op+ (T29): a guest that cannot reach the host says so after 45 s, with what to check.
+        {
+            static uint32_t looking_since = 0;
+            if (connected || host) {
+                looking_since = 0;
+                render::hud_set_problem(render::Problem::Join, {});
+            } else {
+                if (!looking_since) looking_since = now ? now : 1;
+                if (now - looking_since > 60000 && transport->status().rfind("steam: waiting", 0) == 0) {
+                    render::hud_set_problem(render::Problem::Join,
+                                            "Steam is not ready for co-op: start the game from Steam while online, "
+                                            "with the Steam overlay on (Steam > Settings > In Game).");
+                } else if (now - looking_since > 45000 && session.peer_problem().empty()) {
+                    const std::string who = toast_name.empty() ? std::string("the host") : toast_name;
+                    render::hud_set_problem(
+                        render::Problem::Join,
+                        std::format("Can't reach {} yet. Check: both games running with a save loaded, the same "
+                                    "Co-op+ zip, Steam online. Still stuck: Ctrl+F2, then Join Game again.", who));
+                }
+            }
+        }
+        // Co-op+ (T29): a save backup that failed is said where it is seen.
+        if (coop) render::hud_set_problem(render::Problem::Backup, net::save_guard_problem());
         // Co-op+ (T08): 30 s after a session ends (the host's weather goes after 20 s), nothing of it may be left.
         if (!connected && was_connected) g_audit_due = now ? now : 1;
         if (!connected) audit_tick(now);
@@ -1073,6 +1105,9 @@ void run_coop(const Config& base, LocalSource& local, bool in_game) {
             // Co-op+ (T08): the network could not start (or stopped by itself). This used to end the worker, so co-op
             // stayed off for the rest of the game session (seen after a Leave on the one-PC transport). Try again.
             log::warn("Co-op+: the network did not start; trying again in 10 s");
+            render::hud_set_problem(render::Problem::Network,
+                                    "Co-op could not start its connection; trying again every 10 s. If this stays, "
+                                    "restart the game from Steam and check cdmp.log (Diagnose Co-op+).");
             for (int i = 0; i < 10; ++i) {
                 audit_tick(now_ms());
                 if (stop_requested(1000)) return;
@@ -1396,6 +1431,9 @@ DWORD WINAPI late_init(LPVOID param) {
         if (!contained) {
             net::puppet_set_horse_enabled(false);
             log::warn("Horse and enemy copies disabled: their crash containment could not be installed");
+            render::hud_set_problem(render::Problem::Guards,
+                                    "Your friend's horse and the shared enemies are off this time (a safety check did "
+                                    "not install). Restart the game to try again.");
         } else if (!guarded) {
             // This one line is the whole visible trace of the enemy relay being dead. It was
             // printed once at boot, between dozens of status lines, and it went unnoticed for
@@ -1406,6 +1444,9 @@ DWORD WINAPI late_init(LPVOID param) {
             // So it now says what it costs, and it does not leave the reader to infer that
             // enemy copies, shared loot and joint boss damage are ALL off as a result.
             log::warn("Enemy copies disabled: their crash guards could not be installed");
+            render::hud_set_problem(render::Problem::Guards,
+                                    "Shared enemies are off this time (a safety check did not install). Restart the "
+                                    "game to try again.");
             log::warn("  -> the enemy relay is OFF for this whole session: no copies of the other");
             log::warn("     player's enemies, so no shared loot and no guest hits on them either.");
             log::warn("     Everything else (your own copy, movement, equipment, horses) still works.");

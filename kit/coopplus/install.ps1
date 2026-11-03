@@ -67,7 +67,7 @@ if (Test-Path $SaveDir) {
     Copy-Item -Path (Join-Path $SaveDir '*') -Destination $dest -Recurse -Force
     $count = (Get-ChildItem $dest -Recurse -File | Measure-Object).Count
     if ($count -eq 0 -and (Get-ChildItem $SaveDir -Recurse -File | Measure-Object).Count -gt 0) {
-        Fail "the save backup to $dest came out empty, so nothing was installed."
+        Fail "the save backup to $dest came out empty, so nothing was installed. Check that Documents has free space and is not read-only (OneDrive: let it finish syncing), then run the installer again."
     }
     Write-Host "Saves backed up: $count file(s) -> $dest" -ForegroundColor Green
 } else {

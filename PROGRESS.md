@@ -292,3 +292,16 @@ update keeps an edited cdmp.ini (defaults as .new), vanilla on/off, uninstall le
 backups left alone, mod-manager zip lands next to the exe -- 13/13 PASS (eb53dd51 test package).
 Not done here (needs the user): the actual Nexus upload, screenshots (shot list) -- FLAGS. Vortex itself is not
 installed on this PC, so the Vortex lines are generic ("deploy into the game folder"). [~]
+- Pushed T27 (403e466).
+
+## T29 -- Error messages
+Plan: list every failure state (mod, installer, uninstaller, diagnose) with what the player sees; give the ones that
+were log-only a plain message with the next step; one mechanism: render::hud_set_problem(kind, text) -> red lines at
+the top of the F8 panel, and a strip at the top of the screen for 15 s whenever a line changes.
+Found log-only before: network not starting (T08 retry loop), save backup failure, crash guards off (enemy relay
+dead for the session), a bad room code, a guest that never reaches the host (panel said only "looking for the other
+player..."), Steam never logging in. Old protocol message was jargon ("uses protocol 11, we use 12").
+Done: errors_test (build/port3479): A guest with no host, 60 s after load: panel "Can't reach the host yet. Check: both
+games running with a save loaded, the same Co-op+ zip, Steam online. Still stuck: Ctrl+F2, then Join Game again.";
+B stand-in host joins: the line is gone; C stand-in drops: notice "Lost the connection to cdmp_peer (relay)'s world.
+Reconnecting by itself; [Ctrl][F2] goes back to your own world" (key glyphs drawn). docs/error-messages.md. [x]

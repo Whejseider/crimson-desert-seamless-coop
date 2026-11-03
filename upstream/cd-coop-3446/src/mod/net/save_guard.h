@@ -33,4 +33,7 @@ void save_guard_observe_s2c(const uint8_t* packet, size_t size);
 // Panel line ("" when nothing to say).
 std::string save_guard_hud_text();
 
+// Co-op+ (T29): why the last automatic backup failed, in plain words with the next step ("" = it worked / none yet).
+std::string save_guard_problem();
+
 }  // namespace cdmp::net

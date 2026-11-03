@@ -31,6 +31,8 @@ constexpr ImU32 kShadow = IM_COL32(0, 0, 0, 200);
 std::mutex g_mutex;
 HudData g_data;
 HudOptions g_options;
+std::string g_problems[static_cast<int>(Problem::Count)];  // Co-op+ (T29)
+ULONGLONG g_problem_changed = 0;
 
 // Co-op+: the same colour at `alpha` of its own opacity (nameplate fade).
 ImU32 faded(ImU32 color, float alpha) {
@@ -51,6 +53,14 @@ void draw_remote_marker(ImDrawList* dl, const game::ScreenPoint& p, const HudDat
 
 }  // namespace
 
+void hud_set_problem(Problem kind, std::string text) {
+    std::lock_guard lock(g_mutex);
+    std::string& slot = g_problems[static_cast<int>(kind)];
+    if (slot == text) return;
+    slot = std::move(text);
+    if (!slot.empty()) g_problem_changed = GetTickCount64();
+}
+
 void hud_configure(const HudOptions& options) {
     std::lock_guard lock(g_mutex);
     g_options = options;
@@ -62,7 +72,8 @@ void hud_update(HudData data) {
 }
 
 // The status panel (top left). F8 shows / hides it; the nameplate has its own toggle.
-void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, const std::string& camera_failure) {
+void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, const std::string& camera_failure,
+                const std::vector<std::string>& problems) {
     // ---- status panel
     // Co-op+: the game's panel look (game_ui.h): dark warm backing, gold serif title, a thin light rule.
     ImGui::SetNextWindowPos(ImVec2(24, 24));
@@ -89,6 +100,12 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
         return;
     }
     const bool en = opt.english;
+    // Co-op+ (T29): what stops co-op right now, and what to do.
+    if (!problems.empty()) {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 30.0f);
+        for (const auto& p : problems) ImGui::TextColored(ImVec4(1, 0.35f, 0.3f, 1), "%s", p.c_str());
+        ImGui::PopTextWrapPos();
+    }
     if (d.connected) {
         ImGui::Text(en ? "Network: connected to '%s' (%.1f ms)" : "Red: conectado a '%s' (%.1f ms)",
                     d.peer_name.c_str(), d.rtt_ms);
@@ -167,10 +184,16 @@ void hud_draw(float width, float height) {
 
     HudData d;
     HudOptions opt;
+    std::vector<std::string> problems;
+    bool problem_fresh = false;
     {
         std::lock_guard lock(g_mutex);
         d = g_data;
         opt = g_options;
+        for (const auto& p : g_problems) {
+            if (!p.empty()) problems.push_back(p);
+        }
+        problem_fresh = g_problem_changed && GetTickCount64() - g_problem_changed < 15000;
     }
     if (!plates_init) {
         plates_visible = opt.nameplates;
@@ -196,7 +219,12 @@ void hud_draw(float width, float height) {
     // ---- status panel
     float remote_distance = 0;
     if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
-    if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure());
+    if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure(), problems);
+    if (problem_fresh && !panel_visible && opt.build_problem.empty()) {
+        for (size_t i = 0; i < problems.size(); ++i) {
+            ui::strip(width, height * (0.10f + 0.05f * static_cast<float>(i)), problems[i]);
+        }
+    }
     if (!d.toast.empty()) {
         // Co-op+: notices, top centre, whatever F8 says; the game's dialog look (game_ui.h). A first line
         // ending in a line break becomes the notice's gold title.

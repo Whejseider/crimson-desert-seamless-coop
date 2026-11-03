@@ -74,8 +74,11 @@ fs::path known_folder(REFKNOWNFOLDERID id) {
     return out;
 }
 
-// Copies the save folder; returns the backup's folder name ("" on failure).
-std::string backup_saves() {
+std::string g_backup_problem;  // Co-op+ (T29), under g_mutex
+
+// Copies the save folder; returns the backup's folder name ("" on failure; why in `why`, "" when there was nothing
+// to back up).
+std::string backup_saves(std::string& why) {
     const fs::path local = known_folder(FOLDERID_LocalAppData);
     const fs::path docs = known_folder(FOLDERID_Documents);
     if (local.empty() || docs.empty()) return {};
@@ -94,11 +97,17 @@ std::string backup_saves() {
     fs::create_directories(dst, ec);
     if (ec) {
         log::warn("Save guard: cannot create {}: {}", utf8(dst), ec.message());
+        why = "Your saves could not be backed up (" + ec.message() + "). Don't save during co-op, and copy "
+              "%LOCALAPPDATA%" + std::string(1, 92) + "Pearl Abyss" + std::string(1, 92) + "CD" + std::string(1, 92) +
+              "save somewhere yourself. Is Documents full or read-only?";
         return {};
     }
     fs::copy(src, dst, fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
     if (ec) {
         log::warn("Save guard: backup to {} failed: {}", utf8(dst), ec.message());
+        why = "Your saves could not be backed up (" + ec.message() + "). Don't save during co-op, and copy "
+              "%LOCALAPPDATA%" + std::string(1, 92) + "Pearl Abyss" + std::string(1, 92) + "CD" + std::string(1, 92) +
+              "save somewhere yourself. Is the disk full?";
         return {};
     }
     // Keep the newest automatic backups only; the installer's own backups are not touched.
@@ -132,8 +141,10 @@ void save_guard_set_connected(bool connected, const std::string& peer_name) {
         if (g_last_backup_ms && now_ms() - g_last_backup_ms < kBackupEveryMs) return;
     }
     // A few MB of files: fine on the mod's network thread, never the game's.
-    const std::string name = backup_saves();
+    std::string why;
+    const std::string name = backup_saves(why);
     std::lock_guard lock(g_mutex);
+    g_backup_problem = why;
     if (!name.empty()) {
         g_last_backup = name;
         g_last_backup_ms = now_ms();
@@ -173,6 +184,11 @@ void save_guard_observe_s2c(const uint8_t* packet, size_t size) {
     log::warn("Save guard: the game saved into slot {} while '{}' is in the session [{} so far]; if this save "
               "misbehaves, restore Documents\\CrimsonDesert-CoopPlus-SaveBackups\\{}",
               slot, g_peer, n, g_last_backup.empty() ? "(no backup this session)" : g_last_backup);
+}
+
+std::string save_guard_problem() {
+    std::lock_guard lock(g_mutex);
+    return g_backup_problem;
 }
 
 std::string save_guard_hud_text() {

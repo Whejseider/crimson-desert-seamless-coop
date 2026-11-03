@@ -83,6 +83,11 @@ struct HudOptions {
     std::string build_problem;
 };
 
+// Co-op+ (T29): something that stops co-op, in plain words with the next step (docs/error-messages.md). One line per
+// kind; "" clears it. Shown in red on the panel, and for 15 s at the top of the screen whenever it changes.
+enum class Problem { Network, Join, Backup, Guards, Count };
+void hud_set_problem(Problem kind, std::string text);
+
 void hud_configure(const HudOptions& options);
 void hud_update(HudData data);
 void hud_draw(float width, float height);
