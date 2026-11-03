@@ -65,6 +65,16 @@ with two real players, that is good news (the one-PC test clones your own charac
 - [ ] B leaves (Ctrl+F2): A's world is normal, no leftover copies; B's own enemies are back.
 - [ ] Both quit WITHOUT saving.
 
+## Challenges, weather, cutscenes (added 2026-11-02)
+1. Anywhere: host presses Shift+F5 -> guest sees "<host> challenges you to rock, paper, scissors" -> guest Shift+F5.
+   Both press U / F / E in turn; both screens must show the same two hands and the same round winner; first to 2.
+2. Hernand pub (game time ~10:27-10:58, the host's time is used): both at the arm wrestling table; host Shift+F5,
+   guest accepts; both hold R then E at the table; mash E: the faster one must win on BOTH screens; series toast.
+3. Shift+F6 on an invite declines it; Shift+F5 during a challenge ends it ("Final series").
+4. Weather: both screens show the same sky / rain (the host's).
+5. Boss / story cutscene: walk into one together; the guest should see the same cinematic; it skips only when both
+   press Esc.
+
 ## Afterwards: what to send
 From each PC: `bin64\cdmp.log`, the newest `bin64\cdmp_packets_*.log/.bin` pair, and a few lines on what went
 wrong at which Ctrl+F12 mark. "Diagnose Co-op+.cmd" puts a report on the Desktop that includes the log.
