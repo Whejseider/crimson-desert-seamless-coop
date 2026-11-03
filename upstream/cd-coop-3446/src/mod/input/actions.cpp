@@ -25,6 +25,7 @@ constexpr Binding kBindings[] = {
     {"Mash", 'E', false, false, kPadFace, kPadA, false},
     {"MenuPrev", VK_LEFT, false, false, kPadLeft, kPadLeft, false},
     {"MenuNext", VK_RIGHT, false, false, kPadRight, kPadRight, false},
+    {"Resync", VK_F8, false, true, kPadRB, kPadRB, true},
 };
 static_assert(std::size(kBindings) == static_cast<size_t>(Action::Count));
 

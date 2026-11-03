@@ -1943,6 +1943,23 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
 void enemy_set_receive_enabled(bool on) { g_receive_enabled = on; }
 void enemy_set_copies_allowed(bool on) { g_copies_allowed = on; }
 void enemy_set_zone_copy_test(bool on) { g_zone_copy_test = on; }
+
+size_t enemy_copies_sent() {
+    std::lock_guard lock(g_mutex);
+    return g_sent.size();
+}
+
+size_t enemy_copies_present() {
+    size_t n = g_waiting.size();
+    for (const auto& [copy, loaded] : g_copies) n += game::find_actor(copy).has_value();
+    return n;
+}
+
+bool enemy_desync_test() {
+    if (g_copies.empty()) return false;
+    puppet_remove_actor(g_copies.begin()->first);
+    return true;
+}
 void enemy_set_keep_origin(bool on) { g_keep_origin = on; }
 
 namespace {

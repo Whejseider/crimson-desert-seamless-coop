@@ -39,6 +39,7 @@ when, which Ctrl+F12 mark). A step that could not be tried: leave both boxes emp
 | 1.6c | A alt-tabs to the desktop for a minute, comes back. | Still connected; B kept moving on A's screen after A came back. | [ ] | [ ] | |
 | 1.6d | Different versions: B installs an older Co-op+ zip (or one of you is on another game patch) and tries to join. | Both see "Can't play together: ... has Co-op+ build X on game ..., you have build Y ..." and what to install; nothing of the other appears. B reinstalls the same zip. | [ ] | [ ] | |
 | 1.6e | Drop-in mid-event: B joins (a) while A has the world map open, (b) while A fights bandits, (c) while A watches a cutscene, (d) while A is on a loading screen (fast travel), (e) during a boss fight. | Each time exactly one B appears on A's screen once A is back in the world; nothing stuck (A's menu closes normally, the cutscene ends normally, the boss fight continues). | [ ] | [ ] | |
+| 1.6f | Resync: B presses Shift+F8 (pad: hold View + RB) near A in a bandit camp. | B: "Resynchronising with <A>..."; within a few seconds A is back on B's screen once and the bandits are there once (not doubled); A sees B left and came back. | [ ] | [ ] | |
 | 1.7 | Invite-only: A sets `join=invite` under `[net]`, restarts. B tries "Join Game" without an invite. | B cannot join; with an invite (Ctrl+F1) B can. A sets `join=friends` back. | [ ] | [ ] | |
 
 ## 2. Looks and movement

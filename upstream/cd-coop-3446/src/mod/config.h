@@ -82,6 +82,7 @@ struct Config {
     uint32_t dev_quest_test = 0;     // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key
     bool dev_hunt_test = false;      // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)
     bool dev_zone_copy_test = false; // Co-op+ dev: the guest's dry-run zone is copied for real (enemy_relay.h)
+    int dev_desync_test = 0;            // Co-op+ dev: induce a desync 30 s after connecting (coop_sync.h, T06)
     uint32_t dev_fake_peer_build = 0;   // Co-op+ dev: a build-0 peer (the echo relay) counts as this build (T03)
     std::wstring dev_online_guard_test;  // Co-op+ dev: a module name the online guard also looks for (online_guard.h)
     int dev_pad_sim = 0;             // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)

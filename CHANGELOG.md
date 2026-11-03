@@ -8,6 +8,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T03: version handshake: players with different Co-op+ builds or game versions are refused with a notice naming both (protocol 11).
 - T04: reconnect / rejoin verified: 5 partner crashes in a row each clean (partner and enemy copies removed, sent again once); a long alt-tab keeps the session.
 - T05: joining while a menu is open (or any rejoin after 8 s) no longer loads the friend's character twice; drop-in during menus, loading and a fight verified.
+- T06: desync detection: enemy-copy digests every 10 s (3 off in a row = automatic resync), the friend's character reloaded if drawn 40+ m from where they are, and Shift+F8 (pad View + RB) resyncs by hand; a rare launch where the crash guards did not install (shared enemies off all session) now retries.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

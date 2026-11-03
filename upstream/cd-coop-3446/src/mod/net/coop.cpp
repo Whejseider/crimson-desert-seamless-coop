@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <format>
 #include <vector>
@@ -248,6 +249,33 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
             if (const auto& rs = session_.remote_state()) remote_spawn_->pos = rs->pos;
             missing_since_ms_ = 0;
         }
+    }
+
+    // Co-op+ (T06): the copy drawn far from where the other player says they are (events lost or ignored):
+    // load it again where they are. Not while it sits in a wrestling seat (it is drawn elsewhere on purpose).
+    constexpr float kDriftM = 40.0f;
+    constexpr uint32_t kDriftMs = 6000;
+    std::optional<proto::Vec3> drawn;
+    if (puppet_spawned() && !loading && !puppet_seated()) drawn = puppet_position();
+    const auto& reported = session_.remote_state();
+    if (drawn && reported && last_spawn_ && !remote_spawn_ && now_ms - spawned_at_ms_ > kSpawnGraceMs) {
+        const float dx = drawn->x - puppet_offset_m() - reported->pos.x, dz = drawn->z - reported->pos.z;
+        if (dx * dx + dz * dz < kDriftM * kDriftM) {
+            drift_since_ms_ = 0;
+        } else if (!drift_since_ms_) {
+            drift_since_ms_ = now_ms;
+        } else if (now_ms - drift_since_ms_ > kDriftMs) {
+            log::info("Co-op: resync: the other player's character was drawn {:.0f} m from where they are; "
+                      "loading it again there",
+                      std::sqrt(dx * dx + dz * dz));
+            remove_puppet(now_ms);
+            remote_spawn_ = last_spawn_;
+            remote_spawn_->pos = reported->pos;
+            drift_since_ms_ = 0;
+            ++resyncs_;
+        }
+    } else {
+        drift_since_ms_ = 0;
     }
 
     // Announce ourselves (again after every new load: equipment may differ).

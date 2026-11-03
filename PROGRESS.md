@@ -54,3 +54,16 @@ a minigame without focus; normal play does not pause.
   before the peer joined: it joined during the death screen, spawned once, no crash.
 - T05 status [~]: menus, title screen (dropin1), save loading (every PEER=1 run), cutscene (late2: peer joined during
   the arm wrestling intro), fight/death verified on one PC; a boss fight needs a boss -> PLAYTEST 1.6e.
+- Pushed T05 (7e4c13f).
+- T06 FINDING (desync1, 09:59): "Enemy relay: wanted but not started (its crash guards did not install)" -- on some launches shared enemies silently never start (the zone request is answered 'we do NOT relay'). dropin3 (09:48) started fine. Investigating.
+- T06 root cause so far: desync1's late init had 4 hook failures at once (layer crash guard, HorseDiag "pending
+  actions hook failed" = the head bytes matched but safetyhook could not create the hook, minimap icon hook,
+  CheckAIBattleType). Same exe as the good runs; 1 of 80 launches in build/port3479 logs. Fix: the containment +
+  layer guards are tried up to 5 times, 2 s apart (mod.cpp late init), and every failure now logs the safetyhook
+  error type / which head did not match, so a recurrence says why. (Not reproducible on demand: verify in logs.)
+- T06 done. coop_sync.* (Activity 15 digests: u16 sent | u16 present; 3 off in a row -> resync = session drop +
+  rejoin, at most one automatic per 2 min), coop.cpp drift check (copy drawn > 40 m from the reported position for
+  6 s, not while seated -> reloaded there), Resync action Shift+F8 / View + RB. Tests: desync2 ([dev] desync_test=1):
+  one copy removed behind the relay -> "13 sent, 12 here" x3 -> resync -> copies sent again; second induced desync
+  held by the 2-minute limit; Shift+F8 worked. desync3 (desync_test=2, frozen 60 s, Kliff walked 94 m): "drawn 94 m
+  from where they are; loading it again there" -> copy beside Kliff (screen desync3-after-auto).

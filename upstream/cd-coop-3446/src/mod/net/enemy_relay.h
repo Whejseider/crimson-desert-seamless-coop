@@ -98,6 +98,12 @@ void enemy_set_copies_allowed(bool on);
 // [dev] zone_copy_test: one-PC test of the guest's whole zone. The echo guest only asks for a dry run (hiding its
 // natives would hide what we copy); with this the host side copies the zone for real anyway, nothing is hidden.
 void enemy_set_zone_copy_test(bool on);
+// Co-op+ (T06) digests: copies of our enemies sent to the other player; copies of theirs in our world now (actors
+// that exist, plus the ones waiting to load). Network thread.
+size_t enemy_copies_sent();
+size_t enemy_copies_present();
+// [dev] desync_test: removes one copy of theirs from our world without telling the relay (true if there was one).
+bool enemy_desync_test();
 // Co-op+ experiment ([dev] enemy_keep_origin=1): do not strip the spawn identity (schedule, sequence,
 // camp node) from the loads we send.
 void enemy_set_keep_origin(bool on);

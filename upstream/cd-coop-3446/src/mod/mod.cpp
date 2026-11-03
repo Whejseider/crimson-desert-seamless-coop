@@ -43,6 +43,7 @@
 #include "mod/net/revive_prompt.h"
 #include "mod/net/dev_script.h"
 #include "mod/net/coop_activity.h"
+#include "mod/net/coop_sync.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
 #include "mod/net/coop_hunt.h"
@@ -685,6 +686,25 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     toast_until = now + 6000;
                 }
                 net::weather_tick(connected, host, own_pos.has_value(), own_pos, now);  // Co-op+: weather_sync.h
+                // Co-op+ (T06): digests; a resync (Shift+F8 / View + RB, or the digests out of step) drops the
+                // session and joins again: everything of the other player is removed here and sent again.
+                net::sync_tick(connected, now);
+                static input::Edge resync_key;
+                static uint32_t last_auto_resync = 0;
+                std::string why = net::sync_take_resync();
+                const bool manual = resync_key(input::action_down(input::Action::Resync, game_has_focus()));
+                if (connected && !why.empty() && last_auto_resync && now - last_auto_resync < 120000) {
+                    log::info("Sync: out of step ({}), but resynced less than 2 minutes ago; waiting", why);
+                    why.clear();
+                }
+                if (connected && (manual || !why.empty())) {
+                    if (!manual) last_auto_resync = now;
+                    log::info("Sync: resync ({}): leaving and joining again", manual ? "asked for" : why);
+                    toast = manual ? std::format("Co-op\nResynchronising with {}...", session.peer_name())
+                                   : std::format("Co-op\nOut of step with {}: resynchronising...", session.peer_name());
+                    toast_until = now + 6000;
+                    session.disconnect(now);
+                }
             }
             coop->update(pos, rot, now);
         }
@@ -1218,8 +1238,19 @@ DWORD WINAPI late_init(LPVOID param) {
         // Horse and enemy copies (the other player may send theirs at any
         // time) need the crash containment (docs/INFORME-CABALLO-CRASH.md)
         // and the action-layer guards; without them they are refused.
-        const bool contained = net::horse_diag_install(/*contain=*/true);
-        const bool guarded = contained && net::puppet_install_layer_guards();
+        // Co-op+ (T06): on 1 launch in 80 (2026-11-03, desync1) a hook here did not take and the enemy relay stayed
+        // off for the whole session; a few more tries, 2 s apart, before giving up.
+        bool contained = false, guarded = false;
+        for (int attempt = 1; attempt <= 5 && !stop_requested(); ++attempt) {
+            contained = net::horse_diag_install(/*contain=*/true);
+            guarded = contained && net::puppet_install_layer_guards();
+            if (guarded) {
+                if (attempt > 1) log::info("Crash guards installed on try {}", attempt);
+                break;
+            }
+            log::warn("Crash guards: try {} of 5 failed{}", attempt, attempt < 5 ? "; again in 2 s" : "");
+            if (attempt < 5) Sleep(2000);
+        }
         if (!contained) {
             net::puppet_set_horse_enabled(false);
             log::warn("Horse and enemy copies disabled: their crash containment could not be installed");
@@ -1469,6 +1500,7 @@ DWORD WINAPI worker(LPVOID) {
         net::duel_set_test(cfg.dev_duel_test);
         net::party_quests_set_test(cfg.dev_quest_test);
         net::hunt_set_test(cfg.dev_hunt_test);
+        net::sync_set_test(cfg.dev_desync_test);
         net::enemy_set_zone_copy_test(cfg.dev_zone_copy_test);
         input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
         input::set_sim(cfg.dev_pad_sim);

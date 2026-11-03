@@ -359,7 +359,8 @@ bool hook(const Site& site, SafetyHookMid& out, safetyhook::MidHookFn fn) {
     }
     auto h = safetyhook::MidHook::create(reinterpret_cast<void*>(base + site.rva), fn);
     if (!h) {
-        log::warn("HorseDiag: {} hook failed", site.name);
+        // Co-op+ (T06): the reason, for the rare launch where a hook does not take (1 in 80, 2026-11-03).
+        log::warn("HorseDiag: {} hook failed (safetyhook error {})", site.name, static_cast<int>(h.error().type));
         return false;
     }
     out = std::move(*h);
@@ -371,7 +372,7 @@ bool hook(const Site& site, SafetyHookMid& out, safetyhook::MidHookFn fn) {
 bool horse_diag_install(bool contain) {
     if (g_cc_hook) return true;
     g_t0 = now_ms();
-    g_ret = static_cast<uint8_t*>(VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+    if (!g_ret) g_ret = static_cast<uint8_t*>(VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
     if (!g_ret) return false;
     g_ret[0] = 0xC3;
     DWORD old = 0;

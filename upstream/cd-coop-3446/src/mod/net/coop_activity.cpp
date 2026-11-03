@@ -18,6 +18,7 @@
 #include "mod/net/boss_safe.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/coop_hunt.h"
+#include "mod/net/coop_sync.h"
 #include "mod/net/party_quests.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/puppet_visibility.h"
@@ -731,6 +732,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
         case kDuel:              // coop_duel.h, below
         case kQuest:             // party_quests.h, below
         case kHunt:              // coop_hunt.h, below
+        case 15:                 // coop_sync.h, below
             break;
         case kChallenge:  // u8 action | u32 stage key
             if (p.size() >= 10) {
@@ -777,6 +779,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
     if (p[4] == kDuel) duel_on_event(p.data() + 5, p.size() - 5);  // coop_duel.h (its own lock)
     if (p[4] == kQuest) party_quests_on_event(p.data() + 5, p.size() - 5);  // party_quests.h (its own lock)
     if (p[4] == kHunt) hunt_on_event(p.data() + 5, p.size() - 5);  // coop_hunt.h (its own lock)
+    if (p[4] == 15) sync_on_event(p.data() + 5, p.size() - 5);      // coop_sync.h (its own lock)
 }
 
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,

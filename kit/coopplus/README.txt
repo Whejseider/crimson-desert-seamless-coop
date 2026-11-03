@@ -50,6 +50,7 @@ PLAYING TOGETHER
     Shift+F6    D-pad Down                   decline / cancel
     F8          X / Square                   co-op panel
     Ctrl+F8     A / Cross                    your friend's name over their head
+    Shift+F8    RB / R1                      resync (if your friend or the enemies look wrong)
   A quick tap on View still does what it does in the game.
 - Host: press Ctrl+F1 to open the Steam overlay and invite your friend.
 - Friend: accept the invite, or right-click the host in the Steam friends list and

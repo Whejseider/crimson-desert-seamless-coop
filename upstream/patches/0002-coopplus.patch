@@ -1,5 +1,5 @@
 diff --git a/upstream/cd-coop-3446/CMakeLists.txt b/upstream/cd-coop-3446/CMakeLists.txt
-index c83acf3..ea5ead2 100644
+index c83acf3..2b28239 100644
 --- a/upstream/cd-coop-3446/CMakeLists.txt
 +++ b/upstream/cd-coop-3446/CMakeLists.txt
 @@ -87,11 +87,14 @@ configure_file(cmake/build_id.h.in ${CMAKE_BINARY_DIR}/generated/build_id.h)
@@ -17,7 +17,7 @@ index c83acf3..ea5ead2 100644
      src/mod/game/rtti.cpp
      src/mod/net/troc_sniffer.cpp
      src/mod/net/local_capture.cpp
-@@ -113,15 +116,48 @@ add_library(cdmp_mod SHARED
+@@ -113,15 +116,49 @@ add_library(cdmp_mod SHARED
      src/mod/game/game_clock.cpp
      src/mod/net/steam_transport.cpp
      src/mod/net/room_code.cpp
@@ -30,6 +30,7 @@ index c83acf3..ea5ead2 100644
 +    src/mod/net/coop_duel.cpp
 +    src/mod/net/party_quests.cpp
 +    src/mod/net/coop_hunt.cpp
++    src/mod/net/coop_sync.cpp
 +    src/mod/net/weather_sync.cpp
 +    src/mod/net/stage_cinema.cpp
 +    src/mod/net/dev_watch.cpp
@@ -66,7 +67,7 @@ index c83acf3..ea5ead2 100644
  # Only the symbol file's name goes into cdmp.asi, not the path of the PC that
  # built it (it named the user's folders).
  target_link_options(cdmp_mod PRIVATE "/PDBALTPATH:cdmp.pdb")
-@@ -156,6 +192,11 @@ if(TARGET Zydis)
+@@ -156,6 +193,11 @@ if(TARGET Zydis)
      endif()
  endif()
  
@@ -749,7 +750,7 @@ index e7d51fb..538592e 100644
  struct Bye {};
  struct Ping {
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..9d5f155 100644
+index e89d220..cb14ebe 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -826,7 +827,7 @@ index e89d220..9d5f155 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,19 +210,55 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,19 +210,56 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
@@ -853,6 +854,7 @@ index e89d220..9d5f155 100644
 +    c.dev_zone_copy_test = read_uint(ini_path, L"dev", L"zone_copy_test", 0) != 0;
 +    c.dev_online_guard_test = read_string(ini_path, L"dev", L"online_guard_test", "");
 +    c.dev_fake_peer_build = read_uint(ini_path, L"dev", L"fake_peer_build", 0);
++    c.dev_desync_test = static_cast<int>(read_uint(ini_path, L"dev", L"desync_test", 0));
 +    c.dev_rps_test = static_cast<int>(read_uint(ini_path, L"dev", L"rps_test", 0)) - 1;  // 1 scissors, 2 paper, 3 rock
 +    c.dev_cinema_test = read_uint(ini_path, L"dev", L"cinema_test", 0) != 0;
 +    c.dev_weather_test = read_uint(ini_path, L"dev", L"weather_test", 0);
@@ -887,7 +889,7 @@ index e89d220..9d5f155 100644
      c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
      c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
      c.coop_finish_arrow = read_uint(ini_path, L"coop", L"finish_arrow", 1) != 0;
-@@ -203,17 +267,20 @@ Config load_config(const std::wstring& ini_path) {
+@@ -203,17 +268,20 @@ Config load_config(const std::wstring& ini_path) {
      // Boss safety (boss_safe.h): default ON, because the failure it prevents is a
      // stuck quest in the HOST's save, not a cosmetic problem.
      c.coop_boss_safe = read_uint(ini_path, L"coop", L"boss_safe", 1) != 0;
@@ -910,7 +912,7 @@ index e89d220..9d5f155 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +293,11 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +294,11 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -923,7 +925,7 @@ index e89d220..9d5f155 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..1b8e1c7 100644
+index 3cd2ce2..b41324e 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -951,7 +953,7 @@ index 3cd2ce2..1b8e1c7 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -57,6 +68,34 @@ struct Config {
+@@ -57,6 +68,35 @@ struct Config {
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
@@ -969,6 +971,7 @@ index 3cd2ce2..1b8e1c7 100644
 +    uint32_t dev_quest_test = 0;     // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key
 +    bool dev_hunt_test = false;      // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)
 +    bool dev_zone_copy_test = false; // Co-op+ dev: the guest's dry-run zone is copied for real (enemy_relay.h)
++    int dev_desync_test = 0;            // Co-op+ dev: induce a desync 30 s after connecting (coop_sync.h, T06)
 +    uint32_t dev_fake_peer_build = 0;   // Co-op+ dev: a build-0 peer (the echo relay) counts as this build (T03)
 +    std::wstring dev_online_guard_test;  // Co-op+ dev: a module name the online guard also looks for (online_guard.h)
 +    int dev_pad_sim = 0;             // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)
@@ -986,7 +989,7 @@ index 3cd2ce2..1b8e1c7 100644
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
-@@ -66,7 +105,7 @@ struct Config {
+@@ -66,7 +106,7 @@ struct Config {
      float coop_offset_m = 0.0f;    // sideways offset of the remote character
      // Experimental, off by default: the copy's horse is not created by the
      // client (owned load) or crashes the game (ownerless load); live tests 1-2.
@@ -995,7 +998,7 @@ index 3cd2ce2..1b8e1c7 100644
      // Works since the copy got its own character number (live test 3).
      bool coop_equip = true;        // relay equipment changes
      // Mirrored damage: each world keeps its enemies; hits by the other player
-@@ -85,7 +124,7 @@ struct Config {
+@@ -85,7 +125,7 @@ struct Config {
      int coop_minimap_icon = 0x124;
      // Our enemies may attack the other player's copy (aggro_test.h). Off
      // until the hits reach the other player and they see our enemies.
@@ -1004,7 +1007,7 @@ index 3cd2ce2..1b8e1c7 100644
      // The other player's blows on the copies of our enemies hurt them
      // (guest_hits.h). Off until tested with two players.
      bool coop_guest_hits = false;
-@@ -94,15 +133,19 @@ struct Config {
+@@ -94,15 +134,19 @@ struct Config {
      bool coop_guest_hit_stagger = false;
      // Our player reacts (stagger, knock-down) to the other player's enemies'
      // blows on our copy over there: experimental until tested.
@@ -1028,7 +1031,7 @@ index 3cd2ce2..1b8e1c7 100644
      // Host: copies of our enemies that fight go to the guest on their own
      // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
      bool coop_enemy_auto = true;
-@@ -125,6 +168,9 @@ struct Config {
+@@ -125,6 +169,9 @@ struct Config {
      // does the finish, which is what advances its script. Off restores the old
      // behaviour exactly, for comparison.
      bool coop_boss_safe = true;
@@ -1038,7 +1041,7 @@ index 3cd2ce2..1b8e1c7 100644
      // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
      // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
      int coop_enemy_minimap_icon = 0x10A;
-@@ -146,6 +192,14 @@ struct Config {
+@@ -146,6 +193,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -1974,10 +1977,10 @@ index 0000000..1043dc5
 +}  // namespace cdmp::game
 diff --git a/upstream/cd-coop-3446/src/mod/input/actions.cpp b/upstream/cd-coop-3446/src/mod/input/actions.cpp
 new file mode 100644
-index 0000000..31103f7
+index 0000000..3f13bd7
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/input/actions.cpp
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,55 @@
 +#include "mod/input/actions.h"
 +
 +#include <windows.h>
@@ -2005,6 +2008,7 @@ index 0000000..31103f7
 +    {"Mash", 'E', false, false, kPadFace, kPadA, false},
 +    {"MenuPrev", VK_LEFT, false, false, kPadLeft, kPadLeft, false},
 +    {"MenuNext", VK_RIGHT, false, false, kPadRight, kPadRight, false},
++    {"Resync", VK_F8, false, true, kPadRB, kPadRB, true},
 +};
 +static_assert(std::size(kBindings) == static_cast<size_t>(Action::Count));
 +
@@ -2034,7 +2038,7 @@ index 0000000..31103f7
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/input/actions.h b/upstream/cd-coop-3446/src/mod/input/actions.h
 new file mode 100644
-index 0000000..e962323
+index 0000000..156db9c
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/input/actions.h
 @@ -0,0 +1,57 @@
@@ -2047,7 +2051,7 @@ index 0000000..e962323
 +// Controller layout. The game uses every button (Game8 controls list, docs/research/progression.md), so the co-op
 +// actions are chords: hold View (Xbox) / the touchpad button or Create (PlayStation), then press
 +//   Y/Triangle invite   B/Circle leave   D-pad Left ping   D-pad Right go to friend
-+//   D-pad Up challenge / accept / end   D-pad Down decline   X/Square panel   A/Cross name tags
++//   D-pad Up challenge / accept / end   D-pad Down decline   X/Square panel   A/Cross name tags   RB/R1 resync
 +// A tap on View still reaches the game (camera). In a Co-op+ box the plain buttons answer it:
 +//   revive  X/Square instant, Y/Triangle checkpoint     rock-paper-scissors  X scissors, Y paper, B rock
 +//   cutscene skip  Start/Options or B                   arm wrestling mash  any face button
@@ -2060,7 +2064,7 @@ index 0000000..e962323
 +
 +enum class Action : uint8_t {
 +    Invite, Leave, Ping, GoToFriend, Challenge, Decline, Panel, Nameplates,
-+    ReviveNow, ReviveCheckpoint, RpsScissors, RpsPaper, RpsRock, Skip, Mash, MenuPrev, MenuNext,
++    ReviveNow, ReviveCheckpoint, RpsScissors, RpsPaper, RpsRock, Skip, Mash, MenuPrev, MenuNext, Resync,
 +    Count
 +};
 +
@@ -2489,7 +2493,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..f6588e8 100644
+index 79ccd06..d335bdb 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,9 +1,13 @@
@@ -2524,13 +2528,14 @@ index 79ccd06..f6588e8 100644
  #include "mod/net/local_capture.h"
  #include "mod/net/guest_hits.h"
  #include "mod/net/loot_twin.h"
-@@ -31,13 +40,27 @@
+@@ -31,13 +40,28 @@
  #include "mod/net/player_hits.h"
  #include "mod/net/puppet_minimap.h"
  #include "mod/net/remote_puppet.h"
 +#include "mod/net/revive_prompt.h"
 +#include "mod/net/dev_script.h"
 +#include "mod/net/coop_activity.h"
++#include "mod/net/coop_sync.h"
 +#include "mod/net/coop_duel.h"
 +#include "mod/net/party_quests.h"
 +#include "mod/net/coop_hunt.h"
@@ -2552,7 +2557,7 @@ index 79ccd06..f6588e8 100644
  
  #pragma comment(lib, "version.lib")
  
-@@ -100,6 +123,16 @@ std::string file_version(const std::wstring& path) {
+@@ -100,6 +124,16 @@ std::string file_version(const std::wstring& path) {
  
  // Facts that identify the exact game build. Every offset/signature we find
  // later is only valid for one build, so the log must always say which one.
@@ -2569,7 +2574,7 @@ index 79ccd06..f6588e8 100644
  bool log_process_info() {
      const std::wstring exe = module_path(nullptr);
      const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-@@ -138,7 +171,7 @@ public:
+@@ -138,7 +172,7 @@ public:
      explicit LocalSource(bool in_game) : in_game_(in_game) {
          if (!in_game_) return;
          if (reader_.init()) {
@@ -2578,7 +2583,7 @@ index 79ccd06..f6588e8 100644
          } else {
              log::warn("Game reader DISABLED: {}. Only networking will run.",
                        reader_.last_failure());
-@@ -188,10 +221,37 @@ private:
+@@ -188,10 +222,37 @@ private:
      std::string status_;
  };
  
@@ -2618,7 +2623,7 @@ index 79ccd06..f6588e8 100644
      }
  
      // A guest knows whom to talk to; a host learns it from the first Hello.
-@@ -203,6 +263,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -203,6 +264,8 @@ void run_network(const Config& cfg, LocalSource& local) {
      // needs a moment to join the lobby and see the host field).
      bool room_code_pending = false;
      std::string room_code_text;
@@ -2627,7 +2632,7 @@ index 79ccd06..f6588e8 100644
      bool room_failed_logged = false;
      // The host's lobby creation is retried in the loop for the same reason: this
      // point in startup is reached BEFORE the save finishes loading (the mod loads
-@@ -216,7 +278,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -216,7 +279,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          if (!local.in_game()) {
              log::error("The Steam transport only works inside the game");
              net::cleanup();
@@ -2636,7 +2641,7 @@ index 79ccd06..f6588e8 100644
          }
          auto st = std::make_unique<net::SteamTransport>(cfg.steam_channel, host, cfg.steam_peer_id);
          steam = st.get();
-@@ -225,7 +287,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -225,7 +288,14 @@ void run_network(const Config& cfg, LocalSource& local) {
          // creates the lobby and reads the code out; the guest resolves the
          // host's SteamID64 from it. If anything fails, the old paths
          // (peer_steamid, then the "only friend playing" scan) still work.
@@ -2652,7 +2657,7 @@ index 79ccd06..f6588e8 100644
              if (host) {
                  // One attempt now, and the loop retries if it does not take.
                  //
-@@ -278,19 +347,19 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -278,19 +348,19 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!ep->is_loopback()) {
                  log::error("UDP only connects within this PC (tests); to play with someone use transport=steam");
                  net::cleanup();
@@ -2675,7 +2680,7 @@ index 79ccd06..f6588e8 100644
          }
          transport = std::move(udp);
      }
-@@ -304,7 +373,12 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -304,7 +374,12 @@ void run_network(const Config& cfg, LocalSource& local) {
          },
          [](const std::string& text) { log::info("Session: {}", text); },
          host ? ClientSession::Role::Responder : ClientSession::Role::Initiator);
@@ -2688,7 +2693,7 @@ index 79ccd06..f6588e8 100644
      uint32_t peer_since = 0;  // host: when it locked onto its player
      uint32_t last_friend_scan = 0;
      size_t last_friend_count = SIZE_MAX;
-@@ -327,10 +401,80 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -327,10 +402,80 @@ void run_network(const Config& cfg, LocalSource& local) {
      bool mark_was_down = false;
      int marks = 0;
      std::vector<uint8_t> buf(proto::kMaxPacketSize);
@@ -2769,7 +2774,7 @@ index 79ccd06..f6588e8 100644
          // The host's lobby, retried until it takes. Startup runs before the save is
          // loaded, so the first attempt reliably fails on a cold start; without this
          // the host never gets a room code at all and the guest has nothing to type.
-@@ -363,7 +507,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -363,7 +508,8 @@ void run_network(const Config& cfg, LocalSource& local) {
              last_friend_scan = now_ms();
              // A room code wins over the friends scan: it names one host exactly.
              if (room_code_pending) {
@@ -2779,7 +2784,7 @@ index 79ccd06..f6588e8 100644
                  if (host_id) {
                      peer = net::PeerAddr::steam(host_id);
                      steam->set_peer(host_id);
-@@ -403,7 +548,13 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -403,7 +549,13 @@ void run_network(const Config& cfg, LocalSource& local) {
                  // Only a Hello of our protocol: one of another version would
                  // never connect and would keep the place (security review M2).
                  auto packet = proto::decode({buf.data(), *n});
@@ -2794,7 +2799,7 @@ index 79ccd06..f6588e8 100644
                      std::holds_alternative<proto::Hello>(packet->body)) {
                      peer = from;
                      peer_since = now_ms();
-@@ -417,6 +568,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -417,6 +569,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          const uint32_t now = now_ms();
          session.tick(now);
          const bool connected = session.state() == ClientSession::State::Connected;
@@ -2802,7 +2807,7 @@ index 79ccd06..f6588e8 100644
          if (host && was_connected && !connected && peer) {
              log::info("Network: {} left; waiting for a player", peer->str());
              peer.reset();
-@@ -426,13 +578,113 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -426,13 +579,132 @@ void run_network(const Config& cfg, LocalSource& local) {
              peer.reset();
              if (steam) steam->set_peer(0);
          }
@@ -2913,10 +2918,29 @@ index 79ccd06..f6588e8 100644
 +                    toast_until = now + 6000;
 +                }
 +                net::weather_tick(connected, host, own_pos.has_value(), own_pos, now);  // Co-op+: weather_sync.h
++                // Co-op+ (T06): digests; a resync (Shift+F8 / View + RB, or the digests out of step) drops the
++                // session and joins again: everything of the other player is removed here and sent again.
++                net::sync_tick(connected, now);
++                static input::Edge resync_key;
++                static uint32_t last_auto_resync = 0;
++                std::string why = net::sync_take_resync();
++                const bool manual = resync_key(input::action_down(input::Action::Resync, game_has_focus()));
++                if (connected && !why.empty() && last_auto_resync && now - last_auto_resync < 120000) {
++                    log::info("Sync: out of step ({}), but resynced less than 2 minutes ago; waiting", why);
++                    why.clear();
++                }
++                if (connected && (manual || !why.empty())) {
++                    if (!manual) last_auto_resync = now;
++                    log::info("Sync: resync ({}): leaving and joining again", manual ? "asked for" : why);
++                    toast = manual ? std::format("Co-op\nResynchronising with {}...", session.peer_name())
++                                   : std::format("Co-op\nOut of step with {}: resynchronising...", session.peer_name());
++                    toast_until = now + 6000;
++                    session.disconnect(now);
++                }
              }
              coop->update(pos, rot, now);
          }
-@@ -449,14 +701,19 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -449,14 +721,19 @@ void run_network(const Config& cfg, LocalSource& local) {
              hud.local_status = local.status();
              hud.remote = session.remote_state();
              hud.peer_problem = session.peer_problem();
@@ -2937,7 +2961,7 @@ index 79ccd06..f6588e8 100644
                  hud.boss_active = true;
                  hud.boss_name = b.name;
                  hud.boss_hp = b.hp;
-@@ -475,6 +732,55 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +752,55 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -2993,7 +3017,7 @@ index 79ccd06..f6588e8 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -491,6 +797,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,6 +817,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                  remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                       rs->pos.z, rs->health);
              }
@@ -3008,7 +3032,7 @@ index 79ccd06..f6588e8 100644
              log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | remote states {} | "
                        "last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
                        state, st.sent, st.received, st.rejected, st.rtt_ms, st.remote_states, remote,
-@@ -498,7 +812,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -498,7 +832,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                        transport->status());
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
@@ -3023,7 +3047,7 @@ index 79ccd06..f6588e8 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +830,108 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +850,108 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -3133,7 +3157,7 @@ index 79ccd06..f6588e8 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +1033,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +1053,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -3142,7 +3166,7 @@ index 79ccd06..f6588e8 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +1087,7 @@ void combat_test_loop() {
+@@ -669,7 +1107,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -3151,7 +3175,7 @@ index 79ccd06..f6588e8 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +1105,7 @@ void combat_test_loop() {
+@@ -687,7 +1125,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -3160,7 +3184,7 @@ index 79ccd06..f6588e8 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1170,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1190,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -3169,7 +3193,7 @@ index 79ccd06..f6588e8 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1184,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1204,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -3177,7 +3201,7 @@ index 79ccd06..f6588e8 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,6 +1213,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,12 +1233,24 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -3185,7 +3209,26 @@ index 79ccd06..f6588e8 100644
          net::puppet_install_rope_bend();
          // Horse and enemy copies (the other player may send theirs at any
          // time) need the crash containment (docs/INFORME-CABALLO-CRASH.md)
-@@ -902,22 +1322,79 @@ DWORD WINAPI late_init(LPVOID param) {
+         // and the action-layer guards; without them they are refused.
+-        const bool contained = net::horse_diag_install(/*contain=*/true);
+-        const bool guarded = contained && net::puppet_install_layer_guards();
++        // Co-op+ (T06): on 1 launch in 80 (2026-11-03, desync1) a hook here did not take and the enemy relay stayed
++        // off for the whole session; a few more tries, 2 s apart, before giving up.
++        bool contained = false, guarded = false;
++        for (int attempt = 1; attempt <= 5 && !stop_requested(); ++attempt) {
++            contained = net::horse_diag_install(/*contain=*/true);
++            guarded = contained && net::puppet_install_layer_guards();
++            if (guarded) {
++                if (attempt > 1) log::info("Crash guards installed on try {}", attempt);
++                break;
++            }
++            log::warn("Crash guards: try {} of 5 failed{}", attempt, attempt < 5 ? "; again in 2 s" : "");
++            if (attempt < 5) Sleep(2000);
++        }
+         if (!contained) {
+             net::puppet_set_horse_enabled(false);
+             log::warn("Horse and enemy copies disabled: their crash containment could not be installed");
+@@ -902,22 +1353,79 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -3265,7 +3308,7 @@ index 79ccd06..f6588e8 100644
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
                    cfg.coop_enabled ? "on" : "off");
-@@ -925,7 +1402,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1433,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -3274,7 +3317,7 @@ index 79ccd06..f6588e8 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -956,6 +1433,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -956,6 +1464,7 @@ DWORD WINAPI worker(LPVOID) {
                    cfg.coop_suppress_lab ? ", suppressed by suppress_lab=1 (the one-PC lab)" : "");
          log::info("Config: time sync {}", cfg.coop_time_sync == 1   ? "send ours"
                                            : cfg.coop_time_sync == 2 ? "take the other player's"
@@ -3282,7 +3325,7 @@ index 79ccd06..f6588e8 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1447,39 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1478,40 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3308,6 +3351,7 @@ index 79ccd06..f6588e8 100644
 +        net::duel_set_test(cfg.dev_duel_test);
 +        net::party_quests_set_test(cfg.dev_quest_test);
 +        net::hunt_set_test(cfg.dev_hunt_test);
++        net::sync_set_test(cfg.dev_desync_test);
 +        net::enemy_set_zone_copy_test(cfg.dev_zone_copy_test);
 +        input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
 +        input::set_sim(cfg.dev_pad_sim);
@@ -3322,7 +3366,7 @@ index 79ccd06..f6588e8 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1531,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1563,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3356,7 +3400,7 @@ index 79ccd06..f6588e8 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1554,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1586,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3368,7 +3412,7 @@ index 79ccd06..f6588e8 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1579,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1611,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -3995,17 +4039,22 @@ index fb35bad..3d19d34 100644
  
  }  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop.cpp b/upstream/cd-coop-3446/src/mod/net/coop.cpp
-index 3bdc2c5..38a4d88 100644
+index 3bdc2c5..b286179 100644
 --- a/upstream/cd-coop-3446/src/mod/net/coop.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/coop.cpp
-@@ -1,4 +1,6 @@
+@@ -1,8 +1,11 @@
  #include "mod/net/coop.h"
 +#include "mod/net/coop_activity.h"
 +#include "mod/net/weather_sync.h"
  
  #include <algorithm>
  #include <atomic>
-@@ -25,6 +27,8 @@ namespace cdmp::net {
+ #include <chrono>
++#include <cmath>
+ #include <cstring>
+ #include <format>
+ #include <vector>
+@@ -25,6 +28,8 @@ namespace cdmp::net {
  namespace {
  
  std::atomic<bool> g_ready{false};
@@ -4014,7 +4063,7 @@ index 3bdc2c5..38a4d88 100644
  constexpr size_t kMaxOutbox = 4096;            // ~1 s of events; more means the link is stuck
  constexpr uint32_t kRespawnAfterRemoveMs = 1500;  // let the old copy fade out first
  constexpr uint32_t kInWorldGraceMs = 500;        // a missing position read shorter than this is ignored
-@@ -49,7 +53,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
+@@ -49,7 +54,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
      if (ev.payload.size() < 2) return false;
      uint16_t op = 0;
      std::memcpy(&op, ev.payload.data(), 2);
@@ -4023,7 +4072,7 @@ index 3bdc2c5..38a4d88 100644
          if (r.op == op) return r.reliable;
      }
      return false;
-@@ -58,6 +62,8 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
+@@ -58,6 +63,8 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
  }  // namespace
  
  void coop_set_ready() { g_ready = true; }
@@ -4032,7 +4081,7 @@ index 3bdc2c5..38a4d88 100644
  
  CoopLink::CoopLink(ClientSession& session, uint32_t delay_ms, float offset_m, bool map_pin)
      : session_(session), delay_ms_(delay_ms), offset_m_(offset_m), map_pin_(map_pin) {
-@@ -146,6 +152,9 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
+@@ -146,6 +153,9 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
                  std::memcpy(b.data(), &seq, 4);
                  std::memcpy(b.data() + 4, ev.payload.data(), ev.payload.size());
                  session_.send_reliable(equip ? proto::RelKind::Equip : proto::RelKind::Relay, b, now_ms);
@@ -4042,7 +4091,41 @@ index 3bdc2c5..38a4d88 100644
              } else {
                  session_.send_event(std::move(ev), now_ms);
              }
-@@ -268,7 +277,8 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
+@@ -241,6 +251,33 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
+         }
+     }
+ 
++    // Co-op+ (T06): the copy drawn far from where the other player says they are (events lost or ignored):
++    // load it again where they are. Not while it sits in a wrestling seat (it is drawn elsewhere on purpose).
++    constexpr float kDriftM = 40.0f;
++    constexpr uint32_t kDriftMs = 6000;
++    std::optional<proto::Vec3> drawn;
++    if (puppet_spawned() && !loading && !puppet_seated()) drawn = puppet_position();
++    const auto& reported = session_.remote_state();
++    if (drawn && reported && last_spawn_ && !remote_spawn_ && now_ms - spawned_at_ms_ > kSpawnGraceMs) {
++        const float dx = drawn->x - puppet_offset_m() - reported->pos.x, dz = drawn->z - reported->pos.z;
++        if (dx * dx + dz * dz < kDriftM * kDriftM) {
++            drift_since_ms_ = 0;
++        } else if (!drift_since_ms_) {
++            drift_since_ms_ = now_ms;
++        } else if (now_ms - drift_since_ms_ > kDriftMs) {
++            log::info("Co-op: resync: the other player's character was drawn {:.0f} m from where they are; "
++                      "loading it again there",
++                      std::sqrt(dx * dx + dz * dz));
++            remove_puppet(now_ms);
++            remote_spawn_ = last_spawn_;
++            remote_spawn_->pos = reported->pos;
++            drift_since_ms_ = 0;
++            ++resyncs_;
++        }
++    } else {
++        drift_since_ms_ = 0;
++    }
++
+     // Announce ourselves (again after every new load: equipment may differ).
+     const uint32_t gen = capture_template_generation();
+     if (gen != seen_generation_) {
+@@ -268,7 +305,8 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
      }
  
      // Load the other player once we are in the world ourselves.
@@ -4052,7 +4135,7 @@ index 3bdc2c5..38a4d88 100644
          if (puppet_spawned()) {
              remove_puppet(now_ms);
              return;
-@@ -474,6 +484,30 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
+@@ -474,6 +512,30 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
          if (local_in_world_) time_sync_on_event(ev);
          return;
      }
@@ -4083,7 +4166,7 @@ index 3bdc2c5..38a4d88 100644
      if (ev.kind == proto::EventKind::GuestHit) {  // about our enemies
          if (local_in_world_) guest_hits_on_event(ev, delay_ms_);
          return;
-@@ -533,6 +567,10 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
+@@ -533,6 +595,10 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
          last_spawn_ = *info;
          remote_spawn_ = std::move(*info);
          remote_silent_ = false;
@@ -4095,7 +4178,7 @@ index 3bdc2c5..38a4d88 100644
          if (msg.bytes.size() < 4 || msg.bytes.size() > 4 + proto::kMaxEventPayload) return;
          uint32_t seq = 0;
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop.h b/upstream/cd-coop-3446/src/mod/net/coop.h
-index a328bc0..695a4fb 100644
+index a328bc0..5778775 100644
 --- a/upstream/cd-coop-3446/src/mod/net/coop.h
 +++ b/upstream/cd-coop-3446/src/mod/net/coop.h
 @@ -21,6 +21,10 @@ namespace cdmp::net {
@@ -4109,12 +4192,21 @@ index a328bc0..695a4fb 100644
  
  class CoopLink {
  public:
+@@ -96,6 +100,8 @@ private:
+     // the copy still exists and reload it when it vanished.
+     uint32_t spawned_at_ms_ = 0;
+     uint32_t missing_since_ms_ = 0;
++    uint32_t drift_since_ms_ = 0;  // Co-op+ (T06): the copy drawn far from the reported position since
++    uint32_t resyncs_ = 0;
+ 
+     // Equipment and state relays go reliably but the channel does not keep
+     // order (a resent ApplyBuff could land after its Unapply), so they carry
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..9354c1f
+index 0000000..1dc2a31
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,926 @@
+@@ -0,0 +1,929 @@
 +#include "mod/net/coop_activity.h"
 +#include "mod/input/actions.h"
 +#include "mod/input/pad_input.h"
@@ -4135,6 +4227,7 @@ index 0000000..9354c1f
 +#include "mod/net/boss_safe.h"
 +#include "mod/net/coop_duel.h"
 +#include "mod/net/coop_hunt.h"
++#include "mod/net/coop_sync.h"
 +#include "mod/net/party_quests.h"
 +#include "mod/net/local_capture.h"
 +#include "mod/net/puppet_visibility.h"
@@ -4848,6 +4941,7 @@ index 0000000..9354c1f
 +        case kDuel:              // coop_duel.h, below
 +        case kQuest:             // party_quests.h, below
 +        case kHunt:              // coop_hunt.h, below
++        case 15:                 // coop_sync.h, below
 +            break;
 +        case kChallenge:  // u8 action | u32 stage key
 +            if (p.size() >= 10) {
@@ -4894,6 +4988,7 @@ index 0000000..9354c1f
 +    if (p[4] == kDuel) duel_on_event(p.data() + 5, p.size() - 5);  // coop_duel.h (its own lock)
 +    if (p[4] == kQuest) party_quests_on_event(p.data() + 5, p.size() - 5);  // party_quests.h (its own lock)
 +    if (p[4] == kHunt) hunt_on_event(p.data() + 5, p.size() - 5);  // coop_hunt.h (its own lock)
++    if (p[4] == 15) sync_on_event(p.data() + 5, p.size() - 5);      // coop_sync.h (its own lock)
 +}
 +
 +ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
@@ -5875,6 +5970,147 @@ index 0000000..411c61f
 +bool hunt_dev_kill();
 +
 +}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/coop_sync.cpp b/upstream/cd-coop-3446/src/mod/net/coop_sync.cpp
+new file mode 100644
+index 0000000..ceb7276
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/coop_sync.cpp
+@@ -0,0 +1,98 @@
++#include "mod/net/coop_sync.h"
++
++#include <windows.h>
++
++#include <atomic>
++#include <cstring>
++#include <format>
++#include <mutex>
++#include <utility>
++#include <vector>
++
++#include "mod/log.h"
++#include "mod/net/coop_activity.h"
++#include "mod/net/enemy_relay.h"
++#include "mod/net/remote_puppet.h"
++
++namespace cdmp::net {
++namespace {
++
++constexpr uint8_t kSyncType = 15;  // Activity event type: u16 copies we sent | u16 copies of theirs present here
++constexpr uint32_t kDigestMs = 10000;
++constexpr int kMismatches = 3;     // digests in a row (30 s: copies in flight settle well before)
++constexpr uint32_t kTestAfterMs = 30000;
++
++std::mutex g_mutex;
++bool g_was_connected = false;
++uint32_t g_connected_at = 0, g_last_digest = 0;
++int g_misses = 0;
++std::string g_resync;
++bool g_test_done = false;
++std::atomic<int> g_test{0};
++
++}  // namespace
++
++void sync_set_test(int mode) { g_test = mode; }
++
++void sync_tick(bool connected, uint32_t now) {
++    std::vector<uint8_t> digest;
++    bool induce = false;
++    {
++        std::lock_guard lock(g_mutex);
++        if (connected != g_was_connected) {
++            g_was_connected = connected;
++            g_connected_at = now;
++            g_last_digest = now;
++            g_misses = 0;
++            g_test_done = false;
++        }
++        if (!connected) return;
++        if (now - g_last_digest >= kDigestMs) {
++            g_last_digest = now;
++            const auto sent = static_cast<uint16_t>(enemy_copies_sent());
++            const auto present = static_cast<uint16_t>(enemy_copies_present());
++            digest.resize(4);
++            std::memcpy(digest.data(), &sent, 2);
++            std::memcpy(digest.data() + 2, &present, 2);
++        }
++        if (g_test.load() > 0 && !g_test_done && now - g_connected_at >= kTestAfterMs) {
++            g_test_done = true;
++            induce = true;
++        }
++    }
++    if (!digest.empty()) activity_send(kSyncType, digest);
++    if (induce) {
++        const bool both = g_test.load() == 1;
++        const bool removed = both && enemy_desync_test();
++        puppet_set_frozen_ms(both ? 25000 : 60000);
++        log::info("Sync: [dev] desync induced (enemy copy removed: {}, the other player's character frozen {} s)",
++                  removed ? "yes" : "no", both ? 25 : 60);
++    }
++}
++
++void sync_on_event(const uint8_t* d, size_t n) {
++    if (n < 4) return;
++    uint16_t their_sent = 0;
++    std::memcpy(&their_sent, d, 2);
++    const size_t present = enemy_copies_present();
++    std::lock_guard lock(g_mutex);
++    if (their_sent == present) {
++        if (g_misses) log::info("Sync: enemy copies in step again ({})", present);
++        g_misses = 0;
++        return;
++    }
++    ++g_misses;
++    log::info("Sync: the other player sent {} enemy copies, {} are here ({} digest{} in a row)", their_sent, present,
++              g_misses, g_misses == 1 ? "" : "s");
++    if (g_misses >= kMismatches && g_resync.empty()) {
++        g_resync = std::format("their enemies: {} sent, {} here", their_sent, present);
++        g_misses = 0;
++    }
++}
++
++std::string sync_take_resync() {
++    std::lock_guard lock(g_mutex);
++    return std::exchange(g_resync, {});
++}
++
++}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/coop_sync.h b/upstream/cd-coop-3446/src/mod/net/coop_sync.h
+new file mode 100644
+index 0000000..e84a9b3
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/coop_sync.h
+@@ -0,0 +1,31 @@
++#pragma once
++// Co-op+ (roadmap T06): desync detection and resync.
++//
++// Every kDigestMs each side sends a digest (Activity type 15): how many enemy copies it sent the other player and how
++// many copies of the other player's enemies it has in its world right now (loaded, or waiting to load). When the
++// other side's "sent" and our "present" disagree on kMismatches digests in a row, we ask for a resync: the session is
++// dropped and joined again (the reconnection path verified in T04: every copy removed, sent again once). The other
++// player's character drawn far from where they say they are is reloaded locally (coop.cpp). Time and weather are
++// resent all the time by their own modules. A manual resync is the Resync action (Shift+F8 / View + RB).
++
++#include <cstddef>
++#include <cstdint>
++#include <string>
++
++namespace cdmp::net {
++
++// Network loop, every tick.
++void sync_tick(bool connected, uint32_t now_ms);
++
++// Activity type 15 from the other player.
++void sync_on_event(const uint8_t* data, size_t n);
++
++// A resync the digests asked for ("" = none): the reason, once.
++std::string sync_take_resync();
++
++// [dev] desync_test: 30 s after each connection, 1 = one copy of the other player's enemies is removed from our
++// world behind the relay's back and the other player's character stops following them for 25 s; 2 = only the
++// character, frozen for 60 s (the drift check).
++void sync_set_test(int mode);
++
++}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/dev_script.cpp b/upstream/cd-coop-3446/src/mod/net/dev_script.cpp
 new file mode 100644
 index 0000000..af18203
@@ -6281,7 +6517,7 @@ index 0000000..5496f86
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
-index 72da385..ff908f4 100644
+index 72da385..3f49293 100644
 --- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 @@ -1,4 +1,5 @@
@@ -6503,17 +6739,34 @@ index 72da385..ff908f4 100644
              ++it;
              continue;
          }
-@@ -1910,6 +1941,9 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
+@@ -1910,6 +1941,26 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
  }
  
  void enemy_set_receive_enabled(bool on) { g_receive_enabled = on; }
 +void enemy_set_copies_allowed(bool on) { g_copies_allowed = on; }
 +void enemy_set_zone_copy_test(bool on) { g_zone_copy_test = on; }
++
++size_t enemy_copies_sent() {
++    std::lock_guard lock(g_mutex);
++    return g_sent.size();
++}
++
++size_t enemy_copies_present() {
++    size_t n = g_waiting.size();
++    for (const auto& [copy, loaded] : g_copies) n += game::find_actor(copy).has_value();
++    return n;
++}
++
++bool enemy_desync_test() {
++    if (g_copies.empty()) return false;
++    puppet_remove_actor(g_copies.begin()->first);
++    return true;
++}
 +void enemy_set_keep_origin(bool on) { g_keep_origin = on; }
  
  namespace {
  // Dead copies whose loot is still ours to take: removed when looted or after
-@@ -1932,6 +1966,14 @@ void remove_copy_now(uint32_t copy) {
+@@ -1932,6 +1983,14 @@ void remove_copy_now(uint32_t copy) {
  
  void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
      if (bytes.size() < 12) return;
@@ -6528,7 +6781,7 @@ index 72da385..ff908f4 100644
      if (!g_receive_enabled) {
          static bool told = false;
          if (!told) log::warn("Enemy relay: the other player's enemy copies are refused (no crash guards)");
-@@ -1979,6 +2021,11 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
+@@ -1979,6 +2038,11 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
          }
          return;
      }
@@ -6541,7 +6794,7 @@ index 72da385..ff908f4 100644
      load_waiting();
  }
 diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.h b/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
-index b09873f..461c438 100644
+index b09873f..ac3478f 100644
 --- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
 +++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
 @@ -34,6 +34,8 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size);
@@ -6553,7 +6806,7 @@ index b09873f..461c438 100644
  uint32_t enemy_copy_of(uint32_t key);
  // The reverse: our enemy behind one of the copies we announced, 0 if none.
  uint32_t enemy_original_of(uint32_t copy);
-@@ -90,6 +92,15 @@ std::vector<proto::GameEvent> enemy_host_tick();
+@@ -90,6 +92,21 @@ std::vector<proto::GameEvent> enemy_host_tick();
  // Copies of the other player's enemies are loaded only once their crash
  // guards are installed (mod.cpp).
  void enemy_set_receive_enabled(bool on);
@@ -6563,6 +6816,12 @@ index b09873f..461c438 100644
 +// [dev] zone_copy_test: one-PC test of the guest's whole zone. The echo guest only asks for a dry run (hiding its
 +// natives would hide what we copy); with this the host side copies the zone for real anyway, nothing is hidden.
 +void enemy_set_zone_copy_test(bool on);
++// Co-op+ (T06) digests: copies of our enemies sent to the other player; copies of theirs in our world now (actors
++// that exist, plus the ones waiting to load). Network thread.
++size_t enemy_copies_sent();
++size_t enemy_copies_present();
++// [dev] desync_test: removes one copy of theirs from our world without telling the relay (true if there was one).
++bool enemy_desync_test();
 +// Co-op+ experiment ([dev] enemy_keep_origin=1): do not strip the spawn identity (schedule, sequence,
 +// camp node) from the loads we send.
 +void enemy_set_keep_origin(bool on);
@@ -6710,7 +6969,7 @@ index e4adaaf..cd15a17 100644
  // Sniffer writer thread.
  void guest_hits_observe_c2s(const uint8_t* packet, size_t size);
 diff --git a/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp b/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp
-index 9d5bf8c..ab166a4 100644
+index 9d5bf8c..2c06c6b 100644
 --- a/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/horse_diag.cpp
 @@ -15,7 +15,7 @@
@@ -6829,7 +7088,26 @@ index 9d5bf8c..ab166a4 100644
          ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
      }
  }
-@@ -330,12 +398,16 @@ bool horse_diag_install(bool contain) {
+@@ -291,7 +359,8 @@ bool hook(const Site& site, SafetyHookMid& out, safetyhook::MidHookFn fn) {
+     }
+     auto h = safetyhook::MidHook::create(reinterpret_cast<void*>(base + site.rva), fn);
+     if (!h) {
+-        log::warn("HorseDiag: {} hook failed", site.name);
++        // Co-op+ (T06): the reason, for the rare launch where a hook does not take (1 in 80, 2026-11-03).
++        log::warn("HorseDiag: {} hook failed (safetyhook error {})", site.name, static_cast<int>(h.error().type));
+         return false;
+     }
+     out = std::move(*h);
+@@ -303,7 +372,7 @@ bool hook(const Site& site, SafetyHookMid& out, safetyhook::MidHookFn fn) {
+ bool horse_diag_install(bool contain) {
+     if (g_cc_hook) return true;
+     g_t0 = now_ms();
+-    g_ret = static_cast<uint8_t*>(VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
++    if (!g_ret) g_ret = static_cast<uint8_t*>(VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+     if (!g_ret) return false;
+     g_ret[0] = 0xC3;
+     DWORD old = 0;
+@@ -330,12 +399,16 @@ bool horse_diag_install(bool contain) {
      // Partial installs are now torn down rather than left half-armed, because a
      // containment that fires on some paths and not others is worse than none: it makes
      // the failure intermittent instead of reproducible.
@@ -6848,7 +7126,7 @@ index 9d5bf8c..ab166a4 100644
          return false;
      }
      g_contain = contain;
-@@ -350,7 +422,9 @@ void horse_diag_watch(uint32_t key) {
+@@ -350,7 +423,9 @@ void horse_diag_watch(uint32_t key) {
  
  void horse_diag_tick() {
      static uint64_t logged = 0, logged_post = 0, last = 0;
@@ -14364,7 +14642,7 @@ index 0000000..e100785
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
-index 1754b2d..8c27206 100644
+index 1754b2d..41eb8e0 100644
 --- a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 @@ -1,4 +1,5 @@
@@ -14741,7 +15019,20 @@ index 1754b2d..8c27206 100644
      if (!std::isfinite(hp[0]) || (hp[0] == 0.0f && hp[2] == 0.0f)) return;
      float ref[3];
      std::memcpy(ref, g_ref_pos, sizeof ref);  // keep the rider's reference position
-@@ -1561,7 +1635,7 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1551,8 +1625,12 @@ void horse_event(proto::EventKind kind, const Bytes& payload, uint64_t now, uint
+     if (ack) enqueue_at(make_packet(op, *ack), movement_due(now + delay_ms), /*movement=*/true);
+ }
+ 
++std::atomic<uint64_t> g_frozen_until{0};  // [dev] desync_test
++void puppet_set_frozen_ms(uint32_t ms) { g_frozen_until = steady_ms() + ms; }
++
+ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t delay_ms) {
+     if (!puppet_spawned() || ev.payload.size() > proto::kMaxEventPayload) return;
++    if (steady_ms() < g_frozen_until.load()) return;
+     if (g_copy_hooked && steady_ms() - g_rope_seen_ms > kRopeWatchdogMs) {
+         enqueue_at(rope_release(), steady_ms() + delay_ms, /*movement=*/true);
+         g_copy_hooked = false;
+@@ -1561,7 +1639,7 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
      const uint32_t src = g_src_player_key;
      Bytes payload = ev.payload;
      // Moves arrive without their unused trailing history (local_capture emit).
@@ -14750,7 +15041,7 @@ index 1754b2d..8c27206 100644
      // The actor key leads every payload, after a fragment marker byte in
      // OtherEquipItemAck.
      const size_t key_at = ev.kind == proto::EventKind::Equip   ? 1
-@@ -1597,26 +1671,27 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1597,26 +1675,27 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
          horse_event(ev.kind, payload, now, move_hold);
          return;
      }
@@ -14783,7 +15074,7 @@ index 1754b2d..8c27206 100644
                  const uint32_t horse = g_sender_horse;
                  const bool riding = horse && (parent == kPuppetHorse || parent == horse);
                  if (riding) {
-@@ -1642,9 +1717,9 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1642,9 +1721,9 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
          case proto::EventKind::StartAction:
              // A StartAction right after a filled climb-up that still carries the
              // frozen start position: move it to where the sender ended up.
@@ -14795,7 +15086,7 @@ index 1754b2d..8c27206 100644
                          float v[3];
                          std::memcpy(v, payload.data() + at, sizeof v);
                          const float ex = v[0] - g_recent_gap.start[0], ey = v[1] - g_recent_gap.start[1],
-@@ -1773,14 +1848,16 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1773,14 +1852,16 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
          }
      }
      if (!ack) {
@@ -14814,7 +15105,7 @@ index 1754b2d..8c27206 100644
          const uint64_t due = action_due(now + g_action_hold);
          if (ev.kind == proto::EventKind::StartAction && !is_horse && g_copy_hooked && payload.size() >= 12) {
              const uint32_t next = u32_at(payload, 8);
-@@ -2045,8 +2122,8 @@ void puppet_tick() {
+@@ -2045,8 +2126,8 @@ void puppet_tick() {
  bool movement_ts(const Bytes& pk, size_t& at, InjectClock::Buffer& buffer) {
      if (pk.size() < 5 + 4) return false;
      const uint16_t op = static_cast<uint16_t>(pk[0] | (pk[1] << 8));
@@ -14825,7 +15116,7 @@ index 1754b2d..8c27206 100644
      else if (op == off::kOpRotateActorAck) at = 5 + 0x9C, buffer = InjectClock::Buffer::Rotation;
      else return false;
      return pk.size() >= at + 8;
-@@ -2469,12 +2546,13 @@ bool puppet_take_injection(std::vector<uint8_t>& out) {
+@@ -2469,12 +2550,13 @@ bool puppet_take_injection(std::vector<uint8_t>& out) {
          break;
      }
      if (has) {
@@ -14842,10 +15133,62 @@ index 1754b2d..8c27206 100644
                  g_told_x.store(g_told_pos[0], std::memory_order_relaxed);
                  g_told_z.store(g_told_pos[2], std::memory_order_relaxed);
                  g_told_ms = now;
-@@ -2566,6 +2644,27 @@ void puppet_set_offset(float metres) {
+@@ -2493,8 +2575,10 @@ bool puppet_install_layer_guards() {
+         uint8_t h[sizeof off::kActionLayerAdvanceHead];
+         if (game::safe_read(base + off::kActionLayerAdvance, h, sizeof h) &&
+             std::memcmp(h, off::kActionLayerAdvanceHead, sizeof h) == 0) {
+-            g_ret_stub = static_cast<uint8_t*>(
+-                VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
++            if (!g_ret_stub) {
++                g_ret_stub = static_cast<uint8_t*>(
++                    VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
++            }
+             if (g_ret_stub) {
+                 g_ret_stub[0] = 0xC3;
+                 DWORD old = 0;
+@@ -2502,16 +2586,31 @@ bool puppet_install_layer_guards() {
+                 FlushInstructionCache(GetCurrentProcess(), g_ret_stub, 16);
+                 auto hook = safetyhook::MidHook::create(reinterpret_cast<void*>(base + off::kActionLayerAdvance),
+                                                         action_layer_advance);
+-                if (hook) g_layer_guard_hook = std::move(*hook);
++                if (hook) {
++                    g_layer_guard_hook = std::move(*hook);
++                } else {
++                    log::warn("Puppet: action-layer guard hook failed (safetyhook error {})",
++                              static_cast<int>(hook.error().type));
++                }
+                 uint8_t h2[sizeof off::kActionLayersAdvanceHead];
+                 if (game::safe_read(base + off::kActionLayersAdvance, h2, sizeof h2) &&
+                     std::memcmp(h2, off::kActionLayersAdvanceHead, sizeof h2) == 0) {
+                     auto skip = safetyhook::MidHook::create(
+                         reinterpret_cast<void*>(base + off::kActionLayersAdvance), action_layers_advance);
+-                    if (skip) g_layers_skip_hook = std::move(*skip);
++                    if (skip) {
++                        g_layers_skip_hook = std::move(*skip);
++                    } else {
++                        log::warn("Puppet: action-layers skip hook failed (safetyhook error {})",
++                                  static_cast<int>(skip.error().type));
++                    }
++                } else {
++                    log::warn("Puppet: action-layers advance (exe+0x{:X}) not recognised", off::kActionLayersAdvance);
+                 }
+             }
+         }
++        else {
++            log::warn("Puppet: action-layer advance (exe+0x{:X}) not recognised", off::kActionLayerAdvance);
++        }
+         if (!g_layer_guard_hook || !g_layers_skip_hook) {
+             g_layer_guard_hook = {};
+             g_layers_skip_hook = {};
+@@ -2566,6 +2665,32 @@ void puppet_set_offset(float metres) {
  
  float puppet_offset_m() { return g_offset_x.load(); }
  
++bool puppet_seated() {
++    std::lock_guard lock(g_seat_mutex);
++    return g_seat.on;
++}
++
 +void puppet_set_seat(const std::optional<proto::Vec3>& pos, const proto::Quat& rot) {
 +    std::lock_guard lock(g_seat_mutex);
 +    if (pos.has_value() == g_seat.on) {
@@ -14871,7 +15214,7 @@ index 1754b2d..8c27206 100644
      if (size < 5 + 22) return;
      uint16_t op = 0;
 diff --git a/upstream/cd-coop-3446/src/mod/net/remote_puppet.h b/upstream/cd-coop-3446/src/mod/net/remote_puppet.h
-index 7f8f56d..7ee9e5b 100644
+index 7f8f56d..3b802ec 100644
 --- a/upstream/cd-coop-3446/src/mod/net/remote_puppet.h
 +++ b/upstream/cd-coop-3446/src/mod/net/remote_puppet.h
 @@ -25,6 +25,9 @@ namespace cdmp::net {
@@ -14893,13 +15236,18 @@ index 7f8f56d..7ee9e5b 100644
  
  // Replays one event on the puppet.
  //   ts_shift_ms: added to the event's timestamps to express them on THIS
-@@ -96,6 +101,10 @@ bool puppet_install_layer_guards();
+@@ -94,8 +99,15 @@ bool puppet_install_layer_guards();
+ 
+ // Sideways offset of the puppet (world X, metres); 0 = the sender's exact path.
  void puppet_set_offset(float metres);
++// [dev] desync_test (coop_sync.h): the copy ignores the sender's events for this long (a desync to detect).
++void puppet_set_frozen_ms(uint32_t ms);
  float puppet_offset_m();
  
 +// Co-op+ (F9): while `pos` is set the copy is drawn at that transform (the NPC opponent's seat at a wrestling table
 +// in a versus match), whatever the sender's position; nullopt = the sender's own position again. Any thread.
 +void puppet_set_seat(const std::optional<proto::Vec3>& pos, const proto::Quat& rot = {});
++bool puppet_seated();
 +
  // Sniffer writer thread, every server->client packet: which scene objects
  // (trees) are loaded as gimmicks here, for the other player's tree hook.

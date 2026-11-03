@@ -1625,8 +1625,12 @@ void horse_event(proto::EventKind kind, const Bytes& payload, uint64_t now, uint
     if (ack) enqueue_at(make_packet(op, *ack), movement_due(now + delay_ms), /*movement=*/true);
 }
 
+std::atomic<uint64_t> g_frozen_until{0};  // [dev] desync_test
+void puppet_set_frozen_ms(uint32_t ms) { g_frozen_until = steady_ms() + ms; }
+
 void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t delay_ms) {
     if (!puppet_spawned() || ev.payload.size() > proto::kMaxEventPayload) return;
+    if (steady_ms() < g_frozen_until.load()) return;
     if (g_copy_hooked && steady_ms() - g_rope_seen_ms > kRopeWatchdogMs) {
         enqueue_at(rope_release(), steady_ms() + delay_ms, /*movement=*/true);
         g_copy_hooked = false;
@@ -2571,8 +2575,10 @@ bool puppet_install_layer_guards() {
         uint8_t h[sizeof off::kActionLayerAdvanceHead];
         if (game::safe_read(base + off::kActionLayerAdvance, h, sizeof h) &&
             std::memcmp(h, off::kActionLayerAdvanceHead, sizeof h) == 0) {
-            g_ret_stub = static_cast<uint8_t*>(
-                VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+            if (!g_ret_stub) {
+                g_ret_stub = static_cast<uint8_t*>(
+                    VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+            }
             if (g_ret_stub) {
                 g_ret_stub[0] = 0xC3;
                 DWORD old = 0;
@@ -2580,15 +2586,30 @@ bool puppet_install_layer_guards() {
                 FlushInstructionCache(GetCurrentProcess(), g_ret_stub, 16);
                 auto hook = safetyhook::MidHook::create(reinterpret_cast<void*>(base + off::kActionLayerAdvance),
                                                         action_layer_advance);
-                if (hook) g_layer_guard_hook = std::move(*hook);
+                if (hook) {
+                    g_layer_guard_hook = std::move(*hook);
+                } else {
+                    log::warn("Puppet: action-layer guard hook failed (safetyhook error {})",
+                              static_cast<int>(hook.error().type));
+                }
                 uint8_t h2[sizeof off::kActionLayersAdvanceHead];
                 if (game::safe_read(base + off::kActionLayersAdvance, h2, sizeof h2) &&
                     std::memcmp(h2, off::kActionLayersAdvanceHead, sizeof h2) == 0) {
                     auto skip = safetyhook::MidHook::create(
                         reinterpret_cast<void*>(base + off::kActionLayersAdvance), action_layers_advance);
-                    if (skip) g_layers_skip_hook = std::move(*skip);
+                    if (skip) {
+                        g_layers_skip_hook = std::move(*skip);
+                    } else {
+                        log::warn("Puppet: action-layers skip hook failed (safetyhook error {})",
+                                  static_cast<int>(skip.error().type));
+                    }
+                } else {
+                    log::warn("Puppet: action-layers advance (exe+0x{:X}) not recognised", off::kActionLayersAdvance);
                 }
             }
+        }
+        else {
+            log::warn("Puppet: action-layer advance (exe+0x{:X}) not recognised", off::kActionLayerAdvance);
         }
         if (!g_layer_guard_hook || !g_layers_skip_hook) {
             g_layer_guard_hook = {};
@@ -2643,6 +2664,11 @@ void puppet_set_offset(float metres) {
 }
 
 float puppet_offset_m() { return g_offset_x.load(); }
+
+bool puppet_seated() {
+    std::lock_guard lock(g_seat_mutex);
+    return g_seat.on;
+}
 
 void puppet_set_seat(const std::optional<proto::Vec3>& pos, const proto::Quat& rot) {
     std::lock_guard lock(g_seat_mutex);
