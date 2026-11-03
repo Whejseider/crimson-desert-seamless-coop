@@ -1,6 +1,11 @@
 # STATE (single source of truth for resuming)
 
-## NOW (2026-11-03 08:00) -- read this first
+## NOW (2026-11-03 12:00) -- read this first
+- User handed over ROADMAP.md (repo root, 48 tasks). Work log: PROGRESS.md; blocked parts: BLOCKED.md. P0 (T01-T11)
+  done ([x] / [~] = needs 2 PCs). Installed dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+55f5e003.zip (Defender clean,
+  hash matches, shipped ini, test save OUT, SAVES OK). Next: T12 (P1).
+
+## Earlier NOW (2026-11-03 08:00)
 - User (morning): shared enemies are priority #1; the friend must sit in the NPC's arm wrestling seat. Both done on
   one PC: D45 (enemy copies on since 11-01, re-verified: 33 zone copies at once, no crash; stale CHANGELOG line fixed)
   and D46 (copy at the NPC opponent's transform, NPC hidden for the match). Installed

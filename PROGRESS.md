@@ -119,3 +119,5 @@ real guest need two PCs (PLAYTEST 3.8b). XP: 3 approaches failed -> BLOCKED.md. 
 - T11 done: session byte counters + "out/in kB/s" in the Net log line; poor-link half rate (rtt > 250 ms or > 32
   reliable pending; held 5 s; back under 150 ms / < 8). Report: docs/tests/stress-report.md. Note: the relay answers
   pings itself, so rtt does not include its simulated delay (the backlog trigger is the one seen on one PC).
+- Pushed T11 (55f5e00).
+- Installed package 55f5e003 (P0 complete): Defender clean, cdmp.asi hash matches, shipped ini, test save out, SAVES OK.
