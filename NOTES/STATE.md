@@ -1,6 +1,14 @@
 # STATE (single source of truth for resuming)
 
-## NOW (2026-11-03 01:30) -- read this first
+## NOW (2026-11-03 08:00) -- read this first
+- User (morning): shared enemies are priority #1; the friend must sit in the NPC's arm wrestling seat. Both done on
+  one PC: D45 (enemy copies on since 11-01, re-verified: 33 zone copies at once, no crash; stale CHANGELOG line fixed)
+  and D46 (copy at the NPC opponent's transform, NPC hidden for the match). Installed
+  dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+64a66710.zip (Defender clean, hash matches, shipped ini, test save OUT,
+  SAVES OK). Open: everything two-PC (PLAYTEST-1, incl. the new seat and enemy-count checks); with the echo peer
+  connected from the start the pub table stayed unstaffed (echo-only?, LOG 06:00-08:00).
+
+## Earlier NOW (2026-11-03 01:30)
 - Overnight list (memory overnight-list-2026-11-03; user back 2026-11-03 22:00): see LOG "overnight list" entry and
   D41-D44. Installed: dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+1aea5e6d.zip (Defender clean, hash matches, user
   cdmp.ini kept, test save OUT, SAVES OK). Done + verified on one PC: duel (picker, ring, countdown, hits, yield,
