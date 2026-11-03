@@ -72,6 +72,7 @@ when, which Ctrl+F12 mark). A step that could not be tried: leave both boxes emp
 | 3.8 | Kill one bandit only B hits (A does not touch it). B loots it. | B gets a drop; note whether B got experience / skill points as alone. | [ ] | [ ] | |
 | 3.8b | Loot rules: both set `loot_mode=first_come` under `[coop]` in cdmp.ini (restart). Kill a bandit together; A loots it first. | B's body of it shows no loot (empty) right after A looted. Next bandit: B loots first -> A's body of it is empty. Set `loot_mode=per_player` back. | [ ] | [ ] | |
 | 3.8c | Crime: B steals from a stall or hits a townsperson in sight of a guard (B's own world). | B becomes wanted in B's world; A gets "<B> is now wanted by the guards (in their own world)"; A's world: no wanted state, guards ignore A. | [ ] | [ ] | |
+| 3.8d | World event: when one starts near A (bounty hunters while A is wanted, reinforcements at a fort, a camp patrol), note it. | B gets "World event near <A>" with the event's name; the event's fighters near A appear for B and can be fought together. | [ ] | [ ] | |
 | 3.9 | Chests: both open "the same" chest. | Both get the contents (each in their own world). | [ ] | [ ] | |
 
 ## 4. Deaths

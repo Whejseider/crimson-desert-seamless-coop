@@ -10,6 +10,7 @@
 #include <cstring>
 #include <algorithm>
 #include <format>
+#include <map>
 #include <mutex>
 #include <thread>
 
@@ -41,7 +42,24 @@ constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the N
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21 };
+
+// Co-op+ (T22): world events (reinforcements, bounty hunters, camp and outpost activity) are stages our server starts
+// (PrepareSequencerAck); their fighters are enemies, which the guest already gets as copies near the host. What the
+// other player lacks is knowing it is happening: kEvent (u32 stage key) -> "<name>: <event>" notice.
+struct EventName {
+    uint32_t key;
+    const char* name;
+};
+constexpr EventName kEventNames[] = {
+#include "mod/net/event_names.inc"
+};
+const char* event_name(uint32_t key) {
+    const auto it = std::lower_bound(std::begin(kEventNames), std::end(kEventNames), key,
+                                     [](const EventName& e, uint32_t k) { return e.key < k; });
+    return it != std::end(kEventNames) && it->key == key ? it->name : nullptr;
+}
+std::atomic<uint32_t> g_event_test{0};  // [dev] event_test: a stage key announced 20 s after connecting
 
 // Co-op+ (T09): a player in a menu (map, inventory, pause...) has their own world paused, while the other player's
 // world goes on with their character standing in it. So: each side tells the other when it opens / closes a menu
@@ -308,6 +326,7 @@ void activity_set_skip_test(bool on) { g_skip_test = on; }
 void activity_set_versus_test(int presses_per_s) { g_versus_test_rate = presses_per_s; }
 bool activity_partner_in_menu() { return g_partner_menu.load(); }
 void activity_set_seat_test(bool on) { g_seat_test = on; }
+void activity_set_event_test(uint32_t key) { g_event_test = key; }
 
 namespace {
 
@@ -679,6 +698,19 @@ void activity_observe_s2c(const uint8_t* packet, size_t size) {
     if (size < 5) return;
     uint16_t op = 0;
     std::memcpy(&op, packet, 2);
+    if (op == 2380 && size >= 5 + 23) {  // PrepareSequencerAck: u32 stage at +19 (weather_sync.cpp kPrepKeyAt)
+        uint32_t key = 0;
+        std::memcpy(&key, packet + 5 + 19, 4);
+        if (const char* n = event_name(key)) {
+            static std::map<uint32_t, uint32_t> told;  // sniffer thread only
+            const uint32_t t = GetTickCount();
+            if (auto it = told.find(key); it != told.end() && t - it->second < 300000) return;
+            told[key] = t ? t : 1;
+            log::info("Activity: a world event started here: {} (stage {})", n, key);
+            send(kEvent, &key, 4);
+        }
+        return;
+    }
     if (op != 2324 && op != 2249 && op != 2569) return;
     const uint32_t now = GetTickCount();
     const uint32_t last = g_wanted_sent_at.load();
@@ -785,6 +817,13 @@ void activity_on_event(const std::vector<uint8_t>& p) {
         case kWanted:
             g_toasts.push_back("{} is now wanted by the guards (in their own world)");
             break;
+        case kEvent:
+            if (p.size() >= 9) {
+                uint32_t key = 0;
+                std::memcpy(&key, p.data() + 5, 4);
+                if (const char* n = event_name(key)) g_toasts.push_back(std::string("World event near {}\n") + n);
+            }
+            break;
         case kTravel:            // coop_travel.h, below
         case kReviveYou:         // coop_revive.h, below
         case kHunt:              // coop_hunt.h, below
@@ -843,6 +882,18 @@ void activity_on_event(const std::vector<uint8_t>& p) {
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
                            std::optional<std::array<float, 3>> partner, const std::string& partner_name,
                            uint32_t now) {
+    // [dev] event_test (T22): announce a world event 20 s after connecting.
+    {
+        static uint32_t linked_at = 0;
+        static bool done = false;
+        if (!connected) linked_at = 0, done = false;
+        else if (!linked_at) linked_at = now ? now : 1;
+        if (const uint32_t key = g_event_test.load(); key && connected && !done && now - linked_at >= 20000) {
+            done = true;
+            log::info("Activity: [dev] event_test: announcing stage {} ({})", key, event_name(key) ? event_name(key) : "?");
+            send(kEvent, &key, 4);
+        }
+    }
     // Co-op+ (T10) first_come: bodies we looted, to the other player.
     if (connected) {
         for (uint32_t copy : enemy_take_looted_originals()) {

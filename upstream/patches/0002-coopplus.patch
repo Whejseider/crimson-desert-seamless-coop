@@ -812,7 +812,7 @@ index e7d51fb..40fe295 100644
  
  struct GameEvent {
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..3788196 100644
+index e89d220..47c7d55 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -889,7 +889,7 @@ index e89d220..3788196 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,38 +210,87 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,38 +210,88 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
@@ -921,6 +921,7 @@ index e89d220..3788196 100644
 +    c.coop_guest_finishes = read_uint(ini_path, L"coop", L"guest_finishes", 1) != 0;
 +    c.dev_revive_test = read_uint(ini_path, L"dev", L"revive_test", 0) != 0;
 +    c.dev_copy_untargetable = read_uint(ini_path, L"dev", L"copy_untargetable", 0) != 0;
++    c.dev_event_test = read_uint(ini_path, L"dev", L"event_test", 0);
 +    c.dev_rps_test = static_cast<int>(read_uint(ini_path, L"dev", L"rps_test", 0)) - 1;  // 1 scissors, 2 paper, 3 rock
 +    c.dev_cinema_test = read_uint(ini_path, L"dev", L"cinema_test", 0) != 0;
 +    c.dev_weather_test = read_uint(ini_path, L"dev", L"weather_test", 0);
@@ -984,7 +985,7 @@ index e89d220..3788196 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +303,11 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +304,11 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -997,7 +998,7 @@ index e89d220..3788196 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..77c22c8 100644
+index 3cd2ce2..bdf6ddc 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -1025,7 +1026,7 @@ index 3cd2ce2..77c22c8 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -57,6 +68,39 @@ struct Config {
+@@ -57,6 +68,40 @@ struct Config {
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
@@ -1046,7 +1047,8 @@ index 3cd2ce2..77c22c8 100644
 +    bool coop_teammate_revive = true;
 +    bool coop_guest_finishes = true;   // Co-op+ (T17): [coop] guest_finishes  // Co-op+ (T15): [coop] teammate_revive
 +    bool dev_revive_test = false;
-+    bool dev_copy_untargetable = false;  // Co-op+ dev (T21): the copy is never anyone's target      // Co-op+ dev: one-PC teammate revive (a dead player may revive the echo)
++    bool dev_copy_untargetable = false;
++    uint32_t dev_event_test = 0;      // Co-op+ dev (T22): a world-event stage key announced after connecting  // Co-op+ dev (T21): the copy is never anyone's target      // Co-op+ dev: one-PC teammate revive (a dead player may revive the echo)
 +    int dev_desync_test = 0;            // Co-op+ dev: induce a desync 30 s after connecting (coop_sync.h, T06)
 +    uint32_t dev_fake_peer_build = 0;   // Co-op+ dev: a build-0 peer (the echo relay) counts as this build (T03)
 +    std::wstring dev_online_guard_test;  // Co-op+ dev: a module name the online guard also looks for (online_guard.h)
@@ -1065,7 +1067,7 @@ index 3cd2ce2..77c22c8 100644
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
-@@ -66,7 +110,7 @@ struct Config {
+@@ -66,7 +111,7 @@ struct Config {
      float coop_offset_m = 0.0f;    // sideways offset of the remote character
      // Experimental, off by default: the copy's horse is not created by the
      // client (owned load) or crashes the game (ownerless load); live tests 1-2.
@@ -1074,7 +1076,7 @@ index 3cd2ce2..77c22c8 100644
      // Works since the copy got its own character number (live test 3).
      bool coop_equip = true;        // relay equipment changes
      // Mirrored damage: each world keeps its enemies; hits by the other player
-@@ -85,7 +129,7 @@ struct Config {
+@@ -85,7 +130,7 @@ struct Config {
      int coop_minimap_icon = 0x124;
      // Our enemies may attack the other player's copy (aggro_test.h). Off
      // until the hits reach the other player and they see our enemies.
@@ -1083,7 +1085,7 @@ index 3cd2ce2..77c22c8 100644
      // The other player's blows on the copies of our enemies hurt them
      // (guest_hits.h). Off until tested with two players.
      bool coop_guest_hits = false;
-@@ -94,15 +138,19 @@ struct Config {
+@@ -94,15 +139,19 @@ struct Config {
      bool coop_guest_hit_stagger = false;
      // Our player reacts (stagger, knock-down) to the other player's enemies'
      // blows on our copy over there: experimental until tested.
@@ -1107,7 +1109,7 @@ index 3cd2ce2..77c22c8 100644
      // Host: copies of our enemies that fight go to the guest on their own
      // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
      bool coop_enemy_auto = true;
-@@ -112,6 +160,9 @@ struct Config {
+@@ -112,6 +161,9 @@ struct Config {
      bool dev_rope_piece_lookup = false;
      // Guest: loot from the host's enemies we help kill, via a twin on our server (loot_twin.h).
      bool coop_guest_loot = false;
@@ -1117,7 +1119,7 @@ index 3cd2ce2..77c22c8 100644
      // Boss safety (boss_safe.h, pendiente-jefes.md plan J1). A boss fight here is
      // a scripted STAGE that the host's client drives: it owns the phases, the
      // cinematics and the set_battleEnd that closes the fight. The boss exists
-@@ -125,6 +176,9 @@ struct Config {
+@@ -125,6 +177,9 @@ struct Config {
      // does the finish, which is what advances its script. Off restores the old
      // behaviour exactly, for comparison.
      bool coop_boss_safe = true;
@@ -1127,7 +1129,7 @@ index 3cd2ce2..77c22c8 100644
      // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
      // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
      int coop_enemy_minimap_icon = 0x10A;
-@@ -146,6 +200,14 @@ struct Config {
+@@ -146,6 +201,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -2582,7 +2584,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..8eb4b12 100644
+index 79ccd06..1005c5b 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,9 +1,13 @@
@@ -3536,7 +3538,7 @@ index 79ccd06..8eb4b12 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1576,43 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1576,44 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3566,6 +3568,7 @@ index 79ccd06..8eb4b12 100644
 +        net::revive_partner_set(cfg.coop_teammate_revive, cfg.dev_revive_test);
 +        net::guest_hits_set_finishes(cfg.coop_guest_finishes);
 +        net::aggro_set_copy_never_target(cfg.dev_copy_untargetable);
++        net::activity_set_event_test(cfg.dev_event_test);
 +        net::enemy_set_zone_copy_test(cfg.dev_zone_copy_test);
 +        input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
 +        input::set_sim(cfg.dev_pad_sim);
@@ -3580,7 +3583,7 @@ index 79ccd06..8eb4b12 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1664,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1665,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3614,7 +3617,7 @@ index 79ccd06..8eb4b12 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1687,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1688,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3626,7 +3629,7 @@ index 79ccd06..8eb4b12 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1712,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1713,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -4471,10 +4474,10 @@ index a328bc0..5778775 100644
      // order (a resent ApplyBuff could land after its Unapply), so they carry
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..ceb3606
+index 0000000..b79806c
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,1015 @@
+@@ -0,0 +1,1066 @@
 +#include "mod/net/coop_activity.h"
 +#include "mod/input/actions.h"
 +#include "mod/input/pad_input.h"
@@ -4487,6 +4490,7 @@ index 0000000..ceb3606
 +#include <cstring>
 +#include <algorithm>
 +#include <format>
++#include <map>
 +#include <mutex>
 +#include <thread>
 +
@@ -4518,7 +4522,24 @@ index 0000000..ceb3606
 +constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 +constexpr uint32_t kSkipTestDelayMs = 6000;
 +
-+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20 };
++enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21 };
++
++// Co-op+ (T22): world events (reinforcements, bounty hunters, camp and outpost activity) are stages our server starts
++// (PrepareSequencerAck); their fighters are enemies, which the guest already gets as copies near the host. What the
++// other player lacks is knowing it is happening: kEvent (u32 stage key) -> "<name>: <event>" notice.
++struct EventName {
++    uint32_t key;
++    const char* name;
++};
++constexpr EventName kEventNames[] = {
++#include "mod/net/event_names.inc"
++};
++const char* event_name(uint32_t key) {
++    const auto it = std::lower_bound(std::begin(kEventNames), std::end(kEventNames), key,
++                                     [](const EventName& e, uint32_t k) { return e.key < k; });
++    return it != std::end(kEventNames) && it->key == key ? it->name : nullptr;
++}
++std::atomic<uint32_t> g_event_test{0};  // [dev] event_test: a stage key announced 20 s after connecting
 +
 +// Co-op+ (T09): a player in a menu (map, inventory, pause...) has their own world paused, while the other player's
 +// world goes on with their character standing in it. So: each side tells the other when it opens / closes a menu
@@ -4785,6 +4806,7 @@ index 0000000..ceb3606
 +void activity_set_versus_test(int presses_per_s) { g_versus_test_rate = presses_per_s; }
 +bool activity_partner_in_menu() { return g_partner_menu.load(); }
 +void activity_set_seat_test(bool on) { g_seat_test = on; }
++void activity_set_event_test(uint32_t key) { g_event_test = key; }
 +
 +namespace {
 +
@@ -5156,6 +5178,19 @@ index 0000000..ceb3606
 +    if (size < 5) return;
 +    uint16_t op = 0;
 +    std::memcpy(&op, packet, 2);
++    if (op == 2380 && size >= 5 + 23) {  // PrepareSequencerAck: u32 stage at +19 (weather_sync.cpp kPrepKeyAt)
++        uint32_t key = 0;
++        std::memcpy(&key, packet + 5 + 19, 4);
++        if (const char* n = event_name(key)) {
++            static std::map<uint32_t, uint32_t> told;  // sniffer thread only
++            const uint32_t t = GetTickCount();
++            if (auto it = told.find(key); it != told.end() && t - it->second < 300000) return;
++            told[key] = t ? t : 1;
++            log::info("Activity: a world event started here: {} (stage {})", n, key);
++            send(kEvent, &key, 4);
++        }
++        return;
++    }
 +    if (op != 2324 && op != 2249 && op != 2569) return;
 +    const uint32_t now = GetTickCount();
 +    const uint32_t last = g_wanted_sent_at.load();
@@ -5262,6 +5297,13 @@ index 0000000..ceb3606
 +        case kWanted:
 +            g_toasts.push_back("{} is now wanted by the guards (in their own world)");
 +            break;
++        case kEvent:
++            if (p.size() >= 9) {
++                uint32_t key = 0;
++                std::memcpy(&key, p.data() + 5, 4);
++                if (const char* n = event_name(key)) g_toasts.push_back(std::string("World event near {}\n") + n);
++            }
++            break;
 +        case kTravel:            // coop_travel.h, below
 +        case kReviveYou:         // coop_revive.h, below
 +        case kHunt:              // coop_hunt.h, below
@@ -5320,6 +5362,18 @@ index 0000000..ceb3606
 +ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
 +                           std::optional<std::array<float, 3>> partner, const std::string& partner_name,
 +                           uint32_t now) {
++    // [dev] event_test (T22): announce a world event 20 s after connecting.
++    {
++        static uint32_t linked_at = 0;
++        static bool done = false;
++        if (!connected) linked_at = 0, done = false;
++        else if (!linked_at) linked_at = now ? now : 1;
++        if (const uint32_t key = g_event_test.load(); key && connected && !done && now - linked_at >= 20000) {
++            done = true;
++            log::info("Activity: [dev] event_test: announcing stage {} ({})", key, event_name(key) ? event_name(key) : "?");
++            send(kEvent, &key, 4);
++        }
++    }
 +    // Co-op+ (T10) first_come: bodies we looted, to the other player.
 +    if (connected) {
 +        for (uint32_t copy : enemy_take_looted_originals()) {
@@ -5492,10 +5546,10 @@ index 0000000..ceb3606
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.h b/upstream/cd-coop-3446/src/mod/net/coop_activity.h
 new file mode 100644
-index 0000000..fdf4486
+index 0000000..24a4da1
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.h
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,93 @@
 +#pragma once
 +// Co-op+: shared activities (cutscenes and minigames), EventKind::Activity.
 +//
@@ -5560,6 +5614,8 @@ index 0000000..fdf4486
 +// [dev] seat_test: in any arm / hand wrestling match against the NPC (no versus, no challenge), the other player's
 +// copy takes the NPC's seat and the NPC is hidden (F9 one-PC test: the echo copy plays our own actions there).
 +void activity_set_seat_test(bool on);
++// [dev] event_test (T22): this stage key is announced as a world event 20 s after connecting.
++void activity_set_event_test(uint32_t key);
 +
 +// [dev] challenge_test: one-PC test of challenges: 1 = a simulated other player accepts our Shift+F5 invite after
 +// 2 s; 2 = also Shift+F6 (with nothing pending) makes them challenge us to a rock-paper-scissors duel.
@@ -7557,6 +7613,532 @@ index b09873f..ca5a375 100644
  // Checked before it goes in (one solo enemy record named only by its copy key,
  // its actions all of that copy), and loaded from enemy_tick at a bounded rate
  // (at most 48 copies here, 8 at once then 2 a second, a key not again within
+diff --git a/upstream/cd-coop-3446/src/mod/net/event_names.inc b/upstream/cd-coop-3446/src/mod/net/event_names.inc
+new file mode 100644
+index 0000000..0127851
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/event_names.inc
+@@ -0,0 +1,520 @@
++// Generated by tools/gen/event_names_inc.py from the game data (stage key, readable name). Do not edit.
++{0x000F42E9, "Activity at Deep Forest Beacon (Hernand)"},
++{0x000F42F7, "Activity at Deep Forest Beacon (Hernand)"},
++{0x000F43F5, "Activity at North Outpost (Demeniss)"},
++{0x000F460D, "Activity at Ridgehunter Leather Maker (Kwe)"},
++{0x000F4638, "Activity at Ruins (Delesyia)"},
++{0x000F467B, "Activity at East Goblin Camp (Hernand)"},
++{0x000F4697, "Activity at Wolf Fang (Cal)"},
++{0x000F46FF, "Bounty hunters (Tashkalp, level 1)"},
++{0x000F47D8, "Activity at White Mountain Bandit Camp (Hernand)"},
++{0x000F4890, "Pursuers: Calphade Wakeup Prison"},
++{0x000F4894, "Pursuers: Pailoon Wakeup Prison"},
++{0x000F48E1, "Pursuers: Pailune Police Lv1"},
++{0x000F48E2, "Pursuers: Pailune Police Lv2"},
++{0x000F48E3, "Pursuers: Pailune Police Lv3"},
++{0x000F492F, "Activity at Hellwood Beacon (Hernand)"},
++{0x000F4967, "Bounty hunters (Tashkalp, level 2)"},
++{0x000F4A6E, "Pursuers: Demeniss MP Police Lv1"},
++{0x000F4A7E, "Pursuers: Demeniss MP Police Lv2"},
++{0x000F4AB9, "Activity at Outpost (MuMusketSiege)"},
++{0x000F4AD9, "Activity at Sulfur Lake (Demeniss)"},
++{0x000F4B32, "Pursuers: Demeniss MP Police Lv3"},
++{0x000F4B45, "Activity at Gorthak Ironworks (Neut)"},
++{0x000F4BA3, "Activity at Gorthak Ironworks (Neut)"},
++{0x000F4C2B, "Activity at Gorthak Ironworks (Neut)"},
++{0x000F4C60, "Reinforcements at Fort Warspike Walter"},
++{0x000F4C8B, "Activity at Gorthak Ironworks (Neut)"},
++{0x000F4C93, "Activity at Gorthak Ironworks (Neut)"},
++{0x000F4C9B, "Pursuers: Calphade Police Lv1"},
++{0x000F4CCD, "Reinforcements at Wind Cliff Fort"},
++{0x000F4E0B, "Activity at Gorthak Ironworks (Neut)"},
++{0x000F4F63, "Activity at Gorthak Ironworks (Neut)"},
++{0x000F4F70, "Activity at Gorthak Ironworks (Neut)"},
++{0x000F4F72, "Activity at Gorthak Ironworks (Neut)"},
++{0x000F502E, "Activity at Riverward Outpost (Hernand)"},
++{0x000F50D0, "Reinforcements at Edge Watch Tower"},
++{0x000F50E0, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F50E1, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F512F, "Activity at Shipwreck (Hernand)"},
++{0x000F5157, "Activity at Snow Mountain (Hernand)"},
++{0x000F51C2, "Activity at Bellanor Hunting Grounds (Hernand)"},
++{0x000F51E8, "Pursuers: Kharonso Village Kick Out"},
++{0x000F521A, "Pursuers: Pororin Village Kick Out"},
++{0x000F5254, "Activity at Stoneward Castle Ruins (Delesyia)"},
++{0x000F528C, "Pursuers: Tariv Village Kick Out"},
++{0x000F52E0, "Pursuers: Sunset Village Kick Out"},
++{0x000F52F6, "Pursuers: Odeck Village Kick Out"},
++{0x000F5359, "Pursuers: Calphade Police Lv2"},
++{0x000F5378, "Monsters at Burhum Village (Crimson Desert)"},
++{0x000F5380, "Pursuers: Beighen Village Kick Out"},
++{0x000F53A6, "Pursuers: Skoghorn Village Kick Out"},
++{0x000F53A8, "Activity at Asaharam Camp (Crimson Desert)"},
++{0x000F53B4, "Bounty hunters (Tashkalp, level 2)"},
++{0x000F53B5, "Bounty hunters (Tashkalp, level 3)"},
++{0x000F53BC, "Activity at Kuhteram Camp (Crimson Desert)"},
++{0x000F53BE, "Activity at Hariyahram Camp (Crimson Desert)"},
++{0x000F53CA, "Activity at Kharatiram Camp (Crimson Desert)"},
++{0x000F53D2, "Activity at Makharam Camp (Crimson Desert)"},
++{0x000F53FA, "Pursuers: Longleaf Tree Village Kick Out"},
++{0x000F5458, "Pursuers: Calphade Police Lv3"},
++{0x000F5490, "Bounty hunters (Tashkalp, level 4)"},
++{0x000F54A7, "Bounty hunters (Hernand, level 1)"},
++{0x000F54A8, "Bounty hunters (Hernand, level 2)"},
++{0x000F54A9, "Bounty hunters (Hernand, level 2)"},
++{0x000F54AA, "Bounty hunters (Hernand, level 3)"},
++{0x000F54AD, "Bounty hunters (Hernand, level 4)"},
++{0x000F54AE, "Bounty hunters (Hernand, level 5)"},
++{0x000F54AF, "Bounty hunters (Demeniss, level 1)"},
++{0x000F54BC, "Bounty hunters (Demeniss, level 2)"},
++{0x000F54BD, "Bounty hunters (Demeniss, level 2)"},
++{0x000F54C1, "Bounty hunters (Demeniss, level 3)"},
++{0x000F54C4, "Bounty hunters (Demeniss, level 4)"},
++{0x000F54C9, "Bounty hunters (Demeniss, level 5)"},
++{0x000F54CA, "Bounty hunters (Delesyia, level 1)"},
++{0x000F54CB, "Bounty hunters (Delesyia, level 2)"},
++{0x000F54CE, "Activity at Willkomm Post (Hernand)"},
++{0x000F54ED, "Activity at Rocca Hill Bandit Camp (Hernand)"},
++{0x000F5599, "Bounty hunters (Tashkalp, level 5)"},
++{0x000F55F1, "Pursuers: Tashkalp Police Lv1"},
++{0x000F55F9, "Pursuers: Tashkalp Police Lv2"},
++{0x000F562D, "Pursuers: Tashkalp Police Lv3"},
++{0x000F562E, "Pursuers: Tashkalp Police Lv4"},
++{0x000F562F, "Pursuers: Tashkalp Police Lv5"},
++{0x000F5630, "Pursuers: Tashkalp Wakeup Prison"},
++{0x000F5631, "Pursuers: Tashkalp Jewel Hunter Lv1"},
++{0x000F5632, "Pursuers: Tashkalp Jewel Hunter Lv2"},
++{0x000F5633, "Pursuers: Tashkalp Jewel Hunter Lv2 I"},
++{0x000F5634, "Pursuers: Tashkalp Jewel Hunter Lv3"},
++{0x000F5658, "Pursuers: Demeniss MP Police Lv4"},
++{0x000F565A, "Pursuers: Demeniss MP Police Lv5"},
++{0x000F566B, "Pursuers: Demeniss MP Wakeup Prison"},
++{0x000F56A6, "Bounty hunters (Delesyia, level 2)"},
++{0x000F56AD, "Bounty hunters (Delesyia, level 3)"},
++{0x000F56AF, "Pursuers: Tashkalp Jewel Hunter Lv4"},
++{0x000F56B1, "Pursuers: Pailoon Wakeup Prison I"},
++{0x000F56B9, "Pursuers: Tashkalp Jewel Hunter Lv5"},
++{0x000F56BB, "Pursuers: Tashkalp trade Hunter Lv1"},
++{0x000F56C4, "Pursuers: Tashkalp trade Hunter Lv2"},
++{0x000F56C7, "Pursuers: Calphade Police Lv4"},
++{0x000F56C9, "Pursuers: Calphade Police Lv5"},
++{0x000F56CC, "Pursuers: Tashkalp trade Hunter Lv2 I"},
++{0x000F56CE, "Pursuers: Tashkalp trade Hunter Lv3"},
++{0x000F56D0, "Pursuers: Tashkalp trade Hunter Lv4"},
++{0x000F56D2, "Pursuers: Tashkalp trade Hunter Lv5"},
++{0x000F56FB, "Bounty hunters (Delesyia, level 4)"},
++{0x000F575D, "Activity at Bellanor Hunting Grounds (Hernand)"},
++{0x000F583F, "Pursuers: Rumsus Police Lv3"},
++{0x000F5840, "Pursuers: Pororin Police Lv3"},
++{0x000F589C, "Activity at Warspike Hospital (Hernand)"},
++{0x000F58BB, "Bounty hunters (Delesyia, level 5)"},
++{0x000F58D9, "Pursuers: Sunset Police Lv3"},
++{0x000F5914, "Activity at Warspike Food Storage (Hernand)"},
++{0x000F5915, "Activity at Warspike Armory (Hernand)"},
++{0x000F5919, "Activity at Warspike Training (Hernand)"},
++{0x000F591A, "Activity at Goldleaf Tradepost Hospital (Hernand)"},
++{0x000F5927, "Activity at Goldleaf Tradepost Food Storage (Hernand)"},
++{0x000F5928, "Activity at Goldleaf Tradepost Training (Hernand)"},
++{0x000F5929, "Bounty hunters (Kweiden, level 1)"},
++{0x000F592A, "Bounty hunters (Kweiden, level 2)"},
++{0x000F5934, "Bounty hunters (Kweiden, level 2)"},
++{0x000F5975, "Bounty hunters (Kweiden, level 3)"},
++{0x000F597A, "Activity at Slum (Hernand)"},
++{0x000F5980, "Bounty hunters (Kweiden, level 4)"},
++{0x000F5981, "Bounty hunters (Kweiden, level 5)"},
++{0x000F5982, "Bounty hunters (Calphade, level 1)"},
++{0x000F5983, "Bounty hunters (Calphade, level 2)"},
++{0x000F5984, "Bounty hunters (Calphade, level 2)"},
++{0x000F5985, "Bounty hunters (Calphade, level 3)"},
++{0x000F5986, "Bounty hunters (Calphade, level 4)"},
++{0x000F5987, "Bounty hunters (Calphade, level 5)"},
++{0x000F5995, "Activity at Slum (Hernand)"},
++{0x000F5996, "Activity at Slum (Hernand)"},
++{0x000F5997, "Activity at Slum (Hernand)"},
++{0x000F5BC6, "Activity at Shipwreck (Crimson Desert)"},
++{0x000F5C6B, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5C92, "Activity at Stoneward Castle Ruin (Delesyia)"},
++{0x000F5CF8, "Activity at Silent Lodge Cabin (Hernand)"},
++{0x000F5D04, "Activity at Cliff Hideout (Hernand)"},
++{0x000F5D24, "Reinforcements at Talking Rock"},
++{0x000F5D25, "Activity at Rodbel Fishing Dock (Hernand)"},
++{0x000F5D32, "Activity at Wolf Fang (Cal)"},
++{0x000F5D34, "Reinforcements at Benus Thief Camp"},
++{0x000F5D3F, "Activity at Wolf Fang (Cal)"},
++{0x000F5D4E, "Activity at Drakefall Bandit Camp (Hernand)"},
++{0x000F5D4F, "Activity at Arboria Bandit Camp (Hernand)"},
++{0x000F5D50, "Activity at Mountain Area Bandit Camp (Hernand)"},
++{0x000F5D51, "Activity at Shadowforest Bandit Camp (Hernand)"},
++{0x000F5D52, "Activity at Rocca Hill Bandit Camp (Hernand)"},
++{0x000F5D53, "Activity at Bellanor Beacon (Hernand)"},
++{0x000F5D54, "Activity at Sunrise Plain Bandit Camp (Hernand)"},
++{0x000F5D55, "Activity at Foggy Wind Bandit Camp (Hernand)"},
++{0x000F5D56, "Activity at River Terrace Bandit Camp (Hernand)"},
++{0x000F5D57, "Activity at River Terrace Bandit Camp (Hernand)"},
++{0x000F5D58, "Activity at Anvil Hill Bandit Camp (Hernand)"},
++{0x000F5D59, "Activity at Howling Hill Camp (Hernand)"},
++{0x000F5D5A, "Activity at Green Field Hilly Area Camp (Hernand)"},
++{0x000F5D5B, "Activity at Green Field Thief Camp (Hernand)"},
++{0x000F5D5C, "Activity at Green Hill Thief Camp (Hernand)"},
++{0x000F5D5D, "Activity at Steel Mountains Camp (Hernand)"},
++{0x000F5D5E, "Activity at Bandit Camp (Demeniss)"},
++{0x000F5D5F, "Activity at Bandit Camp (Demeniss)"},
++{0x000F5D60, "Activity at Bandit Camp (Demeniss)"},
++{0x000F5D61, "Activity at Bandit Camp (Delesyia)"},
++{0x000F5D62, "Activity at Bandit Camp (Delesyia)"},
++{0x000F5D63, "Activity at Bandit Camp (Delesyia)"},
++{0x000F5D64, "Activity at Bandit Camp (Kwe)"},
++{0x000F5D65, "Activity at Bandit Camp (Kwe)"},
++{0x000F5D66, "Activity at Bandit Camp (Kwe)"},
++{0x000F5D67, "Activity at Bandit Camp (Kwe)"},
++{0x000F5D68, "Activity at Bandit Camp (Kwe)"},
++{0x000F5D69, "Activity at Bandit Camp (Kwe)"},
++{0x000F5D6A, "Activity at Bandit Camp (Kwe)"},
++{0x000F5D6B, "Activity at Bandit Camp (Kwe)"},
++{0x000F5D6C, "Activity at Bandit Camp (Kwe)"},
++{0x000F5D6D, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5D6E, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5D6F, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5D70, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5D72, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5D73, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5D74, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5D75, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5D76, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5D77, "Activity at Bandit Camp (Crimson Desert)"},
++{0x000F5DC5, "Activity at Southern Deep Forest Camp (Hernand)"},
++{0x000F5DC6, "Activity at Bandit Camp (Demeniss)"},
++{0x000F5EEB, "Activity at Sunrise Plain Bandit Camp (Hernand)"},
++{0x000F5EED, "Activity at Bellanor Beacon (Hernand)"},
++{0x000F5EF4, "Activity at Bellanor Beacon (Hernand)"},
++{0x000F5EF8, "Activity at Willkomm Post (Hernand)"},
++{0x000F5F6B, "Activity at Wildhunt Camp (Kwe)"},
++{0x000F5F6E, "Activity at Wildhunt Camp (Kwe)"},
++{0x000F5F95, "Activity at Deep Forest Beacon (Hernand)"},
++{0x000F678D, "Pursuers: Odeck Police Lv3"},
++{0x000F6792, "Pursuers: Beighen Police Lv3"},
++{0x000F6794, "Pursuers: Skoghorn Police Lv3"},
++{0x000F68C0, "Activity at Shipwreck (Delesyia)"},
++{0x000F68C1, "Activity at Shipwreck (Delesyia)"},
++{0x000F68C2, "Activity at Shipwreck (Delesyia)"},
++{0x000F68C3, "Activity at Shipwreck (Delesyia)"},
++{0x000F68C4, "Activity at Shipwreck (Delesyia)"},
++{0x000F68C5, "Activity at Shipwreck (Delesyia)"},
++{0x000F68C6, "Activity at Shipwreck (Delesyia)"},
++{0x000F68C7, "Activity at Shipwreck (Delesyia)"},
++{0x000F68C8, "Activity at Shipwreck (Delesyia)"},
++{0x000F68C9, "Activity at Shipwreck (Delesyia)"},
++{0x000F68CA, "Activity at Shipwreck (Delesyia)"},
++{0x000F68CB, "Activity at Shipwreck (Delesyia)"},
++{0x000F68CD, "Activity at Shipwreck (Delesyia)"},
++{0x000F68CE, "Activity at Shipwreck (Demeniss)"},
++{0x000F68CF, "Activity at Shipwreck (Demeniss)"},
++{0x000F68D0, "Activity at Shipwreck (Demeniss)"},
++{0x000F68D1, "Activity at Shipwreck (Demeniss)"},
++{0x000F68D3, "Activity at Shipwreck (Demeniss)"},
++{0x000F68D4, "Activity at Shipwreck (Demeniss)"},
++{0x000F68D5, "Activity at Shipwreck (Demeniss)"},
++{0x000F68D6, "Activity at Shipwreck (Hernand)"},
++{0x000F68D7, "Activity at Shipwreck (Hernand)"},
++{0x000F68D8, "Activity at Shipwreck (Hernand)"},
++{0x000F68D9, "Activity at Abandoned Cabin (Delesyia)"},
++{0x000F68DA, "Activity at Abandoned Cabin (Delesyia)"},
++{0x000F68DB, "Activity at Abandoned Cabin (Delesyia)"},
++{0x000F68DC, "Activity at Abandoned Cabin (Delesyia)"},
++{0x000F68DD, "Activity at Abandoned Cabin (Delesyia)"},
++{0x000F68DE, "Activity at Abandoned Cabin (Delesyia)"},
++{0x000F68DF, "Activity at Abandoned Cabin (Delesyia)"},
++{0x000F68E0, "Activity at Abandoned Cabin (Demeniss)"},
++{0x000F68E1, "Activity at Abandoned Cabin (Demeniss)"},
++{0x000F68E2, "Activity at Abandoned Cabin (Demeniss)"},
++{0x000F68E3, "Activity at Abandoned Cabin (Demeniss)"},
++{0x000F68E4, "Activity at Abandoned Cabin (Demeniss)"},
++{0x000F68E5, "Activity at Abandoned Cabin (Hernand)"},
++{0x000F68E6, "Activity at Abandoned Cabin (Hernand)"},
++{0x000F68E7, "Activity at Abandoned Cabin (Hernand)"},
++{0x000F68E8, "Activity at Abandoned Cabin (Hernand)"},
++{0x000F68EB, "Activity at Mudreach Cabin (Hernand)"},
++{0x000F68EC, "Activity at Mossvale Cabin (Crimson Desert)"},
++{0x000F68ED, "Activity at Seabreeze Cabin (Crimson Desert)"},
++{0x000F68EE, "Activity at Stormwave Cliff (Demeniss)"},
++{0x000F68EF, "Activity at Mistshade Hollow (Kwe)"},
++{0x000F68F0, "Activity at Shadowed Overlook (Kwe)"},
++{0x000F68F1, "Activity at Whisperwood Cabin (Kwe)"},
++{0x000F68F2, "Activity at Whitegreen Summit (Kwe)"},
++{0x000F68F3, "Activity at Treeshade Cabin (Kwe)"},
++{0x000F68F4, "Activity at Twin Clover Cabin (Hernand)"},
++{0x000F68F5, "Activity at Ford Cabin (Hernand)"},
++{0x000F68F6, "Activity at Wet Fog Cabin (Hernand)"},
++{0x000F68F7, "Activity at Benus Cabin (Delesyia)"},
++{0x000F68F8, "Activity at Wood Rock Cabin (Delesyia)"},
++{0x000F68FA, "Activity at King Mountain Hollow (Demeniss)"},
++{0x000F68FC, "Activity at Whispering Cabin (Kwe)"},
++{0x000F68FD, "Activity at Swamp Fishing Dock (Kwe)"},
++{0x000F68FE, "Activity at Slanted Fishing Dock (Demeniss)"},
++{0x000F68FF, "Activity at Ruins (Hernand)"},
++{0x000F6900, "Activity at Ruins (Hernand)"},
++{0x000F6902, "Activity at Ruins (Hernand)"},
++{0x000F6903, "Activity at Ruins (Hernand)"},
++{0x000F6904, "Activity at Ruins (Hernand)"},
++{0x000F6905, "Activity at Ruins (Demeniss)"},
++{0x000F6906, "Activity at Ruins (Demeniss)"},
++{0x000F6907, "Activity at Ruins (Delesyia)"},
++{0x000F690A, "Activity at Ruins (Crimson Desert)"},
++{0x000F690C, "Activity at Ruins (Crimson Desert)"},
++{0x000F690D, "Activity at Ruins (Crimson Desert)"},
++{0x000F690E, "Activity at Ruins (Crimson Desert)"},
++{0x000F690F, "Activity at Ruins (Crimson Desert)"},
++{0x000F6910, "Activity at Ruins (Crimson Desert)"},
++{0x000F6913, "Activity at Ruins (Crimson Desert)"},
++{0x000F6914, "Activity at Ruins (Crimson Desert)"},
++{0x000F6915, "Activity at Ruins (Crimson Desert)"},
++{0x000F6916, "Activity at Ruins (Crimson Desert)"},
++{0x000F6917, "Activity at Ruins (Crimson Desert)"},
++{0x000F6918, "Activity at Ruins (Crimson Desert)"},
++{0x000F6919, "Activity at Ruins (Crimson Desert)"},
++{0x000F691A, "Activity at Seabreeze Ruin (Crimson Desert)"},
++{0x000F691B, "Activity at Sandslumber Ruins (Crimson Desert)"},
++{0x000F691D, "Activity at Whitegreen Ridge (Hernand)"},
++{0x000F691E, "Activity at Frost Fortress Site (Kwe)"},
++{0x000F691F, "Activity at Old Groundsinthe Frost (Kwe)"},
++{0x000F6920, "Activity at Greenwood Valley (Delesyia)"},
++{0x000F6921, "Activity at Red Boundary Path (Demeniss)"},
++{0x000F6922, "Activity at Stonecrack Ruins (Crimson Desert)"},
++{0x000F6AC9, "Pursuers: Tariv Police Lv3"},
++{0x000F7279, "Reinforcements at Bellanor Hunting Grounds"},
++{0x000F72A7, "Activity at Arimajahr Camp (Crimson Desert)"},
++{0x000F72A8, "Activity at Khafijahr Camp (Crimson Desert)"},
++{0x000F72A9, "Activity at Ghadirjahr Camp (Crimson Desert)"},
++{0x000F72AA, "Activity at Qudimjahr Camp (Crimson Desert)"},
++{0x000F72AB, "Activity at Yalwijahr Camp (Crimson Desert)"},
++{0x000F72AC, "Activity at Shiqarjahr Camp (Crimson Desert)"},
++{0x000F72AD, "Activity at Sakhajahr Camp (Crimson Desert)"},
++{0x000F72AE, "Activity at Baisunjahr Camp (Crimson Desert)"},
++{0x000F72AF, "Activity at Mustawijahr Camp (Crimson Desert)"},
++{0x000F731B, "Patrol at Azerian Manor (Demeniss)"},
++{0x000F7449, "Reinforcements at Hellwood Inner Gate"},
++{0x000F7508, "Reinforcements at Fort Anvil"},
++{0x000F7509, "Reinforcements at Fort Anvil"},
++{0x000F750A, "Reinforcements at Fort Anvil"},
++{0x000F750B, "Reinforcements at Steinnfell Fortress"},
++{0x000F750C, "Reinforcements at Steinnfell Fortress Gate"},
++{0x000F750D, "Reinforcements at Steinnfell Barracks"},
++{0x000F750E, "Reinforcements at Trovak Camp"},
++{0x000F753E, "Reinforcements at East Court"},
++{0x000F753F, "Reinforcements at West Court"},
++{0x000F7540, "Reinforcements at South Court"},
++{0x000F7550, "Reinforcements at Senia Village"},
++{0x000F755B, "Reinforcements at Bluemont Wine House"},
++{0x000F755C, "Reinforcements at Karin Quarry"},
++{0x000F755D, "Reinforcements at Hellwood Slave Camp"},
++{0x000F755E, "Reinforcements at Fort Hellwood"},
++{0x000F7560, "Reinforcements at Root Fort"},
++{0x000F7561, "Reinforcements at Willkomm Post"},
++{0x000F7562, "Reinforcements at Bellanor Beacon"},
++{0x000F7563, "Reinforcements at Riverward Outpost"},
++{0x000F7564, "Reinforcements at Riverward Spearsend Station"},
++{0x000F7565, "Reinforcements at Riverward Arroweye Station"},
++{0x000F7566, "Reinforcements at Riverward Ironhoof Station"},
++{0x000F7567, "Reinforcements at Riverward Ironhammer Station"},
++{0x000F7568, "Reinforcements at Deep Forest Beacon"},
++{0x000F7569, "Reinforcements at Pervin Fort"},
++{0x000F756A, "Reinforcements at Pervin Gate"},
++{0x000F756B, "Reinforcements at Pervin Quarry"},
++{0x000F756C, "Reinforcements at Pervin Trade Post"},
++{0x000F756D, "Reinforcements at Pervin Prison Camp"},
++{0x000F756E, "Reinforcements at Spider Castle"},
++{0x000F756F, "Reinforcements at Arboria Village"},
++{0x000F7570, "Reinforcements at Windcrest Outpost"},
++{0x000F7571, "Reinforcements at Hillguard Outpost"},
++{0x000F7572, "Reinforcements at Oakwatch Outpost"},
++{0x000F7574, "Reinforcements at Fort Warspike"},
++{0x000F7575, "Reinforcements at Warspike East Gate"},
++{0x000F7576, "Reinforcements at Warspike South Gate"},
++{0x000F7577, "Reinforcements at Warspike North Gate"},
++{0x000F7578, "Reinforcements at Warspike Spearmaker"},
++{0x000F7579, "Reinforcements at Phoniel Ranch"},
++{0x000F757A, "Reinforcements at Inksworth Printer"},
++{0x000F757B, "Reinforcements at South Quarry"},
++{0x000F75DB, "Reinforcements at Bloodsteel Camp"},
++{0x000F75DC, "Reinforcements at Bloodsteel North Gate"},
++{0x000F75DD, "Reinforcements at Bloodsteel South Gate"},
++{0x000F75DE, "Reinforcements at Hidden Estate"},
++{0x000F75DF, "Reinforcements at Gray Rock Shipyard"},
++{0x000F75E0, "Reinforcements at Gray Rock Quarry"},
++{0x000F75E1, "Reinforcements at Scorchrock Castle"},
++{0x000F75E2, "Reinforcements at North Outpost"},
++{0x000F75E3, "Reinforcements at Eye Of Ice Altar"},
++{0x000F75E4, "Reinforcements at Frost Fort"},
++{0x000F75E5, "Reinforcements at Frosthold Entrance"},
++{0x000F75E6, "Reinforcements at Frosthold Pass"},
++{0x000F75E7, "Reinforcements at Flame Knights"},
++{0x000F75E8, "Reinforcements at Night Expedition Camp"},
++{0x000F75EA, "Reinforcements at Silvermoon HQ"},
++{0x000F75EB, "Reinforcements at Oak Barrel Wine Maker"},
++{0x000F75EC, "Reinforcements at Hunters Cabin"},
++{0x000F75ED, "Reinforcements at Truth Gate"},
++{0x000F75EE, "Reinforcements at Burnhand Quarry"},
++{0x000F75EF, "Reinforcements at Ruined Chapel"},
++{0x000F75F3, "Reinforcements at Wolf Fang Mine"},
++{0x000F75F4, "Reinforcements at Wisdom Tower"},
++{0x000F75F5, "Reinforcements at Dragon Kill Castle"},
++{0x000F75F6, "Reinforcements at Drakefall Watchtower Area"},
++{0x000F75F7, "Reinforcements at Stone Tower Village"},
++{0x000F75F8, "Reinforcements at Vellua Village"},
++{0x000F75F9, "Reinforcements at Fort Askelund"},
++{0x000F75FA, "Reinforcements at Fort Askelund Gate"},
++{0x000F75FB, "Reinforcements at Vatnholl Fortress"},
++{0x000F75FC, "Reinforcements at Camp Bjornlund"},
++{0x000F75FD, "Reinforcements at Odeck Village"},
++{0x000F75FE, "Reinforcements at Odeck Pier"},
++{0x000F75FF, "Reinforcements at Bolvior Ruins"},
++{0x000F7600, "Reinforcements at Verheim Ruins"},
++{0x000F7601, "Reinforcements at Bolsteinn Ruins"},
++{0x000F7602, "Reinforcements at Abandoned Wyvern Nest"},
++{0x000F7603, "Reinforcements at Desolate Wyvern Nest"},
++{0x000F7604, "Reinforcements at Forgotten Wyvern Nest"},
++{0x000F7605, "Reinforcements at Burhum Village"},
++{0x000F7606, "Reinforcements at Desert Oasis Reflection"},
++{0x000F7607, "Reinforcements at Skallcove Village"},
++{0x000F7614, "Reinforcements at Desert Oasis Agony"},
++{0x000F7615, "Reinforcements at Desert Oasis Patience"},
++{0x000F7616, "Reinforcements at Fort Manub"},
++{0x000F7617, "Reinforcements at Nahab Village"},
++{0x000F7618, "Reinforcements at Duzhar Village"},
++{0x000F7619, "Reinforcements at Helmara Village"},
++{0x000F761A, "Reinforcements at Batihar Village"},
++{0x000F761B, "Reinforcements at Isvatu Fortress"},
++{0x000F761C, "Reinforcements at Muiquun Village"},
++{0x000F761D, "Reinforcements at Ruins 0019"},
++{0x000F761E, "Reinforcements at Watchtower VII"},
++{0x000F761F, "Reinforcements at Watchtower VIII"},
++{0x000F7620, "Reinforcements at Red Mountain Fort"},
++{0x000F7621, "Reinforcements at Dawn Moon Base"},
++{0x000F7622, "Reinforcements at Timeworn Ruins"},
++{0x000F7623, "Reinforcements at Ruins Excavation"},
++{0x000F7624, "Reinforcements at Desert Wells"},
++{0x000F7625, "Reinforcements at Saltroad Camp"},
++{0x000F7626, "Reinforcements at Shadowdeep Forest"},
++{0x000F7627, "Reinforcements at Watchtower II"},
++{0x000F7628, "Reinforcements at Dig Site Watch Tower"},
++{0x000F7629, "Reinforcements at Jungle Scout Camp"},
++{0x000F762A, "Reinforcements at Giants Yard Forward Camp"},
++{0x000F762B, "Reinforcements at Crimson River Cliff Watch Tower"},
++{0x000F762C, "Reinforcements at Shadowcliff Watch Camp"},
++{0x000F762D, "Reinforcements at Bursada Castle Ruins"},
++{0x000F762E, "Reinforcements at Bursada Temple Ruins"},
++{0x000F762F, "Reinforcements at Jungle Eye Watch Tower"},
++{0x000F7630, "Reinforcements at Emerald Cliff Watch Tower"},
++{0x000F7631, "Reinforcements at Giants Yard Reasearch Watch Tower"},
++{0x000F7632, "Reinforcements at Giants Yard Research Site"},
++{0x000F7633, "Reinforcements at Giants Yard Extraction Camp"},
++{0x000F7634, "Reinforcements at Dry River"},
++{0x000F7635, "Reinforcements at Flowing Sand Village"},
++{0x000F7636, "Reinforcements at Rock Village"},
++{0x000F7637, "Reinforcements at Iguana Hatchery"},
++{0x000F7638, "Reinforcements at Stoneward Castle Ruins"},
++{0x000F7639, "Reinforcements at Marni Air Lab"},
++{0x000F763A, "Reinforcements at Research Base Pipe"},
++{0x000F763B, "Reinforcements at Secret Base Fuel Pipe"},
++{0x000F763C, "Reinforcements at Marni Lab"},
++{0x000F763D, "Reinforcements at Marni Lab Gate"},
++{0x000F763E, "Reinforcements at Lab Watchtower"},
++{0x000F763F, "Reinforcements at Experiment Facility"},
++{0x000F7640, "Reinforcements at Marni Oil Rig"},
++{0x000F7641, "Reinforcements at Marni Mech Factory"},
++{0x000F7642, "Reinforcements at West Outpost"},
++{0x000F7643, "Reinforcements at East Outpost"},
++{0x000F7644, "Reinforcements at Valvegard Wall Fort"},
++{0x000F7645, "Reinforcements at Golden Goblin Wine Maker"},
++{0x000F7646, "Reinforcements at Wine Trade Post"},
++{0x000F7647, "Reinforcements at Sanctum Of Temperance"},
++{0x000F7648, "Reinforcements at Sanctum Of Penitence"},
++{0x000F7649, "Reinforcements at Sanctum Of Benediction"},
++{0x000F764A, "Reinforcements at Sanctum Of Exaltation"},
++{0x000F764B, "Reinforcements at Sanctum Of Deliverance"},
++{0x000F764C, "Reinforcements at Sanctum Of Atonement"},
++{0x000F764D, "Reinforcements at Sanctum Of Devotion"},
++{0x000F764E, "Reinforcements at Sanctum Of Veneration"},
++{0x000F764F, "Reinforcements at Temple 0015"},
++{0x000F7650, "Reinforcements at Temple 0014"},
++{0x000F7651, "Reinforcements at Sanctum Of Expiation"},
++{0x000F7652, "Reinforcements at Sanctum Of Renunciation"},
++{0x000F7653, "Reinforcements at Sanctum Of Solace"},
++{0x000F7654, "Reinforcements at Sanctum Of Absolution"},
++{0x000F7655, "Reinforcements at Sanctum Of Revelation"},
++{0x000F7656, "Reinforcements at Marnis Outpost"},
++{0x000F7657, "Reinforcements at Solon Village Ruins"},
++{0x000F7658, "Reinforcements at Neutral Zone Gate"},
++{0x000F765B, "Activity at Abandoned Cabin (Hernand)"},
++{0x000F765C, "Activity at Abandoned Cabin (Hernand)"},
++{0x000F765D, "Activity at Abandoned Cabin (Hernand)"},
++{0x000F765E, "Activity at Abandoned Cabin (Hernand)"},
++{0x000F773C, "Activity at Snowing Cabin (Hernand)"},
++{0x000F7788, "Activity at Abandoned Cabin (Demeniss)"},
++{0x000F7789, "Activity at Abandoned Cabin (Demeniss)"},
++{0x000F778A, "Activity at Abandoned Cabin (Demeniss)"},
++{0x000F778B, "Activity at Water Fall Fishing Dock (Demeniss)"},
++{0x000F778C, "Activity at Abandoned Cabin (Delesyia)"},
++{0x000F778E, "Activity at Ruins (Hernand)"},
++{0x000F778F, "Activity at Ruins (Hernand)"},
++{0x000F7790, "Activity at Ruins (Delesyia)"},
++{0x000F7791, "Activity at Ruins (Crimson Desert)"},
++{0x000F7792, "Activity at Ruins (Crimson Desert)"},
++{0x000F78CA, "Pursuers: Urdavah Police Lv1"},
++{0x000F7BF7, "Activity at Southend Camp (Demeniss)"},
++{0x000F8293, "Activity at Gorthak Ironworks (Neut)"},
++{0x000F82A6, "Activity at North (Hernand)"},
++{0x000F82D1, "Patrol at North (Hernand)"},
++{0x000F82DD, "Activity at Snow Mountain (Hernand)"},
++{0x000F82DE, "Patrol at Snow Mountain (Hernand)"},
++{0x000F8948, "Pursuers: Urdavah Police Lv2"},
++{0x000F8C33, "Activity at North (Hernand)"},
++{0x000F8F16, "Activity at Night Expedition Camp (Demeniss)"},
++{0x000F8F17, "Patrol at Night Expedition Camp (Demeniss)"},
++{0x000F8F55, "Pursuers: Urdavah Police Lv3"},
++{0x000F8F56, "Pursuers: Urdavah Police Lv4"},
++{0x000F8F57, "Pursuers: Urdavah Police Lv5"},
++{0x000F8F58, "Pursuers: Varnia Police Lv1"},
++{0x000F8F59, "Pursuers: Varnia Police Lv2"},
++{0x000F8F5A, "Pursuers: Varnia Police Lv3"},
++{0x000F8F5B, "Pursuers: Varnia Police Lv4"},
++{0x000F8F5C, "Pursuers: Varnia Police Lv5"},
++{0x000F8F5D, "Pursuers: Varnia Wakeup Prison"},
++{0x000F91DE, "Activity at Riverward Outpost (Hernand)"},
++{0x000F91DF, "Activity at Riverward Outpost (Hernand)"},
++{0x000F91E0, "Activity at Riverward Outpost (Hernand)"},
++{0x000F91E1, "Activity at Riverward Outpost (Hernand)"},
++{0x000F91E2, "Activity at Riverward Outpost (Hernand)"},
++{0x000F9F8E, "Reinforcements at Hellwood Outer Gate"},
++{0x000F9FAF, "Activity at Crescent Camp (Demeniss)"},
++{0x000F9FB3, "Reinforcements at Hernand Bandit I"},
++{0x000F9FB4, "Reinforcements at Raiders Base"},
++{0x000F9FB5, "Reinforcements at Raiders Base"},
++{0x000F9FB6, "Reinforcements at Double Step Pass"},
++{0x000F9FB7, "Reinforcements at Ridge Path"},
++{0x000F9FB8, "Reinforcements at Brokenford"},
++{0x000F9FBC, "Reinforcements at Ridgehunter Leather Maker"},
++{0x000F9FBD, "Reinforcements at Wildhunt Camp"},
++{0x000F9FBE, "Activity at Pitfall Camp (Kwe)"},
++{0x000FF9D8, "Reinforcements at Rodbel Fishing Dock"},
++{0x000FF9EF, "Activity at Embernest Beacon (Hernand)"},
++{0x000FF9F2, "Reinforcements at Embernest Beacon"},
++{0x000FF9F5, "Reinforcements at Hellwood Beacon"},
++{0x01703298, "Pursuers: Hernand Police Lv1"},
++{0x017032FC, "Pursuers: Hernand Police Lv2"},
++{0x01703360, "Pursuers: Hernand Police Lv3"},
++{0x017033C4, "Pursuers: Hernand Police Lv4"},
++{0x01703428, "Pursuers: Hernand Police Lv5"},
++{0x01703680, "Pursuers: Demeniss Police Lv1"},
++{0x017036E4, "Pursuers: Demeniss Police Lv2"},
++{0x01703748, "Pursuers: Demeniss Police Lv3"},
++{0x017037AC, "Pursuers: Demeniss Police Lv4"},
++{0x01703810, "Pursuers: Demeniss Police Lv5"},
++{0x01703A68, "Pursuers: Delesyian Police Lv1"},
++{0x01703ACC, "Pursuers: Delesyian Police Lv2"},
++{0x01703B30, "Pursuers: Delesyian Police Lv3"},
++{0x01703B94, "Pursuers: Delesyian Police Lv4"},
++{0x01703BF8, "Pursuers: Delesyian Police Lv5"},
++{0x0170555C, "Pursuers: Hernand Wakeup Prison"},
++{0x017055C0, "Pursuers: Demeniss Wakeup Prison"},
++{0x01705624, "Pursuers: Delesyian Wakeup Prison"},
 diff --git a/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp b/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
 index 8411baa..e7b3767 100644
 --- a/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp

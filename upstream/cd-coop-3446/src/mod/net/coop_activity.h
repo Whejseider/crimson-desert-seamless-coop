@@ -62,6 +62,8 @@ bool activity_partner_in_menu();
 // [dev] seat_test: in any arm / hand wrestling match against the NPC (no versus, no challenge), the other player's
 // copy takes the NPC's seat and the NPC is hidden (F9 one-PC test: the echo copy plays our own actions there).
 void activity_set_seat_test(bool on);
+// [dev] event_test (T22): this stage key is announced as a world event 20 s after connecting.
+void activity_set_event_test(uint32_t key);
 
 // [dev] challenge_test: one-PC test of challenges: 1 = a simulated other player accepts our Shift+F5 invite after
 // 2 s; 2 = also Shift+F6 (with nothing pending) makes them challenge us to a rock-paper-scissors duel.

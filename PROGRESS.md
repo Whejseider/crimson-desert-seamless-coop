@@ -216,3 +216,12 @@ back, nothing left), loot1 (the guest's stand-in enemy killed for its drop stays
 - T21 [!]: resync after arrival (tcrs1) does not clear it either. Five approaches in BLOCKED.md. The scrubs stay
   (our server should not hear about copies in its triggers / regions / gimmicks anyway). Real two-PC play may
   differ (the echo copy teleports in with us).
+- Pushed T21 (7541ce4).
+
+## T22 -- World event sync
+Plan: events = stages our server starts (PrepareSequencerAck); their fighters are enemies = already shared near the
+host. Add the "it is happening" signal: tools/gen/event_names_inc.py (519 Reinforcement_ / WantedChaser_ / Node_
+stages, readable names) -> host-side PrepareSequencerAck watch -> Activity 21 kEvent -> notice; [dev] event_test.
+Findings: no event stage occurred in today's captures (start area, camp, pub), so natural events are for two PCs.
+Done: event1 ([dev] event_test=1001215): "World event near cdmp_peer (relay) / Bounty hunters (Tashkalp, level 1)".
+[~] PLAYTEST 3.8d.

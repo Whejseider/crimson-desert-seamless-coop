@@ -155,6 +155,10 @@ WHAT WORKS / WHAT DOESN'T (YET)
   not: each of you sees the animals and people of your own world. They stand in the
   same places for both (same world), but they are not the same ones: a deer you
   hunt is only in your world, and your friend's deer is only in theirs.
+- World events (reinforcements arriving, bounty hunters, camp and outpost activity)
+  happen in the world they start in; their fighters are enemies, so the guest sees
+  and fights them with the host. Either of you gets a notice when one starts near the
+  other ("World event near <name>: Bounty hunters ...").
 - Crimes and bounties are your own: what you steal or whom you hit in your world
   makes YOU wanted there, never your friend (and the other way round). When one of
   you becomes wanted, the other gets a notice.
