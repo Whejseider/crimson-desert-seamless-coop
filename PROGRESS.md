@@ -542,3 +542,11 @@ Done in the user's Chrome (signed in as Asher):
   #find-a-co-op-partner note. The user's earlier "will be updated when the mod becomes available" note left in place.
 - Distribution decision changed: the zip pinned in #download-here (fits Discord's 10 MB with the mod-manager zip);
   the public GitHub release (blocked for me) stays optional.
+
+## GitHub release (user: "I still want everything published to GitHub", 2026-11-03)
+- tools/publish-playtest.ps1 first stopped at `gh repo view` (PowerShell 5.1 with ErrorAction Stop turns gh's
+  "not found" on stderr into an error); fixed (Continue around that check).
+- Published: public repo https://github.com/ashersheets-jpg/crimson-desert-coop-playtest (README with install
+  steps, FEATURES.md) and release v0.1.0-alpha-7a880b02 with the player zip and the mod-manager zip (never the
+  symbols zip). The project repo stays private.
+- Checked: /releases/latest -> the tag (HTTP 200); both files downloaded anonymously are byte-identical to dist\.

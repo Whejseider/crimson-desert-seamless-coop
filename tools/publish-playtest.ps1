@@ -20,9 +20,12 @@ $manager = Join-Path $dist ($zip.BaseName + '-mod-manager.zip')
 $version = $zip.BaseName -replace '^CrimsonDesert-SeamlessCoop-', ''
 $tag = 'v' + ($version -replace '\+', '-')
 
-# The downloads repo, once.
+# The downloads repo, once. (gh writes "not found" to stderr, which Stop would turn into an error.)
+$ErrorActionPreference = 'Continue'
 & gh repo view $Repo *> $null
-if ($LASTEXITCODE -ne 0) {
+$exists = $LASTEXITCODE -eq 0
+$ErrorActionPreference = 'Stop'
+if (-not $exists) {
     & gh repo create $Repo --public --description 'Crimson Desert Seamless Co-op+ playtest downloads (unofficial fan mod)'
     if ($LASTEXITCODE -ne 0) { throw "could not create $Repo" }
 }
