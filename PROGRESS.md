@@ -524,3 +524,4 @@ allows skipping it ("only if the architecture allows it").
   stays private): a stable "latest" link for Discord, versions with notes, SHA256, no size limit; source.zip in the
   zip now holds only the build sources (GPL) -- no notes or logs (it was `git archive HEAD` of everything).
 - docs/release/FEATURES.md (Reddit, tables) and docs/release/discord-features.txt (3 messages under 2000 chars).
+- Final build 7a880b02 packaged, scanned (Defender: no threats), fake-folder install 13/13, installed; savecheck OK, test save out, shipped ini; publishing left to the user (F12). FINAL-REPORT.md.
