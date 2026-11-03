@@ -5,3 +5,5 @@ mods/*/
 !mods/README.md
 __pycache__/
 *.pyc
+tools/audio/*.exe
+tools/audio/*.obj

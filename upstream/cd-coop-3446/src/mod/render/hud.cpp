@@ -238,6 +238,13 @@ void hud_draw(float width, float height) {
     float remote_distance = 0;
     if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
     settings::set_panel_open(panel_visible && opt.build_problem.empty());
+    // Co-op+ (T34): host gold / guest blue, or the colour-blind-safe pair (Okabe-Ito orange / sky blue).
+    {
+        const bool cb = settings::colourblind();
+        const ImU32 host_col = cb ? IM_COL32(230, 159, 0, 255) : IM_COL32(232, 200, 130, 255);
+        const ImU32 guest_col = cb ? IM_COL32(86, 180, 233, 255) : IM_COL32(120, 180, 245, 255);
+        ui::set_partner(d.we_host ? guest_col : host_col, d.we_host);
+    }
     // Co-op+ (T32): the small connection readout, top right ([overlay] net_hud, F8 settings).
     if (d.connected && d.net_hud && !game::ui_menu_open()) {
         const bool good = d.rtt_ms < 120 && d.loss_pct < 2, ok = d.rtt_ms < 250 && d.loss_pct < 8;

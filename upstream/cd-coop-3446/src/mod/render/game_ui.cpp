@@ -23,6 +23,14 @@ ImFont* g_serif_bold = nullptr;
 constexpr ImU32 kGold = IM_COL32(232, 200, 130, 255);
 constexpr ImU32 kText = IM_COL32(232, 228, 220, 255);
 constexpr ImU32 kRule = IM_COL32(205, 195, 175, 150);
+// Co-op+ (T34): the other player's colour and mark (a diamond for the host, a round mark for the guest).
+ImU32 g_partner = kGold;
+bool g_partner_round = false;
+
+void player_mark(ImDrawList* dl, float x, float y, float r, ImU32 col) {
+    if (g_partner_round) dl->AddCircleFilled(ImVec2(x, y), r * 0.85f, col, 16);
+    else dl->AddQuadFilled(ImVec2(x, y - r), ImVec2(x + r, y), ImVec2(x, y + r), ImVec2(x - r, y), col);
+}
 constexpr ImU32 kCap = IM_COL32(214, 210, 202, 240);
 constexpr ImU32 kCapText = IM_COL32(28, 26, 24, 255);
 
@@ -338,6 +346,13 @@ void boss_bar(float sw, float sh, const std::string& name, float frac, const std
     }
 }
 
+void set_partner(unsigned int colour, bool round_mark) {
+    g_partner = colour;
+    g_partner_round = round_mark;
+}
+
+unsigned int partner_colour() { return g_partner; }
+
 void chat_log(float sw, float sh, const std::vector<std::string>& lines) {
     ImDrawList* dl = ImGui::GetForegroundDrawList();
     const float k = std::max(0.6f, sh / 1080.0f);
@@ -346,7 +361,7 @@ void chat_log(float sw, float sh, const std::vector<std::string>& lines) {
     (void)sw;
     for (const auto& l : lines) {
         text(dl, g_serif, ls, x + 1, y + 1, IM_COL32(0, 0, 0, 200), l);
-        text(dl, g_serif, ls, x, y, kText, l);
+        text(dl, g_serif, ls, x, y, l.rfind("You: ", 0) == 0 ? kText : g_partner, l);  // T34: theirs in their colour
         y += ls * 1.3f;
     }
 }
@@ -361,8 +376,8 @@ void party_frame(float sw, float sh, const std::string& name, float hp, float st
     dl->AddRectFilledMultiColor(ImVec2(x - 14 * k, y - 6 * k), ImVec2(x + w + 18 * k, y + ns + bh + sth + 34 * k),
                                 IM_COL32(0, 0, 0, 120), IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 120));
     const float r = 5 * k, cy = y + ns * 0.55f;
-    dl->AddQuadFilled(ImVec2(x, cy - r), ImVec2(x + r, cy), ImVec2(x, cy + r), ImVec2(x - r, cy), kGold);
-    text(dl, g_serif, ns, x + 12 * k, y, kGold, name);
+    player_mark(dl, x, cy, r, g_partner);
+    text(dl, g_serif, ns, x + 12 * k, y, g_partner, name);
     float by = y + ns + 6 * k;
     if (hp >= 0.0f) {
         const float f = std::clamp(hp, 0.0f, 1.0f);
@@ -433,7 +448,7 @@ void nameplate(ImDrawList* dl, float x, float y, const std::string& name, float 
     const float ns = 19.0f * scale, ds = 14.0f * scale, r = 4.5f * scale;
     dl->AddQuadFilled(ImVec2(x, y - r - 1), ImVec2(x + r + 1, y), ImVec2(x, y + r + 1), ImVec2(x - r - 1, y),
                       with_alpha(IM_COL32(0, 0, 0, 170), alpha));
-    dl->AddQuadFilled(ImVec2(x, y - r), ImVec2(x + r, y), ImVec2(x, y + r), ImVec2(x - r, y), with_alpha(kGold, alpha));
+    player_mark(dl, x, y, r, with_alpha(g_partner, alpha));
     const float nw = text_w(g_serif, ns, name);
     float ty = y - r - 8 * scale - (frac >= 0 ? 8 * scale : 0) - ns;
     text(dl, g_serif, ns, x - nw * 0.5f, ty, with_alpha(IM_COL32(240, 236, 228, 255), alpha), name);

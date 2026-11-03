@@ -46,6 +46,11 @@ void title_card(float screen_w, float screen_h, const std::string& title, const 
 // fill (the guest's boss bar, the duel opponent's health). `note` under it ("" = none).
 void boss_bar(float screen_w, float screen_h, const std::string& name, float frac, const std::string& note = {});
 
+// Co-op+ (T34): the other player's colour (name tag, partner frame, their chat lines) and mark: round for a guest,
+// a diamond for a host, so the two read apart without colour too.
+void set_partner(unsigned int colour, bool round_mark);
+unsigned int partner_colour();
+
 // Co-op+ (T24): recent chat lines on the left, above the partner frame, in the game's serif with a soft shadow.
 void chat_log(float screen_w, float screen_h, const std::vector<std::string>& lines);
 

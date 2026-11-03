@@ -37,5 +37,6 @@ std::vector<Line> lines();
 // Live values the network loop reads (the config is const there).
 bool respawn_at_partner();
 bool net_hud();  // T32: the small ping / loss readout
+bool colourblind();  // T34: the colour-blind-safe player colours
 
 }  // namespace cdmp::settings

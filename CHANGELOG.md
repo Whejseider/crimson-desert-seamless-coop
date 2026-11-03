@@ -36,6 +36,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T31: first-run controls card (game style, key/pad glyphs), shown once the first time in the world; Help (Shift+F1, pad View + L3) opens and closes it any time.
 - T32: connection quality - packet loss counted from the other side's packet numbers; ping and loss (coloured) on the F8 panel, an optional small readout top right (F8 settings), "lost" in the log.
 - T33: partner audio checked as far as one PC allows (the copy runs on the game's own animation actions, so the game plays its footsteps and swings with its own falloff); a loopback measuring tool (tools/audio); two-PC listening step in PLAYTEST 2.7c.
+- T34: player colours - host gold with a diamond mark, guest blue with a round mark, on the name tag, partner frame and chat; a colour-blind-safe pair and the friend's map pin colour in the F8 settings.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

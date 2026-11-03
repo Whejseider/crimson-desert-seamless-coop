@@ -103,7 +103,9 @@ PLAYING TOGETHER
   at once in cdmp.ini; most apply at once, "(next start)" ones after a restart. Who
   can join, loot of shared kills, revive, respawn, weather, how much tougher
   enemies and bosses get with a guest (x1.0 to x3.0; the host's values count), and
-  "Ping and packet loss on screen" (a small readout, top right).
+  "Ping and packet loss on screen" (a small readout, top right), "Player colours"
+  (the host is gold with a diamond mark, the guest blue with a round mark; or a
+  colour-blind-safe orange / sky blue) and your friend's map pin colour.
 - Different keys: in bin64\cdmp.ini add a [keys] section, one line per action, e.g.
     [keys]
     Invite=Ctrl+G

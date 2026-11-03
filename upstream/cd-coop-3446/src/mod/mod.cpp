@@ -869,6 +869,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             render::HudData hud;
             hud.connected = session.state() == ClientSession::State::Connected;
             hud.peer_name = session.peer_name();
+            hud.we_host = host;
             hud.rtt_ms = session.stats().rtt_ms;
             // Co-op+ (T32): packet loss over the last ~3 s.
             {

@@ -360,3 +360,14 @@ loopback at about -77 dBFS here (near silent: the game or its device is turned d
 prove it. No sound is added by the mod; voice lines of the player character are not expected for the copy.
 Status [~]: PLAYTEST 2.7c (headphones, distances 2 / 20 / 60 m). If the copy is silent there, the next step is to
 find the anim-notify sound path for network-created actors.
+- Pushed T33 (b77a904).
+
+## T34 -- Per-player colours
+Plan: one colour and one mark per role, the same on both screens: host gold + diamond, guest blue + round mark (the
+mark makes them read apart without colour); colour-blind-safe pair from Okabe-Ito (orange 230,159,0 / sky blue
+86,180,233). game_ui::set_partner(colour, round) used by the name tag, the partner frame and the partner's chat lines.
+The game's map pin colours are its own palette (15 entries, not documented): a settings row picks the friend's pin
+colour (live through puppet_map_pin_style). Pings use the same pin.
+Done: colours_test: as guest the host's tag + frame gold; F8 > Player colours > colour-blind safe ("Settings: Player
+colours = colour-blind safe") -> orange, live. The host's view (blue, round) and the pin colour need two PCs:
+PLAYTEST 2.7d. [x]
