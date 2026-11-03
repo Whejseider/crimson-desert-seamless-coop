@@ -460,3 +460,26 @@
   "[E] Greet". Planned versus design (not built): hold our pick key (keyboard hook, like the skip) until both players
   picked, then write the partner's pick as the NPC's and release; needs the pick/NPC-pick fields (gaugehunt.py diff
   during rounds) at a time the boy is free.
+
+## 2026-11-02 18:25-20:10 -- wyvern trip, RPS opened
+- User: hatch per method.gg; test RPS myself. Guides (method.gg, allthings.how, nerdschalk, mapmaster): egg cave
+  Wyvern's Cradle on Three Brothers' Cliff (SW Delesyia) -> working nest SW of the cave; hatch after minutes (real) /
+  ~1 h game time, don't leave; the BABY wyvern is a PET only (not mountable yet). A rideable wyvern: shoot a wild one
+  down with a bow near Fort Windridge (S Delesyia), mount it while stunned (temporary, not keepable).
+- Places (all_world_locations): Fort Windridge = "Del WindCliffFort" (-6649, 502, -5519); Wyvern's Cradle = "Del
+  AbandonedWyvernNest" (-6736, 548, -5330), revive point 26 m away (-6727, 533, -5305).
+- Getting there failed: hops from Hernand end in the Bay of Abundance (the game ignores teleports while swimming),
+  hops stop at cliffs/walls (Bowsprit Cape; Demeniss wall at -9054, -3868) and from the cape's beach; DoTeleportAck only
+  moves ~50 m, so no jump over the 440 m of water. A test save with the start moved to the nest (tools/save/
+  move_save.py; TransformSaveData position at 0x365C8A) always loads at Trembling Gorge (-9004, 479, -5066): the game
+  rejects a start in Delesyia for this early save. Server cheats (reqsizes.py: MovePlayerByCheatReq = vec3 + u32,
+  RequestHireMercenaryForCheatReq = u32 + u32, SpawnCharacterCheatReq = 4,4,4,8,1,1) get no answer on retail.
+  Walking: two falls killed Kliff (death screen + Q revive fine). The user's own saves are all near Hernand too.
+- RPS: the R prompt was greyed and sent nothing for 8 tries over 7 game days. Knowledge_Minigame_RockPaperSci
+  (1002618) was missing (arm wrestling's 1002833 present) -> test save slot103-rps (tools/save/knowledge_swap.py);
+  still greyed. The stage (Hernand_MiniGame_RockPaperSci, node bindings: the two kids) waits in branch 0; injecting
+  the server's "branch 1" (StageOnBranchEventAck + StageBranchStateAck) opens "Rock, Paper, Scissors [E]"; E ->
+  StageBranchStateReq -> server branch 3 + ActivateMiniGameReq 0x4247 -> picks U scissors / F paper / E rock; rounds
+  are stage branches: in branch 4 the client draws the boy's hand and sends StageBranchStateReq with a transition
+  (1..9) for the combination; the server answers with the outcome branch (texts "Rock loses to paper. I lose." ...).
+  rps_open.py writes the injection for the current stage id.
