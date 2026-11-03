@@ -525,3 +525,20 @@ allows skipping it ("only if the architecture allows it").
   zip now holds only the build sources (GPL) -- no notes or logs (it was `git archive HEAD` of everything).
 - docs/release/FEATURES.md (Reddit, tables) and docs/release/discord-features.txt (3 messages under 2000 chars).
 - Final build 7a880b02 packaged, scanned (Defender: no threats), fake-folder install 13/13, installed; savecheck OK, test save out, shipped ini; publishing left to the user (F12). FINAL-REPORT.md.
+
+## Discord server set-up (user request 2026-11-03 18:30, server "Seamless co-op Crimson Desert")
+Done in the user's Chrome (signed in as Asher):
+- Categories: Start Here (top) -> #announcements, #how-to-install, #features, #download-here (moved in);
+  Text Channels -> #general, #clips-and-highlights (unchanged); Playtesting -> #bug-reports, #find-a-co-op-partner,
+  #play-testing-feedback (moved in); Voice Channels (unchanged, now last).
+- Permissions: Start Here category: @everyone denied Send Messages, Send in Threads, Create Public / Private Threads;
+  Owner role allowed Send, threads, Pin, @everyone mentions (+ Attach / Embed on #download-here). #download-here had
+  its own overrides denying @everyone nearly everything incl. Read Message History (testers could not have seen the
+  download): replaced by the category's read-only rules. #play-testing-feedback denied Send Messages to @everyone:
+  now allowed (kept its no @everyone-mention / no TTS denies). Playtesting and Text Channels: open to everyone.
+  Every save checked by its API answer (PUT .../permissions 204).
+- Posts (docs/release/discord-server-posts.md): #announcements launch post, #how-to-install guide (pinned),
+  #features (3 messages), #download-here with both zips of 7a880b02 attached (pinned), #bug-reports guide (pinned),
+  #find-a-co-op-partner note. The user's earlier "will be updated when the mod becomes available" note left in place.
+- Distribution decision changed: the zip pinned in #download-here (fits Discord's 10 MB with the mod-manager zip);
+  the public GitHub release (blocked for me) stays optional.

@@ -1,8 +1,7 @@
 ===== Discord message: #how-to-install (pin it) =====
 **How to install Seamless Co-op+ (playtest)**
 
-**Download:** <https://github.com/ashersheets-jpg/crimson-desert-coop-playtest/releases/latest>
-Get the file `CrimsonDesert-SeamlessCoop-<version>.zip` (not the `-mod-manager` one). **You and your co-op partner need the SAME zip.**
+**Download:** the newest zip pinned in #download-here: `CrimsonDesert-SeamlessCoop-<version>.zip` (not the `-mod-manager` one). **You and your co-op partner need the SAME zip.**
 
 **You need:** Crimson Desert on Steam, game version 1.0.0.3479. You and your partner must be Steam friends with the Steam overlay on.
 
@@ -20,4 +19,4 @@ Get the file `CrimsonDesert-SeamlessCoop-<version>.zip` (not the `-mod-manager` 
 
 **Found a bug?** Close the game, double-click `Diagnose Co-op+.cmd`, then paste (Ctrl+V) into #bug-reports with what happened. The zip it makes has your names and IDs removed.
 
-**New builds** get posted in #announcements. The link above is always the newest.
+**New builds** get announced in #announcements and posted in #download-here.
