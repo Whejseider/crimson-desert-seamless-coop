@@ -421,6 +421,14 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     while (!stop_requested()) {
         transport->poll(now_ms());
 
+        // Co-op+ (T07): Leave on any transport (it was read only with Steam, so a room-code / UDP guest could not).
+        if (leave_key.pressed(input::action_down(input::Action::Leave, game_has_focus()))) {
+            if (!host) {
+                end = {Kind::Leave, 0};
+                break;
+            }
+            say("you are the host: your friend leaves from their side (Ctrl+F2)");
+        }
         if (steam) {
             net::join_poll();
             // A Steam invite accepted, or "Join Game" pressed on a friend: end this
@@ -444,13 +452,6 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 } else {
                     say("Steam overlay opened: pick a friend to invite");
                 }
-            }
-            if (leave_key.pressed(input::action_down(input::Action::Leave, focus))) {
-                if (!host) {
-                    end = {Kind::Leave, 0};
-                    break;
-                }
-                say("you are the host: your friend leaves from their side (Ctrl+F2)");
             }
             // Rich presence: only when it changes, at most every 2 s.
             if (now_ms() - last_presence >= 2000) {
@@ -854,6 +855,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     net::scaling_set_party(1, host);  // nobody in our world until the next session says so
     coop.reset();
     session.disconnect(now_ms());
+    // Co-op+ (T07): nothing of the other player stays on screen (their name tag stood where they were after a
+    // Leave until the next session drew a new HUD).
+    render::hud_update(render::HudData{});
     transport.reset();
     net::cleanup();
     if (steam) {

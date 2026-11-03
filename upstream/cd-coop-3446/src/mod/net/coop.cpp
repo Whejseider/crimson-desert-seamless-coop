@@ -88,6 +88,11 @@ CoopLink::~CoopLink() {
     capture_set_sink({});
     session_.set_game_handlers({}, {});
     if (pin_owner_) puppet_map_pin(pin_owner_, std::nullopt);
+    // Co-op+ (T07): a Leave (Ctrl+F2) or a Join tears the link down before the session reports a lost link, so
+    // forget_partner never ran here: the copies of the other player's enemies and their waypoint pin stayed in our
+    // world after leaving. Same clean-up as a lost link.
+    if (const uint32_t owner = capture_own_player_key()) puppet_waypoint_pin(owner, std::nullopt);
+    enemy_reset_partner();
     puppet_remove();
 }
 

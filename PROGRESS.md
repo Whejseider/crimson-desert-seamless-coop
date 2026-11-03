@@ -67,3 +67,10 @@ a minigame without focus; normal play does not pause.
   one copy removed behind the relay -> "13 sent, 12 here" x3 -> resync -> copies sent again; second induced desync
   held by the 2-minute limit; Shift+F8 worked. desync3 (desync_test=2, frozen 60 s, Kliff walked 94 m): "drawn 94 m
   from where they are; loading it again there" -> copy beside Kliff (screen desync3-after-auto).
+- Pushed T06 (4ca9e45).
+- T07 findings: (1) on Leave (Ctrl+F2) / Join the CoopLink was destroyed before the session reported a lost link, so forget_partner never ran: the copies of the other player's enemies and their waypoint pin stayed (fixed in ~CoopLink); (2) Leave was only read on the Steam transport (moved out of the steam block); (3) the partner's name tag stayed on screen after leaving (HUD not cleared when the network stops: fixed).
+- T07 done. leave3: Ctrl+F2 with 13 zone copies -> "13 copies of theirs removed", partner removed, "Network stopped
+  (left the other player's world)", "now hosting our own world", screen clean (no name tag). Host-quit path = link
+  lost (rejoin2-d1): "Lost the connection to ...'s world", no name tag, copies removed. Hidden natives: both paths
+  call suppress_stop(restore=true) (restore verified in the 11-01 suppress lab); weather returns to the guest's own
+  20 s after the host's reports stop (D37). Two-PC check: PLAYTEST 7.1 / 7.2.
