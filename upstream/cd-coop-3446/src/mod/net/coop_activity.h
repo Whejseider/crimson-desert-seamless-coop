@@ -66,6 +66,17 @@ void activity_set_rps_test(int hand);
 // Another Co-op+ module's Activity event (stage_cinema: types 7..9), on the same sequence as ours.
 void activity_send(uint8_t type, const std::vector<uint8_t>& data);
 
+// The rock-paper-scissors duel as the overlay shows it over the two characters (render/hud.cpp): while a duel is on,
+// "choosing" / "picked" over each, and at the reveal both hands (0 scissors, 1 paper, 2 rock) with the winner.
+struct RpsView {
+    bool on = false;
+    int ours = -1, theirs = -1;     // shown hands (-1: none yet / hidden)
+    bool ours_picked = false, theirs_picked = false;
+    int winner = 0;                 // at the reveal: 1 us, 2 them, 0 a draw
+    float reveal_t = -1;            // seconds into the reveal (-1 not revealing)
+};
+RpsView activity_rps_view();
+
 // Human name of a minigame stage key ("arm wrestling"...), "a minigame" when unknown.
 std::string activity_minigame_name(uint32_t stage_key);
 

@@ -291,6 +291,22 @@ double seed_base(uint64_t act) {
     return 0;
 }
 
+}  // namespace
+
+double guest_hits_action_damage(uint32_t hash) {
+    std::lock_guard lock(g_mutex);
+    double best = 0;
+    for (const auto& s : kSeedBase) {
+        if (static_cast<uint32_t>(s.act >> 32) == hash) best = std::max(best, s.hp);
+    }
+    for (const auto& [act, a] : g_attacks) {
+        if (static_cast<uint32_t>(act >> 32) == hash) best = std::max(best, learnt_base_locked(act));
+    }
+    return best;
+}
+
+namespace {
+
 std::string act_text(uint64_t act) {
     return std::format("{:08X}/{}", static_cast<uint32_t>(act >> 32), static_cast<uint32_t>(act));
 }

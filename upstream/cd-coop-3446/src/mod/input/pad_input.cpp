@@ -124,6 +124,7 @@ uint16_t sony_buttons(uint8_t b0, uint8_t b1, uint8_t b2) {
     if (b0 & 0x80) r |= kPadY;
     if (b1 & 0x01) r |= kPadLB;
     if (b1 & 0x02) r |= kPadRB;
+    if (b1 & 0x08) r |= kPadRT;
     if (b1 & 0x10) r |= kPadBack;
     if (b1 & 0x20) r |= kPadStart;
     if (b1 & 0x40) r |= kPadL3;
@@ -240,6 +241,7 @@ void poll_loop() {
                 XINPUT_STATE st{};
                 if (g_real_get_state(i, &st) != ERROR_SUCCESS) continue;
                 xb |= st.Gamepad.wButtons;
+                if (st.Gamepad.bRightTrigger > 100) xb |= kPadRT;
                 stick = std::max({stick, std::abs(static_cast<int>(st.Gamepad.sThumbLX)),
                                   std::abs(static_cast<int>(st.Gamepad.sThumbLY)),
                                   std::abs(static_cast<int>(st.Gamepad.sThumbRX)),

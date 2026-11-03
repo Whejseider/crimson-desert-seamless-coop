@@ -195,9 +195,89 @@ std::vector<uint32_t> targets_of(const uint8_t* p, size_t n) {
 
 }  // namespace
 
+bool inject_reaction(const proto::GameEvent& ev, uint32_t own, uint32_t copy, uint64_t server_ms);  // below
+
 int64_t hits_own_hp() {
     std::lock_guard lock(g_mutex);
     return g_own_hp;
+}
+
+int64_t hits_own_hp_max() {
+    std::lock_guard lock(g_mutex);
+    return g_own_hp_max;
+}
+
+std::vector<uint8_t> hits_make_pvp(uint32_t hash, int64_t damage) {
+    constexpr uint32_t kOurCharacterThere = 0xA010F001;  // the other player's copy of us (remote_puppet's key)
+    const uint32_t own = capture_own_player_key();
+    std::lock_guard lock(g_mutex);
+    Bytes ev(kHitBaseSize);
+    std::memcpy(ev.data(), &kOurCharacterThere, 4);
+    std::memcpy(ev.data() + 4, &hash, 4);
+    std::memcpy(ev.data() + 8, &damage, 8);
+    // The stagger we last took from an enemy blow, as our blow's effect on them (the attacker named in it is us).
+    const auto r = g_last_batch_key ? g_reactions.find(g_last_batch_key) : g_reactions.end();
+    if (r != g_reactions.end() && r->second.ata.size() >= kMinAtaSize && r->second.ata.size() <= kMaxAtaSize) {
+        const bool staggers = r->second.aar.size() == kBatchSize && r->second.buff.size() == kBatchSize;
+        Bytes t = r->second.ata;
+        std::memcpy(t.data() + 4, &kOurCharacterThere, 4);
+        if (staggers) {
+            t.insert(t.end(), r->second.aar.begin(), r->second.aar.end());
+            t.insert(t.end(), r->second.buff.begin(), r->second.buff.end());
+        }
+        if (own) replace_u32(t, own, proto::kSelfMarker);
+        const auto n_ata = static_cast<uint16_t>(r->second.ata.size());
+        ev.push_back(kHitHasTemplates | (staggers ? kHitStaggers : 0));
+        ev.resize(ev.size() + 2);
+        std::memcpy(ev.data() + ev.size() - 2, &n_ata, 2);
+        ev.insert(ev.end(), t.begin(), t.end());
+    }
+    return ev;
+}
+
+bool hits_vary_own_hp(int64_t delta) {
+    const uint32_t own = capture_own_player_key();
+    if (!own || !delta) return false;
+    Bytes pkt(5 + 16);
+    const uint16_t op = kOpVaryStatByAccInputReq, len = 16;
+    std::memcpy(pkt.data(), &op, 2);
+    pkt[2] = 0;
+    std::memcpy(pkt.data() + 3, &len, 2);
+    std::memcpy(pkt.data() + 5, &own, 4);
+    std::memcpy(pkt.data() + 9, &kStatHP, 4);
+    std::memcpy(pkt.data() + 13, &delta, 8);
+    return sniffer_inject_c2s(std::move(pkt));
+}
+
+int64_t hits_on_pvp(const std::vector<uint8_t>& payload, int64_t floor) {
+    constexpr uint32_t kTheirCharacterHere = 0xA010F001;
+    if (payload.size() < kHitBaseSize) return 0;
+    const uint32_t own = capture_own_player_key();
+    if (!own) return 0;
+    int64_t damage = 0, max = 0, hp = -1;
+    uint32_t hash = 0;
+    std::memcpy(&hash, payload.data() + 4, 4);
+    std::memcpy(&damage, payload.data() + 8, 8);
+    uint64_t server_ms = 0;
+    {
+        std::lock_guard lock(g_mutex);
+        max = g_own_hp_max;
+        hp = g_own_hp;
+        if (g_server_ms) server_ms = g_server_ms + (now_ms() - g_server_ms_at);
+    }
+    if (hp <= 0 || max <= 0) return 0;
+    if (damage <= 0) damage = static_cast<int64_t>(static_cast<double>(max) * 0.06);
+    damage = std::clamp<int64_t>(damage, max / 50, max / 4);  // 2% .. 25% of our health a blow
+    damage = std::min(damage, hp - std::max<int64_t>(floor, 1000));
+    proto::GameEvent ev;
+    ev.kind = proto::EventKind::PlayerHit;
+    ev.payload = payload;
+    const bool reacted = g_react && inject_reaction(ev, own, kTheirCharacterHere, server_ms);
+    if (damage <= 0) return 0;
+    const bool ok = hits_vary_own_hp(-damage);
+    log::info("Duel: the other player hit us (attack 0x{:08X}): -{:.1f} hp{}{}", hash, damage / 1000.0,
+              reacted ? ", reaction" : "", ok ? "" : " (NOT applied)");
+    return ok ? damage : 0;
 }
 
 void hits_set_react(bool on, bool lethal) {

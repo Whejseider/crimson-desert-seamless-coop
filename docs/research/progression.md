@@ -57,3 +57,20 @@ facts (keys) are from build/ext-save/*.json and live memory.
 
 ## Gaps (to read): fog of war 587606, region gating, trust 586801, baby wyvern 602044, summon mount 587055,
 ## archery contest 588474, unarmed duel 588743, arm wrestling 587657, leveling 587044.
+
+## Follow-up (Game8 602044, 587606, 587055, 588474, 588743, 587657, 586801, 585767)
+- Baby wyvern: egg cave behind a bismuth wall in Wyvern's Cradle (SW Delesyia), Focused Force Palm on the Abyss Cell.
+  EARLY ROUTE: from Bowsprit Cape (Demeniss/Wells Estate) GLIDE west across the ocean to Delesyia (Delesyia is
+  open after Chapter 10 otherwise). Nest: ~5 min real time, glows orange, prompt, registers as a pet. Growth into a
+  mount "in a future update" (no feeding/day count on Game8; user's search says 3 in-game days with feeding).
+- Fog: ring belltower bells (summons a Shai that clears part of the fog); exploration reveals the rest.
+- Summon mount: D-pad Up / H (radial menu selects which; flat ground needed).
+- Archery contest: first to shoot ten raised boards wins; scoreboard top right (opponent below).
+- Unarmed duel: Goldenfist Arena, south of Hernand city, host in a red tunic, 30 copper entry; lock on D-pad Down;
+  only punches/palm strikes (grapple or pump kick = disqualified); +50 copper per round.
+- Arm wrestling: mash, then a spinner QTE (white wedge, left side); Chapter 2 story step at the inn.
+- Trust: NPC +100 max; greeting +5/day; requests +50; gifts by race; pets need +100 (petting +5, 5/day).
+- Controls (PS5 / Xbox / PC): Y/Triangle/F kick; A/X/Shift sprint; B/Circle/Alt roll; X/Square/Space jump; D-pad Up
+  summon horse (hold: quick slot 1); D-pad Left sheathe (hold: slot 2); D-pad Right food (hold: slot 3); D-pad lock-on;
+  L3 crouch (hold: Axiom Force); R3 hold Force Palm; LT/L2 aim; LB/L1 guard; RT/R2 strong; RB/R1 weak; View/Touchpad
+  camera; Start/Options map. Controller bindings can't be changed in game (Steam Input only).

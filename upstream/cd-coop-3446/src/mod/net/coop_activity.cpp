@@ -16,6 +16,8 @@
 #include "mod/game/ui_state.h"
 #include "mod/log.h"
 #include "mod/net/boss_safe.h"
+#include "mod/net/coop_duel.h"
+#include "mod/net/party_quests.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/stage_cinema.h"
 
@@ -28,7 +30,7 @@ constexpr uint16_t kOpSpawnMiniGameCharacterReq = 3124;  // every match: the NPC
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13 };
 
 // Versus arm wrestling (D35): while both players are in a match, the host owns one gauge,
 // 50 + kPushGain x (host's E presses - guest's E presses), clamped to 0..100, and writes it into its game every tick;
@@ -81,6 +83,7 @@ struct Rps {
     uint32_t picked_at = 0;
     uint32_t reveal_until = 0;   // both hands shown until then
     std::string reveal;          // what is shown
+    int shown_ours = -1, shown_theirs = -1, winner = 0;  // the hands of the reveal
 } g_rps;
 
 // Challenges (D40, user 2026-11-02: "give me the option to challenge a friend in the mini games"). Versus play only
@@ -90,19 +93,25 @@ struct Rps {
 // above making it player against player; the duel runs in the mod. A running series score is kept until either player
 // ends the challenge (Shift+F5 again).
 // Event kChallenge: u8 action | u32 the game's stage key.
-enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2 };
+enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3 };
 enum ChallengeAction : uint8_t { kInvite = 1, kAccept = 2, kDecline = 3, kEnd = 4 };
-enum ChallengeState : uint8_t { kChNone, kChSent, kChReceived, kChOn };
+enum ChallengeState : uint8_t { kChNone, kChPick, kChSent, kChReceived, kChOn };
 constexpr uint32_t kWrestleStages[] = {16005100, 1001987, 1001988, 1003873, 1003875, 1018693};
 constexpr float kChallengeNearM = 30.0f;  // how close to the table Shift+F5 finds it
 constexpr uint32_t kInviteMs = 60000;
+constexpr uint32_t kPickMs = 20000;  // the picker closes by itself
 struct Challenge {
     ChallengeState state = kChNone;
     uint32_t stage = 0;          // the game's stage key
     uint32_t since = 0;
     int ours = 0, theirs = 0;    // series: matches won
     int round_ours = 0, round_theirs = 0;  // RPS: rounds won in the current match (first to 2)
+    bool inviter = false;        // we sent the invite (a duel's ground is ours to place)
+    std::vector<uint32_t> options;  // kChPick: the games to choose from, and the chosen one
+    size_t pick = 0;
 } g_ch;
+std::atomic<bool> g_menu_hold{false};  // the picker is open: the keyboard hook keeps the arrow keys
+std::atomic<int> g_menu_step{0};       // arrow presses it caught (-1 left, +1 right, summed)
 // [dev] challenge_test: 1 = a simulated other player accepts our invites; 2 = they also challenge us to a duel once.
 std::atomic<int> g_challenge_test{0};
 
@@ -120,13 +129,17 @@ std::string escape_braces(const std::string& t) {
 
 // What to do once a challenge is on.
 std::string how_to_play(uint32_t stage) {
-    return game_of(stage) == kGameRps ? "Pick your hand:  {RpsScissors} scissors  {RpsPaper} paper  {RpsRock} rock  (first to 2)"
-                                      : "Both sit at the table and start a match, then mash {Mash}!";
+    switch (game_of(stage)) {
+        case kGameRps: return "Pick your hand:  {RpsScissors} scissors  {RpsPaper} paper  {RpsRock} rock  (first to 2)";
+        case kGameDuel: return "Bring your opponent to their knees. Stay within the duel ground!";
+        default: return "Both sit at the table and start a match, then mash {Mash}!";
+    }
 }
 
 Game game_of(uint32_t stage) {
     if (std::find(std::begin(kWrestleStages), std::end(kWrestleStages), stage) != std::end(kWrestleStages)) return kGameWrestle;
     if (stage == kRpsNameStage) return kGameRps;
+    if (stage == kDuelStage) return kGameDuel;
     return kNoGame;
 }
 
@@ -195,6 +208,13 @@ LRESULT CALLBACK keyboard_hook(int code, WPARAM wp, LPARAM lp) {
             }
         }
     }
+    if (code == HC_ACTION && g_menu_hold.load() && GetTickCount64() - g_hold_seen.load() < 500) {
+        const auto* k = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lp);
+        if ((k->vkCode == VK_LEFT || k->vkCode == VK_RIGHT) && game_in_front()) {
+            if (wp == WM_KEYDOWN || wp == WM_SYSKEYDOWN) g_menu_step.fetch_add(k->vkCode == VK_LEFT ? -1 : 1);
+            return 1;
+        }
+    }
     if (code == HC_ACTION && g_hold_esc.load() && GetTickCount64() - g_hold_seen.load() < 500) {
         const auto* k = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lp);
         if (k->vkCode == VK_ESCAPE && k->dwExtraInfo != kOurKey && game_in_front()) {
@@ -238,6 +258,7 @@ std::string activity_minigame_name(uint32_t stage) {
             return "rock, paper, scissors";
         case 1000219: case 1001269: return "Duo";
         case 1001524: case 1018696: return "Five-Card";
+        case kDuelStage: return "a duel";
         default: return "a minigame";
     }
 }
@@ -346,6 +367,11 @@ void pad_tick() {
     const bool hold = g_hold_esc.load() && GetTickCount64() - g_hold_seen.load() < 500;
     if (hold) input::mask_from_game(input::kPadStart | input::kPadB, 150);
     if (skip(input::action_down(input::Action::Skip, false)) && hold) g_esc_held = true;
+    static input::Edge prev, next;
+    const bool menu = g_menu_hold.load() && GetTickCount64() - g_hold_seen.load() < 500;
+    if (menu) input::mask_from_game(input::kPadLeft | input::kPadRight, 150);
+    if (prev(input::action_down(input::Action::MenuPrev, false) && !input::chord_held()) && menu) g_menu_step.fetch_add(-1);
+    if (next(input::action_down(input::Action::MenuNext, false) && !input::chord_held()) && menu) g_menu_step.fetch_add(1);
 }
 
 // The rock-paper-scissors duel (see Rps): every tick of the network loop.
@@ -393,6 +419,7 @@ void rps_tick(ActivityTick& out, bool connected, const std::string& who) {
                           c.round_ours, c.round_theirs);
                 c.round_ours = c.round_theirs = 0;
             }
+            r.shown_ours = r.ours, r.shown_theirs = r.theirs, r.winner = win ? 1 : lose ? 2 : 0;
             r.ours = r.theirs = -1;
             r.reveal_until = now + kRpsRevealMs;
             g_rps_hold = false;
@@ -450,6 +477,17 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
             toast = std::format("{} accepted: {}! {}", who, activity_minigame_name(c.stage), how_to_play(c.stage));
             log::info("Activity: [dev] challenge_test: the other player accepted");
         }
+        if (c.state == kChPick && now - c.since > kPickMs) c.state = kChNone;
+        if (c.state == kChPick && !c.options.empty()) {
+            const int step = g_menu_step.exchange(0);
+            const auto n = static_cast<int>(c.options.size());
+            c.pick = static_cast<size_t>(((static_cast<int>(c.pick) + step) % n + n) % n);
+            if (step) c.since = now;
+        }
+        if (declined && c.state == kChPick) {
+            c.state = kChNone;
+            declined = false;
+        }
         if (declined && c.state == kChReceived) {
             send_it = std::make_pair(static_cast<uint8_t>(kDecline), c.stage);
             c.state = kChNone;
@@ -472,31 +510,59 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
                     c = Challenge{};
                     break;
                 case kChNone: {
-                    // At a wrestling table: that game; anywhere else: a rock-paper-scissors duel.
-                    uint32_t found = me ? cinema_minigame_near(*me, kChallengeNearM, kWrestleStages,
-                                                               std::size(kWrestleStages))
-                                        : 0;
-                    if (!found) found = kRpsNameStage;
+                    // The picker: a duel, rock-paper-scissors, and the wrestling table we stand at.
                     if (!connected && !test) {
                         toast = "No one to challenge: invite a friend first ({Invite})";
-                    } else {
-                        c = Challenge{};
-                        c.state = kChSent;
-                        c.stage = found;
-                        c.since = now;
-                        send_it = std::make_pair(static_cast<uint8_t>(kInvite), found);
-                        toast = std::format("You challenged {} to {}", who, activity_minigame_name(found));
+                        break;
                     }
+                    c = Challenge{};
+                    c.state = kChPick;
+                    c.since = now;
+                    if (const uint32_t table = me ? cinema_minigame_near(*me, kChallengeNearM, kWrestleStages,
+                                                                         std::size(kWrestleStages))
+                                                  : 0) {
+                        c.options.push_back(table);
+                    }
+                    c.options.push_back(kDuelStage);
+                    c.options.push_back(kRpsNameStage);
+                    g_menu_step = 0;
+                    break;
+                }
+                case kChPick: {
+                    const uint32_t chosen = c.options.empty() ? kDuelStage : c.options[std::min(c.pick, c.options.size() - 1)];
+                    c = Challenge{};
+                    c.state = kChSent;
+                    c.stage = chosen;
+                    c.since = now;
+                    c.inviter = true;
+                    send_it = std::make_pair(static_cast<uint8_t>(kInvite), chosen);
+                    toast = std::format("You challenged {} to {}", who, activity_minigame_name(chosen));
                     break;
                 }
             }
         }
-        if (out.banner.empty()) {
+        g_menu_hold = c.state == kChPick;
+        if (c.state == kChPick) {
+            // "Challenge Ana to:   Duel   Rock, paper, scissors" with the chosen one in gold.
+            std::string items;
+            for (size_t i = 0; i < c.options.size(); ++i) {
+                std::string name = activity_minigame_name(c.options[i]);
+                if (name.rfind("a ", 0) == 0) name.erase(0, 2);
+                if (name.rfind("an ", 0) == 0) name.erase(0, 3);
+                if (!name.empty()) name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
+                items += i == c.pick ? "   {*}" + name + "{*}" : "   " + name;
+            }
+            out.banner = std::format("Challenge {} to:{}      {{MenuPrev}}{{MenuNext}} choose   {{Challenge}} send   "
+                                     "{{Decline}} cancel", who, items);
+        } else if (out.banner.empty()) {
             const std::string game = activity_minigame_name(c.stage);
             if (c.state == kChReceived) {
                 out.banner = std::format("{} challenges you to {}!   {{Challenge}} accept   {{Decline}} decline", who, game);
             } else if (c.state == kChSent) {
                 out.banner = std::format("Challenge sent: {} vs {}. Waiting for an answer ({{Challenge}} withdraws)", game, who);
+            } else if (c.state == kChOn && game_of(c.stage) == kGameDuel) {
+                out.banner = std::format("Duel vs {}   series you {} - {} {}   ({{Challenge}} ends the duel)", who,
+                                         c.ours, c.theirs, who);
             } else if (c.state == kChOn) {
                 out.banner = std::format("Challenge: {} vs {}   series you {} - {} {}   (start a match at the table; "
                                          "{{Challenge}} ends)", game, who, c.ours, c.theirs, who);
@@ -517,6 +583,22 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
 }  // namespace
 
 void activity_set_challenge_test(int mode) { g_challenge_test = mode; }
+
+RpsView activity_rps_view() {
+    RpsView v;
+    std::lock_guard lock(g_mutex);
+    if (g_ch.state != kChOn || game_of(g_ch.stage) != kGameRps) return v;
+    v.on = true;
+    const uint32_t now = GetTickCount();
+    if (static_cast<int32_t>(now - g_rps.reveal_until) < 0) {
+        v.ours = g_rps.shown_ours, v.theirs = g_rps.shown_theirs, v.winner = g_rps.winner;
+        v.reveal_t = static_cast<float>(kRpsRevealMs - (g_rps.reveal_until - now)) / 1000.0f;
+    } else {
+        v.ours_picked = g_rps.ours >= 0;
+        v.theirs_picked = g_rps.theirs >= 0;
+    }
+    return v;
+}
 void activity_set_rps_test(int hand) { g_rps_test = hand; }
 
 void activity_observe_c2s(const uint8_t* packet, size_t size) {
@@ -573,6 +655,8 @@ void activity_on_event(const std::vector<uint8_t>& p) {
             break;
         }
         case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)
+        case kDuel:              // coop_duel.h, below
+        case kQuest:             // party_quests.h, below
             break;
         case kChallenge:  // u8 action | u32 stage key
             if (p.size() >= 10) {
@@ -581,6 +665,8 @@ void activity_on_event(const std::vector<uint8_t>& p) {
                 const std::string game = activity_minigame_name(stage);
                 switch (p[5]) {
                     case kInvite:
+                        // [dev] challenge_test with the echo peer: our own invite comes back; it is not theirs.
+                        if (g_challenge_test.load() && g_ch.state == kChSent && g_ch.stage == stage) break;
                         g_ch = Challenge{};
                         g_ch.state = kChReceived;
                         g_ch.stage = stage;
@@ -614,6 +700,8 @@ void activity_on_event(const std::vector<uint8_t>& p) {
         default: break;
     }
     if (p[4] >= 7 && p[4] <= 9) cinema_on_event(p[4], p.data() + 5, p.size() - 5);
+    if (p[4] == kDuel) duel_on_event(p.data() + 5, p.size() - 5);  // coop_duel.h (its own lock)
+    if (p[4] == kQuest) party_quests_on_event(p.data() + 5, p.size() - 5);  // party_quests.h (its own lock)
 }
 
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
@@ -712,6 +800,34 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
     versus_tick(out, connected, host, cut, who, now);
     rps_tick(out, connected, who);
     challenge_tick(out, connected, focused, me, who);
+    bool duel_on = false, inviter = false;
+    {
+        std::lock_guard lock(g_mutex);
+        duel_on = g_ch.state == kChOn && game_of(g_ch.stage) == kGameDuel;
+        inviter = g_ch.inviter;
+    }
+    DuelTick d = duel_tick(duel_on, inviter, connected, me, partner, who, now);
+    if (d.round_result) {
+        std::lock_guard lock(g_mutex);
+        (d.round_result == 1 ? g_ch.ours : g_ch.theirs) += 1;
+        out.toast = std::format("Duel\n{}   Series: you {} - {} {}", d.round_result == 1 ? "The round is yours."
+                                                                                         : "The round goes to " + who + ".",
+                                g_ch.ours, g_ch.theirs, who);
+        log::info("Activity: duel round to {}; series {} - {}", d.round_result == 1 ? "us" : "them", g_ch.ours,
+                  g_ch.theirs);
+    }
+    if (!d.banner.empty()) out.banner = std::move(d.banner);
+    if (!d.toast.empty() && out.toast.empty()) out.toast = std::move(d.toast);
+    // The party journal (party_quests.h): the other player's completed quests. Held back while another notice shows.
+    static uint32_t journal_after = 0;
+    if (out.toast.empty() && static_cast<int32_t>(now - journal_after) >= 0) {
+        if (std::string j = party_quests_tick(connected, who); !j.empty()) {
+            out.toast = std::move(j);
+            journal_after = now + 6500;
+        }
+    } else if (!out.toast.empty()) {
+        journal_after = now + 6500;
+    }
     return out;
 }
 

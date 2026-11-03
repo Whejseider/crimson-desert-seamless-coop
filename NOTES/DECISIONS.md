@@ -280,3 +280,46 @@
   win (series 0-1, 1-1 toasts); RPS duel win/draw/lose/win -> 2-1, series; incoming invite (Shift+F6 test trigger)
   -> Shift+F5 accept -> duel 2-0 -> Shift+F5 ends "Final series: you 1 - 0". Hand wrestling uses the same gauge path
   (no table reached). Two-PC test pending (PLAYTEST).
+
+## 2026-11-03 D41: PvP duels (user: "1v1 PVP ... inside of a set radius ... out of bounds = automatic loss")
+- A challenge game. Shift+F5 / chord + D-pad Up now opens a picker (the wrestling table we stand at, Duel,
+  Rock-paper-scissors; arrows / D-pad Left-Right choose, held from the game while it is open; Shift+F5 sends,
+  Shift+F6 cancels; closes after 20 s). Stage key of a duel: kDuelStage 0xD0E10001 (no game stage uses it).
+- The two characters cannot hurt each other in the game (each is a friendly copy in the other's world; the PvP probe
+  got no frame events naming the copy), so the attacker's mod judges hits: our StartActionReq (op 2202) whose action
+  hash (payload +4, the same hash as the attack's DoFrameEventReq accessor: 28/28 matches in a 3479 recording) is a
+  known attack (guest_hits seed/learnt table), 280 ms later, with the other player's drawn character within 3.2 m and
+  65 deg of our facing (quaternion at kActionRot; forward = (-sin yaw, -cos yaw), yaw = 2 atan2(qy, qw), measured).
+- The hit (hits_make_pvp: PlayerHit payload, attacker = 0xA010F001, our last learnt stagger) goes as Activity kDuel;
+  the receiver takes 4..10% of its max HP (by the attack's base 0..40) through VaryStatByAccInputReq with the stagger,
+  never below 3% (nobody dies). At 3%: round lost. Out of the 20 m circle (centre half way between the players at the
+  start, placed by the inviter) for 10 s in a row: round lost. 3-2-1 / Fight! / Victory / Defeat title cards, the
+  ring drawn on the ground (gold, red while out), the opponent's health as a game-style bar. After 6 s both heal back
+  to their round-start health and the next round starts; series in the challenge.
+- Activity type 12: u8 sub (1 round start: centre, radius / 2 hit: PlayerHit payload / 3 lost: why) | u32 round.
+- Swing detection (revised the same night): the test character's attacks (left click 0x25DC7FB9, kick 0x626B7BEC)
+  were in neither the seed nor the learnt table (those only know attacks seen hitting enemies). So an own
+  StartActionReq also counts as a swing when an attack button (mouse left / F; pad RB, RT, Y) went down in the last
+  350 ms, with a middling base (15). Pad RT/R2 is now read (kPadRT 0x0800: XInput trigger > 100, Sony b1 0x08).
+
+## 2026-11-03 D42: Shared progression = a party journal (quest progress itself cannot be pushed)
+- Each player's quests are advanced by their own in-process server from their own world; requests from outside
+  (CompleteQuestByCheatReq, LearnKnowledgeByCheatReq...) get no answer on retail. Quest steps are server-side
+  (UpdateMissionListAck 2360 lists missions: u32 key | u8 state 2 under way / 5 done | u8 kind; login sends all,
+  then 4-4.4 KB updates). Story progress therefore stays per save; what CAN be shared and is: the journal.
+- party_quests: our server's mission states are watched; a mission going 2 -> 5 is sent to the other player
+  (Activity 13: u32 key); they get a game-style notice "<name>: Quest Updated" / "Challenge Complete" with the
+  game's own name (mission_names.inc, 5447 names generated from the game data by tools/gen/mission_names_inc.py),
+  marked "you are on this quest too: finish it together" when their own copy is under way. Walking an objective
+  together (same place / dialog / fight) does finish it in both worlds; kill objectives on the host's enemies do
+  not (the guest hits copies; FLAGS F8).
+
+## 2026-11-03 D43: Flying mount verified (Blackstar) with a test save that has the rope skills
+- The dragon test save summoned Blackstar but Kliff never got on: it lacked Knowledge_Rope_AirPull 1003512,
+  Knowledge_Rope_AirSwing 1003513, Knowledge_Rope_Swing 1001711 (and Knowledge_Unique_Varnia_Dragon 1000560).
+  Swapped in for four rest-area discoveries (tools/save/knowledge_swap.py) -> test save "dragon-rope": F1 wheel ->
+  Blackstar -> automatic grapple -> riding (W forward, Space climbs, prompts Fireball / Fire Breath / Aim Q / Land /
+  Dismount R). ~22 m/s; climbing drains the dragon's stamina bar (blue, under the minimap); empty = it descends and
+  drops you (at 1346 m after ~70 s of climbing). flyto.py (build/port3479) steers it.
+- Route to Delesyia for the wyvern: the flight reached Wells Estate / Mistveil Forest (-8660, 453, -4474), 2.1 km from
+  Wyvern's Cradle, past the bay that blocked every walking/teleport route. Next: fly level (stamina), land to rest.

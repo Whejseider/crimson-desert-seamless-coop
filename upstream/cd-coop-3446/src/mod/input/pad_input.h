@@ -20,6 +20,7 @@ enum class Method : uint8_t { Keyboard = 0, Xbox = 1, PlayStation = 2 };
 inline constexpr uint16_t kPadUp = 0x0001, kPadDown = 0x0002, kPadLeft = 0x0004, kPadRight = 0x0008;
 inline constexpr uint16_t kPadStart = 0x0010, kPadBack = 0x0020, kPadL3 = 0x0040, kPadR3 = 0x0080;
 inline constexpr uint16_t kPadLB = 0x0100, kPadRB = 0x0200, kPadTouchpad = 0x0400;  // 0x0400 is free in XInput
+inline constexpr uint16_t kPadRT = 0x0800;  // right trigger / R2 pulled (free in XInput too; read only, never masked)
 inline constexpr uint16_t kPadA = 0x1000, kPadB = 0x2000, kPadX = 0x4000, kPadY = 0x8000;
 inline constexpr uint16_t kPadFace = kPadA | kPadB | kPadX | kPadY;
 inline constexpr uint16_t kPadDpad = kPadUp | kPadDown | kPadLeft | kPadRight;

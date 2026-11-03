@@ -11,6 +11,7 @@
 // A tap on View still reaches the game (camera). In a Co-op+ box the plain buttons answer it:
 //   revive  X/Square instant, Y/Triangle checkpoint     rock-paper-scissors  X scissors, Y paper, B rock
 //   cutscene skip  Start/Options or B                   arm wrestling mash  any face button
+//   challenge picker  D-pad Left / Right (keyboard: the arrow keys) choose, the challenge chord sends
 
 #include <cstdint>
 #include <string_view>
@@ -19,7 +20,7 @@ namespace cdmp::input {
 
 enum class Action : uint8_t {
     Invite, Leave, Ping, GoToFriend, Challenge, Decline, Panel, Nameplates,
-    ReviveNow, ReviveCheckpoint, RpsScissors, RpsPaper, RpsRock, Skip, Mash,
+    ReviveNow, ReviveCheckpoint, RpsScissors, RpsPaper, RpsRock, Skip, Mash, MenuPrev, MenuNext,
     Count
 };
 

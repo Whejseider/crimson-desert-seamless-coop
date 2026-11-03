@@ -7,7 +7,7 @@
 // keyboard, coloured A/B/X/Y on Xbox pads, the four shapes on PlayStation pads.
 //
 // Texts may carry action tokens, "{Challenge} Challenge  {Decline} Decline": each token is drawn as that action's
-// button(s) (input/actions.h).
+// button(s) (input/actions.h). "{*}" switches the text that follows to gold and back (a chosen item).
 
 #include <string>
 
@@ -32,6 +32,24 @@ void strip(float screen_w, float y, const std::string& text, float alpha = 1.0f)
 // The game's death screen: darkened screen, red title with its brush stroke, the question, the choices.
 void death_screen(float screen_w, float screen_h, const std::string& title, const std::string& question,
                   const std::string& choices);
+
+// A large centred title over a short line (the duel's "3", "Fight!", "Victory"...), its colour, fading with alpha.
+void title_card(float screen_w, float screen_h, const std::string& title, const std::string& line, unsigned int color,
+                float alpha = 1.0f);
+
+// A health bar at the top of the screen, the game's boss bar look: the name in gold over a thin dark bar with a red
+// fill (the guest's boss bar, the duel opponent's health). `note` under it ("" = none).
+void boss_bar(float screen_w, float screen_h, const std::string& name, float frac, const std::string& note = {});
+
+// A medallion over a character's head (world markers): a hand of rock-paper-scissors (0 scissors, 1 paper, 2 rock;
+// -1 = "?" still choosing, -2 = a seal: picked, hidden) drawn in `color`, with a caption under it. `size` px wide.
+void hand_medallion(ImDrawList* dl, float x, float y, float size, int hand, const std::string& caption,
+                    unsigned int color, float alpha = 1.0f);
+
+// The other player's name tag over their head, the game's NPC tag look: a small gold diamond, the name in the serif
+// face, a thin framed health bar (frac < 0: none) and the distance under it, faded by `alpha`, sized by `scale`.
+void nameplate(ImDrawList* dl, float x, float y, const std::string& name, float frac, const std::string& distance,
+               float alpha, float scale);
 
 // Text with action tokens at `x, y`, `size` px high (returns the width drawn). Measure only when dl is null.
 float rich_text(ImDrawList* dl, float x, float y, float size, const std::string& text, unsigned int color,

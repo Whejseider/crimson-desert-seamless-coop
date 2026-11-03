@@ -54,6 +54,20 @@ struct HudData {
     float boss_hp = 0.0f;
     float boss_hp_max = 0.0f;
     bool boss_cutscene = false;
+    // Co-op+ duel (coop_duel.h): the duel ground, the big title, the opponent's health.
+    bool duel_active = false;
+    proto::Vec3 duel_centre{};
+    float duel_radius = 0;
+    std::string duel_title, duel_subtitle;
+    unsigned int duel_title_color = 0;
+    float duel_title_alpha = 0;
+    float duel_out_left_s = -1;
+    // Co-op+ rock-paper-scissors duel: the hands over the two characters (coop_activity.h RpsView).
+    bool rps_on = false;
+    int rps_ours = -1, rps_theirs = -1;
+    bool rps_ours_picked = false, rps_theirs_picked = false;
+    int rps_winner = 0;
+    float rps_reveal_t = -1;
 };
 
 struct HudOptions {

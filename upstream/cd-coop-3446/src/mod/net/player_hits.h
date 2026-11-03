@@ -39,8 +39,18 @@ bool hits_dev_kill_self(int64_t hp_x1000);
 // [coop] player_hit_lethal: a blow that takes all our HP kills us (a normal
 // death); otherwise we stay at 1 HP.
 void hits_set_react(bool on, bool lethal);
-// Our player's HP x1000 from its last VaryHPAck (-1 unknown).
+// Our player's HP x1000 from its last VaryHPAck (-1 unknown), and its maximum (0 unknown).
 int64_t hits_own_hp();
+int64_t hits_own_hp_max();
+
+// Co-op+ duel (coop_duel.h). Our blow landed on the other player's character: the payload for them (a PlayerHit
+// payload whose attacker is our character over there, with a stagger reaction learnt from our own fights).
+std::vector<uint8_t> hits_make_pvp(uint32_t attack_hash, int64_t damage_x1000);
+// Their blow on us (hits_make_pvp's payload): applied through our own server with the reaction, never below
+// `floor_x1000` HP (a duel is lost, not died in). Returns the damage applied (x1000).
+int64_t hits_on_pvp(const std::vector<uint8_t>& payload, int64_t floor_x1000);
+// Changes our player's HP by `delta_x1000` through our server (the duel's heal back after a round).
+bool hits_vary_own_hp(int64_t delta_x1000);
 // cdmp_learnt.txt (learnt_store.cpp): what the enemies' attacks do to us.
 // Learnt whether or not co-op hits are on, so playing alone counts too.
 void hits_learnt_get(LearntCombat& out);

@@ -66,8 +66,15 @@ with two real players, that is good news (the one-PC test clones your own charac
 - [ ] Both quit WITHOUT saving.
 
 ## Challenges, weather, cutscenes (added 2026-11-02)
-1. Anywhere: host presses Shift+F5 -> guest sees "<host> challenges you to rock, paper, scissors" -> guest Shift+F5.
-   Both press U / F / E in turn; both screens must show the same two hands and the same round winner; first to 2.
+1. Anywhere: host presses Shift+F5 (pad: hold View/Touchpad + D-pad Up): a picker "Challenge <guest> to: Duel
+   Rock, paper, scissors" opens; arrows / D-pad Left-Right move the gold choice; Shift+F5 sends. Guest sees
+   "<host> challenges you to ..." -> guest Shift+F5.
+   RPS: both press U / F / E (pad X / Y / B); both screens must show the same two hands (also as medallions over
+   both characters) and the same round winner; first to 2.
+1b. Duel: stand a few metres apart, host picks Duel, guest accepts. Both: a gold ring on the ground (20 m),
+   "3, 2, 1, Fight!", the opponent's health bar at the top. Hit each other: the one hit must flinch and lose health on
+   BOTH screens. At 3% health "Defeat" / "Victory" on the right screens, both healed after 6 s, round 2 starts.
+   Then one runs out of the ring: red ring + "Return within 10 s"; after 10 s that player loses the round.
 2. Hernand pub (game time ~10:27-10:58, the host's time is used): both at the arm wrestling table; host Shift+F5,
    guest accepts; both hold R then E at the table; mash E: the faster one must win on BOTH screens; series toast.
 3. Shift+F6 on an invite declines it; Shift+F5 during a challenge ends it ("Final series").

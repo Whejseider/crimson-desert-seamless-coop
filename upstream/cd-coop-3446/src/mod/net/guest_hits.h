@@ -38,6 +38,9 @@ void guest_hits_learnt_put(const LearntCombat& in);
 // Our gear changed (local_capture): the next clean blows tell how much our
 // attacks changed, and every attack learnt before is rescaled by that.
 void guest_hits_on_gear_change();
+// Co-op+ duel (coop_duel.h): how much one of our attacks (StartActionReq action hash) takes from a defence-1.0
+// enemy, learnt or from the seed table (the strongest of its hit frames); 0 when it is not a known attack.
+double guest_hits_action_damage(uint32_t action_hash);
 
 // Sniffer writer thread.
 void guest_hits_observe_c2s(const uint8_t* packet, size_t size);

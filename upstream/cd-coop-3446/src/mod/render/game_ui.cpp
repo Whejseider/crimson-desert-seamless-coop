@@ -158,6 +158,8 @@ float action_glyph(ImDrawList* dl, float x, float y, float h, input::Action a) {
         auto key_name = [](int vk) -> std::string {
             if (vk >= VK_F1 && vk <= VK_F12) return "F" + std::to_string(vk - VK_F1 + 1);
             if (vk == 0x1B) return "Esc";
+            if (vk == VK_LEFT) return "<";
+            if (vk == VK_RIGHT) return ">";
             return std::string(1, static_cast<char>(vk));
         };
         if (b.ctrl) w += cap(dl, x + w, y, h, "Ctrl"), w += plus(dl, x + w, y, h);
@@ -206,6 +208,7 @@ float rich_text(ImDrawList* dl, float x, float y, float size, const std::string&
     if (!f) f = g_serif;
     float w = 0;
     size_t at = 0;
+    const unsigned int plain = color;
     while (at < s.size()) {
         const size_t open = s.find('{', at);
         const size_t close = open == std::string::npos ? std::string::npos : s.find('}', open);
@@ -216,8 +219,11 @@ float rich_text(ImDrawList* dl, float x, float y, float size, const std::string&
             w += text_w(f, size, lit);
         }
         if (close == std::string::npos) break;
-        const auto a = input::action_by_name(std::string_view(s.data() + open + 1, close - open - 1));
-        if (a != input::Action::Count) {
+        const std::string_view token(s.data() + open + 1, close - open - 1);
+        const auto a = input::action_by_name(token);
+        if (token == "*") {  // {*}: the text that follows in gold (a chosen item), until the next {*}
+            color = color == plain ? ((kGold & ~IM_COL32_A_MASK) | (plain & IM_COL32_A_MASK)) : plain;
+        } else if (a != input::Action::Count) {
             const float h = size * 1.15f;
             w += action_glyph(dl, x + w, y + (size - h) * 0.5f, h, a) + size * 0.25f;
         } else {
@@ -260,6 +266,110 @@ void strip(float sw, float y, const std::string& body, float alpha) {
     faded_rect(dl, x0, y, x1, y + h, with_alpha(IM_COL32(8, 7, 6, 170), alpha));
     faded_rect(dl, x0, y + h - 1.0f, x1, y + h, with_alpha(kRule, alpha * 0.7f));
     rich_text(dl, sw * 0.5f - bw * 0.5f, y + 8 * k, bs, body, with_alpha(kText, alpha));
+}
+
+void title_card(float sw, float sh, const std::string& title, const std::string& line, unsigned int color,
+                float alpha) {
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    const float k = std::max(0.6f, sh / 1080.0f);
+    const float ts = 64.0f * k, ls = 22.0f * k, cy = sh * 0.30f;
+    const float tw = text_w(g_serif_bold, ts, title);
+    faded_rect(dl, sw * 0.5f - 420 * k, cy - 8 * k, sw * 0.5f + 420 * k, cy + ts + (line.empty() ? 12 : 48) * k,
+               with_alpha(IM_COL32(8, 7, 6, 150), alpha));
+    faded_rect(dl, sw * 0.5f - 300 * k, cy + ts + 2 * k, sw * 0.5f + 300 * k, cy + ts + 3 * k, with_alpha(kRule, alpha));
+    text(dl, g_serif_bold, ts, sw * 0.5f - tw * 0.5f, cy, with_alpha(color, alpha), title);
+    if (!line.empty()) {
+        const float lw = rich_text(nullptr, 0, 0, ls, line, kText);
+        rich_text(dl, sw * 0.5f - lw * 0.5f, cy + ts + 12 * k, ls, line, with_alpha(kText, alpha));
+    }
+}
+
+void boss_bar(float sw, float sh, const std::string& name, float frac, const std::string& note) {
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    const float k = std::max(0.6f, sh / 1080.0f);
+    const float w = 720 * k, h = 9 * k, ns = 21 * k;
+    const float x0 = sw * 0.5f - w * 0.5f, y = sh * 0.045f + ns + 6 * k;
+    frac = std::clamp(frac, 0.0f, 1.0f);
+    const float nw = text_w(g_serif, ns, name);
+    text(dl, g_serif, ns, sw * 0.5f - nw * 0.5f, y - ns - 4 * k, kGold, name);
+    dl->AddRectFilled(ImVec2(x0 - 2 * k, y - 2 * k), ImVec2(x0 + w + 2 * k, y + h + 2 * k), IM_COL32(0, 0, 0, 170));
+    dl->AddRectFilled(ImVec2(x0, y), ImVec2(x0 + w, y + h), IM_COL32(40, 34, 30, 200));
+    dl->AddRectFilledMultiColor(ImVec2(x0, y), ImVec2(x0 + w * frac, y + h), IM_COL32(150, 22, 18, 255),
+                                IM_COL32(196, 40, 32, 255), IM_COL32(150, 22, 18, 255), IM_COL32(110, 14, 12, 255));
+    dl->AddRect(ImVec2(x0 - 2 * k, y - 2 * k), ImVec2(x0 + w + 2 * k, y + h + 2 * k), with_alpha(kRule, 0.8f), 0.0f,
+                1.0f);
+    // The ornament at both ends: small diamonds.
+    for (float cx : {x0 - 9 * k, x0 + w + 9 * k}) {
+        const float cy = y + h * 0.5f, r = 5 * k;
+        dl->AddQuadFilled(ImVec2(cx, cy - r), ImVec2(cx + r, cy), ImVec2(cx, cy + r), ImVec2(cx - r, cy), kGold);
+    }
+    if (!note.empty()) {
+        const float ls = 17 * k, lw = rich_text(nullptr, 0, 0, ls, note, kText);
+        rich_text(dl, sw * 0.5f - lw * 0.5f, y + h + 8 * k, ls, note, kText);
+    }
+}
+
+void hand_medallion(ImDrawList* dl, float x, float y, float s, int hand, const std::string& caption, unsigned int color,
+                    float alpha) {
+    const ImU32 c = with_alpha(color, alpha), dark = with_alpha(IM_COL32(10, 9, 8, 210), alpha);
+    const float r = s * 0.5f;
+    dl->AddCircleFilled(ImVec2(x, y), r, dark, 40);
+    dl->AddCircle(ImVec2(x, y), r, c, 40, 2.0f);
+    dl->AddCircle(ImVec2(x, y), r - 4, with_alpha(kRule, alpha * 0.6f), 40, 1.0f);
+    const float u = s / 10.0f;  // drawing unit
+    auto finger = [&](float bx, float by, float tx, float ty, float w) {
+        dl->AddLine(ImVec2(bx, by), ImVec2(tx, ty), c, w);
+        dl->AddCircleFilled(ImVec2(tx, ty), w * 0.5f, c);
+    };
+    if (hand == 2) {  // rock: a fist, knuckles on top
+        dl->AddRectFilled(ImVec2(x - 2.4f * u, y - 1.2f * u), ImVec2(x + 2.4f * u, y + 2.4f * u), c, 1.2f * u);
+        for (int i = 0; i < 4; ++i) dl->AddCircleFilled(ImVec2(x - 1.8f * u + i * 1.2f * u, y - 1.3f * u), 0.75f * u, c);
+        dl->AddLine(ImVec2(x - 2.0f * u, y + 0.4f * u), ImVec2(x + 0.6f * u, y + 0.4f * u), dark, 0.5f * u);
+    } else if (hand == 1) {  // paper: an open hand
+        dl->AddRectFilled(ImVec2(x - 2.0f * u, y - 0.2f * u), ImVec2(x + 2.0f * u, y + 2.8f * u), c, 1.0f * u);
+        for (int i = 0; i < 4; ++i) {
+            const float fx = x - 1.5f * u + i * 1.0f * u;
+            finger(fx, y + 0.5f * u, fx + (i - 1.5f) * 0.25f * u, y - (i == 1 || i == 2 ? 3.4f : 2.8f) * u, 0.85f * u);
+        }
+        finger(x - 1.8f * u, y + 1.4f * u, x - 3.2f * u, y - 0.2f * u, 0.85f * u);
+    } else if (hand == 0) {  // scissors: two fingers apart
+        dl->AddRectFilled(ImVec2(x - 1.8f * u, y + 0.4f * u), ImVec2(x + 1.8f * u, y + 3.0f * u), c, 1.0f * u);
+        finger(x - 0.5f * u, y + 1.0f * u, x - 1.9f * u, y - 3.2f * u, 0.9f * u);
+        finger(x + 0.5f * u, y + 1.0f * u, x + 1.9f * u, y - 3.2f * u, 0.9f * u);
+    } else if (hand == -2) {  // picked, hidden: a seal
+        dl->AddCircleFilled(ImVec2(x, y), 2.2f * u, c, 24);
+        dl->AddCircle(ImVec2(x, y), 1.4f * u, dark, 24, 0.5f * u);
+    } else {  // still choosing
+        const float qs = s * 0.6f, qw = text_w(g_serif_bold, qs, "?");
+        text(dl, g_serif_bold, qs, x - qw * 0.5f, y - qs * 0.55f, c, "?");
+    }
+    if (!caption.empty()) {
+        const float cs = std::max(14.0f, s * 0.3f), cw = text_w(g_serif, cs, caption);
+        text(dl, g_serif, cs, x - cw * 0.5f, y + r + 4, with_alpha(kText, alpha), caption);
+    }
+}
+
+void nameplate(ImDrawList* dl, float x, float y, const std::string& name, float frac, const std::string& distance,
+               float alpha, float scale) {
+    const float ns = 19.0f * scale, ds = 14.0f * scale, r = 4.5f * scale;
+    dl->AddQuadFilled(ImVec2(x, y - r - 1), ImVec2(x + r + 1, y), ImVec2(x, y + r + 1), ImVec2(x - r - 1, y),
+                      with_alpha(IM_COL32(0, 0, 0, 170), alpha));
+    dl->AddQuadFilled(ImVec2(x, y - r), ImVec2(x + r, y), ImVec2(x, y + r), ImVec2(x - r, y), with_alpha(kGold, alpha));
+    const float nw = text_w(g_serif, ns, name);
+    float ty = y - r - 8 * scale - (frac >= 0 ? 8 * scale : 0) - ns;
+    text(dl, g_serif, ns, x - nw * 0.5f, ty, with_alpha(IM_COL32(240, 236, 228, 255), alpha), name);
+    if (frac >= 0) {
+        const float w = 66 * scale, h = 4 * scale, by = y - r - 10 * scale;
+        frac = std::clamp(frac, 0.0f, 1.0f);
+        dl->AddRectFilled(ImVec2(x - w * 0.5f - 1, by - 1), ImVec2(x + w * 0.5f + 1, by + h + 1),
+                          with_alpha(IM_COL32(0, 0, 0, 180), alpha));
+        dl->AddRectFilled(ImVec2(x - w * 0.5f, by), ImVec2(x - w * 0.5f + w * frac, by + h),
+                          with_alpha(IM_COL32(186, 44, 36, 255), alpha));
+    }
+    if (!distance.empty()) {
+        const float dw = text_w(g_serif, ds, distance);
+        text(dl, g_serif, ds, x - dw * 0.5f, y + r + 4 * scale, with_alpha(IM_COL32(205, 198, 186, 220), alpha), distance);
+    }
 }
 
 void death_screen(float sw, float sh, const std::string& title, const std::string& question,

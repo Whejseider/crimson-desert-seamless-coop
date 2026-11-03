@@ -41,6 +41,8 @@
 #include "mod/net/revive_prompt.h"
 #include "mod/net/dev_script.h"
 #include "mod/net/coop_activity.h"
+#include "mod/net/coop_duel.h"
+#include "mod/net/party_quests.h"
 #include "mod/net/stage_cinema.h"
 #include "mod/net/weather_sync.h"
 #include "mod/net/party_scaling.h"
@@ -741,6 +743,23 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             }
             if (!toast.empty() && static_cast<int32_t>(now - toast_until) < 0) hud.toast = toast;
             hud.activity = activity_banner;
+            if (const net::RpsView rv = net::activity_rps_view(); rv.on) {
+                hud.rps_on = true;
+                hud.rps_ours = rv.ours, hud.rps_theirs = rv.theirs;
+                hud.rps_ours_picked = rv.ours_picked, hud.rps_theirs_picked = rv.theirs_picked;
+                hud.rps_winner = rv.winner;
+                hud.rps_reveal_t = rv.reveal_t;
+            }
+            if (const net::DuelHud dh = net::duel_hud(); dh.active) {
+                hud.duel_active = true;
+                hud.duel_centre = {dh.centre[0], dh.centre[1], dh.centre[2]};
+                hud.duel_radius = dh.radius;
+                hud.duel_title = dh.title;
+                hud.duel_subtitle = dh.subtitle;
+                hud.duel_title_color = dh.title_color;
+                hud.duel_title_alpha = dh.title_alpha;
+                hud.duel_out_left_s = dh.out_left_s;
+            }
             render::hud_update(std::move(hud));
         }
 
@@ -1414,6 +1433,8 @@ DWORD WINAPI worker(LPVOID) {
         net::cinema_set_test(cfg.dev_cinema_test);
         net::activity_set_rps_test(cfg.dev_rps_test);
         net::activity_set_challenge_test(cfg.dev_challenge_test);
+        net::duel_set_test(cfg.dev_duel_test);
+        net::party_quests_set_test(cfg.dev_quest_test);
         input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
         input::set_sim(cfg.dev_pad_sim);
         if (cfg.dev_boss_hp) {

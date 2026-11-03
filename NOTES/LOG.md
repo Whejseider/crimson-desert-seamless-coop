@@ -493,3 +493,23 @@
   duel_in.sh, pub.sh + pubvs.sh with challenge_test). Found: Ctrl+F5 shifted the pub table's interaction focus to a
   shop item ("Steal/Buy"), so challenge keys are Shift+F5/F6. A leftover rps_matches.sh loop (TaskStop left its
   children running) restarted the game during one test; killed by PID.
+
+## 2026-11-02 22:15-2026-11-03 -- overnight list (user away until 22:00 on 11-03)
+- User list (memory overnight-list-2026-11-03): native-looking UI, input-method icons, pad binds, duels with an
+  out-of-bounds rule, seeing the friend as the opponent, wyvern save, progression research, shared progression,
+  more competitive minigames.
+- Done before this entry (commits a0bba8d, 4846330): input/pad_input (XInput hook + DualShock/DualSense HID), the
+  action table (input/actions: keyboard + pad chord per action), render/game_ui (Palatino, dialog bands, key caps /
+  Xbox / PlayStation glyphs, death screen replica), panel hidden by default, welcome notice; progression research
+  (docs/research/progression.md). Cheat routes for progression are dead ends (no answer on retail).
+- Duel (D41): coop_duel.*, challenge picker, title cards, ring, opponent bar. Runs (echo peer, [dev] duel_test,
+  challenge_test=1): duelpvp1 - the echo bounced our own invite back as an incoming one (fixed: ignored in test mode);
+  duelpvp2 - picker, accept, countdown, "Fight!", ring posts and opponent bar all on screen; no swing counted (the
+  test character's attacks 0x25DC7FB9 / 0x626B7BEC are in no damage table) and bandits nearby hit us (178/300 HP)
+  -> swings from attack-button presses (D41 revision), quiet test save (rps, Hernand), duel clock fixed (the
+  caller's now_ms is steady_clock, duel_hud used GetTickCount).
+- RPS medallions over both characters (hands at the reveal, "?" / seal while choosing) - built, untested.
+- Party journal (D42): party_quests.* + mission_names.inc (tools/gen/mission_names_inc.py). FLAGS F8.
+- Nameplate and guest boss bar redrawn game style (ui::nameplate, ui::boss_bar; the boss bar left the F8 panel).
+- Dragon: early save lacks rope skills and Blackstar's knowledge -> test save dragon-rope (4 knowledge swaps);
+  guides: summoning in mid-air mounts; the manual grapple + Aerial Maneuver costs 200 stamina (test save has 120).

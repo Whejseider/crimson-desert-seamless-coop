@@ -38,6 +38,19 @@ Something wrong? "Diagnose Co-op+.cmd" writes a report to your Desktop to send a
 PLAYING TOGETHER
 ----------------
 - Load your save. Everyone starts as the host of their own world.
+- CONTROLLER: every co-op action works on an Xbox or PlayStation pad. Hold View
+  (Xbox) / the touchpad button (PlayStation) and press a button; the on-screen
+  prompts show the buttons of whatever you last used (keys, Xbox or PlayStation).
+    Keyboard    Pad (hold View/Touchpad +)   Action
+    Ctrl+F1     Y / Triangle                 invite a friend (Steam overlay)
+    Ctrl+F2     B / Circle                   leave (guest): back to your own world
+    Ctrl+F3     D-pad Left                   ping your position
+    Ctrl+F4     D-pad Right                  go to your friend
+    Shift+F5    D-pad Up                     challenge / accept / end a challenge
+    Shift+F6    D-pad Down                   decline / cancel
+    F8          X / Square                   co-op panel
+    Ctrl+F8     A / Cross                    your friend's name over their head
+  A quick tap on View still does what it does in the game.
 - Host: press Ctrl+F1 to open the Steam overlay and invite your friend.
 - Friend: accept the invite, or right-click the host in the Steam friends list and
   choose "Join Game". If the friend's game is closed, Steam starts it and the mod
@@ -51,21 +64,30 @@ PLAYING TOGETHER
 - Ctrl+F3: ping your position: your friend gets a message and a pin on their map.
 - Ctrl+F4: go to your friend (you are moved next to them in short hops; works best
   within a few hundred metres; it stops if you are swimming).
+- Death in co-op: the game's own death screen ("Death has found you."): Q / X
+  instant revive (30% health), U / Y revive at the checkpoint.
 - Cutscenes: when your friend is watching one near you (within 100 m), you see
   "<name> is watching a cutscene". When the host's cutscene belongs to a boss or
   story scene, the guest's game starts the same scene too (new, not yet tried by
-  two players). A shared cutscene is skipped only when EVERYONE in it pressed Esc:
-  your Esc says "waiting for <name>" until they press it too.
+  two players). A shared cutscene is skipped only when EVERYONE in it pressed Esc
+  (pad: Menu/Options or B): yours says "waiting for <name>" until they press too.
 - Time of day and weather follow the host (rain, clouds and wind included).
-- CHALLENGE YOUR FRIEND (Shift+F5):
-  * At an arm wrestling (or hand wrestling) table, Shift+F5 challenges your friend
-    to it. Anywhere else, Shift+F5 challenges them to a rock-paper-scissors duel.
+- CHALLENGE YOUR FRIEND (Shift+F5, pad: View + D-pad Up):
+  * A choice opens: Duel, Rock-paper-scissors, and the arm / hand wrestling table
+    you stand at (if any). Left/Right arrows (pad: D-pad Left/Right) choose,
+    Shift+F5 sends, Shift+F6 cancels.
   * Your friend gets "<name> challenges you to ...": Shift+F5 accepts, Shift+F6
     declines (an invite lapses after a minute).
+  * DUEL: a 1v1 fight. A gold ring (20 m) marks the duel ground; 3, 2, 1, Fight!
+    Your friend's health shows at the top. Bring them down to win the round
+    (nobody dies: the loser kneels at 3% health). Leave the ring for 10 seconds and
+    you lose the round. After each round both are healed and the next one starts.
   * Arm / hand wrestling: both of you sit at the table and start a match; you share
-    one strength bar: whoever mashes E faster wins on both screens.
-  * Rock, paper, scissors: press U (scissors), F (paper) or E (rock); both hands are
-    shown when both of you have picked; first to 2 wins the match.
+    one strength bar: whoever mashes E (pad: any face button) faster wins on both
+    screens.
+  * Rock, paper, scissors: press U (scissors), F (paper) or E (rock) - pad X, Y,
+    B; both hands show over your characters when both of you have picked; first to
+    2 wins the match.
   * A series score is kept ("you 2 - 1 <name>"); Shift+F5 again ends the challenge.
 - Other minigames (contests, card games...): each of you plays in your own world;
   your friend sees "<name> is playing a minigame" and when you finish.

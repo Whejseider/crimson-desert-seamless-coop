@@ -40,31 +40,12 @@ ImU32 faded(ImU32 color, float alpha) {
 
 void draw_remote_marker(ImDrawList* dl, const game::ScreenPoint& p, const HudData& d,
                         float distance) {
-    // Co-op+ (brief 6.2): fades and shrinks a little with distance (common/nameplate.h).
+    // Co-op+ (brief 6.2): fades and shrinks a little with distance (common/nameplate.h); the game's tag look.
     const float alpha = nameplate::alpha(distance);
     const float scale = nameplate::text_scale(distance);
-    ImFont* font = ImGui::GetFont();
-    const float px = ImGui::GetFontSize() * scale;
-    auto text = [&](ImVec2 pos, ImU32 color, const char* t) {
-        dl->AddText(font, px, ImVec2(pos.x + 1, pos.y + 1), faded(kShadow, alpha), t);
-        dl->AddText(font, px, pos, faded(color, alpha), t);
-    };
-    const ImVec2 c(p.x, p.y);
-    dl->AddCircleFilled(c, 7.0f, faded(kShadow, alpha));
-    dl->AddCircleFilled(c, 5.0f, faded(kAccent, alpha));
     const std::string name = d.peer_name.empty() ? (g_options.english ? "Player 2" : "Jugador 2") : d.peer_name;
-    const ImVec2 size = font->CalcTextSizeA(px, FLT_MAX, 0.0f, name.c_str());
-    text(ImVec2(c.x - size.x / 2, c.y - 28), IM_COL32_WHITE, name.c_str());
-    if (d.remote->health_max > 0) {
-        const ImVec2 a(c.x - 35, c.y - 12), b(c.x + 35, c.y - 7);
-        const float frac = std::clamp(d.remote->health / d.remote->health_max, 0.0f, 1.0f);
-        dl->AddRectFilled(a, b, faded(IM_COL32(0, 0, 0, 160), alpha));
-        dl->AddRectFilled(a, ImVec2(a.x + 70 * frac, b.y), faded(IM_COL32(90, 200, 90, 255), alpha));
-    }
-    char dist[32];
-    std::snprintf(dist, sizeof dist, "%.0f m", distance);
-    const ImVec2 ds = font->CalcTextSizeA(px, FLT_MAX, 0.0f, dist);
-    text(ImVec2(c.x - ds.x / 2, c.y + 10), IM_COL32(220, 220, 220, 255), dist);
+    const float frac = d.remote->health_max > 0 ? d.remote->health / d.remote->health_max : -1.0f;
+    ui::nameplate(dl, p.x, p.y, name, frac, std::format("{:.0f} m", distance), alpha, scale);
 }
 
 }  // namespace
@@ -109,25 +90,7 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
         ImGui::TextColored(ImVec4(1, 0.8f, 0.3f, 1),
                            en ? "Network: looking for the other player..." : "Red: buscando al otro jugador...");
     }
-    if (d.boss_active && d.boss_hp_max > 0) {
-        // The guest gets no native boss bar: the stage that draws it
-        // (BossNameTagView2) runs only in the host's world. So draw one.
-        ImGui::Separator();
-        const float frac = d.boss_hp / d.boss_hp_max;
-        char overlay[96];
-        std::snprintf(overlay, sizeof overlay, "%.0f / %.0f", d.boss_hp, d.boss_hp_max);
-        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.75f, 0.15f, 0.15f, 1));
-        ImGui::ProgressBar(frac < 0 ? 0.0f : (frac > 1 ? 1.0f : frac), ImVec2(-1, 0), overlay);
-        ImGui::PopStyleColor();
-        if (!d.boss_name.empty()) {
-            ImGui::Text(en ? "Boss: %s" : "Jefe: %s", d.boss_name.c_str());
-        }
-        if (d.boss_cutscene) {
-            // Worth saying out loud: the guest cannot act and nothing lands.
-            ImGui::TextColored(ImVec4(1, 0.8f, 0.3f, 1),
-                               en ? "Host cutscene: wait" : "Cinematica del anfitrion: espera");
-        }
-    }
+    // (The guest's boss bar: drawn outside the panel, game style; see hud_draw.)
     if (!d.peer_problem.empty()) {
         // In English from the session; the essential part is the instruction.
         ImGui::TextColored(ImVec4(1, 0.35f, 0.3f, 1), en ? "Different mod versions: both of you update"
@@ -236,6 +199,20 @@ void hud_draw(float width, float height) {
                  nl == std::string::npos ? d.toast : d.toast.substr(nl + 1));
     }
 
+    if (d.boss_active && d.boss_hp_max > 0) {
+        // The guest gets no native boss bar: the stage that draws it (BossNameTagView2) runs only in the host's
+        // world. So draw one, the game's way (game_ui.h).
+        ui::boss_bar(width, height, d.boss_name.empty() ? std::string("Boss") : d.boss_name, d.boss_hp / d.boss_hp_max,
+                     d.boss_cutscene ? "The host is in a cutscene: wait" : "");
+    } else if (d.duel_active && d.remote && d.remote->health_max > 0) {
+        // Co-op+ duel: the opponent's health, as a boss bar.
+        ui::boss_bar(width, height, d.peer_name.empty() ? std::string("Your opponent") : d.peer_name,
+                     d.remote->health / d.remote->health_max);
+    }
+    if (d.duel_active && !d.duel_title.empty() && d.duel_title_alpha > 0.01f) {
+        ui::title_card(width, height, d.duel_title, d.duel_subtitle, d.duel_title_color, d.duel_title_alpha);
+    }
+
     if (!d.activity.empty()) {
         // Co-op+: the other player's cutscene, a running challenge..., under the notices.
         ui::strip(width, height * 0.175f, d.activity);
@@ -254,11 +231,63 @@ void hud_draw(float width, float height) {
     if (!cam || !cam_world || game::ui_menu_open()) return;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
+    if (d.duel_active && d.duel_radius > 0) {
+        // Co-op+ duel: the duel ground, a ring of gold on the ground with posts (coop_duel.h); red while we are out.
+        const bool out = d.duel_out_left_s >= 0;
+        const ImU32 ring = out ? IM_COL32(210, 60, 45, 210) : IM_COL32(232, 200, 130, 170);
+        constexpr int kSegments = 96;
+        std::optional<game::ScreenPoint> prev;
+        for (int i = 0; i <= kSegments; ++i) {
+            const float a = 6.2831853f * static_cast<float>(i) / kSegments;
+            const proto::Vec3 p{d.duel_centre.x + d.duel_radius * std::cos(a), d.duel_centre.y + 0.08f,
+                                d.duel_centre.z + d.duel_radius * std::sin(a)};
+            auto sp = game::project(*cam, *cam_world, p, width, height);
+            if (sp && prev && (i % 2 == 0)) {
+                dl->AddLine(ImVec2(prev->x, prev->y), ImVec2(sp->x, sp->y), IM_COL32(0, 0, 0, 120), 5.0f);
+                dl->AddLine(ImVec2(prev->x, prev->y), ImVec2(sp->x, sp->y), ring, 2.5f);
+            }
+            if (sp && i % 8 == 0 && i < kSegments) {
+                const proto::Vec3 top{p.x, p.y + 1.6f, p.z};
+                if (auto st = game::project(*cam, *cam_world, top, width, height)) {
+                    dl->AddLine(ImVec2(sp->x, sp->y), ImVec2(st->x, st->y), IM_COL32(0, 0, 0, 110), 4.0f);
+                    dl->AddLine(ImVec2(sp->x, sp->y), ImVec2(st->x, st->y), ring, 2.0f);
+                    dl->AddCircleFilled(ImVec2(st->x, st->y), 3.5f, ring);
+                }
+            }
+            prev = sp;
+        }
+    }
+
     if (d.remote && plates_visible && nameplate::alpha(remote_distance) > 0.0f) {
         const proto::Vec3 head{d.remote->pos.x, d.remote->pos.y + kHeadHeight, d.remote->pos.z};
         if (auto p = game::project(*cam, *cam_world, head, width, height)) {
             draw_remote_marker(dl, *p, d, remote_distance);
         }
+    }
+
+    // Co-op+ rock-paper-scissors duel: each player's hand over their character, as the town game shows the child's.
+    if (d.rps_on) {
+        constexpr const char* kHandName[3] = {"Scissors", "Paper", "Rock"};
+        const bool reveal = d.rps_reveal_t >= 0;
+        // A short "pop" as the hands come out.
+        const float pop = reveal ? std::min(1.0f, 0.6f + d.rps_reveal_t * 2.0f) : 1.0f;
+        auto medal = [&](const proto::Vec3& feet, int hand, bool picked, bool won, const std::string& who) {
+            const proto::Vec3 over{feet.x, feet.y + 2.75f, feet.z};  // above the name tag
+            auto p = game::project(*cam, *cam_world, over, width, height);
+            if (!p) return;
+            const float size = std::clamp(520.0f / std::max(p->depth, 1.0f), 34.0f, 78.0f) * pop;
+            const int shown = reveal ? hand : picked ? -2 : -1;
+            const ImU32 col = reveal && won ? IM_COL32(232, 200, 130, 255)
+                              : reveal && d.rps_winner != 0 ? IM_COL32(170, 160, 150, 255)
+                                                            : IM_COL32(222, 214, 200, 255);
+            const std::string caption = reveal && hand >= 0 ? kHandName[hand] : picked ? who + " has chosen" : who;
+            ui::hand_medallion(dl, p->x, p->y - size * 0.5f, size, shown, caption, col);
+        };
+        if (d.remote) {
+            medal(d.remote->pos, d.rps_theirs, d.rps_theirs_picked, d.rps_winner == 2,
+                  d.peer_name.empty() ? std::string("Your friend") : d.peer_name);
+        }
+        if (d.local) medal(d.local->position, d.rps_ours, d.rps_ours_picked, d.rps_winner == 1, "You");
     }
 
     std::optional<game::ScreenPoint> self;
