@@ -156,6 +156,9 @@ struct Config {
     bool dev_rope_piece_lookup = false;
     // Guest: loot from the host's enemies we help kill, via a twin on our server (loot_twin.h).
     bool coop_guest_loot = false;
+    // Co-op+ (T10): who loots a kill both players took part in. 0 per_player (each their own drop), 1 host_only
+    // (only the host), 2 first_come (the first to loot it; the other's body is emptied). [coop] loot_mode.
+    int coop_loot_mode = 0;
     // Boss safety (boss_safe.h, pendiente-jefes.md plan J1). A boss fight here is
     // a scripted STAGE that the host's client drives: it owns the phases, the
     // cinematics and the set_battleEnd that closes the fight. The boss exists

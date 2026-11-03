@@ -20,6 +20,8 @@
 #include "mod/net/coop_hunt.h"
 #include "mod/net/coop_sync.h"
 #include "mod/net/aggro_test.h"
+#include "mod/net/enemy_relay.h"
+#include "mod/net/loot_twin.h"
 #include "mod/net/party_quests.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/puppet_visibility.h"
@@ -37,7 +39,7 @@ constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the N
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17 };
 
 // Co-op+ (T09): a player in a menu (map, inventory, pause...) has their own world paused, while the other player's
 // world goes on with their character standing in it. So: each side tells the other when it opens / closes a menu
@@ -755,6 +757,14 @@ void activity_on_event(const std::vector<uint8_t>& p) {
                 }
             }
             break;
+        case kLooted:  // Co-op+ (T10) first_come: u8 1 = the host looted (data: our copy key) / 0 = the guest did
+            if (p.size() >= 10) {
+                uint32_t copy = 0;
+                std::memcpy(&copy, p.data() + 6, 4);
+                if (p[5] == 1) loot_partner_looted(copy);
+                else enemy_partner_looted_copy(copy);
+            }
+            break;
         case kHunt:              // coop_hunt.h, below
         case 15:                 // coop_sync.h, below
             break;
@@ -809,6 +819,19 @@ void activity_on_event(const std::vector<uint8_t>& p) {
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
                            std::optional<std::array<float, 3>> partner, const std::string& partner_name,
                            uint32_t now) {
+    // Co-op+ (T10) first_come: bodies we looted, to the other player.
+    if (connected) {
+        for (uint32_t copy : enemy_take_looted_originals()) {
+            uint8_t b[5] = {1};
+            std::memcpy(b + 1, &copy, 4);
+            send(kLooted, b, 5);
+        }
+        for (uint32_t copy : loot_take_looted_copies()) {
+            uint8_t b[5] = {0};
+            std::memcpy(b + 1, &copy, 4);
+            send(kLooted, b, 5);
+        }
+    }
     // Co-op+ (T09): our menu state to the other player; theirs forgotten with the link.
     {
         static bool sent_open = false, was_linked = false;

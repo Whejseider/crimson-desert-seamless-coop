@@ -104,6 +104,10 @@ size_t enemy_copies_sent();
 size_t enemy_copies_present();
 // [dev] desync_test: removes one copy of theirs from our world without telling the relay (true if there was one).
 bool enemy_desync_test();
+// Co-op+ (T10) first_come, host: copies (their keys) whose originals we looted; each once.
+std::vector<uint32_t> enemy_take_looted_originals();
+// first_come, host: the guest looted this copy first: our original's body offers nothing any more.
+void enemy_partner_looted_copy(uint32_t copy);
 // Co-op+ experiment ([dev] enemy_keep_origin=1): do not strip the spawn identity (schedule, sequence,
 // camp node) from the loads we send.
 void enemy_set_keep_origin(bool on);

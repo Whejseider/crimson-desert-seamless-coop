@@ -751,7 +751,7 @@ index e7d51fb..538592e 100644
  struct Bye {};
  struct Ping {
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..cb14ebe 100644
+index e89d220..95d72ad 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -828,7 +828,7 @@ index e89d220..cb14ebe 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,19 +210,56 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,38 +210,83 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
@@ -890,7 +890,13 @@ index e89d220..cb14ebe 100644
      c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
      c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
      c.coop_finish_arrow = read_uint(ini_path, L"coop", L"finish_arrow", 1) != 0;
-@@ -203,17 +268,20 @@ Config load_config(const std::wstring& ini_path) {
+     c.dev_rope_piece_lookup = read_uint(ini_path, L"dev", L"rope_piece_lookup", 0) != 0;
+     c.coop_guest_loot = read_uint(ini_path, L"coop", L"guest_loot", 0) != 0;
++    {
++        const std::wstring m = read_string(ini_path, L"coop", L"loot_mode", "per_player");
++        c.coop_loot_mode = m == L"host_only" ? 1 : m == L"first_come" ? 2 : 0;
++        if (c.coop_loot_mode == 1) c.coop_guest_loot = false;
++    }
      // Boss safety (boss_safe.h): default ON, because the failure it prevents is a
      // stuck quest in the HOST's save, not a cosmetic problem.
      c.coop_boss_safe = read_uint(ini_path, L"coop", L"boss_safe", 1) != 0;
@@ -913,7 +919,7 @@ index e89d220..cb14ebe 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +294,11 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +299,11 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -926,7 +932,7 @@ index e89d220..cb14ebe 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..b41324e 100644
+index 3cd2ce2..f8ae61c 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -1032,7 +1038,17 @@ index 3cd2ce2..b41324e 100644
      // Host: copies of our enemies that fight go to the guest on their own
      // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
      bool coop_enemy_auto = true;
-@@ -125,6 +169,9 @@ struct Config {
+@@ -112,6 +156,9 @@ struct Config {
+     bool dev_rope_piece_lookup = false;
+     // Guest: loot from the host's enemies we help kill, via a twin on our server (loot_twin.h).
+     bool coop_guest_loot = false;
++    // Co-op+ (T10): who loots a kill both players took part in. 0 per_player (each their own drop), 1 host_only
++    // (only the host), 2 first_come (the first to loot it; the other's body is emptied). [coop] loot_mode.
++    int coop_loot_mode = 0;
+     // Boss safety (boss_safe.h, pendiente-jefes.md plan J1). A boss fight here is
+     // a scripted STAGE that the host's client drives: it owns the phases, the
+     // cinematics and the set_battleEnd that closes the fight. The boss exists
+@@ -125,6 +172,9 @@ struct Config {
      // does the finish, which is what advances its script. Off restores the old
      // behaviour exactly, for comparison.
      bool coop_boss_safe = true;
@@ -1042,7 +1058,7 @@ index 3cd2ce2..b41324e 100644
      // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
      // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
      int coop_enemy_minimap_icon = 0x10A;
-@@ -146,6 +193,14 @@ struct Config {
+@@ -146,6 +196,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -2494,7 +2510,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..0e8ff05 100644
+index 79ccd06..01a759e 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,9 +1,13 @@
@@ -3068,7 +3084,7 @@ index 79ccd06..0e8ff05 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +870,124 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +870,125 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -3104,6 +3120,7 @@ index 79ccd06..0e8ff05 100644
 +void apply_role_settings(const Config& cfg, bool in_game, bool role_changed) {
 +    if (!(in_game && cfg.coop_enabled)) return;
 +    net::loot_set_enabled(cfg.coop_guest_loot && !cfg.net_role_host);
++    net::loot_set_mode(cfg.coop_loot_mode);
 +    // Co-op+: time of day follows the host ([coop] time_sync=3, the default).
 +    if (cfg.coop_time_sync == 3) {
 +        net::time_sync_set_mode(cfg.net_role_host ? net::TimeSyncMode::Send : net::TimeSyncMode::Apply);
@@ -3194,7 +3211,7 @@ index 79ccd06..0e8ff05 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +1089,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +1090,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -3203,7 +3220,7 @@ index 79ccd06..0e8ff05 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +1143,7 @@ void combat_test_loop() {
+@@ -669,7 +1144,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -3212,7 +3229,7 @@ index 79ccd06..0e8ff05 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +1161,7 @@ void combat_test_loop() {
+@@ -687,7 +1162,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -3221,7 +3238,7 @@ index 79ccd06..0e8ff05 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1226,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1227,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -3230,7 +3247,7 @@ index 79ccd06..0e8ff05 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1240,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1241,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -3238,7 +3255,7 @@ index 79ccd06..0e8ff05 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,12 +1269,24 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,12 +1270,24 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -3265,7 +3282,7 @@ index 79ccd06..0e8ff05 100644
          if (!contained) {
              net::puppet_set_horse_enabled(false);
              log::warn("Horse and enemy copies disabled: their crash containment could not be installed");
-@@ -902,22 +1389,79 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,22 +1390,79 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -3345,7 +3362,7 @@ index 79ccd06..0e8ff05 100644
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
                    cfg.coop_enabled ? "on" : "off");
-@@ -925,7 +1469,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1470,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -3354,7 +3371,7 @@ index 79ccd06..0e8ff05 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -956,6 +1500,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -956,6 +1501,7 @@ DWORD WINAPI worker(LPVOID) {
                    cfg.coop_suppress_lab ? ", suppressed by suppress_lab=1 (the one-PC lab)" : "");
          log::info("Config: time sync {}", cfg.coop_time_sync == 1   ? "send ours"
                                            : cfg.coop_time_sync == 2 ? "take the other player's"
@@ -3362,7 +3379,7 @@ index 79ccd06..0e8ff05 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1514,40 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1515,40 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3403,7 +3420,7 @@ index 79ccd06..0e8ff05 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1599,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1600,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3437,7 +3454,7 @@ index 79ccd06..0e8ff05 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1622,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1623,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3449,7 +3466,7 @@ index 79ccd06..0e8ff05 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1647,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1648,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -4287,10 +4304,10 @@ index a328bc0..5778775 100644
      // order (a resent ApplyBuff could land after its Unapply), so they carry
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..d7d9153
+index 0000000..288a5d6
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,968 @@
+@@ -0,0 +1,991 @@
 +#include "mod/net/coop_activity.h"
 +#include "mod/input/actions.h"
 +#include "mod/input/pad_input.h"
@@ -4313,6 +4330,8 @@ index 0000000..d7d9153
 +#include "mod/net/coop_hunt.h"
 +#include "mod/net/coop_sync.h"
 +#include "mod/net/aggro_test.h"
++#include "mod/net/enemy_relay.h"
++#include "mod/net/loot_twin.h"
 +#include "mod/net/party_quests.h"
 +#include "mod/net/local_capture.h"
 +#include "mod/net/puppet_visibility.h"
@@ -4330,7 +4349,7 @@ index 0000000..d7d9153
 +constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 +constexpr uint32_t kSkipTestDelayMs = 6000;
 +
-+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16 };
++enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17 };
 +
 +// Co-op+ (T09): a player in a menu (map, inventory, pause...) has their own world paused, while the other player's
 +// world goes on with their character standing in it. So: each side tells the other when it opens / closes a menu
@@ -5048,6 +5067,14 @@ index 0000000..d7d9153
 +                }
 +            }
 +            break;
++        case kLooted:  // Co-op+ (T10) first_come: u8 1 = the host looted (data: our copy key) / 0 = the guest did
++            if (p.size() >= 10) {
++                uint32_t copy = 0;
++                std::memcpy(&copy, p.data() + 6, 4);
++                if (p[5] == 1) loot_partner_looted(copy);
++                else enemy_partner_looted_copy(copy);
++            }
++            break;
 +        case kHunt:              // coop_hunt.h, below
 +        case 15:                 // coop_sync.h, below
 +            break;
@@ -5102,6 +5129,19 @@ index 0000000..d7d9153
 +ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
 +                           std::optional<std::array<float, 3>> partner, const std::string& partner_name,
 +                           uint32_t now) {
++    // Co-op+ (T10) first_come: bodies we looted, to the other player.
++    if (connected) {
++        for (uint32_t copy : enemy_take_looted_originals()) {
++            uint8_t b[5] = {1};
++            std::memcpy(b + 1, &copy, 4);
++            send(kLooted, b, 5);
++        }
++        for (uint32_t copy : loot_take_looted_copies()) {
++            uint8_t b[5] = {0};
++            std::memcpy(b + 1, &copy, 4);
++            send(kLooted, b, 5);
++        }
++    }
 +    // Co-op+ (T09): our menu state to the other player; theirs forgotten with the link.
 +    {
 +        static bool sent_open = false, was_linked = false;
@@ -6642,7 +6682,7 @@ index 0000000..5496f86
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
-index 72da385..5dfed88 100644
+index 72da385..ec441cd 100644
 --- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 @@ -1,4 +1,5 @@
@@ -6651,7 +6691,15 @@ index 72da385..5dfed88 100644
  
  #include <windows.h>
  
-@@ -44,13 +45,15 @@ bool load_is_relayable(uint32_t type, uint32_t key) {
+@@ -23,6 +24,7 @@
+ #include "mod/net/loot_twin.h"
+ #include "mod/net/native_suppress.h"
+ #include "mod/net/remote_puppet.h"
++#include "mod/net/loot_twin.h"
+ 
+ namespace cdmp::net {
+ namespace {
+@@ -44,13 +46,15 @@ bool load_is_relayable(uint32_t type, uint32_t key) {
      return is_relayable_record_type(type, boss_is_boss(key));
  }
  
@@ -6673,7 +6721,7 @@ index 72da385..5dfed88 100644
  constexpr uint64_t kEngagedMs = 20000;
  // An enemy that aimed at or struck one of us this long ago still counts as
  // hostile: one locked on us sends no new CurrentTargetChangeReq, and its
-@@ -58,20 +61,20 @@ constexpr uint64_t kEngagedMs = 20000;
+@@ -58,20 +62,20 @@ constexpr uint64_t kEngagedMs = 20000;
  constexpr uint64_t kAimedMs = 120000;
  // Server->client messages about an enemy (key at +0), relayed for its copy
  // (enemigos-del-anfitrion.md §3.1): HP and death reliably, hit reactions not.
@@ -6701,7 +6749,7 @@ index 72da385..5dfed88 100644
  constexpr uint32_t kPuppetUser = 0x9010F001;
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
  constexpr float kPickRadius = 40.0f;
-@@ -127,7 +130,9 @@ std::map<uint32_t, uint64_t> g_retired;         // net id -> when its copy was r
+@@ -127,7 +131,9 @@ std::map<uint32_t, uint64_t> g_retired;         // net id -> when its copy was r
  std::deque<std::pair<proto::RelKind, Bytes>> g_outgoing;
  // A new partner: what a tick read before the reset must not send (7 Oct: 24
  // copies sent 79 ms after the link went, to the next partner).
@@ -6712,7 +6760,7 @@ index 72da385..5dfed88 100644
  std::map<uint32_t, Bytes> g_last_hp;  // world NPC key -> its last VaryHPAck payload
  // Every actor of our world we saw loaded (any record of any ActorLoadDataAck)
  // and its record type: a copy must not name any of them.
-@@ -190,6 +195,9 @@ bool valid_size(uint16_t op, size_t n) {
+@@ -190,6 +196,9 @@ bool valid_size(uint16_t op, size_t n) {
  }
  
  std::atomic<bool> g_receive_enabled{false};
@@ -6722,7 +6770,7 @@ index 72da385..5dfed88 100644
  // kNoVariant is declared in enemy_relay.h: loot_twin enforces it too.
  std::map<uint32_t, bool> g_copies;          // copy keys loaded here
  std::map<uint32_t, uint32_t> g_copy_variant;  // copy key -> its enemy variant (load +0x18), or kNoVariant
-@@ -306,15 +314,10 @@ std::optional<uint32_t> pick_manual() {
+@@ -306,15 +315,10 @@ std::optional<uint32_t> pick_manual() {
  // without one, like an ambient spawn. (Not the cause of the invisible
  // originals, copias-grupo-invisibles.md §6.7: that is the camp group.)
  int strip_spawn_identity(Bytes& load) {
@@ -6742,7 +6790,7 @@ index 72da385..5dfed88 100644
      float scale[3];
      std::memcpy(scale, load.data() + t0 + 28, sizeof scale);
      if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) return -1;
-@@ -571,7 +574,9 @@ void map_field_locked(Bytes& v, size_t off, bool parent64) {
+@@ -571,7 +575,9 @@ void map_field_locked(Bytes& v, size_t off, bool parent64) {
  uint64_t g_dropped_messages = 0;
  bool map_message_locked(uint16_t op, Bytes& v, uint32_t self) {
      switch (op) {
@@ -6753,7 +6801,7 @@ index 72da385..5dfed88 100644
          case kOpRotateActorReq: map_field_locked(v, 0x54, true); break;
          case kOpVaryHPAck: map_field_locked(v, 0x54, false); break;
          case kOpNotifyHandleDeadAck: map_field_locked(v, 0x04, false); break;
-@@ -683,7 +688,7 @@ bool send_enemy(uint32_t key, const char* why, uint32_t epoch = 0) {
+@@ -683,7 +689,7 @@ bool send_enemy(uint32_t key, const char* why, uint32_t epoch = 0) {
      // copy key, our user and player become the receiver's copies of us.
      translate(load, key, copy);
      translate(action, key, copy);
@@ -6762,7 +6810,7 @@ index 72da385..5dfed88 100644
      std::string cleaned;
      if (!sanitize_load(load, copy, cleaned)) {
          std::lock_guard lock(g_mutex);
-@@ -759,7 +764,7 @@ bool send_enemy(uint32_t key, const char* why, uint32_t epoch = 0) {
+@@ -759,7 +765,7 @@ bool send_enemy(uint32_t key, const char* why, uint32_t epoch = 0) {
      log::info("Enemy relay: sending enemy 0x{:08X} \"{}\" as copy 0x{:08X} ({}; {} B load, {} recent actions, {}; "
                "sanitized: {})",
                key, name, copy, why, n, action.size() / kStartActionReqSize,
@@ -6771,7 +6819,7 @@ index 72da385..5dfed88 100644
      return true;
  }
  
-@@ -1093,6 +1098,15 @@ uint32_t enemy_variant(uint32_t key) {
+@@ -1093,6 +1099,15 @@ uint32_t enemy_variant(uint32_t key) {
      return l != g_loads.end() && l->second.size() >= 0x1C ? u32_at(l->second.data() + 0x18) : 0;
  }
  
@@ -6787,7 +6835,31 @@ index 72da385..5dfed88 100644
  uint32_t enemy_copy_of(uint32_t key) {
      std::lock_guard lock(g_mutex);
      auto c = g_sent.find(key);
-@@ -1241,13 +1255,13 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -1139,12 +1154,23 @@ void enemy_note_guest_blow(uint32_t key) {
+     if (g_loads.count(key)) g_engaged[key] = g_at_us[key] = GetTickCount64();
+ }
+ 
++std::vector<uint32_t> g_looted_originals;  // Co-op+ (T10): copies whose originals we looted (under g_mutex)
++
+ void enemy_observe_s2c(const uint8_t* packet, size_t size) {
+     if (size < 5) return;
+     uint16_t op;
+     std::memcpy(&op, packet, 2);
+     const uint8_t* p = packet + 5;
+     const size_t n = size - 5;
++    // Co-op+ (T10): RemoveLootableAck 3066 (u32 dead | u32 looter) of one of our enemies the guest has a copy of.
++    if (op == 3066 && n >= 8 && loot_mode() == 2) {
++        const uint32_t dead = u32_at(p), looter = u32_at(p + 4);
++        std::lock_guard lock(g_mutex);
++        if (auto s = g_sent.find(dead); s != g_sent.end() && looter == capture_own_player_key() &&
++            g_looted_originals.size() < 64) {
++            g_looted_originals.push_back(s->second);
++        }
++    }
+     if ((op == kOpVaryHPAck || op == kOpNotifyHandleDeadAck || op == kOpAttackTargetAck ||
+          op == kOpApplyActionRestrictionAck) &&
+         n >= 4) {
+@@ -1241,13 +1267,13 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size) {
          }
          return;
      }
@@ -6804,7 +6876,7 @@ index 72da385..5dfed88 100644
              if (!keys::is_actor_key(t)) break;
              at_us = at_us || (own && t == own) || t == kPuppetPlayer;
          }
-@@ -1354,7 +1368,9 @@ proto::EnemyZoneMsg zone_answer_locked(bool capable) {
+@@ -1354,7 +1380,9 @@ proto::EnemyZoneMsg zone_answer_locked(bool capable) {
  }
  }  // namespace
  
@@ -6815,7 +6887,7 @@ index 72da385..5dfed88 100644
      const bool capable = zone_capable();
      bool was_relaying = false, relays = false;
      proto::EnemyZoneMsg answer;
-@@ -1557,6 +1573,7 @@ struct WaitingCopy {
+@@ -1557,6 +1585,7 @@ struct WaitingCopy {
      Bytes hp, dead;
      uint64_t state_delay_ms = 0;
      std::optional<proto::Vec3> pos;  // its latest EnemyPos while waiting (before: its load's place)
@@ -6823,7 +6895,7 @@ index 72da385..5dfed88 100644
  };
  std::deque<WaitingCopy> g_waiting;
  std::map<uint32_t, uint64_t> g_removed_at;  // copy key -> when its copy here was removed
-@@ -1611,9 +1628,9 @@ void no_parent(Bytes& v, size_t off) {
+@@ -1611,9 +1640,9 @@ void no_parent(Bytes& v, size_t off) {
  void scrub_message(uint16_t op, Bytes& v, uint32_t copy, uint32_t own) {
      switch (op) {
          case kOpStartActionReq:
@@ -6836,7 +6908,7 @@ index 72da385..5dfed88 100644
              break;
          case kOpRotateActorReq: no_parent(v, 0x54); break;
          case kOpVaryHPAck: scrub_field(v, 0x54, copy, own); break;
-@@ -1810,9 +1827,22 @@ std::optional<proto::Vec3> spawn_place(const Bytes& spawn) {
+@@ -1810,9 +1839,22 @@ std::optional<proto::Vec3> spawn_place(const Bytes& spawn) {
  // copies came with "0 recent actions", 7 Oct 17:46:35). It waits for its
  // first relayed StartAction (enemy_on_event).
  void load_waiting() {
@@ -6861,7 +6933,7 @@ index 72da385..5dfed88 100644
      // Loading (the tunnel walk into the world): our actor is parked at
      // (0, 1000, 0) (both of Shadow's crashes, 7 Oct).
      if (std::fabs(me->x) < 50.0f && std::fabs(me->z) < 50.0f && std::fabs(me->y - 1000.0f) < 50.0f) return;
-@@ -1820,10 +1850,13 @@ void load_waiting() {
+@@ -1820,10 +1862,13 @@ void load_waiting() {
      for (auto it = g_waiting.begin(); it != g_waiting.end();) {
          if (const auto at = it->pos ? it->pos : spawn_place(it->spawn);
              at && enemy_load::flat_distance(*at, *me) > kMaxLoadDistance) {
@@ -6875,7 +6947,7 @@ index 72da385..5dfed88 100644
              ++it;
              continue;
          }
-@@ -1910,6 +1943,26 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
+@@ -1910,6 +1955,51 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
  }
  
  void enemy_set_receive_enabled(bool on) { g_receive_enabled = on; }
@@ -6893,6 +6965,31 @@ index 72da385..5dfed88 100644
 +    return n;
 +}
 +
++std::vector<uint32_t> enemy_take_looted_originals() {
++    std::lock_guard lock(g_mutex);
++    return std::exchange(g_looted_originals, {});
++}
++
++void enemy_partner_looted_copy(uint32_t copy) {
++    uint32_t native = 0;
++    {
++        std::lock_guard lock(g_mutex);
++        for (const auto& [key, c] : g_sent) {
++            if (c == copy) native = key;
++        }
++    }
++    const uint32_t own = capture_own_player_key();
++    if (!native || !own) return;
++    std::vector<uint8_t> empty(5), gone(8);
++    empty[0] = 4;
++    std::memcpy(empty.data() + 1, &native, 4);
++    std::memcpy(gone.data(), &native, 4);
++    std::memcpy(gone.data() + 4, &own, 4);
++    puppet_inject_s2c(2414, empty);  // LootDropCharacterRewardListAck: no items
++    puppet_inject_s2c(3066, gone);   // RemoveLootableAck
++    log::info("Loot: the guest looted 0x{:08X} (our 0x{:08X}) first (first come): nothing here", copy, native);
++}
++
 +bool enemy_desync_test() {
 +    if (g_copies.empty()) return false;
 +    puppet_remove_actor(g_copies.begin()->first);
@@ -6902,7 +6999,7 @@ index 72da385..5dfed88 100644
  
  namespace {
  // Dead copies whose loot is still ours to take: removed when looted or after
-@@ -1932,6 +1985,14 @@ void remove_copy_now(uint32_t copy) {
+@@ -1932,6 +2022,14 @@ void remove_copy_now(uint32_t copy) {
  
  void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
      if (bytes.size() < 12) return;
@@ -6917,7 +7014,7 @@ index 72da385..5dfed88 100644
      if (!g_receive_enabled) {
          static bool told = false;
          if (!told) log::warn("Enemy relay: the other player's enemy copies are refused (no crash guards)");
-@@ -1979,6 +2040,11 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
+@@ -1979,6 +2077,11 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
          }
          return;
      }
@@ -6930,7 +7027,7 @@ index 72da385..5dfed88 100644
      load_waiting();
  }
 diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.h b/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
-index b09873f..ac3478f 100644
+index b09873f..ca5a375 100644
 --- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
 +++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
 @@ -34,6 +34,8 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size);
@@ -6942,7 +7039,7 @@ index b09873f..ac3478f 100644
  uint32_t enemy_copy_of(uint32_t key);
  // The reverse: our enemy behind one of the copies we announced, 0 if none.
  uint32_t enemy_original_of(uint32_t copy);
-@@ -90,6 +92,21 @@ std::vector<proto::GameEvent> enemy_host_tick();
+@@ -90,6 +92,25 @@ std::vector<proto::GameEvent> enemy_host_tick();
  // Copies of the other player's enemies are loaded only once their crash
  // guards are installed (mod.cpp).
  void enemy_set_receive_enabled(bool on);
@@ -6958,6 +7055,10 @@ index b09873f..ac3478f 100644
 +size_t enemy_copies_present();
 +// [dev] desync_test: removes one copy of theirs from our world without telling the relay (true if there was one).
 +bool enemy_desync_test();
++// Co-op+ (T10) first_come, host: copies (their keys) whose originals we looted; each once.
++std::vector<uint32_t> enemy_take_looted_originals();
++// first_come, host: the guest looted this copy first: our original's body offers nothing any more.
++void enemy_partner_looted_copy(uint32_t copy);
 +// Co-op+ experiment ([dev] enemy_keep_origin=1): do not strip the spawn identity (schedule, sequence,
 +// camp node) from the loads we send.
 +void enemy_set_keep_origin(bool on);
@@ -8166,7 +8267,7 @@ index 3b3dc90..9917168 100644
  uint32_t capture_own_player_key();
  // Our own user key (0x901...), 0 until a save was loaded.
 diff --git a/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp b/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp
-index 001ed04..7a6d023 100644
+index 001ed04..8646a5c 100644
 --- a/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/loot_twin.cpp
 @@ -1,4 +1,5 @@
@@ -8175,7 +8276,18 @@ index 001ed04..7a6d023 100644
  
  #include <windows.h>
  
-@@ -21,6 +22,7 @@
+@@ -9,8 +10,10 @@
+ #include <deque>
+ #include <format>
+ #include <map>
++#include <mutex>
+ #include <set>
+ #include <string>
++#include <utility>
+ #include <vector>
+ 
+ #include "common/enemy_load.h"
+@@ -21,6 +24,7 @@
  #include "mod/net/enemy_relay.h"
  #include "mod/net/local_capture.h"
  #include "mod/net/remote_puppet.h"
@@ -8183,7 +8295,7 @@ index 001ed04..7a6d023 100644
  #include "mod/net/troc_sniffer.h"
  
  namespace cdmp::net {
-@@ -28,25 +30,27 @@ namespace {
+@@ -28,25 +32,27 @@ namespace {
  
  using Bytes = std::vector<uint8_t>;
  
@@ -8226,7 +8338,7 @@ index 001ed04..7a6d023 100644
  
  // The guest earns loot from a copy it hit lately, close to it; a few at most.
  constexpr uint64_t kHitWindowMs = 30000;
-@@ -61,6 +65,8 @@ constexpr size_t kMaxSpawnsPer5Min = 30;
+@@ -61,6 +67,8 @@ constexpr size_t kMaxSpawnsPer5Min = 30;
  constexpr uint64_t kTwinWaitMs = 15000;
  constexpr uint64_t kKillOnSightMs = 120000;
  constexpr float kTwinMatchDistance = 3.0f;
@@ -8235,7 +8347,7 @@ index 001ed04..7a6d023 100644
  // A twin not seen dead this long after KillCheatReq: asked again, a few times.
  constexpr uint64_t kKillConfirmMs = 3000;
  constexpr int kKillTries = 3;
-@@ -81,6 +87,7 @@ struct Twin {
+@@ -81,6 +89,7 @@ struct Twin {
  };
  
  std::atomic<bool> g_enabled{false};
@@ -8243,11 +8355,36 @@ index 001ed04..7a6d023 100644
  SRWLOCK g_lock = SRWLOCK_INIT;
  std::map<uint32_t, uint64_t> g_hit_ms;  // copy -> our last blow on it
  std::set<uint32_t> g_done;              // copies already decided
-@@ -179,9 +186,11 @@ void unalias_locked(uint32_t copy) {
+@@ -179,9 +188,36 @@ void unalias_locked(uint32_t copy) {
  
  }  // namespace
  
 +void loot_set_test_original(bool on) { g_test_original = on; }
++
++std::atomic<int> g_loot_mode{0};
++std::mutex g_looted_mutex;
++std::vector<uint32_t> g_looted;  // first_come: copies we looted, not yet reported
++
++void loot_set_mode(int mode) {
++    g_loot_mode = mode;
++    log::info("Co-op: loot of shared kills: {}", mode == 1 ? "the host only" : mode == 2 ? "first come" : "each player their own");
++}
++int loot_mode() { return g_loot_mode.load(); }
++
++std::vector<uint32_t> loot_take_looted_copies() {
++    std::lock_guard lock(g_looted_mutex);
++    return std::exchange(g_looted, {});
++}
++
++void loot_partner_looted(uint32_t copy) {
++    {
++        AcquireSRWLockExclusive(&g_lock);
++        unalias_locked(copy);
++        ReleaseSRWLockExclusive(&g_lock);
++    }
++    no_loot_here(copy);
++    log::info("Loot: the host looted the original of copy 0x{:08X} first (first come): nothing here", copy);
++}
 +
  void loot_set_enabled(bool on) {
      g_enabled = on;
@@ -8256,7 +8393,7 @@ index 001ed04..7a6d023 100644
  }
  
  void loot_observe_c2s(const uint8_t* packet, size_t size) {
-@@ -249,26 +258,41 @@ bool loot_on_copy_died(uint32_t copy, uint32_t variant, uint64_t /*delay_ms*/) {
+@@ -249,26 +285,41 @@ bool loot_on_copy_died(uint32_t copy, uint32_t variant, uint64_t /*delay_ms*/) {
          if (g_logged++ < 40) log::info("Loot: copy 0x{:08X} died; no loot for us: {}", copy, why);
          return false;
      }
@@ -8311,14 +8448,38 @@ index 001ed04..7a6d023 100644
      }
      return true;
  }
+@@ -490,6 +541,10 @@ bool loot_filter_s2c(uint8_t* packet, uint16_t size) {
+             if (g_logged++ < 80 && g_lines.size() < 64) {
+                 g_lines.push_back(std::format("Loot: copy 0x{:08X} looted (its twin 0x{:08X})", copy, t->first));
+             }
++            if (g_loot_mode.load() == 2) {  // first_come: the host's body of it is emptied
++                std::lock_guard l2(g_looted_mutex);
++                if (g_looted.size() < 64) g_looted.push_back(copy);
++            }
+             g_twin_of.erase(copy);
+             g_twins.erase(t);
+             return false;
 diff --git a/upstream/cd-coop-3446/src/mod/net/loot_twin.h b/upstream/cd-coop-3446/src/mod/net/loot_twin.h
-index b5f6b02..b286e49 100644
+index b5f6b02..1ece0ad 100644
 --- a/upstream/cd-coop-3446/src/mod/net/loot_twin.h
 +++ b/upstream/cd-coop-3446/src/mod/net/loot_twin.h
-@@ -19,6 +19,8 @@ namespace cdmp::net {
+@@ -14,11 +14,21 @@
+ 
+ #include <cstddef>
+ #include <cstdint>
++#include <vector>
+ 
+ namespace cdmp::net {
  
  // [coop] guest_loot.
  void loot_set_enabled(bool on);
++// Co-op+ (T10): [coop] loot_mode (0 per_player, 1 host_only, 2 first_come).
++void loot_set_mode(int mode);
++int loot_mode();
++// first_come, guest: copies of the host's enemies we looted (to tell the host); each once.
++std::vector<uint32_t> loot_take_looted_copies();
++// first_come, guest: the host looted the original of this copy: its body here offers nothing any more.
++void loot_partner_looted(uint32_t copy);
 +// Co-op+ dev ([dev] loot_test_original=1): on one PC, loot from the copy's original when no hidden native fits.
 +void loot_set_test_original(bool on);
  

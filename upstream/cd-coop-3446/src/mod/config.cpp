@@ -265,6 +265,11 @@ Config load_config(const std::wstring& ini_path) {
     c.coop_finish_arrow = read_uint(ini_path, L"coop", L"finish_arrow", 1) != 0;
     c.dev_rope_piece_lookup = read_uint(ini_path, L"dev", L"rope_piece_lookup", 0) != 0;
     c.coop_guest_loot = read_uint(ini_path, L"coop", L"guest_loot", 0) != 0;
+    {
+        const std::wstring m = read_string(ini_path, L"coop", L"loot_mode", "per_player");
+        c.coop_loot_mode = m == L"host_only" ? 1 : m == L"first_come" ? 2 : 0;
+        if (c.coop_loot_mode == 1) c.coop_guest_loot = false;
+    }
     // Boss safety (boss_safe.h): default ON, because the failure it prevents is a
     // stuck quest in the HOST's save, not a cosmetic problem.
     c.coop_boss_safe = read_uint(ini_path, L"coop", L"boss_safe", 1) != 0;

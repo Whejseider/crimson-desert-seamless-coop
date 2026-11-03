@@ -24,6 +24,7 @@
 #include "mod/net/loot_twin.h"
 #include "mod/net/native_suppress.h"
 #include "mod/net/remote_puppet.h"
+#include "mod/net/loot_twin.h"
 
 namespace cdmp::net {
 namespace {
@@ -1153,12 +1154,23 @@ void enemy_note_guest_blow(uint32_t key) {
     if (g_loads.count(key)) g_engaged[key] = g_at_us[key] = GetTickCount64();
 }
 
+std::vector<uint32_t> g_looted_originals;  // Co-op+ (T10): copies whose originals we looted (under g_mutex)
+
 void enemy_observe_s2c(const uint8_t* packet, size_t size) {
     if (size < 5) return;
     uint16_t op;
     std::memcpy(&op, packet, 2);
     const uint8_t* p = packet + 5;
     const size_t n = size - 5;
+    // Co-op+ (T10): RemoveLootableAck 3066 (u32 dead | u32 looter) of one of our enemies the guest has a copy of.
+    if (op == 3066 && n >= 8 && loot_mode() == 2) {
+        const uint32_t dead = u32_at(p), looter = u32_at(p + 4);
+        std::lock_guard lock(g_mutex);
+        if (auto s = g_sent.find(dead); s != g_sent.end() && looter == capture_own_player_key() &&
+            g_looted_originals.size() < 64) {
+            g_looted_originals.push_back(s->second);
+        }
+    }
     if ((op == kOpVaryHPAck || op == kOpNotifyHandleDeadAck || op == kOpAttackTargetAck ||
          op == kOpApplyActionRestrictionAck) &&
         n >= 4) {
@@ -1955,6 +1967,31 @@ size_t enemy_copies_present() {
     size_t n = g_waiting.size();
     for (const auto& [copy, loaded] : g_copies) n += game::find_actor(copy).has_value();
     return n;
+}
+
+std::vector<uint32_t> enemy_take_looted_originals() {
+    std::lock_guard lock(g_mutex);
+    return std::exchange(g_looted_originals, {});
+}
+
+void enemy_partner_looted_copy(uint32_t copy) {
+    uint32_t native = 0;
+    {
+        std::lock_guard lock(g_mutex);
+        for (const auto& [key, c] : g_sent) {
+            if (c == copy) native = key;
+        }
+    }
+    const uint32_t own = capture_own_player_key();
+    if (!native || !own) return;
+    std::vector<uint8_t> empty(5), gone(8);
+    empty[0] = 4;
+    std::memcpy(empty.data() + 1, &native, 4);
+    std::memcpy(gone.data(), &native, 4);
+    std::memcpy(gone.data() + 4, &own, 4);
+    puppet_inject_s2c(2414, empty);  // LootDropCharacterRewardListAck: no items
+    puppet_inject_s2c(3066, gone);   // RemoveLootableAck
+    log::info("Loot: the guest looted 0x{:08X} (our 0x{:08X}) first (first come): nothing here", copy, native);
 }
 
 bool enemy_desync_test() {

@@ -10,8 +10,10 @@
 #include <deque>
 #include <format>
 #include <map>
+#include <mutex>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/enemy_load.h"
@@ -187,6 +189,31 @@ void unalias_locked(uint32_t copy) {
 }  // namespace
 
 void loot_set_test_original(bool on) { g_test_original = on; }
+
+std::atomic<int> g_loot_mode{0};
+std::mutex g_looted_mutex;
+std::vector<uint32_t> g_looted;  // first_come: copies we looted, not yet reported
+
+void loot_set_mode(int mode) {
+    g_loot_mode = mode;
+    log::info("Co-op: loot of shared kills: {}", mode == 1 ? "the host only" : mode == 2 ? "first come" : "each player their own");
+}
+int loot_mode() { return g_loot_mode.load(); }
+
+std::vector<uint32_t> loot_take_looted_copies() {
+    std::lock_guard lock(g_looted_mutex);
+    return std::exchange(g_looted, {});
+}
+
+void loot_partner_looted(uint32_t copy) {
+    {
+        AcquireSRWLockExclusive(&g_lock);
+        unalias_locked(copy);
+        ReleaseSRWLockExclusive(&g_lock);
+    }
+    no_loot_here(copy);
+    log::info("Loot: the host looted the original of copy 0x{:08X} first (first come): nothing here", copy);
+}
 
 void loot_set_enabled(bool on) {
     g_enabled = on;
@@ -513,6 +540,10 @@ bool loot_filter_s2c(uint8_t* packet, uint16_t size) {
             // Looted: the twin is done with.
             if (g_logged++ < 80 && g_lines.size() < 64) {
                 g_lines.push_back(std::format("Loot: copy 0x{:08X} looted (its twin 0x{:08X})", copy, t->first));
+            }
+            if (g_loot_mode.load() == 2) {  // first_come: the host's body of it is emptied
+                std::lock_guard l2(g_looted_mutex);
+                if (g_looted.size() < 64) g_looted.push_back(copy);
             }
             g_twin_of.erase(copy);
             g_twins.erase(t);

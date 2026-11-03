@@ -14,11 +14,19 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace cdmp::net {
 
 // [coop] guest_loot.
 void loot_set_enabled(bool on);
+// Co-op+ (T10): [coop] loot_mode (0 per_player, 1 host_only, 2 first_come).
+void loot_set_mode(int mode);
+int loot_mode();
+// first_come, guest: copies of the host's enemies we looted (to tell the host); each once.
+std::vector<uint32_t> loot_take_looted_copies();
+// first_come, guest: the host looted the original of this copy: its body here offers nothing any more.
+void loot_partner_looted(uint32_t copy);
 // Co-op+ dev ([dev] loot_test_original=1): on one PC, loot from the copy's original when no hidden native fits.
 void loot_set_test_original(bool on);
 
