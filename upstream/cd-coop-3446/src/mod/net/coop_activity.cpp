@@ -19,6 +19,7 @@
 #include "mod/net/coop_duel.h"
 #include "mod/net/coop_hunt.h"
 #include "mod/net/coop_sync.h"
+#include "mod/net/coop_revive.h"
 #include "mod/net/aggro_test.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/loot_twin.h"
@@ -39,7 +40,7 @@ constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the N
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18 };
 
 // Co-op+ (T09): a player in a menu (map, inventory, pause...) has their own world paused, while the other player's
 // world goes on with their character standing in it. So: each side tells the other when it opens / closes a menu
@@ -765,6 +766,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
                 else enemy_partner_looted_copy(copy);
             }
             break;
+        case kReviveYou:         // coop_revive.h, below
         case kHunt:              // coop_hunt.h, below
         case 15:                 // coop_sync.h, below
             break;
@@ -814,6 +816,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
     if (p[4] == kQuest) party_quests_on_event(p.data() + 5, p.size() - 5);  // party_quests.h (its own lock)
     if (p[4] == kHunt) hunt_on_event(p.data() + 5, p.size() - 5);  // coop_hunt.h (its own lock)
     if (p[4] == 15) sync_on_event(p.data() + 5, p.size() - 5);      // coop_sync.h (its own lock)
+    if (p[4] == kReviveYou) revive_partner_on_event();              // coop_revive.h
 }
 
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,

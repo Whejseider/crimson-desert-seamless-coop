@@ -44,6 +44,7 @@
 #include "mod/net/dev_script.h"
 #include "mod/net/coop_activity.h"
 #include "mod/net/coop_sync.h"
+#include "mod/net/coop_revive.h"
 #include "mod/net/state_audit.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
@@ -411,6 +412,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
 
     const uint32_t state_interval = 1000 / cfg.send_rate_hz;
     bool reduced_rate = false;  // Co-op+ (T11): poor link, half rate
+    std::string revive_line;    // Co-op+ (T15)
     uint32_t last_state = 0;
     uint32_t last_report = now_ms();
     uint32_t last_room_attempt = 0;  // host lobby retry, see the loop below
@@ -692,6 +694,22 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 }
                 revive_prompt =
                     net::revive_prompt_tick(connected, s.health, s.health_max, partner_hp, game_has_focus(), now);
+                // Co-op+ (T15): reviving each other.
+                {
+                    std::optional<net::ReviveRemote> rr;
+                    if (connected) {
+                        if (const auto& rs = session.remote_state()) {
+                            rr = net::ReviveRemote{rs->health, rs->health_max, rs->pos};
+                        }
+                    }
+                    const auto rv = net::revive_partner_tick(connected, s.health, s.health_max, s.position, rr,
+                                                             session.peer_name(), game_has_focus(), now);
+                    revive_line = rv.line;
+                    if (!rv.toast.empty()) {
+                        toast = rv.toast;
+                        toast_until = now + 6000;
+                    }
+                }
             }
             // Co-op+: shared cutscenes (notice, everyone skips) and minigame notices (coop_activity.h). Every loop,
             // also when our position is not readable (in a minigame the player snapshot goes away).
@@ -763,6 +781,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             hud.remote = session.remote_state();
             hud.peer_problem = session.peer_problem();
             hud.partner_in_menu = connected && net::activity_partner_in_menu();
+            hud.revive_line = revive_line;
             hud.revive_prompt = static_cast<uint8_t>(revive_prompt);
             if (cfg.dev_ui_preview == 1) hud.revive_prompt = 1;  // [dev] ui_preview: the death screen
             // In co-op, put the marker on the character actually drawn (it
@@ -1567,6 +1586,7 @@ DWORD WINAPI worker(LPVOID) {
         net::party_quests_set_test(cfg.dev_quest_test);
         net::hunt_set_test(cfg.dev_hunt_test);
         net::sync_set_test(cfg.dev_desync_test);
+        net::revive_partner_set(cfg.coop_teammate_revive, cfg.dev_revive_test);
         net::enemy_set_zone_copy_test(cfg.dev_zone_copy_test);
         input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
         input::set_sim(cfg.dev_pad_sim);

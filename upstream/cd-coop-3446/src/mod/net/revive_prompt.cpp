@@ -203,6 +203,14 @@ bool pressed(int vk, bool& was, bool focused) {
 
 void revive_set_boss_wait(bool on) { g_boss_wait = on; }
 
+bool revive_in_place(uint32_t now_ms) {
+    const uint32_t own = capture_own_player_key();
+    if (!own || !g_dead_since) return false;
+    ask_checkpoint(own, now_ms, /*move=*/false);
+    log::info("Revive: the other player revived us: up where we fell");
+    return true;
+}
+
 RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::optional<float> partner_hp, bool focused,
                                 uint32_t now_ms) {
     hop_tick(now_ms);

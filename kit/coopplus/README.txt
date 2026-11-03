@@ -51,6 +51,7 @@ PLAYING TOGETHER
     F8          X / Square                   co-op panel
     Ctrl+F8     A / Cross                    your friend's name over their head
     Shift+F8    RB / R1                      resync (if your friend or the enemies look wrong)
+    Shift+F7    LB / L1 (hold)               revive your friend when they are down (stand by them)
   A quick tap on View still does what it does in the game.
 - Host: press Ctrl+F1 to open the Steam overlay and invite your friend.
 - Friend: accept the invite, or right-click the host in the Steam friends list and
@@ -68,7 +69,9 @@ PLAYING TOGETHER
 - Ctrl+F4: go to your friend (you are moved next to them in short hops; works best
   within a few hundred metres; it stops if you are swimming).
 - Death in co-op: the game's own death screen ("Death has found you."): Q / X
-  instant revive (30% health), U / Y revive at the checkpoint.
+  instant revive (30% health), U / Y revive at the checkpoint. For 30 seconds your
+  friend can also get you up where you fell: they stand by you and hold Shift+F7
+  (pad: View + LB) for 3 seconds. ([coop] teammate_revive=0 turns this off.)
 - Cutscenes: when your friend is watching one near you (within 100 m), you see
   "<name> is watching a cutscene". When the host's cutscene belongs to a boss or
   story scene, the guest's game starts the same scene too (new, not yet tried by

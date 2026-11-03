@@ -48,6 +48,10 @@ void revive_set_boss_wait(bool on);
 RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::optional<float> partner_hp, bool focused,
                                 uint32_t now_ms);
 
+// Co-op+ (T15): the other player revived us: up where we fell, full health (the boss-win path: the server's
+// checkpoint revive without the move). False when we are not dead.
+bool revive_in_place(uint32_t now_ms);
+
 // Sniffer thread (capture_observe_s2c): the checkpoint the server revives us at (LoadingFieldDataAck).
 void revive_observe_s2c(const uint8_t* packet, size_t size);
 

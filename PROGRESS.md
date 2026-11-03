@@ -146,3 +146,13 @@ under 25 % health the bar edge pulses red and the line reads "Badly hurt".
 Done: frame3 (echo): normal (health ~60 %, stamina full, "2 m") and after our HP -140 via the dev script ("Badly
 hurt - 2 m", red edge) -- crops in build/port3460/shots/frame3-crops.png. frame1: -260 killed Kliff (the frame stays
 hidden under a death screen, as designed); frame2: the game did not start (Steam), retried.
+- Pushed T14 (9204c57).
+
+## T15 -- Teammate revive
+Plan: net/coop_revive.* (bleed-out 30 s, reach 3 m, hold 3 s, Activity 18), revive_in_place (the boss-win path:
+the server's checkpoint revive without the move = up where we fell, full health), ReviveFriend action (Shift+F7 /
+View + LB), hint strip, credit notices, [coop] teammate_revive, [dev] revive_test for the one-PC loop.
+Done: revive1 (one PC): Ctrl+Shift+F9 kill -> game's own death screen + "Hold to revive" -> Shift+F7 held 3.6 s ->
+"we revived" -> echoed -> "revived us: up where we fell" -> checkpoint revive steps 1-3 (no move) -> "alive again",
+hp 300/300 at the death spot; notice "You revived ...". Boss fights keep boss_death_wait. [~] (PLAYTEST 4.4b).
+Note: on this run the game's OWN death screen appeared (not Co-op+'s); fine either way.

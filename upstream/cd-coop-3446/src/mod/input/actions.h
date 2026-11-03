@@ -7,7 +7,7 @@
 // Controller layout. The game uses every button (Game8 controls list, docs/research/progression.md), so the co-op
 // actions are chords: hold View (Xbox) / the touchpad button or Create (PlayStation), then press
 //   Y/Triangle invite   B/Circle leave   D-pad Left ping   D-pad Right go to friend
-//   D-pad Up challenge / accept / end   D-pad Down decline   X/Square panel   A/Cross name tags   RB/R1 resync
+//   D-pad Up challenge / accept / end   D-pad Down decline   X/Square panel   A/Cross name tags   RB/R1 resync   LB/L1 revive a friend (hold)
 // A tap on View still reaches the game (camera). In a Co-op+ box the plain buttons answer it:
 //   revive  X/Square instant, Y/Triangle checkpoint     rock-paper-scissors  X scissors, Y paper, B rock
 //   cutscene skip  Start/Options or B                   arm wrestling mash  any face button
@@ -20,7 +20,7 @@ namespace cdmp::input {
 
 enum class Action : uint8_t {
     Invite, Leave, Ping, GoToFriend, Challenge, Decline, Panel, Nameplates,
-    ReviveNow, ReviveCheckpoint, RpsScissors, RpsPaper, RpsRock, Skip, Mash, MenuPrev, MenuNext, Resync,
+    ReviveNow, ReviveCheckpoint, RpsScissors, RpsPaper, RpsRock, Skip, Mash, MenuPrev, MenuNext, Resync, ReviveFriend,
     Count
 };
 
