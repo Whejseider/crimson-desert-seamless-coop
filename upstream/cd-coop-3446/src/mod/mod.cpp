@@ -198,6 +198,8 @@ public:
         s.rot = last_->rotation;
         s.health = last_->health;
         s.health_max = last_->health_max;
+        s.stamina = last_->stamina;
+        s.stamina_max = last_->stamina_max;
         return s;
     }
 

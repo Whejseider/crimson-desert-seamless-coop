@@ -41,6 +41,12 @@ void title_card(float screen_w, float screen_h, const std::string& title, const 
 // fill (the guest's boss bar, the duel opponent's health). `note` under it ("" = none).
 void boss_bar(float screen_w, float screen_h, const std::string& name, float frac, const std::string& note = {});
 
+// Co-op+ (T14): the partner frame on the left edge (above the game's date and place text): a gold diamond and the
+// name, a red health bar and a thin stamina bar under it, a status line ("in a menu", distance). Below 25 % health
+// the frame's edge pulses red and the status says so. hp / stamina < 0 = unknown (no bar).
+void party_frame(float screen_w, float screen_h, const std::string& name, float hp, float stamina,
+                 const std::string& status, double time_s);
+
 // A medallion over a character's head (world markers): a hand of rock-paper-scissors (0 scissors, 1 paper, 2 rock;
 // -1 = "?" still choosing, -2 = a seal: picked, hidden) drawn in `color`, with a caption under it. `size` px wide.
 void hand_medallion(ImDrawList* dl, float x, float y, float size, int hand, const std::string& caption,

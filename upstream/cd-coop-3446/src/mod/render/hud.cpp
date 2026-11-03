@@ -233,6 +233,20 @@ void hud_draw(float width, float height) {
         ui::death_screen(width, height, "Death has found you.", "Return to your path?", choices);
     }
 
+    // Co-op+ (T14): the partner frame, whenever connected (not over a full-screen menu or a cutscene).
+    if (d.connected && d.remote && !game::ui_menu_open() && !game::cutscene_playing().value_or(false) &&
+        !d.revive_prompt) {
+        const float hp = d.remote->health_max > 0 ? d.remote->health / d.remote->health_max : -1.0f;
+        const float st = d.remote->stamina_max > 0 ? d.remote->stamina / d.remote->stamina_max : -1.0f;
+        std::string status = d.partner_in_menu ? std::string("in a menu") : std::string();
+        if (d.local) {
+            const std::string dist = std::format("{:.0f} m", remote_distance);
+            status = status.empty() ? dist : status + "  -  " + dist;
+        }
+        ui::party_frame(width, height, d.peer_name.empty() ? std::string("Your friend") : d.peer_name, hp, st, status,
+                        ImGui::GetTime());
+    }
+
     // ---- world markers (not over a full-screen menu: they showed on top of the map)
     if (!cam || !cam_world || game::ui_menu_open()) return;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();

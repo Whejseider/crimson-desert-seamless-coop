@@ -187,6 +187,8 @@ std::vector<uint8_t> encode(const Packet& packet) {
             w.f32(b.health);
             w.f32(b.health_max);
             w.u8(b.flags);
+            w.f32(b.stamina);
+            w.f32(b.stamina_max);
         }
         void operator()(const GameEvent& b) const {
             w.u8(static_cast<uint8_t>(b.kind));
@@ -269,12 +271,15 @@ std::optional<Packet> decode(std::span<const uint8_t> bytes) {
             b.health = r.f32();
             b.health_max = r.f32();
             b.flags = r.u8();
+            b.stamina = r.f32();
+            b.stamina_max = r.f32();
             // Only what a real player can be: inside the world, a rotation,
             // a plausible health (security review B3).
             const float q2 = b.rot.x * b.rot.x + b.rot.y * b.rot.y + b.rot.z * b.rot.z + b.rot.w * b.rot.w;
             if (std::fabs(b.pos.x) > kMaxWorldCoord || std::fabs(b.pos.z) > kMaxWorldCoord ||
                 std::fabs(b.pos.y) > kMaxWorldHeight || q2 < 0.5f || q2 > 1.5f || b.health < 0 ||
-                b.health > 1e7f || b.health_max < 0 || b.health_max > 1e7f) {
+                b.health > 1e7f || b.health_max < 0 || b.health_max > 1e7f || b.stamina < 0 || b.stamina > 1e7f ||
+                b.stamina_max < 0 || b.stamina_max > 1e7f) {
                 return std::nullopt;
             }
             p.body = b;

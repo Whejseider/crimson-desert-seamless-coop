@@ -309,6 +309,43 @@ void boss_bar(float sw, float sh, const std::string& name, float frac, const std
     }
 }
 
+void party_frame(float sw, float sh, const std::string& name, float hp, float stamina, const std::string& status,
+                 double t) {
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    const float k = std::max(0.6f, sh / 1080.0f);
+    const float x = 34 * k, y = sh * 0.555f, w = 230 * k, ns = 20 * k, bh = 7 * k, sth = 3 * k;
+    const bool low = hp >= 0.0f && hp < 0.25f;
+    // Backing: a soft dark wash so it reads on bright ground, like the game's own corner texts.
+    dl->AddRectFilledMultiColor(ImVec2(x - 14 * k, y - 6 * k), ImVec2(x + w + 18 * k, y + ns + bh + sth + 34 * k),
+                                IM_COL32(0, 0, 0, 120), IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 120));
+    const float r = 5 * k, cy = y + ns * 0.55f;
+    dl->AddQuadFilled(ImVec2(x, cy - r), ImVec2(x + r, cy), ImVec2(x, cy + r), ImVec2(x - r, cy), kGold);
+    text(dl, g_serif, ns, x + 12 * k, y, kGold, name);
+    float by = y + ns + 6 * k;
+    if (hp >= 0.0f) {
+        const float f = std::clamp(hp, 0.0f, 1.0f);
+        dl->AddRectFilled(ImVec2(x - 1 * k, by - 1 * k), ImVec2(x + w + 1 * k, by + bh + 1 * k), IM_COL32(0, 0, 0, 170));
+        dl->AddRectFilled(ImVec2(x, by), ImVec2(x + w, by + bh), IM_COL32(40, 34, 30, 200));
+        dl->AddRectFilledMultiColor(ImVec2(x, by), ImVec2(x + w * f, by + bh), IM_COL32(150, 22, 18, 255),
+                                    IM_COL32(196, 40, 32, 255), IM_COL32(150, 22, 18, 255), IM_COL32(110, 14, 12, 255));
+        ImU32 edge = with_alpha(kRule, 0.8f);
+        if (low) {  // pulse
+            const float a = 0.55f + 0.45f * static_cast<float>(std::sin(t * 6.0));
+            edge = IM_COL32(230, 60, 48, static_cast<int>(255 * a));
+        }
+        dl->AddRect(ImVec2(x - 1 * k, by - 1 * k), ImVec2(x + w + 1 * k, by + bh + 1 * k), edge, 0.0f, low ? 2.0f : 1.0f);
+        by += bh + 4 * k;
+    }
+    if (stamina >= 0.0f) {
+        const float f = std::clamp(stamina, 0.0f, 1.0f);
+        dl->AddRectFilled(ImVec2(x, by), ImVec2(x + w, by + sth), IM_COL32(40, 34, 30, 200));
+        dl->AddRectFilled(ImVec2(x, by), ImVec2(x + w * f, by + sth), IM_COL32(214, 196, 120, 230));
+        by += sth + 5 * k;
+    }
+    const std::string line = low ? (status.empty() ? std::string("Badly hurt") : "Badly hurt  -  " + status) : status;
+    if (!line.empty()) text(dl, g_serif, 15 * k, x, by, low ? IM_COL32(236, 120, 104, 255) : kText, line);
+}
+
 void hand_medallion(ImDrawList* dl, float x, float y, float s, int hand, const std::string& caption, unsigned int color,
                     float alpha) {
     const ImU32 c = with_alpha(color, alpha), dark = with_alpha(IM_COL32(10, 9, 8, 210), alpha);

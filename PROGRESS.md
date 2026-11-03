@@ -137,3 +137,12 @@ Plan: table of every one-player assumption (from the mod's boss research and the
 handling or fallback; first five bosses into the playtest. [needs-2PC].
 Done: docs/research/boss-audit.md (12 mechanics); PLAYTEST 5.6b per boss. Only open risk: grabs / paired attacks on
 the guest's copy (fallback enemies_target_copy=0). Kearush's fog is host-only (guest unaffected; accepted). [~]
+- Pushed T13 (0ff8fad).
+
+## T14 -- Partner party frame
+Plan: stamina into PlayerState (protocol 12), ui::party_frame (gold diamond + serif name, red health bar, thin pale
+stamina bar, status line), drawn whenever connected except over full-screen menus, cutscenes and our death screen;
+under 25 % health the bar edge pulses red and the line reads "Badly hurt".
+Done: frame3 (echo): normal (health ~60 %, stamina full, "2 m") and after our HP -140 via the dev script ("Badly
+hurt - 2 m", red edge) -- crops in build/port3460/shots/frame3-crops.png. frame1: -260 killed Kliff (the frame stays
+hidden under a death screen, as designed); frame2: the game did not start (Steam), retried.

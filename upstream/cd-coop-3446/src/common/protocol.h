@@ -29,7 +29,7 @@ inline constexpr uint32_t kMagic = 0x504D4443;  // bytes "CDMP"
 // (equip_state.h); a v6 peer would lose them. 8: TimeSync events. 9: EnemyZone
 // (the guest hides its own enemies near the host, who relays them all).
 // 10: EnemySpawn carries a flags word (kBossFlag). See kEnemySpawnFlags below.
-inline constexpr uint16_t kVersion = 11;  // 11: Hello / Welcome carry the game version (Co-op+ T03)
+inline constexpr uint16_t kVersion = 12;  // 11: Hello / Welcome carry the game version (T03); 12: stamina (T14)
 // ---------------------------------------------------------------------------
 // EnemySpawn, as of v10:
 //
@@ -172,6 +172,8 @@ struct PlayerState {
     float health = 0;      // current HP
     float health_max = 0;  // 0 = unknown
     uint8_t flags = 0;
+    float stamina = 0;      // Co-op+ (T14): for the partner frame
+    float stamina_max = 0;  // 0 = unknown
 };
 
 struct GameEvent {
