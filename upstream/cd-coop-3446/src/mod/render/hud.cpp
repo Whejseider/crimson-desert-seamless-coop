@@ -18,6 +18,7 @@
 #include "mod/log.h"
 #include "mod/render/dx12_hook.h"
 #include "mod/input/actions.h"
+#include "mod/input/pad_input.h"
 #include "mod/render/game_ui.h"
 #include "mod/settings_menu.h"
 
@@ -175,6 +176,7 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
         ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
     }
     if (!d.coop_hint.empty()) ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.6f, 1), "%s", d.coop_hint.c_str());
+    ImGui::TextDisabled("Controls card: Shift+F1 (pad: hold View / Touchpad + left stick click)");
     // Co-op+ (T43): the record against this friend.
     for (const auto& l : d.score_lines) ImGui::TextColored(ImVec4(0.91f, 0.78f, 0.51f, 1), "%s", l.c_str());
     // Co-op+ (T30/T40): the settings (settings_menu.h).
@@ -276,11 +278,16 @@ void hud_draw(float width, float height) {
                            {"{Invite}  Invite a Steam friend (or they pick Join Game on you in Steam)",
                             "{Panel}  Co-op panel and settings          {Leave}  Leave a friend's world",
                             "{GoToFriend}  Go to your friend          {Summon}  Ask your friend to come to you",
-                            "{Ping}  Quick messages and map pins          {Chat}  Type a chat line",
+                            input::connected_pad() == input::Method::Keyboard
+                                ? "{Ping}  Quick messages and map pins          {Chat}  Type a chat line"
+                                : "{Ping}  Quick messages (D-pad Left/Right choose) and map pins",
                             "{Challenge}  Challenge: duel, rock-paper-scissors, hunting, arm wrestling",
                             "{ReviveFriend}  Hold by a downed friend to revive          {Resync}  Resync if things look wrong",
                             "Don't save while your friend is in your world: Co-op+ backs your saves up for you."},
-                           "{Help}  closes this card and opens it again any time", a);
+                           input::connected_pad() == input::Method::Keyboard
+                               ? "{Help}  closes this card and opens it again any time"
+                               : "Hold View / Touchpad for every co-op button.   {Help}  closes this card, opens it any time",
+                           a);
         }
     }
     if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure(), problems);

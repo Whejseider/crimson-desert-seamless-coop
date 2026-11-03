@@ -502,3 +502,25 @@ kPuppetHorse keys), the enemy relay keys copies by "the partner", challenges and
 the party frame shows one friend. Scaling already has 3-4 player curves (scaling.toml). Doing it without destabilising
 2-player play means a session per peer and N puppets (new reserved actor keys) -- a project of its own; the roadmap
 allows skipping it ("only if the architecture allows it").
+
+## Regression run on the evening build (2026-11-03, after T48; ROADMAP section 2)
+- Shared enemies + host weather + duel + lost links + leave, each followed by the 30 s state audit (reg-audit):
+  21 enemy copies relayed and removed; three audits "clean"; no crash.
+- Rejoin x5 (reg-rejoin): spawn 1..6, one character per spawn, no crash.
+- Menus (reg-menu): map / inventory / pause each "in a menu" then "left a menu"; spawns 1, links lost 0.
+- Teammate revive (reg-revive) and the death screen (reg-qu): Q -> hp 108 (instant), U -> checkpoint revive steps
+  1-3, "at the checkpoint", hp 300.
+- Horse (reg-horse): ride, gallop, dismount, the horse copy reloaded where the horse is; the script's optional second
+  round hung walking to the horse (test script, not the mod); stopped.
+- Controls card with a pad (guidepad, [dev] pad_sim=1): pad glyphs (View + Y, B, RB, LB, RS, LS) on the card.
+- Vanilla switch on the real install: vanilla.ps1 on -> cdmp.asi.off, game started, no cdmp.log written; off -> back.
+- Not covered on one PC: Steam invite / room code (two accounts), a real controller.
+
+## User request 2026-11-03 18:00 -- controls card with controller buttons, a playtest Discord, a feature list
+- Controls card: input::connected_pad() (XInput slot answering, or a PlayStation HID reader running); the card draws
+  that pad's buttons whenever one is plugged in (not only after it was used last); the pad text skips the keyboard-
+  only chat line and says "Hold View / Touchpad for every co-op button"; the F8 panel names the card's key.
+- Distribution: decided GitHub Releases on a separate PUBLIC repo that holds only the downloads (the project repo
+  stays private): a stable "latest" link for Discord, versions with notes, SHA256, no size limit; source.zip in the
+  zip now holds only the build sources (GPL) -- no notes or logs (it was `git archive HEAD` of everything).
+- docs/release/FEATURES.md (Reddit, tables) and docs/release/discord-features.txt (3 messages under 2000 chars).

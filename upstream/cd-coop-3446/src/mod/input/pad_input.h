@@ -31,6 +31,10 @@ void input_start();
 // The method used last (Keyboard until something else is touched).
 Method method();
 
+// Co-op+ (user 2026-11-03): the pad plugged in now, whether or not it was used last (PlayStation before Xbox;
+// Keyboard = no pad). The controls card shows this pad's buttons.
+Method connected_pad();
+
 // All pads' buttons now (XInput and PlayStation pads OR'ed), as the player presses them (before our mask).
 uint16_t pad_buttons();
 

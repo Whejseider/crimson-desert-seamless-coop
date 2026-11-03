@@ -31,6 +31,8 @@ constexpr int kStickMove = 12000;      // a stick pushed this far counts as usin
 std::atomic<Method> g_method{Method::Keyboard};
 std::atomic<uint16_t> g_xinput{0};     // real XInput buttons (any pad)
 std::atomic<uint16_t> g_sony{0};       // PlayStation pads' buttons
+std::atomic<bool> g_xinput_present{false};  // an XInput pad answers (connected_pad)
+std::atomic<int> g_sony_present{0};         // PlayStation pad readers running
 std::atomic<uint16_t> g_sim{0};        // [dev] simulated presses
 std::atomic<uint64_t> g_sim_until{0};
 std::atomic<int> g_sim_family{0};
@@ -201,6 +203,7 @@ void sony_reader(SonyPad pad) {
             GetLastError() != ERROR_IO_PENDING) {
             break;
         }
+        g_sony_present = 1;
         if (WaitForSingleObject(ov.hEvent, 2000) != WAIT_OBJECT_0) {
             CancelIo(pad.file);
             continue;
@@ -215,6 +218,7 @@ void sony_reader(SonyPad pad) {
         last = bt;
     }
     g_sony = 0;
+    g_sony_present = 0;
     CloseHandle(ov.hEvent);
     CloseHandle(pad.file);
     log::info("Input: PlayStation pad gone");
@@ -236,10 +240,12 @@ void poll_loop() {
         // XInput, all four slots (through the real function: our filter must not hide anything from us).
         uint16_t xb = 0;
         int stick = 0;
+        bool present = false;
         if (g_real_get_state) {
             for (DWORD i = 0; i < 4; ++i) {
                 XINPUT_STATE st{};
                 if (g_real_get_state(i, &st) != ERROR_SUCCESS) continue;
+                present = true;
                 xb |= st.Gamepad.wButtons;
                 if (st.Gamepad.bRightTrigger > 100) xb |= kPadRT;
                 stick = std::max({stick, std::abs(static_cast<int>(st.Gamepad.sThumbLX)),
@@ -249,6 +255,7 @@ void poll_loop() {
             }
         }
         g_xinput = xb;
+        g_xinput_present = present;
         // A Sony pad seen through Steam Input shows up here too: its HID reports decide the icons then.
         if (((xb != last_x && xb) || stick > kStickMove) && g_sony.load() == 0) g_method = Method::Xbox;
         last_x = xb;
@@ -303,6 +310,12 @@ void input_start() {
 }
 
 Method method() { return g_method.load(); }
+
+Method connected_pad() {
+    if (const int f = g_sim_family.load()) return f == 2 ? Method::PlayStation : Method::Xbox;
+    if (g_sony_present.load()) return Method::PlayStation;
+    return g_xinput_present.load() ? Method::Xbox : Method::Keyboard;
+}
 
 uint16_t pad_buttons() {
     uint16_t b = g_xinput.load() | g_sony.load();

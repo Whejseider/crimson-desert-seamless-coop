@@ -113,7 +113,11 @@ Copy-Item (Join-Path $root 'docs\compatibility.md') (Join-Path $stage 'OTHER-MOD
 Copy-Item (Join-Path $root 'CHANGELOG.md') $stage
 Copy-Item (Join-Path $root 'LICENSE') (Join-Path $stage 'LICENSE.txt')
 Copy-Item (Join-Path $up 'kit\public\THIRD-PARTY-NOTICES.txt') $stage
-Invoke-Git archive --format=zip -o (Join-Path $stage 'source.zip') HEAD
+# The GPL source of exactly this build: only what builds cdmp.asi and this package (upstream/cd-coop-3446 with our
+# changes, our sim layer and toml++, the settings, the kit and this script) -- not the project's notes and logs.
+Invoke-Git archive --format=zip -o (Join-Path $stage 'source.zip') HEAD -- upstream/cd-coop-3446 src/sim `
+    third_party/tomlplusplus config kit/coopplus tools/package-coopplus.ps1 tools/fetch-asi-loader.ps1 LICENSE `
+    CREDITS.md CHANGELOG.md docs/SOURCE-README.md
 
 Get-ChildItem $stage -File -Recurse | Where-Object Name -ne 'SHA256.txt' | ForEach-Object {
     '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.FullName.Substring($stage.Length + 1)

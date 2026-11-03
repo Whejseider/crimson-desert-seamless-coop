@@ -2391,10 +2391,10 @@ index 0000000..b80d2fa
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/input/pad_input.cpp b/upstream/cd-coop-3446/src/mod/input/pad_input.cpp
 new file mode 100644
-index 0000000..b0517bf
+index 0000000..d9443ca
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/input/pad_input.cpp
-@@ -0,0 +1,333 @@
+@@ -0,0 +1,346 @@
 +#include "mod/input/pad_input.h"
 +
 +#include <windows.h>
@@ -2428,6 +2428,8 @@ index 0000000..b0517bf
 +std::atomic<Method> g_method{Method::Keyboard};
 +std::atomic<uint16_t> g_xinput{0};     // real XInput buttons (any pad)
 +std::atomic<uint16_t> g_sony{0};       // PlayStation pads' buttons
++std::atomic<bool> g_xinput_present{false};  // an XInput pad answers (connected_pad)
++std::atomic<int> g_sony_present{0};         // PlayStation pad readers running
 +std::atomic<uint16_t> g_sim{0};        // [dev] simulated presses
 +std::atomic<uint64_t> g_sim_until{0};
 +std::atomic<int> g_sim_family{0};
@@ -2598,6 +2600,7 @@ index 0000000..b0517bf
 +            GetLastError() != ERROR_IO_PENDING) {
 +            break;
 +        }
++        g_sony_present = 1;
 +        if (WaitForSingleObject(ov.hEvent, 2000) != WAIT_OBJECT_0) {
 +            CancelIo(pad.file);
 +            continue;
@@ -2612,6 +2615,7 @@ index 0000000..b0517bf
 +        last = bt;
 +    }
 +    g_sony = 0;
++    g_sony_present = 0;
 +    CloseHandle(ov.hEvent);
 +    CloseHandle(pad.file);
 +    log::info("Input: PlayStation pad gone");
@@ -2633,10 +2637,12 @@ index 0000000..b0517bf
 +        // XInput, all four slots (through the real function: our filter must not hide anything from us).
 +        uint16_t xb = 0;
 +        int stick = 0;
++        bool present = false;
 +        if (g_real_get_state) {
 +            for (DWORD i = 0; i < 4; ++i) {
 +                XINPUT_STATE st{};
 +                if (g_real_get_state(i, &st) != ERROR_SUCCESS) continue;
++                present = true;
 +                xb |= st.Gamepad.wButtons;
 +                if (st.Gamepad.bRightTrigger > 100) xb |= kPadRT;
 +                stick = std::max({stick, std::abs(static_cast<int>(st.Gamepad.sThumbLX)),
@@ -2646,6 +2652,7 @@ index 0000000..b0517bf
 +            }
 +        }
 +        g_xinput = xb;
++        g_xinput_present = present;
 +        // A Sony pad seen through Steam Input shows up here too: its HID reports decide the icons then.
 +        if (((xb != last_x && xb) || stick > kStickMove) && g_sony.load() == 0) g_method = Method::Xbox;
 +        last_x = xb;
@@ -2701,6 +2708,12 @@ index 0000000..b0517bf
 +
 +Method method() { return g_method.load(); }
 +
++Method connected_pad() {
++    if (const int f = g_sim_family.load()) return f == 2 ? Method::PlayStation : Method::Xbox;
++    if (g_sony_present.load()) return Method::PlayStation;
++    return g_xinput_present.load() ? Method::Xbox : Method::Keyboard;
++}
++
 +uint16_t pad_buttons() {
 +    uint16_t b = g_xinput.load() | g_sony.load();
 +    if (now64() < g_sim_until.load()) b |= g_sim.load();
@@ -2730,10 +2743,10 @@ index 0000000..b0517bf
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/input/pad_input.h b/upstream/cd-coop-3446/src/mod/input/pad_input.h
 new file mode 100644
-index 0000000..2d3e989
+index 0000000..123fd5d
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/input/pad_input.h
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,52 @@
 +#pragma once
 +// Co-op+: what the player is using (keyboard and mouse, an Xbox pad, a PlayStation pad) and the pad's buttons, so the
 +// mod's prompts show the right button icons and every Co-op+ action has a controller binding (user 2026-11-02:
@@ -2766,6 +2779,10 @@ index 0000000..2d3e989
 +
 +// The method used last (Keyboard until something else is touched).
 +Method method();
++
++// Co-op+ (user 2026-11-03): the pad plugged in now, whether or not it was used last (PlayStation before Xbox;
++// Keyboard = no pad). The controls card shows this pad's buttons.
++Method connected_pad();
 +
 +// All pads' buttons now (XInput and PlayStation pads OR'ed), as the player presses them (before our mask).
 +uint16_t pad_buttons();
@@ -20949,10 +20966,10 @@ index 0516c86..e1b276f 100644
      }
 diff --git a/upstream/cd-coop-3446/src/mod/render/game_ui.cpp b/upstream/cd-coop-3446/src/mod/render/game_ui.cpp
 new file mode 100644
-index 0000000..49dcb33
+index 0000000..920a3e6
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/render/game_ui.cpp
-@@ -0,0 +1,504 @@
+@@ -0,0 +1,512 @@
 +#include "mod/render/game_ui.h"
 +
 +#include <windows.h>
@@ -21114,10 +21131,13 @@ index 0000000..49dcb33
 +    return text_w(g_serif, fs, "+") + 4;
 +}
 +
++// Co-op+: the controls card draws one device's buttons whatever was used last (guide_card).
++int g_glyph_method = -1;  // -1 = the current input method
++
 +// The action's button(s) for the current input method.
 +float action_glyph(ImDrawList* dl, float x, float y, float h, input::Action a) {
 +    const auto& b = input::binding(a);
-+    const auto m = input::method();
++    const auto m = g_glyph_method >= 0 ? static_cast<input::Method>(g_glyph_method) : input::method();
 +    float w = 0;
 +    if (m == input::Method::Keyboard) {
 +        auto key_name = [](int vk) -> std::string {
@@ -21223,6 +21243,11 @@ index 0000000..49dcb33
 +
 +void guide_card(float sw, float sh, const std::string& title, const std::vector<std::string>& lines,
 +                const std::string& footer, float alpha) {
++    // A controller plugged in: its buttons (user 2026-11-03), else the keys.
++    g_glyph_method = static_cast<int>(input::connected_pad());
++    struct Restore {
++        ~Restore() { g_glyph_method = -1; }
++    } restore;
 +    ImDrawList* dl = ImGui::GetForegroundDrawList();
 +    const float k = std::max(0.6f, sh / 1080.0f);
 +    const float ts = 34.0f * k, ls = 21.0f * k, fs = 17.0f * k, gap = ls * 0.62f;
@@ -21544,10 +21569,10 @@ index 0000000..1af3b3e
 +
 +}  // namespace cdmp::render::ui
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..12fe083 100644
+index 14edc91..cc0711c 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-@@ -5,59 +5,67 @@
+@@ -5,59 +5,68 @@
  #include <imgui.h>
  
  #include <algorithm>
@@ -21564,6 +21589,7 @@ index 14edc91..12fe083 100644
  #include "mod/log.h"
  #include "mod/render/dx12_hook.h"
 +#include "mod/input/actions.h"
++#include "mod/input/pad_input.h"
 +#include "mod/render/game_ui.h"
 +#include "mod/settings_menu.h"
  
@@ -21639,7 +21665,7 @@ index 14edc91..12fe083 100644
  void hud_configure(const HudOptions& options) {
      std::lock_guard lock(g_mutex);
      g_options = options;
-@@ -68,79 +76,56 @@ void hud_update(HudData data) {
+@@ -68,79 +77,56 @@ void hud_update(HudData data) {
      g_data = std::move(data);
  }
  
@@ -21756,7 +21782,7 @@ index 14edc91..12fe083 100644
      if (!d.peer_problem.empty()) {
          // In English from the session; the essential part is the instruction.
          ImGui::TextColored(ImVec4(1, 0.35f, 0.3f, 1), en ? "Different mod versions: both of you update"
-@@ -153,14 +138,14 @@ void hud_draw(float width, float height) {
+@@ -153,14 +139,14 @@ void hud_draw(float width, float height) {
      } else {
          ImGui::TextDisabled(en ? "You: %s" : "Tú: %s", d.local_status.c_str());
      }
@@ -21774,11 +21800,12 @@ index 14edc91..12fe083 100644
  
      // The room code, ALWAYS shown -- with the code when we have one, and an explicit
      // "no code" plus the reason when we do not.
-@@ -189,19 +174,242 @@ void hud_draw(float width, float height) {
+@@ -189,19 +175,248 @@ void hud_draw(float width, float height) {
          // read a file to find out what went wrong.
          ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
      }
 +    if (!d.coop_hint.empty()) ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.6f, 1), "%s", d.coop_hint.c_str());
++    ImGui::TextDisabled("Controls card: Shift+F1 (pad: hold View / Touchpad + left stick click)");
 +    // Co-op+ (T43): the record against this friend.
 +    for (const auto& l : d.score_lines) ImGui::TextColored(ImVec4(0.91f, 0.78f, 0.51f, 1), "%s", l.c_str());
 +    // Co-op+ (T30/T40): the settings (settings_menu.h).
@@ -21882,11 +21909,16 @@ index 14edc91..12fe083 100644
 +                           {"{Invite}  Invite a Steam friend (or they pick Join Game on you in Steam)",
 +                            "{Panel}  Co-op panel and settings          {Leave}  Leave a friend's world",
 +                            "{GoToFriend}  Go to your friend          {Summon}  Ask your friend to come to you",
-+                            "{Ping}  Quick messages and map pins          {Chat}  Type a chat line",
++                            input::connected_pad() == input::Method::Keyboard
++                                ? "{Ping}  Quick messages and map pins          {Chat}  Type a chat line"
++                                : "{Ping}  Quick messages (D-pad Left/Right choose) and map pins",
 +                            "{Challenge}  Challenge: duel, rock-paper-scissors, hunting, arm wrestling",
 +                            "{ReviveFriend}  Hold by a downed friend to revive          {Resync}  Resync if things look wrong",
 +                            "Don't save while your friend is in your world: Co-op+ backs your saves up for you."},
-+                           "{Help}  closes this card and opens it again any time", a);
++                           input::connected_pad() == input::Method::Keyboard
++                               ? "{Help}  closes this card and opens it again any time"
++                               : "Hold View / Touchpad for every co-op button.   {Help}  closes this card, opens it any time",
++                           a);
 +        }
 +    }
 +    if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure(), problems);

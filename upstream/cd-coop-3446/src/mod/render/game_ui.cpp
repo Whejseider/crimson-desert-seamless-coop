@@ -159,10 +159,13 @@ float plus(ImDrawList* dl, float x, float y, float h) {
     return text_w(g_serif, fs, "+") + 4;
 }
 
+// Co-op+: the controls card draws one device's buttons whatever was used last (guide_card).
+int g_glyph_method = -1;  // -1 = the current input method
+
 // The action's button(s) for the current input method.
 float action_glyph(ImDrawList* dl, float x, float y, float h, input::Action a) {
     const auto& b = input::binding(a);
-    const auto m = input::method();
+    const auto m = g_glyph_method >= 0 ? static_cast<input::Method>(g_glyph_method) : input::method();
     float w = 0;
     if (m == input::Method::Keyboard) {
         auto key_name = [](int vk) -> std::string {
@@ -268,6 +271,11 @@ void band(float sw, float y, const std::string& title, const std::string& body, 
 
 void guide_card(float sw, float sh, const std::string& title, const std::vector<std::string>& lines,
                 const std::string& footer, float alpha) {
+    // A controller plugged in: its buttons (user 2026-11-03), else the keys.
+    g_glyph_method = static_cast<int>(input::connected_pad());
+    struct Restore {
+        ~Restore() { g_glyph_method = -1; }
+    } restore;
     ImDrawList* dl = ImGui::GetForegroundDrawList();
     const float k = std::max(0.6f, sh / 1080.0f);
     const float ts = 34.0f * k, ls = 21.0f * k, fs = 17.0f * k, gap = ls * 0.62f;
