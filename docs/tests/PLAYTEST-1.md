@@ -1,95 +1,120 @@
-# First two-player playtest: checklist (D2)
+# First two-player playtest: checklist
 
-One evening, about 90 minutes. Follow the blocks in order; each block only needs the ones before it.
-A = host (you), B = friend. Both on game 1.0.0.3479, both installed from the SAME zip.
+About two hours. Follow the blocks in order; each block only needs the ones before it.
+**A = host, B = friend.** Both on game 1.0.0.3479, both installed from the SAME zip.
 
-## Before you start (both)
-- [ ] Install from the zip ("Install Co-op+.cmd"); it backs up your saves.
-- [ ] In bin64\cdmp.ini, under `[sniffer]`, set `record=1` (packet recording, for bug reports; 50-100 MB).
-- [ ] Steam overlay on. You are Steam friends.
-- [ ] Rule for the whole evening: **nobody saves while the other player is connected.** Quit without saving.
-- [ ] Before each block, both press **Ctrl+F12** at the same moment (marks the logs so they line up).
+How to record: for each step tick **Pass** or **Fail** and write anything odd in **Notes** (what you saw, roughly
+when, which Ctrl+F12 mark). A step that could not be tried: leave both boxes empty and write why.
 
-## 1. Joining (10 min)  -- details: docs/tests/M1.md
-- [ ] Both load a save. A presses Ctrl+F1 and invites B; B accepts. Both panels (F8) say connected.
-- [ ] B appears in A's world and A in B's: walking, running, jumping. Name tags, minimap arrow, map pin.
-- [ ] Toasts: "<B> joined your world" on A, "You are in <A>'s world" on B.
-- [ ] B leaves with Ctrl+F2, then joins again with "Join Game" from A's entry in the Steam friends list.
+| Session record | |
+|---|---|
+| Date | |
+| Mod build (F8 panel title / zip name) | |
+| A's PC / B's PC (GPU, Windows) | |
+| Connection (same house / internet, rough ping from F8) | |
 
-## 2. Looks and movement (10 min)  -- details: docs/tests/M2-M3.md "M2"
-- [ ] Glide, climb, swim, ledge pull-up, attack, ride: note anything that freezes or snaps.
-- [ ] B changes helmet or weapon: A sees it within a couple of seconds (and the other way round).
+---
 
-## 2b. Riding, waypoints, pings, teleport (10 min)
-- [ ] Both call a horse (H) and ride (E; R dismounts): each sees the other ride their own horse beside them.
-- [ ] Ride 300 m together: no snapping or vanishing; dismount together.
-- [ ] A sets a waypoint on the map (right-click): B sees a second pin there.
-- [ ] A presses Ctrl+F3: B gets "<A> pinged their position" and a pin.
-- [ ] B walks 200 m away, then presses Ctrl+F4: B lands next to A. Try 800 m too and note what happens.
+## 0. Before you start (both)
 
-## 3. Fighting together (20 min)
-Go somewhere with ordinary enemies near A (a bandit camp).
-- [ ] B sees A's enemies; B's own enemies there are gone (and come back when B walks 250 m away).
-- [ ] Both count the bandits in the camp: the same number in the same places (D45; one PC loaded 33 copies at once).
-- [ ] B hits an enemy: its HP drops on A's screen too; B can finish it.
-- [ ] Enemies attack either player (usually whoever hit them last); their blows hurt B for real.
-- [ ] **No friendly fire (A11):** A and B swing at each other for a while: nobody loses HP.
-- [ ] Loot (A4): after a shared kill, B loots the body: B gets its own drop; A loots the same body: A gets its own.
-- [ ] Chests: both open "the same" chest: both get the contents (per-player loot, D24).
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 0.1 | Install from the zip ("Install Co-op+.cmd"). | "Installed." and "Saves backed up: N file(s)". | [ ] | [ ] | |
+| 0.2 | In `bin64\cdmp.ini`, under `[sniffer]`, set `record=1`. | (packet recording for bug reports, 50-100 MB) | [ ] | [ ] | |
+| 0.3 | Steam overlay on; you are Steam friends. | Shift+Tab opens the overlay in game. | [ ] | [ ] | |
+| 0.4 | Rule for the whole session: **nobody saves while the other player is connected.** Quit without saving. | | | | |
+| 0.5 | Before each block both press **Ctrl+F12** at the same moment. | The log gets "=== MARK n ===" (lines the two logs up). | [ ] | [ ] | |
 
-## 4. Deaths (15 min)  -- A12
-On one PC the game's own death screen never appears once the other player's character has been loaded;
-Co-op+ then shows its own "Death has found you  [Q] Instant Revive  [U] Revive at Checkpoint" box (centre of
-the screen, about 4 s after the death). Note which one each of you gets: if the game's own screen DOES appear
-with two real players, that is good news (the one-PC test clones your own character, which may be the cause).
-- [ ] B dies to enemies while A fights on: B gets a death screen (the game's or Co-op+'s); A is not affected and
-      keeps fighting. On A's screen B's character falls.
-- [ ] B presses Q (Instant Revive): B gets up in place with part of their health; on A's screen B gets up too.
-- [ ] B dies FAR from the last checkpoint (walk a few hundred metres first) and presses U: with the game's own
-      screen B goes to the checkpoint (loading screen). With Co-op+'s box B gets full health and is moved to the
-      checkpoint in a few quick hops. If moved: watch for falling through the
-      ground; on A's screen B's character should jump there too.
-- [ ] Same with A dying while B fights on.
-- [ ] A fall death (jump off a cliff): same death screen, same revive.
-- [ ] Each of you: is the number of instant revives (shown under "Instant Revive" in the game's own screen)
-      used up as usual? With Co-op+'s box, if Q does nothing (none left?), use U and note it.
+## 1. Joining and leaving
 
-## 5. Bosses (15 min, only if a boss is handy)
-- [ ] B helps; A lands the final blow; the boss's cinematic plays normally on A.
-- [ ] Both logs: "Boss: enemy 0x... treated as a boss" for the boss (it is recognised by its health pool).
-- [ ] A9: B dies during the fight: B sees "Your partner is still fighting the boss. Hold on..." (no Q/U). A wins:
-      B gets up where they fell with full health within a few seconds (log: "the other player beat the boss").
-      This step was never tested (needs two players).
-- [ ] Both go down: each sees "Everyone is down. [U] Revive at Checkpoint"; both press U.
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 1.1 | Both load a save. A presses Ctrl+F1 and invites B in the Steam overlay; B accepts. | Both F8 panels say connected; A: "<B> joined your world"; B: "You are in <A>'s world". | [ ] | [ ] | |
+| 1.2 | Look at each other. | Each sees the other's character (walking, running, jumping), name tag fading with distance, minimap arrow, map pin. | [ ] | [ ] | |
+| 1.3 | B presses Ctrl+F2. | B is back in their own world; A: "<B> left". No leftover character of B on A's screen. | [ ] | [ ] | |
+| 1.4 | B right-clicks A in the Steam friends list > "Join Game". | B joins again as in 1.1. | [ ] | [ ] | |
+| 1.5 | B quits the game completely; A sends a new invite (Ctrl+F1); B accepts from the Steam overlay / client. | Steam starts B's game; after B loads a save B lands in A's world. | [ ] | [ ] | |
+| 1.6 | Room code: B leaves (Ctrl+F2). B types A's 7-letter room code (A's F8 panel) into B's `cdmp.ini` under `[room] code=`, restarts the game, loads a save. | B joins A's world. Afterwards B empties `code=` again. | [ ] | [ ] | |
+| 1.7 | Invite-only: A sets `join=invite` under `[net]`, restarts. B tries "Join Game" without an invite. | B cannot join; with an invite (Ctrl+F1) B can. A sets `join=friends` back. | [ ] | [ ] | |
 
-## 6. Ending (5 min)
-- [ ] B leaves (Ctrl+F2): A's world is normal, no leftover copies; B's own enemies are back.
-- [ ] Both quit WITHOUT saving.
+## 2. Looks and movement
 
-## Challenges, weather, cutscenes (added 2026-11-02)
-1. Anywhere: host presses Shift+F5 (pad: hold View/Touchpad + D-pad Up): a picker "Challenge <guest> to: Duel
-   Rock, paper, scissors" opens; arrows / D-pad Left-Right move the gold choice; Shift+F5 sends. Guest sees
-   "<host> challenges you to ..." -> guest Shift+F5.
-   RPS: both press U / F / E (pad X / Y / B); both screens must show the same two hands (also as medallions over
-   both characters) and the same round winner; first to 2.
-1b. Duel: stand a few metres apart, host picks Duel, guest accepts. Both: a gold ring on the ground (20 m),
-   "3, 2, 1, Fight!", the opponent's health bar at the top. Hit each other: the one hit must flinch and lose health on
-   BOTH screens. At 3% health "Defeat" / "Victory" on the right screens, both healed after 6 s, round 2 starts.
-   Then one runs out of the ring: red ring + "Return within 10 s"; after 10 s that player loses the round.
-1c. Hunting contest (picker, third choice): 3, 2, 1, Hunt! Both hunt animals for 3 minutes (bow or blade). Each kill
-   shows "Hunt / <animal> +N" for the hunter and the score line "You a - b <name>" changes on BOTH screens. At 0:00
-   both see the same Victory / Defeat. Tell me if a kill did not count (the log line "Hunt: we brought down").
-2. Hernand pub (game time ~10:27-10:58, the host's time is used): both at the arm wrestling table; host Shift+F5,
-   guest accepts; both hold R then E at the table; mash E: the faster one must win on BOTH screens; series toast.
-   [ ] During the match each sees the OTHER player in the opponent's chair (not the game's NPC), arms locked; after
-   the match the NPC is back and the friend stands up. (D46; with the one-PC peer the table sometimes stayed empty:
-   note if it is unstaffed while connected.)
-3. Shift+F6 on an invite declines it; Shift+F5 during a challenge ends it ("Final series").
-4. Weather: both screens show the same sky / rain (the host's).
-5. Boss / story cutscene: walk into one together; the guest should see the same cinematic; it skips only when both
-   press Esc.
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 2.1 | B glides, climbs a wall, swims, pulls up a ledge, attacks the air. | A sees each move without freezing or snapping. | [ ] | [ ] | |
+| 2.2 | B changes helmet, then weapon. Then A does. | The other sees the change within a couple of seconds. | [ ] | [ ] | |
+| 2.3 | Both call a horse (H) and ride (E; R dismounts). Ride 300 m together. | Each sees the other ride their own horse beside them; no snapping or vanishing. | [ ] | [ ] | |
+| 2.4 | (If one has Blackstar) summon the dragon from the F1 wheel and fly a little. | The other sees the dragon flying with the rider. | [ ] | [ ] | |
+| 2.5 | A sets a map waypoint (right-click). | B sees a second pin there. | [ ] | [ ] | |
+| 2.6 | A presses Ctrl+F3. | B: "<A> pinged their position" and a pin. | [ ] | [ ] | |
+| 2.7 | B walks 200 m away, presses Ctrl+F4. Then 800 m. | B lands next to A (short hops, no loading screen); note what happens at 800 m. | [ ] | [ ] | |
+| 2.8 | Time and weather: compare the clock under the minimap and the sky. | B shows A's time of day and A's weather (rain on both or neither). | [ ] | [ ] | |
+
+## 3. Fighting together (a bandit camp near A)
+
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 3.1 | Both walk up to the camp; both count the bandits you can see from the same spot. | Same number in the same places on both screens (B sees A's set). | [ ] | [ ] | |
+| 3.2 | B walks 250 m away from the camp, then back. | B's own bandits come back while away and are hidden again (replaced by A's) when back. | [ ] | [ ] | |
+| 3.3 | B hits a bandit. | Its health drops on A's screen too; B can finish it; it dies on both screens. | [ ] | [ ] | |
+| 3.4 | Let the bandits attack. | They attack either player (usually whoever hit them last); their blows hurt B for real. | [ ] | [ ] | |
+| 3.5 | Party scaling: A notes how many hits a bandit takes with B connected and alone (B leaves for a moment). | Noticeably tougher with B in (about x1.5 health; the bar dips and partly refills after each blow). | [ ] | [ ] | |
+| 3.6 | **No friendly fire:** A and B swing at each other outside a duel. | Nobody loses health. | [ ] | [ ] | |
+| 3.7 | **Loot for the guest:** after a kill B helped with, B loots the body. | B gets its own drop. A loots the same body: A gets its own. Note what each got. | [ ] | [ ] | |
+| 3.8 | Kill one bandit only B hits (A does not touch it). B loots it. | B gets a drop; note whether B got experience / skill points as alone. | [ ] | [ ] | |
+| 3.9 | Chests: both open "the same" chest. | Both get the contents (each in their own world). | [ ] | [ ] | |
+
+## 4. Deaths
+
+On one PC the game's own death screen never appears once the other player's character has been loaded; Co-op+ then
+shows its own "Death has found you  [Q] Instant Revive  [U] Revive at Checkpoint" box about 4 s after the death.
+Note which one each of you gets.
+
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 4.1 | B dies to enemies while A fights on. | B gets a death screen (game's or Co-op+'s, note which); A is not affected; on A's screen B falls. | [ ] | [ ] | |
+| 4.2 | B presses Q. | B gets up in place with part of their health; on A's screen too. | [ ] | [ ] | |
+| 4.3 | B walks a few hundred metres from the last checkpoint, dies, presses U. | B is at the checkpoint with full health (loading screen, or quick hops with Co-op+'s box); no falling through the ground; A sees B move there. | [ ] | [ ] | |
+| 4.4 | Same as 4.1-4.3 with A dying while B fights on. | Same results. | [ ] | [ ] | |
+| 4.5 | A fall death (jump off a cliff). | Same death screen, same revive. | [ ] | [ ] | |
+| 4.6 | Instant revives used up as usual? | The count under "Instant Revive" goes down; with none left Q does nothing and U works. | [ ] | [ ] | |
+
+## 5. Bosses (only if a boss is handy; A's story boss)
+
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 5.1 | Walk into the boss's intro together. | B sees the same intro cinematic as A (not just a notice). | [ ] | [ ] | |
+| 5.2 | During the intro only A presses Esc, then B. | It skips only once both pressed ("waiting for <name>" on A until then). | [ ] | [ ] | |
+| 5.3 | Fight; B does most of the damage. | B's hits lower the boss's health on both screens; B's boss health bar shows. Both logs: "Boss: enemy 0x... treated as a boss". | [ ] | [ ] | |
+| 5.4 | **Final blow:** let B try to land the last hit. | The boss cannot die from B's hit; A lands the final blow; A's victory cinematic plays normally and A's quest advances. | [ ] | [ ] | |
+| 5.5 | **Boss death wait:** B dies during the fight. | B sees "Your partner is still fighting the boss. Hold on..." (no Q/U). | [ ] | [ ] | |
+| 5.6 | A then wins. | B gets up where they fell with full health within a few seconds (log: "the other player beat the boss"). | [ ] | [ ] | |
+| 5.7 | Both go down. | Each sees "Everyone is down. [U] Revive at Checkpoint"; both press U and can try again. | [ ] | [ ] | |
+
+## 6. Challenges
+
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 6.1 | A presses Shift+F5 (pad: hold View/Touchpad + D-pad Up). | Picker "Challenge <B> to: Duel / Rock, paper, scissors / Hunting contest"; arrows or D-pad Left/Right move the gold choice. | [ ] | [ ] | |
+| 6.2 | A picks RPS, Shift+F5 sends; B presses Shift+F5. | B saw "<A> challenges you to rock, paper, scissors". Both press U / F / E (pad X / Y / B): same two hands (also over both characters) and same round winner on both screens; first to 2. | [ ] | [ ] | |
+| 6.3 | Duel: a few metres apart, A picks Duel, B accepts. | Gold ring (20 m), "3, 2, 1, Fight!", the opponent's health bar at the top. | [ ] | [ ] | |
+| 6.4 | Hit each other. | The one hit flinches and loses health on BOTH screens; at 3% "Defeat" / "Victory" on the right screens; both healed; round 2 starts. | [ ] | [ ] | |
+| 6.5 | One runs out of the ring. | Red ring + "Return to the duel ground"; after 10 s that player loses the round. | [ ] | [ ] | |
+| 6.6 | Hunting contest: both hunt for 3 minutes. | Each kill: "Hunt / <animal> +N" for the hunter; the score line changes on BOTH screens; same Victory / Defeat at 0:00. Note any kill that did not count. | [ ] | [ ] | |
+| 6.7 | Hernand pub (game time ~10:27-10:58; the host's time is used): both at the arm wrestling table; A challenges, B accepts; both hold R then E. | Note whether the table is staffed for both (with the one-PC stand-in it was sometimes empty while connected). | [ ] | [ ] | |
+| 6.8 | During the match. | Each sees the OTHER player in the opponent's chair, arms locked (not the game's NPC). | [ ] | [ ] | |
+| 6.9 | Mash E. | The faster one wins on BOTH screens; series toast; after the match the NPC is back and the friend stands up. | [ ] | [ ] | |
+| 6.10 | Shift+F6 on an invite; Shift+F5 during a challenge. | The invite is declined; the challenge ends with the final series. | [ ] | [ ] | |
+
+## 7. Ending
+
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 7.1 | B leaves (Ctrl+F2). | A's world is normal (no leftover copies); B's own enemies are back; B's time and weather are B's own again. | [ ] | [ ] | |
+| 7.2 | A quits the game while B is still connected (redo 1.1 first). | B gets "<A> left" and is back in their own world with no leftovers. | [ ] | [ ] | |
+| 7.3 | Both quit WITHOUT saving. | | [ ] | [ ] | |
 
 ## Afterwards: what to send
-From each PC: `bin64\cdmp.log`, the newest `bin64\cdmp_packets_*.log/.bin` pair, and a few lines on what went
-wrong at which Ctrl+F12 mark. "Diagnose Co-op+.cmd" puts a report on the Desktop that includes the log.
-Then set `record=0` again.
+
+From each PC: `bin64\cdmp.log`, the newest `bin64\cdmp_packets_*.log/.bin` pair, and this file with the boxes
+ticked. "Diagnose Co-op+.cmd" puts a report on the Desktop that includes the log. Then set `record=0` again.
