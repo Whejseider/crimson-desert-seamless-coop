@@ -576,12 +576,38 @@ void test_versions() {
     CHECK(h.session.peer_problem().find("protocol 5") != std::string::npos);
     CHECK(!h.events.empty() && h.events.back().find("cannot connect") != std::string::npos);
 
-    // Same protocol, another build: connects, with a warning.
+    // Same protocol, another build: refused (Co-op+ T03), the message names both builds.
     Harness b;
     b.session.tick(0);
     b.deliver(proto::Welcome{"Friend", 5, 0xABCDEF01}, 10);
-    CHECK(b.session.state() == ClientSession::State::Connected);
+    CHECK(b.session.state() == ClientSession::State::Connecting);
     CHECK(b.session.peer_problem().find("ABCDEF01") != std::string::npos);
+    CHECK(b.session.peer_problem().find("same Co-op+ zip") != std::string::npos);
+    // Same build, another game version: refused, the message says to update the game.
+    Harness g;
+    g.session.set_game_version("1.0.0.3479");
+    g.session.tick(0);
+    g.deliver(proto::Welcome{"Friend", 5, 0, "1.0.0.3500"}, 10);
+    CHECK(g.session.state() == ClientSession::State::Connecting);
+    CHECK(g.session.peer_problem().find("1.0.0.3500") != std::string::npos &&
+          g.session.peer_problem().find("1.0.0.3479") != std::string::npos);
+    // A host refuses a mismatched Hello and answers with its own versions, without connecting.
+    {
+        std::vector<proto::Body> out;
+        ClientSession host("Host", 0x11111111,
+                           [&](const std::vector<uint8_t>& bytes) {
+                               if (auto q = proto::decode(bytes)) out.push_back(q->body);
+                           },
+                           {}, ClientSession::Role::Responder);
+        host.set_game_version("1.0.0.3479");
+        host.on_datagram(proto::encode(make(proto::Hello{"Guest", 0x22222222, 9, "1.0.0.3479"})), 10);
+        CHECK(host.state() == ClientSession::State::Connecting);
+        CHECK(!out.empty() && std::holds_alternative<proto::Welcome>(out.back()));
+        CHECK(host.peer_problem().find("22222222") != std::string::npos);
+        // The same Hello with our build connects.
+        host.on_datagram(proto::encode(make(proto::Hello{"Guest", 0x11111111, 9, "1.0.0.3479"})), 20);
+        CHECK(host.state() == ClientSession::State::Connected && host.peer_problem().empty());
+    }
     // cdmp_peer's relay (build 0) is not a mismatch.
     Harness c;
     c.session.tick(0);

@@ -170,11 +170,13 @@ std::vector<uint8_t> encode(const Packet& packet) {
             w.str(b.name);
             w.u32(b.mod_build);
             w.u32(b.nonce);
+            w.str(b.game);
         }
         void operator()(const Welcome& b) const {
             w.str(b.name);
             w.u32(b.nonce);
             w.u32(b.mod_build);
+            w.str(b.game);
         }
         void operator()(const Bye&) const {}
         void operator()(const Ping& b) const { w.u32(b.origin_ms); }
@@ -238,6 +240,7 @@ std::optional<Packet> decode(std::span<const uint8_t> bytes) {
             b.name = r.str();
             b.mod_build = r.u32();
             b.nonce = r.u32();
+            b.game = r.str();
             p.body = b;
             break;
         }
@@ -246,6 +249,7 @@ std::optional<Packet> decode(std::span<const uint8_t> bytes) {
             b.name = r.str();
             b.nonce = r.u32();
             b.mod_build = r.u32();
+            b.game = r.str();
             p.body = b;
             break;
         }

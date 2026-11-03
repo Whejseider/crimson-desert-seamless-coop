@@ -29,7 +29,7 @@ inline constexpr uint32_t kMagic = 0x504D4443;  // bytes "CDMP"
 // (equip_state.h); a v6 peer would lose them. 8: TimeSync events. 9: EnemyZone
 // (the guest hides its own enemies near the host, who relays them all).
 // 10: EnemySpawn carries a flags word (kBossFlag). See kEnemySpawnFlags below.
-inline constexpr uint16_t kVersion = 10;
+inline constexpr uint16_t kVersion = 11;  // 11: Hello / Welcome carry the game version (Co-op+ T03)
 // ---------------------------------------------------------------------------
 // EnemySpawn, as of v10:
 //
@@ -151,11 +151,13 @@ struct Hello {
     std::string name;
     uint32_t mod_build = 0;
     uint32_t nonce = 0;
+    std::string game;  // the game's exe version, "1.0.0.3479" ("" = unknown: a test host)
 };
 struct Welcome {
     std::string name;
     uint32_t nonce = 0;
     uint32_t mod_build = 0;  // 0 = not a mod (cdmp_peer's relay)
+    std::string game;
 };
 struct Bye {};
 struct Ping {

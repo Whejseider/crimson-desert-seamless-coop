@@ -64,6 +64,13 @@ public:
     }
     size_t reliable_pending() const { return reliable_.unacked_fragments(); }
 
+    // Co-op+ (T03): our game's exe version, sent in Hello / Welcome; a peer with another one (or another mod build)
+    // is refused. "" = unknown (test hosts): not compared.
+    void set_game_version(std::string version) { game_version_ = std::move(version); }
+    // [dev] fake_peer_build: a peer that announces no build (cdmp_peer's relay, build 0) counts as this one, to
+    // test the refusal on one PC.
+    void set_test_peer_build(uint32_t build) { test_peer_build_ = build; }
+
     // Sends Bye (best effort) and resets to Connecting.
     void disconnect(uint32_t now_ms);
 
@@ -77,8 +84,7 @@ public:
     uint32_t epoch() const { return epoch_; }
     Role role() const { return role_; }
     const std::optional<proto::PlayerState>& remote_state() const { return remote_state_; }
-    // Why we cannot connect or what is wrong with the peer's build ("" if
-    // nothing): another protocol version, or another mod build.
+    // Why we cannot connect ("" if nothing): another protocol version, mod build or game version.
     const std::string& peer_problem() const { return peer_problem_; }
     size_t reliable_refused() const { return reliable_.refused(); }
 
@@ -87,10 +93,12 @@ private:
     void event(const std::string& text) const;
     void reset_to_connecting(uint32_t now_ms);
     bool other_version(const proto::Packet& packet, uint32_t now_ms);
-    void check_build(const std::string& name, uint32_t build);
+    bool versions_match(const std::string& name, uint32_t build, const std::string& game, uint32_t now_ms);
 
     std::string player_name_;
     uint32_t mod_build_;
+    std::string game_version_;
+    uint32_t test_peer_build_ = 0;
     Role role_;
     uint32_t epoch_ = 0;
     uint32_t nonce_;           // ours, random per session object

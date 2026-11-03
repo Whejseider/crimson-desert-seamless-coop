@@ -318,6 +318,133 @@ index d6c385a..98ef058 100644
  ]
  print('  (all four MUST match: one bad address disables the whole containment)')
  for name, rva, sig in containment:
+diff --git a/upstream/cd-coop-3446/src/common/client_session.cpp b/upstream/cd-coop-3446/src/common/client_session.cpp
+index 20b9936..3874766 100644
+--- a/upstream/cd-coop-3446/src/common/client_session.cpp
++++ b/upstream/cd-coop-3446/src/common/client_session.cpp
+@@ -23,7 +23,7 @@ void ClientSession::tick(uint32_t now_ms) {
+         if (!started_ || now_ms - last_hello_ms_ >= kHelloRetryMs) {
+             started_ = true;
+             last_hello_ms_ = now_ms;
+-            send(proto::Hello{player_name_, mod_build_, nonce_}, now_ms);
++            send(proto::Hello{player_name_, mod_build_, nonce_, game_version_}, now_ms);
+         }
+         return;
+     }
+@@ -80,16 +80,29 @@ bool ClientSession::other_version(const proto::Packet& packet, uint32_t now_ms)
+     return true;
+ }
+ 
+-void ClientSession::check_build(const std::string& name, uint32_t build) {
+-    if (build == 0 || build == mod_build_) {  // 0: cdmp_peer
++// Co-op+ (T03): another mod build or another game version is refused (the other side refuses too), with the message
++// naming both and what to do. Build 0 (cdmp_peer's relay) and an unknown game version are not compared.
++bool ClientSession::versions_match(const std::string& name, uint32_t build, const std::string& game, uint32_t now_ms) {
++    if (build == 0) build = test_peer_build_;
++    const bool build_ok = build == 0 || build == mod_build_;
++    const bool game_ok = game.empty() || game_version_.empty() || game == game_version_;
++    if (build_ok && game_ok) {
+         peer_problem_.clear();
+-        return;
++        return true;
+     }
+     char ours[16], theirs[16];
+     std::snprintf(ours, sizeof ours, "%08X", mod_build_);
+     std::snprintf(theirs, sizeof theirs, "%08X", build);
+-    peer_problem_ = "'" + name + "' runs mod build " + theirs + ", we run " + ours + ": update both to the same";
+-    event("warning: peer " + peer_problem_);
++    const std::string their_game = game.empty() ? "?" : game, our_game = game_version_.empty() ? "?" : game_version_;
++    peer_problem_ = "Can't play together: " + name + " has Co-op+ build " + theirs + " on game " + their_game +
++                    ", you have build " + ours + " on game " + our_game + ". " +
++                    (game_ok ? "Both install the same Co-op+ zip."
++                             : "Both update the game in Steam, then install the Co-op+ zip made for that version.");
++    if (last_problem_event_ms_ == 0 || now_ms - last_problem_event_ms_ >= 10000) {
++        last_problem_event_ms_ = now_ms;
++        event("cannot connect: " + peer_problem_);
++    }
++    return false;
+ }
+ 
+ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms) {
+@@ -105,7 +118,7 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
+     }
+ 
+     if (auto* hello = std::get_if<proto::Hello>(&packet->body)) {
+-        send(proto::Welcome{player_name_, nonce_, mod_build_}, now_ms);
++        send(proto::Welcome{player_name_, nonce_, mod_build_, game_version_}, now_ms);
+         if (state_ == State::Connected && hello->nonce == peer_nonce_) {
+             last_recv_ms_ = now_ms;  // a duplicate of the Hello we already answered
+             return;
+@@ -113,9 +126,14 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
+         if (state_ == State::Connected && restarted_ && now_ms - last_restart_ms_ < kMinRestartMs) {
+             return;  // restarting again so soon: ignored
+         }
++        if (!versions_match(hello->name, hello->mod_build, hello->game, now_ms)) {
++            // Refused: no session, so nothing of theirs reaches the game. Our Welcome told them why.
++            if (state_ == State::Connected) reset_to_connecting(now_ms);
++            ++stats_.rejected;
++            return;
++        }
+         last_restart_ms_ = now_ms;
+         restarted_ = true;
+-        check_build(hello->name, hello->mod_build);
+         peer_nonce_ = hello->nonce;
+         if (state_ == State::Connected) {
+             // Only a side in Connecting says Hello: the other end restarted.
+@@ -140,7 +158,10 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
+             return;
+         }
+         if (state_ == State::Connecting) {
+-            check_build(welcome->name, welcome->mod_build);
++            if (!versions_match(welcome->name, welcome->mod_build, welcome->game, now_ms)) {
++                ++stats_.rejected;
++                return;
++            }
+             peer_name_ = welcome->name;
+             peer_nonce_ = welcome->nonce;
+             state_ = State::Connected;
+diff --git a/upstream/cd-coop-3446/src/common/client_session.h b/upstream/cd-coop-3446/src/common/client_session.h
+index 343a0f9..36f179f 100644
+--- a/upstream/cd-coop-3446/src/common/client_session.h
++++ b/upstream/cd-coop-3446/src/common/client_session.h
+@@ -64,6 +64,13 @@ public:
+     }
+     size_t reliable_pending() const { return reliable_.unacked_fragments(); }
+ 
++    // Co-op+ (T03): our game's exe version, sent in Hello / Welcome; a peer with another one (or another mod build)
++    // is refused. "" = unknown (test hosts): not compared.
++    void set_game_version(std::string version) { game_version_ = std::move(version); }
++    // [dev] fake_peer_build: a peer that announces no build (cdmp_peer's relay, build 0) counts as this one, to
++    // test the refusal on one PC.
++    void set_test_peer_build(uint32_t build) { test_peer_build_ = build; }
++
+     // Sends Bye (best effort) and resets to Connecting.
+     void disconnect(uint32_t now_ms);
+ 
+@@ -77,8 +84,7 @@ public:
+     uint32_t epoch() const { return epoch_; }
+     Role role() const { return role_; }
+     const std::optional<proto::PlayerState>& remote_state() const { return remote_state_; }
+-    // Why we cannot connect or what is wrong with the peer's build ("" if
+-    // nothing): another protocol version, or another mod build.
++    // Why we cannot connect ("" if nothing): another protocol version, mod build or game version.
+     const std::string& peer_problem() const { return peer_problem_; }
+     size_t reliable_refused() const { return reliable_.refused(); }
+ 
+@@ -87,10 +93,12 @@ private:
+     void event(const std::string& text) const;
+     void reset_to_connecting(uint32_t now_ms);
+     bool other_version(const proto::Packet& packet, uint32_t now_ms);
+-    void check_build(const std::string& name, uint32_t build);
++    bool versions_match(const std::string& name, uint32_t build, const std::string& game, uint32_t now_ms);
+ 
+     std::string player_name_;
+     uint32_t mod_build_;
++    std::string game_version_;
++    uint32_t test_peer_build_ = 0;
+     Role role_;
+     uint32_t epoch_ = 0;
+     uint32_t nonce_;           // ours, random per session object
 diff --git a/upstream/cd-coop-3446/src/common/enemy_load.cpp b/upstream/cd-coop-3446/src/common/enemy_load.cpp
 index 41d94eb..baa7a31 100644
 --- a/upstream/cd-coop-3446/src/common/enemy_load.cpp
@@ -534,10 +661,53 @@ index 0000000..3b568f0
 +};
 +
 +}  // namespace cdmp::scaling
+diff --git a/upstream/cd-coop-3446/src/common/protocol.cpp b/upstream/cd-coop-3446/src/common/protocol.cpp
+index 96379c0..6a3f642 100644
+--- a/upstream/cd-coop-3446/src/common/protocol.cpp
++++ b/upstream/cd-coop-3446/src/common/protocol.cpp
+@@ -170,11 +170,13 @@ std::vector<uint8_t> encode(const Packet& packet) {
+             w.str(b.name);
+             w.u32(b.mod_build);
+             w.u32(b.nonce);
++            w.str(b.game);
+         }
+         void operator()(const Welcome& b) const {
+             w.str(b.name);
+             w.u32(b.nonce);
+             w.u32(b.mod_build);
++            w.str(b.game);
+         }
+         void operator()(const Bye&) const {}
+         void operator()(const Ping& b) const { w.u32(b.origin_ms); }
+@@ -238,6 +240,7 @@ std::optional<Packet> decode(std::span<const uint8_t> bytes) {
+             b.name = r.str();
+             b.mod_build = r.u32();
+             b.nonce = r.u32();
++            b.game = r.str();
+             p.body = b;
+             break;
+         }
+@@ -246,6 +249,7 @@ std::optional<Packet> decode(std::span<const uint8_t> bytes) {
+             b.name = r.str();
+             b.nonce = r.u32();
+             b.mod_build = r.u32();
++            b.game = r.str();
+             p.body = b;
+             break;
+         }
 diff --git a/upstream/cd-coop-3446/src/common/protocol.h b/upstream/cd-coop-3446/src/common/protocol.h
-index e7d51fb..577cd4c 100644
+index e7d51fb..538592e 100644
 --- a/upstream/cd-coop-3446/src/common/protocol.h
 +++ b/upstream/cd-coop-3446/src/common/protocol.h
+@@ -29,7 +29,7 @@ inline constexpr uint32_t kMagic = 0x504D4443;  // bytes "CDMP"
+ // (equip_state.h); a v6 peer would lose them. 8: TimeSync events. 9: EnemyZone
+ // (the guest hides its own enemies near the host, who relays them all).
+ // 10: EnemySpawn carries a flags word (kBossFlag). See kEnemySpawnFlags below.
+-inline constexpr uint16_t kVersion = 10;
++inline constexpr uint16_t kVersion = 11;  // 11: Hello / Welcome carry the game version (Co-op+ T03)
+ // ---------------------------------------------------------------------------
+ // EnemySpawn, as of v10:
+ //
 @@ -74,8 +74,8 @@ enum class Type : uint8_t {
  // actor key. The receiver turns it into the matching Ack for its copy of the
  // sender. Formats: docs/research/mirror-ack-formats.md.
@@ -564,8 +734,22 @@ index e7d51fb..577cd4c 100644
  
  // Wire: u32 copy key | u64 game clock ms | f32 x, y, z | f32 qx, qy, qz, qw.
  inline constexpr size_t kEnemyPosEventSize = 40;
+@@ -146,11 +151,13 @@ struct Hello {
+     std::string name;
+     uint32_t mod_build = 0;
+     uint32_t nonce = 0;
++    std::string game;  // the game's exe version, "1.0.0.3479" ("" = unknown: a test host)
+ };
+ struct Welcome {
+     std::string name;
+     uint32_t nonce = 0;
+     uint32_t mod_build = 0;  // 0 = not a mod (cdmp_peer's relay)
++    std::string game;
+ };
+ struct Bye {};
+ struct Ping {
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..1724993 100644
+index e89d220..9d5f155 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -642,7 +826,7 @@ index e89d220..1724993 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,19 +210,54 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,19 +210,55 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
@@ -668,6 +852,7 @@ index e89d220..1724993 100644
 +    c.dev_hunt_test = read_uint(ini_path, L"dev", L"hunt_test", 0) != 0;
 +    c.dev_zone_copy_test = read_uint(ini_path, L"dev", L"zone_copy_test", 0) != 0;
 +    c.dev_online_guard_test = read_string(ini_path, L"dev", L"online_guard_test", "");
++    c.dev_fake_peer_build = read_uint(ini_path, L"dev", L"fake_peer_build", 0);
 +    c.dev_rps_test = static_cast<int>(read_uint(ini_path, L"dev", L"rps_test", 0)) - 1;  // 1 scissors, 2 paper, 3 rock
 +    c.dev_cinema_test = read_uint(ini_path, L"dev", L"cinema_test", 0) != 0;
 +    c.dev_weather_test = read_uint(ini_path, L"dev", L"weather_test", 0);
@@ -702,7 +887,7 @@ index e89d220..1724993 100644
      c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
      c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
      c.coop_finish_arrow = read_uint(ini_path, L"coop", L"finish_arrow", 1) != 0;
-@@ -203,17 +266,20 @@ Config load_config(const std::wstring& ini_path) {
+@@ -203,17 +267,20 @@ Config load_config(const std::wstring& ini_path) {
      // Boss safety (boss_safe.h): default ON, because the failure it prevents is a
      // stuck quest in the HOST's save, not a cosmetic problem.
      c.coop_boss_safe = read_uint(ini_path, L"coop", L"boss_safe", 1) != 0;
@@ -725,7 +910,7 @@ index e89d220..1724993 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +292,11 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +293,11 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -738,7 +923,7 @@ index e89d220..1724993 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..891657a 100644
+index 3cd2ce2..1b8e1c7 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -766,7 +951,7 @@ index 3cd2ce2..891657a 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -57,6 +68,33 @@ struct Config {
+@@ -57,6 +68,34 @@ struct Config {
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
@@ -784,6 +969,7 @@ index 3cd2ce2..891657a 100644
 +    uint32_t dev_quest_test = 0;     // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key
 +    bool dev_hunt_test = false;      // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)
 +    bool dev_zone_copy_test = false; // Co-op+ dev: the guest's dry-run zone is copied for real (enemy_relay.h)
++    uint32_t dev_fake_peer_build = 0;   // Co-op+ dev: a build-0 peer (the echo relay) counts as this build (T03)
 +    std::wstring dev_online_guard_test;  // Co-op+ dev: a module name the online guard also looks for (online_guard.h)
 +    int dev_pad_sim = 0;             // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)
 +    int dev_ui_preview = 0;          // Co-op+ dev: 1 = show the death screen ([dev] ui_preview)
@@ -800,7 +986,7 @@ index 3cd2ce2..891657a 100644
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
-@@ -66,7 +104,7 @@ struct Config {
+@@ -66,7 +105,7 @@ struct Config {
      float coop_offset_m = 0.0f;    // sideways offset of the remote character
      // Experimental, off by default: the copy's horse is not created by the
      // client (owned load) or crashes the game (ownerless load); live tests 1-2.
@@ -809,7 +995,7 @@ index 3cd2ce2..891657a 100644
      // Works since the copy got its own character number (live test 3).
      bool coop_equip = true;        // relay equipment changes
      // Mirrored damage: each world keeps its enemies; hits by the other player
-@@ -85,7 +123,7 @@ struct Config {
+@@ -85,7 +124,7 @@ struct Config {
      int coop_minimap_icon = 0x124;
      // Our enemies may attack the other player's copy (aggro_test.h). Off
      // until the hits reach the other player and they see our enemies.
@@ -818,7 +1004,7 @@ index 3cd2ce2..891657a 100644
      // The other player's blows on the copies of our enemies hurt them
      // (guest_hits.h). Off until tested with two players.
      bool coop_guest_hits = false;
-@@ -94,15 +132,19 @@ struct Config {
+@@ -94,15 +133,19 @@ struct Config {
      bool coop_guest_hit_stagger = false;
      // Our player reacts (stagger, knock-down) to the other player's enemies'
      // blows on our copy over there: experimental until tested.
@@ -842,7 +1028,7 @@ index 3cd2ce2..891657a 100644
      // Host: copies of our enemies that fight go to the guest on their own
      // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
      bool coop_enemy_auto = true;
-@@ -125,6 +167,9 @@ struct Config {
+@@ -125,6 +168,9 @@ struct Config {
      // does the finish, which is what advances its script. Off restores the old
      // behaviour exactly, for comparison.
      bool coop_boss_safe = true;
@@ -852,7 +1038,7 @@ index 3cd2ce2..891657a 100644
      // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
      // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
      int coop_enemy_minimap_icon = 0x10A;
-@@ -146,6 +191,14 @@ struct Config {
+@@ -146,6 +192,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -2303,7 +2489,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..4074d4c 100644
+index 79ccd06..f6588e8 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,9 +1,13 @@
@@ -2489,15 +2675,20 @@ index 79ccd06..4074d4c 100644
          }
          transport = std::move(udp);
      }
-@@ -305,6 +374,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -304,7 +373,12 @@ void run_network(const Config& cfg, LocalSource& local) {
+         },
          [](const std::string& text) { log::info("Session: {}", text); },
          host ? ClientSession::Role::Responder : ClientSession::Role::Initiator);
++    // Co-op+ (T03): the game version goes into the handshake; a mismatch (or another mod build) is refused.
++    if (local.in_game()) session.set_game_version(file_version(module_path(nullptr)));
++    session.set_test_peer_build(cfg.dev_fake_peer_build);
++    std::string shown_problem;  // the refusal last shown as a notice
      bool was_connected = false;
 +    uint64_t refused_uninvited = 0;  // Co-op+ invite-only: Hellos from outside the lobby
      uint32_t peer_since = 0;  // host: when it locked onto its player
      uint32_t last_friend_scan = 0;
      size_t last_friend_count = SIZE_MAX;
-@@ -327,10 +397,80 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -327,10 +401,80 @@ void run_network(const Config& cfg, LocalSource& local) {
      bool mark_was_down = false;
      int marks = 0;
      std::vector<uint8_t> buf(proto::kMaxPacketSize);
@@ -2578,7 +2769,7 @@ index 79ccd06..4074d4c 100644
          // The host's lobby, retried until it takes. Startup runs before the save is
          // loaded, so the first attempt reliably fails on a cold start; without this
          // the host never gets a room code at all and the guest has nothing to type.
-@@ -363,7 +503,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -363,7 +507,8 @@ void run_network(const Config& cfg, LocalSource& local) {
              last_friend_scan = now_ms();
              // A room code wins over the friends scan: it names one host exactly.
              if (room_code_pending) {
@@ -2588,7 +2779,7 @@ index 79ccd06..4074d4c 100644
                  if (host_id) {
                      peer = net::PeerAddr::steam(host_id);
                      steam->set_peer(host_id);
-@@ -403,7 +544,13 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -403,7 +548,13 @@ void run_network(const Config& cfg, LocalSource& local) {
                  // Only a Hello of our protocol: one of another version would
                  // never connect and would keep the place (security review M2).
                  auto packet = proto::decode({buf.data(), *n});
@@ -2603,7 +2794,7 @@ index 79ccd06..4074d4c 100644
                      std::holds_alternative<proto::Hello>(packet->body)) {
                      peer = from;
                      peer_since = now_ms();
-@@ -417,6 +564,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -417,6 +568,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          const uint32_t now = now_ms();
          session.tick(now);
          const bool connected = session.state() == ClientSession::State::Connected;
@@ -2611,7 +2802,7 @@ index 79ccd06..4074d4c 100644
          if (host && was_connected && !connected && peer) {
              log::info("Network: {} left; waiting for a player", peer->str());
              peer.reset();
-@@ -426,13 +574,105 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -426,13 +578,113 @@ void run_network(const Config& cfg, LocalSource& local) {
              peer.reset();
              if (steam) steam->set_peer(0);
          }
@@ -2628,6 +2819,14 @@ index 79ccd06..4074d4c 100644
 +            toast_until = now + 6000;
 +        }
          was_connected = connected;
++        // Co-op+ (T03): a refused handshake (versions) as a notice too, once per new reason.
++        if (const std::string& problem = session.peer_problem(); problem != shown_problem) {
++            shown_problem = problem;
++            if (!problem.empty()) {
++                toast = "Co-op\n" + problem;
++                toast_until = now + 12000;
++            }
++        }
 +        if (coop) {
 +            // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
 +            // [dev] scaling_as_host: one-PC test of party scaling (the echo session runs as guest).
@@ -2717,7 +2916,7 @@ index 79ccd06..4074d4c 100644
              }
              coop->update(pos, rot, now);
          }
-@@ -449,14 +689,19 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -449,14 +701,19 @@ void run_network(const Config& cfg, LocalSource& local) {
              hud.local_status = local.status();
              hud.remote = session.remote_state();
              hud.peer_problem = session.peer_problem();
@@ -2738,7 +2937,7 @@ index 79ccd06..4074d4c 100644
                  hud.boss_active = true;
                  hud.boss_name = b.name;
                  hud.boss_hp = b.hp;
-@@ -475,6 +720,55 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +732,55 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -2794,7 +2993,7 @@ index 79ccd06..4074d4c 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -491,6 +785,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,6 +797,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                  remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                       rs->pos.z, rs->health);
              }
@@ -2809,7 +3008,7 @@ index 79ccd06..4074d4c 100644
              log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | remote states {} | "
                        "last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
                        state, st.sent, st.received, st.rejected, st.rtt_ms, st.remote_states, remote,
-@@ -498,7 +800,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -498,7 +812,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                        transport->status());
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
@@ -2824,7 +3023,7 @@ index 79ccd06..4074d4c 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +818,108 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +830,108 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -2934,7 +3133,7 @@ index 79ccd06..4074d4c 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +1021,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +1033,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -2943,7 +3142,7 @@ index 79ccd06..4074d4c 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +1075,7 @@ void combat_test_loop() {
+@@ -669,7 +1087,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -2952,7 +3151,7 @@ index 79ccd06..4074d4c 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +1093,7 @@ void combat_test_loop() {
+@@ -687,7 +1105,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -2961,7 +3160,7 @@ index 79ccd06..4074d4c 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1158,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1170,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -2970,7 +3169,7 @@ index 79ccd06..4074d4c 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1172,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1184,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -2978,7 +3177,7 @@ index 79ccd06..4074d4c 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,6 +1201,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,6 +1213,7 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -2986,7 +3185,7 @@ index 79ccd06..4074d4c 100644
          net::puppet_install_rope_bend();
          // Horse and enemy copies (the other player may send theirs at any
          // time) need the crash containment (docs/INFORME-CABALLO-CRASH.md)
-@@ -902,22 +1310,79 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,22 +1322,79 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -3066,7 +3265,7 @@ index 79ccd06..4074d4c 100644
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
                    cfg.coop_enabled ? "on" : "off");
-@@ -925,7 +1390,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1402,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -3075,7 +3274,7 @@ index 79ccd06..4074d4c 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -956,6 +1421,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -956,6 +1433,7 @@ DWORD WINAPI worker(LPVOID) {
                    cfg.coop_suppress_lab ? ", suppressed by suppress_lab=1 (the one-PC lab)" : "");
          log::info("Config: time sync {}", cfg.coop_time_sync == 1   ? "send ours"
                                            : cfg.coop_time_sync == 2 ? "take the other player's"
@@ -3083,7 +3282,7 @@ index 79ccd06..4074d4c 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1435,39 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1447,39 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3123,7 +3322,7 @@ index 79ccd06..4074d4c 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1519,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1531,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3157,7 +3356,7 @@ index 79ccd06..4074d4c 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1542,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1554,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3169,7 +3368,7 @@ index 79ccd06..4074d4c 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1567,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1579,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -18151,7 +18350,7 @@ index 532564a..3210cf1 100644
  
  void hud_configure(const HudOptions& options);
 diff --git a/upstream/cd-coop-3446/tests/tests.cpp b/upstream/cd-coop-3446/tests/tests.cpp
-index 6c43dc1..6219735 100644
+index 6c43dc1..743e359 100644
 --- a/upstream/cd-coop-3446/tests/tests.cpp
 +++ b/upstream/cd-coop-3446/tests/tests.cpp
 @@ -22,6 +22,9 @@
@@ -18164,7 +18363,48 @@ index 6c43dc1..6219735 100644
  #include "mod/net/boss_rules.h"
  
  #include <cctype>
-@@ -916,6 +919,7 @@ struct LoadSpec {
+@@ -573,12 +576,38 @@ void test_versions() {
+     CHECK(h.session.peer_problem().find("protocol 5") != std::string::npos);
+     CHECK(!h.events.empty() && h.events.back().find("cannot connect") != std::string::npos);
+ 
+-    // Same protocol, another build: connects, with a warning.
++    // Same protocol, another build: refused (Co-op+ T03), the message names both builds.
+     Harness b;
+     b.session.tick(0);
+     b.deliver(proto::Welcome{"Friend", 5, 0xABCDEF01}, 10);
+-    CHECK(b.session.state() == ClientSession::State::Connected);
++    CHECK(b.session.state() == ClientSession::State::Connecting);
+     CHECK(b.session.peer_problem().find("ABCDEF01") != std::string::npos);
++    CHECK(b.session.peer_problem().find("same Co-op+ zip") != std::string::npos);
++    // Same build, another game version: refused, the message says to update the game.
++    Harness g;
++    g.session.set_game_version("1.0.0.3479");
++    g.session.tick(0);
++    g.deliver(proto::Welcome{"Friend", 5, 0, "1.0.0.3500"}, 10);
++    CHECK(g.session.state() == ClientSession::State::Connecting);
++    CHECK(g.session.peer_problem().find("1.0.0.3500") != std::string::npos &&
++          g.session.peer_problem().find("1.0.0.3479") != std::string::npos);
++    // A host refuses a mismatched Hello and answers with its own versions, without connecting.
++    {
++        std::vector<proto::Body> out;
++        ClientSession host("Host", 0x11111111,
++                           [&](const std::vector<uint8_t>& bytes) {
++                               if (auto q = proto::decode(bytes)) out.push_back(q->body);
++                           },
++                           {}, ClientSession::Role::Responder);
++        host.set_game_version("1.0.0.3479");
++        host.on_datagram(proto::encode(make(proto::Hello{"Guest", 0x22222222, 9, "1.0.0.3479"})), 10);
++        CHECK(host.state() == ClientSession::State::Connecting);
++        CHECK(!out.empty() && std::holds_alternative<proto::Welcome>(out.back()));
++        CHECK(host.peer_problem().find("22222222") != std::string::npos);
++        // The same Hello with our build connects.
++        host.on_datagram(proto::encode(make(proto::Hello{"Guest", 0x11111111, 9, "1.0.0.3479"})), 20);
++        CHECK(host.state() == ClientSession::State::Connected && host.peer_problem().empty());
++    }
+     // cdmp_peer's relay (build 0) is not a mismatch.
+     Harness c;
+     c.session.tick(0);
+@@ -916,6 +945,7 @@ struct LoadSpec {
      uint32_t parent = 0;
      std::vector<uint32_t> children, hierarchy;
      proto::Vec3 pos{-10284.0f, 640.0f, -3383.0f};
@@ -18172,7 +18412,7 @@ index 6c43dc1..6219735 100644
  };
  
  std::vector<uint8_t> make_load(const LoadSpec& s) {
-@@ -937,7 +941,8 @@ std::vector<uint8_t> make_load(const LoadSpec& s) {
+@@ -937,7 +967,8 @@ std::vector<uint8_t> make_load(const LoadSpec& s) {
          v.resize(sig + 18 + 1200, 0);
          v[sig] = 0x0C;
          std::memset(v.data() + sig + 10, 0xFF, 4);
@@ -18182,7 +18422,7 @@ index 6c43dc1..6219735 100644
          putf(t0, 1.0f), putf(t0 + 4, 2.0f), putf(t0 + 8, 3.0f);  // its spawn point
          putf(t0 + 24, 1.0f);                                        // rotation w
          putf(t0 + 28, 1.0f), putf(t0 + 32, 1.0f), putf(t0 + 36, 1.0f);
-@@ -1038,6 +1043,18 @@ void test_enemy_zone_predicate() {
+@@ -1038,6 +1069,18 @@ void test_enemy_zone_predicate() {
          CHECK(tail && tail->parent == 0 && tail->children.empty() && tail->hierarchy.empty());
          CHECK(zone_check(load, plain).verdict == Verdict::Yes);
      }
@@ -18201,7 +18441,7 @@ index 6c43dc1..6219735 100644
      auto verdict = [&](LoadSpec s, const ZoneRules& r = {}) { return zone_check(make_load(s), r).verdict; };
      {
          LoadSpec s = bandit;  // a camp leader: its members' tail names it
-@@ -1505,6 +1522,96 @@ void test_boss_rules() {
+@@ -1505,6 +1548,96 @@ void test_boss_rules() {
      CHECK(!net::is_boss_stage_name("cd_field_village_idle"));
  }
  
@@ -18298,7 +18538,7 @@ index 6c43dc1..6219735 100644
  }  // namespace
  
  int main() {    test_pattern();
-@@ -1532,6 +1639,9 @@ int main() {    test_pattern();
+@@ -1532,6 +1665,9 @@ int main() {    test_pattern();
      test_enemy_zone_machine();
      test_room_code();
      test_boss_rules();

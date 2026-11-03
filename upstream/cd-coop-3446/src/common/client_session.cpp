@@ -23,7 +23,7 @@ void ClientSession::tick(uint32_t now_ms) {
         if (!started_ || now_ms - last_hello_ms_ >= kHelloRetryMs) {
             started_ = true;
             last_hello_ms_ = now_ms;
-            send(proto::Hello{player_name_, mod_build_, nonce_}, now_ms);
+            send(proto::Hello{player_name_, mod_build_, nonce_, game_version_}, now_ms);
         }
         return;
     }
@@ -80,16 +80,29 @@ bool ClientSession::other_version(const proto::Packet& packet, uint32_t now_ms) 
     return true;
 }
 
-void ClientSession::check_build(const std::string& name, uint32_t build) {
-    if (build == 0 || build == mod_build_) {  // 0: cdmp_peer
+// Co-op+ (T03): another mod build or another game version is refused (the other side refuses too), with the message
+// naming both and what to do. Build 0 (cdmp_peer's relay) and an unknown game version are not compared.
+bool ClientSession::versions_match(const std::string& name, uint32_t build, const std::string& game, uint32_t now_ms) {
+    if (build == 0) build = test_peer_build_;
+    const bool build_ok = build == 0 || build == mod_build_;
+    const bool game_ok = game.empty() || game_version_.empty() || game == game_version_;
+    if (build_ok && game_ok) {
         peer_problem_.clear();
-        return;
+        return true;
     }
     char ours[16], theirs[16];
     std::snprintf(ours, sizeof ours, "%08X", mod_build_);
     std::snprintf(theirs, sizeof theirs, "%08X", build);
-    peer_problem_ = "'" + name + "' runs mod build " + theirs + ", we run " + ours + ": update both to the same";
-    event("warning: peer " + peer_problem_);
+    const std::string their_game = game.empty() ? "?" : game, our_game = game_version_.empty() ? "?" : game_version_;
+    peer_problem_ = "Can't play together: " + name + " has Co-op+ build " + theirs + " on game " + their_game +
+                    ", you have build " + ours + " on game " + our_game + ". " +
+                    (game_ok ? "Both install the same Co-op+ zip."
+                             : "Both update the game in Steam, then install the Co-op+ zip made for that version.");
+    if (last_problem_event_ms_ == 0 || now_ms - last_problem_event_ms_ >= 10000) {
+        last_problem_event_ms_ = now_ms;
+        event("cannot connect: " + peer_problem_);
+    }
+    return false;
 }
 
 void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms) {
@@ -105,7 +118,7 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
     }
 
     if (auto* hello = std::get_if<proto::Hello>(&packet->body)) {
-        send(proto::Welcome{player_name_, nonce_, mod_build_}, now_ms);
+        send(proto::Welcome{player_name_, nonce_, mod_build_, game_version_}, now_ms);
         if (state_ == State::Connected && hello->nonce == peer_nonce_) {
             last_recv_ms_ = now_ms;  // a duplicate of the Hello we already answered
             return;
@@ -113,9 +126,14 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
         if (state_ == State::Connected && restarted_ && now_ms - last_restart_ms_ < kMinRestartMs) {
             return;  // restarting again so soon: ignored
         }
+        if (!versions_match(hello->name, hello->mod_build, hello->game, now_ms)) {
+            // Refused: no session, so nothing of theirs reaches the game. Our Welcome told them why.
+            if (state_ == State::Connected) reset_to_connecting(now_ms);
+            ++stats_.rejected;
+            return;
+        }
         last_restart_ms_ = now_ms;
         restarted_ = true;
-        check_build(hello->name, hello->mod_build);
         peer_nonce_ = hello->nonce;
         if (state_ == State::Connected) {
             // Only a side in Connecting says Hello: the other end restarted.
@@ -140,7 +158,10 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
             return;
         }
         if (state_ == State::Connecting) {
-            check_build(welcome->name, welcome->mod_build);
+            if (!versions_match(welcome->name, welcome->mod_build, welcome->game, now_ms)) {
+                ++stats_.rejected;
+                return;
+            }
             peer_name_ = welcome->name;
             peer_nonce_ = welcome->nonce;
             state_ = State::Connected;

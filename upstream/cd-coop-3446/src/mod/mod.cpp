@@ -373,6 +373,10 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         },
         [](const std::string& text) { log::info("Session: {}", text); },
         host ? ClientSession::Role::Responder : ClientSession::Role::Initiator);
+    // Co-op+ (T03): the game version goes into the handshake; a mismatch (or another mod build) is refused.
+    if (local.in_game()) session.set_game_version(file_version(module_path(nullptr)));
+    session.set_test_peer_build(cfg.dev_fake_peer_build);
+    std::string shown_problem;  // the refusal last shown as a notice
     bool was_connected = false;
     uint64_t refused_uninvited = 0;  // Co-op+ invite-only: Hellos from outside the lobby
     uint32_t peer_since = 0;  // host: when it locked onto its player
@@ -587,6 +591,14 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             toast_until = now + 6000;
         }
         was_connected = connected;
+        // Co-op+ (T03): a refused handshake (versions) as a notice too, once per new reason.
+        if (const std::string& problem = session.peer_problem(); problem != shown_problem) {
+            shown_problem = problem;
+            if (!problem.empty()) {
+                toast = "Co-op\n" + problem;
+                toast_until = now + 12000;
+            }
+        }
         if (coop) {
             // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
             // [dev] scaling_as_host: one-PC test of party scaling (the echo session runs as guest).
