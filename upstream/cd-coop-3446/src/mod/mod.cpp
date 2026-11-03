@@ -49,6 +49,7 @@
 #include "mod/net/coop_chat.h"
 #include "mod/net/kill_feed.h"
 #include "mod/net/coop_race.h"
+#include "mod/net/scoreboard.h"
 #include "mod/net/state_audit.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
@@ -872,6 +873,11 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             hud.connected = session.state() == ClientSession::State::Connected;
             hud.peer_name = session.peer_name();
             hud.we_host = host;
+            net::scoreboard_tick(connected);  // Co-op+ (T43)
+            if (connected) {
+                hud.score_lines = net::scoreboard_lines(session.peer_name());
+                hud.peer_title = net::scoreboard_partner_title();
+            }
             hud.rtt_ms = session.stats().rtt_ms;
             // Co-op+ (T32): packet loss over the last ~3 s.
             {
@@ -1720,6 +1726,7 @@ DWORD WINAPI worker(LPVOID) {
             net::scaling_configure(sc);
             settings::init(dir + L"cdmp.ini", cfg, sc.health[2] > 0 ? sc.health[2] : sc.health_2p,
                            sc.boss_health[2] > 0 ? sc.boss_health[2] : sc.boss_health_2p);
+            net::scoreboard_init(dir + L"cdmp_scores.ini");  // Co-op+ (T43)
             // Co-op+ (T31): first run?
             if (GetPrivateProfileIntW(L"general", L"onboarded", 0, (dir + L"cdmp.ini").c_str()) == 0) {
                 g_onboard_ini = dir + L"cdmp.ini";

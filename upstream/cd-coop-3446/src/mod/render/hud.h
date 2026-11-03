@@ -18,7 +18,9 @@ struct HudData {
     bool net_hud = false;
     bool we_host = false;
     std::vector<std::string> kill_feed;  // Co-op+ (T36): recent kills, oldest first
-    std::vector<bool> kill_feed_ours;     // Co-op+ (T34): the other player is our guest     // Co-op+ (T32): the small ping / loss readout on screen ([overlay] net_hud)
+    std::vector<bool> kill_feed_ours;
+    std::vector<std::string> score_lines;  // Co-op+ (T43): the record vs this friend (panel)
+    std::string peer_title;                // Co-op+ (T43): the friend's title ("the Duelist"; " " = none)     // Co-op+ (T34): the other player is our guest     // Co-op+ (T32): the small ping / loss readout on screen ([overlay] net_hud)
     float rtt_ms = 0.0f;
     std::optional<game::PlayerSnapshot> local;
     std::string local_status;

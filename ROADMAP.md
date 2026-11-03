@@ -121,7 +121,7 @@ Steam join/invite/leave and room code, friends-only vs invite-only, join/leave n
 
 - [~] **T41 — More challenges.** Horse race, fishing contest, boss rush or arena, hide and seek, scavenger hunt.
 - [~] **T42 — Duel extras.** Wagers, selectable arenas, spectator camera, rematch.
-- [ ] **T43 — Cosmetics and recognition.** Titles, co-op bounties and a scoreboard.
+- [~] **T43 — Cosmetics and recognition.** Titles, co-op bounties and a scoreboard.
 - [ ] **T44 — Group photo mode.** Posed shots with both characters.
 - [ ] **T45 — Shared stash.**
 - [ ] **T46 — Baby wyvern hatching.** Blocked until the game supports it; leave `[!]` unless that changes.

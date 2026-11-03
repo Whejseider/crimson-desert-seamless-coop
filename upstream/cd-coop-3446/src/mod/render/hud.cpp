@@ -175,6 +175,8 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
         ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
     }
     if (!d.coop_hint.empty()) ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.6f, 1), "%s", d.coop_hint.c_str());
+    // Co-op+ (T43): the record against this friend.
+    for (const auto& l : d.score_lines) ImGui::TextColored(ImVec4(0.91f, 0.78f, 0.51f, 1), "%s", l.c_str());
     // Co-op+ (T30/T40): the settings (settings_menu.h).
     ImGui::Separator();
     for (const auto& l : settings::lines()) {
@@ -339,7 +341,9 @@ void hud_draw(float width, float height) {
             const std::string dist = std::format("{:.0f} m", remote_distance);
             status = status.empty() ? dist : status + "  -  " + dist;
         }
-        ui::party_frame(width, height, d.peer_name.empty() ? std::string("Your friend") : d.peer_name, hp, st, status,
+        std::string frame_name = d.peer_name.empty() ? std::string("Your friend") : d.peer_name;
+        if (d.peer_title.find_first_not_of(' ') != std::string::npos) frame_name += ", " + d.peer_title;  // T43
+        ui::party_frame(width, height, frame_name, hp, st, status,
                         ImGui::GetTime());
     }
 

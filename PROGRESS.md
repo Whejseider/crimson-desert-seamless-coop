@@ -462,3 +462,17 @@ game camera (not hooked).
 Done: duelx_test: [coop] duel_ring_m=12 -> "Duel: round 1 at (...), radius 12 m"; after ending, the picker opened on
 Duel (Duel is also the first option, so this shot does not prove the rematch memory; the code is 4 lines: the
 chosen stage is kept and the picker's selection set to it). [~]
+- Pushed T42 (f839954).
+
+## T43 -- Cosmetics and recognition
+Plan: titles + a scoreboard (co-op bounties left out: bounties are the game's own and per player, T16). Every change
+of the challenge series counters (any game) is a round won or lost -> net/scoreboard.cpp writes it per friend in
+cdmp_scores.ini next to cdmp.ini (section = the Steam name made safe) and a _total section; the panel shows "Record vs
+<friend>: races 1-0, ..." and "Your title: ..."; titles from totals (3 wins the Sparring Partner, 25 the Champion,
+10 duels / races / hunts the Duelist / the Swift / the Huntmaster) go to the friend (Activity type 25) and appear after
+the name on their partner frame.
+Done: scores_test (the race test with a scores file seeded at 2 wins): race won -> "Scoreboard: won race vs cdmp_peer
+(relay) (race 1 - 0)"; panel "Record vs cdmp_peer (relay): races 1-0", "Your title: the Sparring Partner"; partner
+frame "cdmp_peer (relay), the Sparring Partner" (our title echoed back). Test scores file deleted after. [~]
+(co-op bounties not built; the panel is now long with the settings block -- it can cover the partner frame while
+open.)

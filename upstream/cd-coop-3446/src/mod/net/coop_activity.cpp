@@ -25,6 +25,7 @@
 #include "mod/net/coop_chat.h"
 #include "mod/net/kill_feed.h"
 #include "mod/net/coop_race.h"
+#include "mod/net/scoreboard.h"
 #include "mod/settings_menu.h"
 #include "mod/net/aggro_test.h"
 #include "mod/net/enemy_relay.h"
@@ -46,7 +47,7 @@ constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the N
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22, kKill = 23, kRace = 24 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22, kKill = 23, kRace = 24, kTitle = 25 };
 
 // Co-op+ (T22): world events (reinforcements, bounty hunters, camp and outpost activity) are stages our server starts
 // (PrepareSequencerAck); their fighters are enemies, which the guest already gets as copies near the host. What the
@@ -871,6 +872,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
                 if (const char* n = event_name(key)) g_toasts.push_back(std::string("World event near {}\n") + n);
             }
             break;
+        case kTitle:             // scoreboard.h, below
         case kRace:              // coop_race.h, below
         case kKill:              // kill_feed.h, below
         case kChat:              // coop_chat.h, below
@@ -930,6 +932,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
     if (p[4] == kChat) chat_on_event(p.data() + 5, p.size() - 5);      // coop_chat.h
     if (p[4] == kKill) kill_feed_on_event(p.data() + 5, p.size() - 5); // kill_feed.h
     if (p[4] == kRace) race_on_event(p.data() + 5, p.size() - 5);      // coop_race.h
+    if (p[4] == kTitle) scoreboard_on_event(p.data() + 5, p.size() - 5);  // scoreboard.h
 }
 
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
@@ -1119,6 +1122,23 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
                                 g_ch.ours, g_ch.theirs, who);
     }
     if (!r.banner.empty()) out.banner = std::move(r.banner);
+    // Co-op+ (T43): every round won or lost goes on the lasting scoreboard (the series counters move by one).
+    {
+        static uint32_t stage = 0;
+        static int ours = 0, theirs = 0;
+        std::unique_lock lock(g_mutex);
+        const bool on = g_ch.state == kChOn;
+        if (!on || g_ch.stage != stage) {
+            stage = on ? g_ch.stage : 0, ours = g_ch.ours, theirs = g_ch.theirs;
+        } else if (g_ch.ours != ours || g_ch.theirs != theirs) {
+            const bool won = g_ch.ours > ours;
+            const Game game = game_of(g_ch.stage);
+            ours = g_ch.ours, theirs = g_ch.theirs;
+            lock.unlock();
+            scoreboard_record(who, game == kGameDuel ? "duel" : game == kGameRps ? "rps" : game == kGameHunt ? "hunt"
+                                   : game == kGameRace ? "race" : "wrestle", won);
+        }
+    }
     // The party journal (party_quests.h): the other player's completed quests. Held back while another notice shows.
     static uint32_t journal_after = 0;
     if (out.toast.empty() && static_cast<int32_t>(now - journal_after) >= 0) {

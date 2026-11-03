@@ -166,6 +166,10 @@ PLAYING TOGETHER
   * Rematch: after a challenge ends, Shift+F5 opens the picker on the game you played
     last, so Shift+F5 twice asks for a rematch. The duel ground's size (12 / 20 / 35 m)
     is in the F8 settings; the one who places the ground decides.
+  * SCOREBOARD: every round you win or lose is kept per friend (bin64\cdmp_scores.ini,
+    kept by Uninstall); F8 shows "Record vs <friend>". Wins earn a title your friend
+    sees after your name: the Sparring Partner (3 wins), the Champion (25), the
+    Duelist / the Swift / the Huntmaster (10 duels / races / hunts won).
   * RACE TO THE WAYPOINT: the host's map waypoint (right-click on the map) is the
     finish; after 3, 2, 1 the first to get within 12 m wins (ride, glide, run). Set a
     new waypoint for the next race.
