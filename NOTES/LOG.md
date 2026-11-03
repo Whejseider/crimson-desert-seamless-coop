@@ -513,3 +513,18 @@
 - Nameplate and guest boss bar redrawn game style (ui::nameplate, ui::boss_bar; the boss bar left the F8 panel).
 - Dragon: early save lacks rope skills and Blackstar's knowledge -> test save dragon-rope (4 knowledge swaps);
   guides: summoning in mid-air mounts; the manual grapple + Aerial Maneuver costs 200 stamina (test save has 120).
+
+## 2026-11-03 06:00-08:00 -- shared enemies priority, friend in the arm wrestling seat (user, morning)
+- User: "We need to see the same enemies ... priority #1" and "see my friend sitting in the NPC's seat during arm
+  wrestling". My earlier feature list wrongly said enemy copies were off: the CHANGELOG line was stale (D45).
+- enemy1 (bandit_test.sh): 4 copies of the bandits fighting us, no crash. zone2 (suppress_lab): the lab turns the
+  relay off, so it cannot copy and hide at once on one PC -> new [dev] zone_copy_test (host copies the dry-run zone
+  for real): zone3 = 33 copies in 75 s, no crash.
+- Seat (D46): seat_test.sh with the echo peer from the start: the pub table was empty in 5 runs (also with weather /
+  cinema sync off, also with enemies_target_copy=0, also with the old 1aea5e6d asi: not our new code); without the
+  peer (table_times.sh) staffed at every hour 09:00-22:00. -> seat_late.sh: match first, then the peer ([dev]
+  seat_test=1). late1: peer console stole focus (game paused) -> focus() after starting it. late2/3: copy in the seat,
+  NPC still drawn (seated minigame NPCs run no movement step; bit 20 alone does nothing, cleared by the game after
+  ~2 s). late4/5: bits 0x100004 set from the tick and re-set: NPC gone during the match, back after. Copy grips
+  Kliff's hand in the opponent's pose.
+- Saves: savecheck --fix after the session (slot2 autosave restored), SAVES OK.

@@ -20,6 +20,8 @@
 #include "mod/net/coop_hunt.h"
 #include "mod/net/party_quests.h"
 #include "mod/net/local_capture.h"
+#include "mod/net/puppet_visibility.h"
+#include "mod/net/remote_puppet.h"
 #include "mod/net/stage_cinema.h"
 
 namespace cdmp::net {
@@ -28,6 +30,8 @@ namespace {
 constexpr uint16_t kOpActivateMiniGameReq = 2507;  // u16 minigame id | u32 our player
 constexpr uint16_t kOpLeaveMiniGameReq = 2379;     // u8 4 | u32 actor | 14 x 0 | u32 stage key
 constexpr uint16_t kOpSpawnMiniGameCharacterReq = 3124;  // every match: the NPC opponent is spawned
+constexpr uint16_t kOpJoinMiniGameReq = 2151;     // u8 4 | u16 minigame id | u32 actor (us, then the NPC opponent)
+constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the NPC opponent's actions
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
@@ -42,6 +46,22 @@ std::atomic<uint32_t> g_e_presses{0};     // E key-downs (the hook counts them; 
 std::atomic<bool> g_match_on{false};      // between SpawnMiniGameCharacterReq and LeaveMiniGameReq
 std::atomic<uint32_t> g_match_stage{0};   // the match's minigame stage key (0 = unknown)
 
+// The other player in the NPC opponent's seat (F9, user 2026-11-03: "we also need to see my friend sitting in the
+// NPC's seat during arm wrestling"). Our client runs the match against an NPC it spawns at the table; the other
+// player sits in the player's seat of their own table and plays the same actions as that NPC does (capture
+// 2026-11-02: both seats play 837487D4 / 35DD392F..., 1.07 m apart, facing each other). So while both are in a
+// versus match, their copy is drawn at the NPC's transform (its own actions from our client) and the NPC is hidden.
+struct Opponent {
+    uint32_t key = 0;     // the NPC opponent of our match (its JoinMiniGameReq)
+    bool posed = false;   // pos / rot from one of its StartActionReq
+    proto::Vec3 pos;
+    proto::Quat rot;
+};
+std::mutex g_opp_mutex;
+Opponent g_opp;
+bool g_partner_game = false;  // between their kGameOn and kGameOff (under g_mutex)
+bool g_seated = false;        // the copy is in the NPC's seat (activity tick)
+
 // The minigames that use the strength gauge the versus shares (arm wrestling's stages, hand wrestling). Any other
 // minigame keeps its own rules: the versus never writes into it.
 bool is_gauge_game(uint32_t stage) {
@@ -50,6 +70,7 @@ bool is_gauge_game(uint32_t stage) {
         default: return false;
     }
 }
+std::atomic<bool> g_seat_test{false};     // [dev] seat_test (coop_activity.h)
 std::atomic<int> g_versus_test_rate{0};   // [dev] versus_test: a simulated other player pushing this many times/s
 struct Versus {
     bool live = false;          // our match is running (gauge readable, no cutscene)
@@ -271,11 +292,32 @@ void activity_send(uint8_t type, const std::vector<uint8_t>& data) { send(static
 
 void activity_set_skip_test(bool on) { g_skip_test = on; }
 void activity_set_versus_test(int presses_per_s) { g_versus_test_rate = presses_per_s; }
+void activity_set_seat_test(bool on) { g_seat_test = on; }
 
 namespace {
 
 void write_gauge(uintptr_t a, float v) {
     if (a) *reinterpret_cast<volatile float*>(a) = v;  // a writable float (game::minigame_gauge_address checked it)
+}
+
+// The other player's copy takes the NPC opponent's seat while `want` (both in a versus match) and the NPC's place is
+// known; the NPC is hidden meanwhile.
+void seat_tick(bool want) {
+    Opponent o;
+    {
+        std::lock_guard lock(g_opp_mutex);
+        o = g_opp;
+    }
+    const bool seat = want && o.key && o.posed;
+    if (seat) {
+        puppet_set_seat(o.pos, o.rot);  // also follows the NPC if the game moves it
+        puppet_hide_tick();
+    }
+    if (seat == g_seated) return;
+    g_seated = seat;
+    if (!seat) puppet_set_seat(std::nullopt);
+    puppet_hide_actor(seat ? o.key : 0);
+    log::info("Activity: the other player's copy {} the opponent's seat (NPC 0x{:08X})", seat ? "takes" : "leaves", o.key);
 }
 
 // Versus arm wrestling (see kPushGain): every tick of the network loop.
@@ -289,6 +331,8 @@ void versus_tick(ActivityTick& out, bool connected, bool host, bool cut, const s
     std::lock_guard lock(g_mutex);
     // Only inside an accepted wrestling challenge (or the one-PC test): otherwise a match against the NPC, as normal.
     const bool challenged = (g_ch.state == kChOn && game_of(g_ch.stage) == kGameWrestle) || test_rate > 0;
+    seat_tick(g_match_on.load() && is_gauge_game(g_match_stage.load()) &&
+              ((challenged && (connected || test_rate > 0) && (g_partner_game || test_rate > 0)) || g_seat_test.load()));
     Versus& v = g_vs;
     if (live && !v.live) {
         v.base = g_e_presses.load();
@@ -624,7 +668,27 @@ void activity_observe_c2s(const uint8_t* packet, size_t size) {
         std::memcpy(&seq, packet + 6, 8);
         g_match_stage = cinema_stage_key(seq);
         g_match_on = true;
+        {
+            std::lock_guard lock(g_opp_mutex);
+            g_opp = Opponent{};
+        }
         log::info("Activity: a match of {} (stage {})", activity_minigame_name(g_match_stage.load()), g_match_stage.load());
+    } else if (op == kOpJoinMiniGameReq && size >= 5 + 7 && g_match_on.load()) {
+        uint32_t key = 0;
+        std::memcpy(&key, packet + 5 + 3, 4);
+        if (key && key != capture_own_player_key()) {
+            std::lock_guard lock(g_opp_mutex);
+            g_opp.key = key;
+        }
+    } else if (op == kOpStartActionReq && size >= 5 + 0x15A && g_match_on.load()) {
+        uint32_t key = 0;
+        std::memcpy(&key, packet + 5, 4);
+        std::lock_guard lock(g_opp_mutex);
+        if (key && key == g_opp.key) {
+            std::memcpy(&g_opp.rot, packet + 5 + 0x13E, 16);  // wire::kActionRot / kActionPos
+            std::memcpy(&g_opp.pos, packet + 5 + 0x14E, 12);
+            g_opp.posed = std::isfinite(g_opp.pos.x) && std::isfinite(g_opp.pos.z) && std::isfinite(g_opp.rot.w);
+        }
     } else if (op == kOpLeaveMiniGameReq && size >= 5 + 23) {
         g_match_on = false;
         uint32_t stage = 0;
@@ -647,7 +711,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
         case kCutsceneOn: g_partner_cutscene = true; g_partner_cut_pos = pos; g_partner_skip = false; break;
         case kCutsceneOff: g_partner_cutscene = false; g_partner_skip = false; break;
         case kSkip: g_partner_skip = true; g_skip_from = pos; break;
-        case kGameOn: g_toasts.push_back("{} is playing a minigame"); break;
+        case kGameOn: g_toasts.push_back("{} is playing a minigame"); g_partner_game = true; break;
         case kVersus:  // u8 live | u32 presses since their match started | f32 gauge (the host's)
             if (p.size() >= 5 + 9) {
                 g_vs.partner_live = p[5] != 0;
@@ -660,6 +724,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
             uint32_t stage = 0;
             if (p.size() >= 9) std::memcpy(&stage, p.data() + 5, 4);
             g_toasts.push_back("{} finished " + activity_minigame_name(stage));
+            g_partner_game = false;
             break;
         }
         case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)

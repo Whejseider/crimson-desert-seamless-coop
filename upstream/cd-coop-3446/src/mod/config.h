@@ -77,16 +77,18 @@ struct Config {
     int32_t dev_tp_offset_m = 30;  // Co-op+ dev: Ctrl+Shift+F4 teleports this far east ([dev] tp_offset_m)
     uint32_t dev_boss_hp = 0;       // Co-op+ dev: enemies with this many max HP count as bosses ([dev] boss_hp)
     bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
-    int dev_challenge_test = 0;
-    bool dev_duel_test = false;
-    uint32_t dev_quest_test = 0;
-    bool dev_hunt_test = false;  // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)  // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key  // Co-op+ dev: one-PC duel with the echo peer (coop_duel.h)
-    int dev_pad_sim = 0;
-    int dev_ui_preview = 0;  // Co-op+ dev: 1 = show the death screen ([dev] ui_preview)  // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)  // Co-op+ dev: a simulated friend accepts our challenges ([dev] challenge_test)
+    int dev_challenge_test = 0;      // Co-op+ dev: a simulated friend accepts our challenges ([dev] challenge_test)
+    bool dev_duel_test = false;      // Co-op+ dev: one-PC duel with the echo peer (coop_duel.h)
+    uint32_t dev_quest_test = 0;     // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key
+    bool dev_hunt_test = false;      // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)
+    bool dev_zone_copy_test = false; // Co-op+ dev: the guest's dry-run zone is copied for real (enemy_relay.h)
+    int dev_pad_sim = 0;             // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)
+    int dev_ui_preview = 0;          // Co-op+ dev: 1 = show the death screen ([dev] ui_preview)
     int dev_rps_test = -1;  // Co-op+ dev: simulated RPS opponent's hand 0/1/2 ([dev] rps_test=1..3, 0 = off)
     bool dev_cinema_test = false;  // Co-op+ dev: replay our own stage cutscenes as a guest would ([dev] cinema_test)
     uint32_t dev_weather_test = 0;  // Co-op+ dev: act as a guest whose host has this weather stage ([dev] weather_test)
     uint32_t dev_versus_test = 0;  // Co-op+ dev: simulated versus opponent pushing N times/s ([dev] versus_test)
+    bool dev_seat_test = false;    // Co-op+ dev: the copy takes the NPC's seat in any wrestling match ([dev] seat_test)
     uint32_t dev_trace_op = 0;  // Co-op+ dev: trace who sends this opcode ([dev] trace_op)
     bool dev_skip_test = false;  // Co-op+ dev: act as if the other player skipped 3 s into our cutscenes ([dev] skip_test)
     bool dev_partner_alive = false;  // Co-op+ dev: the revive prompt sees the other player alive ([dev] partner_alive)

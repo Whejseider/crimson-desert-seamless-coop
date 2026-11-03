@@ -10,6 +10,7 @@
 
 #include <safetyhook.hpp>
 
+#include "mod/game/actor_lookup.h"
 #include "mod/game/offsets.h"
 #include "mod/game/safe_memory.h"
 #include "mod/log.h"
@@ -38,6 +39,15 @@ struct Watch {
 };
 std::mutex g_mutex;
 std::unordered_map<uintptr_t, Watch> g_watch;
+
+// Co-op+ (F9): one actor of our world drawn hidden (the NPC opponent at a wrestling table while the other player's
+// copy sits in its place): the hide bits the game itself uses, set through its own flag-change handler, cleared again
+// when released. Bit 20 alone (a loading copy's) did not hide the seated NPC; with bit 2 (the "alpha 0" of hidden
+// party members, enemy_relay.cpp) it is gone (live, 2026-11-03).
+constexpr uint64_t kHideBit = 0x100004;
+std::atomic<uint32_t> g_hide_key{0};
+std::atomic<uintptr_t> g_hidden_actor{0};  // the actor we set the bit on (game thread)
+std::atomic<uint64_t> g_hide_logs{0};
 
 bool is_copy(uint32_t key) { return key == kPuppetPlayer || key == kPuppetHorse || is_enemy_copy_key(key); }
 
@@ -68,13 +78,44 @@ bool show(uintptr_t status, uint64_t flags[2]) {
     }
 }
 
+// Sets (hide) or clears the bit through the game's own flag-change handler, as show() does.
+bool set_hidden(uintptr_t actor, bool hide) {
+    const uintptr_t status = component(actor, off::kVtStatusComponent);
+    uint64_t flags[2] = {};
+    if (!status || !game::safe_read(status + off::kStatus_HideFlags, flags, sizeof flags)) return false;
+    const uint64_t before = flags[0] | flags[1];
+    const uint64_t a = hide ? flags[0] | kHideBit : flags[0] & ~kHideBit;
+    if (a == flags[0]) return true;
+    __try {
+        *reinterpret_cast<volatile uint64_t*>(status + off::kStatus_HideFlags) = a;
+        reinterpret_cast<FlagsChangedFn>(g_base + off::kStatusFlagsChanged)(status, a | flags[1], before, 0.0f);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+// The hidden actor's own step: hide it, or show it again once released.
+void hide_step(uintptr_t actor, uint32_t key) {
+    const uint32_t want = g_hide_key.load();
+    if (want && key == want) {
+        if (g_hidden_actor.load() == actor) return;
+        const bool ok = set_hidden(actor, true);
+        if (ok) g_hidden_actor = actor;
+        if (g_hide_logs.fetch_add(1) < 20) log::info("Puppet: 0x{:08X} hidden{}", key, ok ? "" : " -- FAILED");
+    } else if (g_hidden_actor.load() == actor) {
+        const bool ok = set_hidden(actor, false);
+        g_hidden_actor = 0;
+        if (g_hide_logs.fetch_add(1) < 20) log::info("Puppet: 0x{:08X} shown again{}", key, ok ? "" : " -- FAILED");
+    }
+}
+
 void on_step(safetyhook::Context& ctx) {
     uintptr_t actor = 0;
     uint32_t key = 0;
-    if (!game::safe_read(ctx.rcx + 0x20, &actor, 8) || !actor || !game::safe_read(actor + 0x60, &key, 4) ||
-        !is_copy(key)) {
-        return;
-    }
+    if (!game::safe_read(ctx.rcx + 0x20, &actor, 8) || !actor || !game::safe_read(actor + 0x60, &key, 4)) return;
+    if (g_hide_key.load() || g_hidden_actor.load()) hide_step(actor, key);
+    if (!is_copy(key)) return;
     uint16_t state = 0;
     if (!game::safe_read(actor + 0x5E, &state, 2) || state != kLoaded) return;  // not loaded yet: next frame
     {
@@ -102,6 +143,38 @@ bool head_ok(uintptr_t rva, const uint8_t* head, size_t n) {
 }
 
 }  // namespace
+
+void puppet_hide_tick() {
+    const uint32_t key = g_hide_key.load();
+    if (!key) return;
+    const auto actor = game::find_actor(key);
+    if (!actor) return;
+    const uintptr_t status = component(*actor, off::kVtStatusComponent);
+    uint64_t flags[2] = {};
+    if (!status || !game::safe_read(status + off::kStatus_HideFlags, flags, sizeof flags)) return;
+    // The game clears bit 20 again within ~2 s (live, 2026-11-03), and the actor may not have existed yet when
+    // puppet_hide_actor ran: set the bits whenever one is missing.
+    if (((flags[0] | flags[1]) & kHideBit) != kHideBit && set_hidden(*actor, true)) g_hidden_actor = *actor;
+}
+
+void puppet_hide_actor(uint32_t key) {
+    const uint32_t before = g_hide_key.exchange(key);
+    if (before == key) return;
+    log::info("Puppet: {} 0x{:08X}", key ? "hiding" : "no longer hiding", key ? key : before);
+    // A seated minigame NPC runs no movement step (2026-11-03): applied from here as well, through the same handler.
+    if (key) {
+        if (const auto actor = game::find_actor(key); actor && g_hidden_actor.load() != *actor) {
+            const bool ok = set_hidden(*actor, true);
+            if (ok) g_hidden_actor = *actor;
+            log::info("Puppet: 0x{:08X} hidden{}", key, ok ? "" : " -- FAILED");
+        }
+    } else if (const uintptr_t actor = g_hidden_actor.exchange(0)) {
+        // Only while it still exists (the game unspawns the opponent at the end of the match).
+        const auto now = game::find_actor(before);
+        const bool ok = now && *now == actor && set_hidden(actor, false);
+        log::info("Puppet: 0x{:08X} {}", before, ok ? "shown again" : "gone already");
+    }
+}
 
 bool puppet_visibility_install() {
     if (g_hook) return true;

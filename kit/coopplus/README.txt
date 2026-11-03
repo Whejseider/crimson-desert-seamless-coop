@@ -84,7 +84,8 @@ PLAYING TOGETHER
     you lose the round. After each round both are healed and the next one starts.
   * HUNTING CONTEST: 3 minutes to bring down the most game (bow or blade). Small
     game scores 1, deer and foxes 2, bears, wolves and boars 3.
-  * Arm / hand wrestling: both of you sit at the table and start a match; you share
+  * Arm / hand wrestling: both of you sit at the table and start a match; your
+    friend's character sits across from you in the opponent's chair, and you share
     one strength bar: whoever mashes E (pad: any face button) faster wins on both
     screens.
   * Rock, paper, scissors: press U (scissors), F (paper) or E (rock) - pad X, Y,
@@ -130,7 +131,8 @@ WHAT WORKS / WHAT DOESN'T (YET)
   fighting the boss"): when your partner wins you get up where you fell; if you
   both go down, you both revive at the checkpoint and try again. To turn the
   wait off: boss_death_wait=0 under [coop] in cdmp.ini.
-- Not shared yet: quests and story progress, civilians, time of day.
+- Shared: time of day and weather (the host's). Not shared yet: quests and story
+  progress (you get a notice when your friend completes a quest step), civilians.
 - Two players at a time.
 
 IMPORTANT: do not save while the other player is in your world. Quit without

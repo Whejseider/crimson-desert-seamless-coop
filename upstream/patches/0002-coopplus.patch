@@ -564,7 +564,7 @@ index e7d51fb..577cd4c 100644
  // Wire: u32 copy key | u64 game clock ms | f32 x, y, z | f32 qx, qy, qz, qw.
  inline constexpr size_t kEnemyPosEventSize = 40;
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..25b1202 100644
+index e89d220..a30f5e9 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -641,7 +641,7 @@ index e89d220..25b1202 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,19 +210,51 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,19 +210,53 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
@@ -665,10 +665,12 @@ index e89d220..25b1202 100644
 +    c.dev_duel_test = read_uint(ini_path, L"dev", L"duel_test", 0) != 0;
 +    c.dev_quest_test = static_cast<uint32_t>(read_uint(ini_path, L"dev", L"quest_test", 0));
 +    c.dev_hunt_test = read_uint(ini_path, L"dev", L"hunt_test", 0) != 0;
++    c.dev_zone_copy_test = read_uint(ini_path, L"dev", L"zone_copy_test", 0) != 0;
 +    c.dev_rps_test = static_cast<int>(read_uint(ini_path, L"dev", L"rps_test", 0)) - 1;  // 1 scissors, 2 paper, 3 rock
 +    c.dev_cinema_test = read_uint(ini_path, L"dev", L"cinema_test", 0) != 0;
 +    c.dev_weather_test = read_uint(ini_path, L"dev", L"weather_test", 0);
 +    c.dev_versus_test = read_uint(ini_path, L"dev", L"versus_test", 0);
++    c.dev_seat_test = read_uint(ini_path, L"dev", L"seat_test", 0) != 0;
 +    c.dev_scaling_as_host = read_uint(ini_path, L"dev", L"scaling_as_host", 0) != 0;
 +    c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
      c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
@@ -698,7 +700,7 @@ index e89d220..25b1202 100644
      c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
      c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
      c.coop_finish_arrow = read_uint(ini_path, L"coop", L"finish_arrow", 1) != 0;
-@@ -203,17 +263,20 @@ Config load_config(const std::wstring& ini_path) {
+@@ -203,17 +265,20 @@ Config load_config(const std::wstring& ini_path) {
      // Boss safety (boss_safe.h): default ON, because the failure it prevents is a
      // stuck quest in the HOST's save, not a cosmetic problem.
      c.coop_boss_safe = read_uint(ini_path, L"coop", L"boss_safe", 1) != 0;
@@ -721,7 +723,7 @@ index e89d220..25b1202 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +289,11 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +291,11 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -734,7 +736,7 @@ index e89d220..25b1202 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..d93166a 100644
+index 3cd2ce2..efbdabf 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -762,7 +764,7 @@ index 3cd2ce2..d93166a 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -57,6 +68,30 @@ struct Config {
+@@ -57,6 +68,32 @@ struct Config {
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
@@ -775,16 +777,18 @@ index 3cd2ce2..d93166a 100644
 +    int32_t dev_tp_offset_m = 30;  // Co-op+ dev: Ctrl+Shift+F4 teleports this far east ([dev] tp_offset_m)
 +    uint32_t dev_boss_hp = 0;       // Co-op+ dev: enemies with this many max HP count as bosses ([dev] boss_hp)
 +    bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
-+    int dev_challenge_test = 0;
-+    bool dev_duel_test = false;
-+    uint32_t dev_quest_test = 0;
-+    bool dev_hunt_test = false;  // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)  // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key  // Co-op+ dev: one-PC duel with the echo peer (coop_duel.h)
-+    int dev_pad_sim = 0;
-+    int dev_ui_preview = 0;  // Co-op+ dev: 1 = show the death screen ([dev] ui_preview)  // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)  // Co-op+ dev: a simulated friend accepts our challenges ([dev] challenge_test)
++    int dev_challenge_test = 0;      // Co-op+ dev: a simulated friend accepts our challenges ([dev] challenge_test)
++    bool dev_duel_test = false;      // Co-op+ dev: one-PC duel with the echo peer (coop_duel.h)
++    uint32_t dev_quest_test = 0;     // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key
++    bool dev_hunt_test = false;      // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)
++    bool dev_zone_copy_test = false; // Co-op+ dev: the guest's dry-run zone is copied for real (enemy_relay.h)
++    int dev_pad_sim = 0;             // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)
++    int dev_ui_preview = 0;          // Co-op+ dev: 1 = show the death screen ([dev] ui_preview)
 +    int dev_rps_test = -1;  // Co-op+ dev: simulated RPS opponent's hand 0/1/2 ([dev] rps_test=1..3, 0 = off)
 +    bool dev_cinema_test = false;  // Co-op+ dev: replay our own stage cutscenes as a guest would ([dev] cinema_test)
 +    uint32_t dev_weather_test = 0;  // Co-op+ dev: act as a guest whose host has this weather stage ([dev] weather_test)
 +    uint32_t dev_versus_test = 0;  // Co-op+ dev: simulated versus opponent pushing N times/s ([dev] versus_test)
++    bool dev_seat_test = false;    // Co-op+ dev: the copy takes the NPC's seat in any wrestling match ([dev] seat_test)
 +    uint32_t dev_trace_op = 0;  // Co-op+ dev: trace who sends this opcode ([dev] trace_op)
 +    bool dev_skip_test = false;  // Co-op+ dev: act as if the other player skipped 3 s into our cutscenes ([dev] skip_test)
 +    bool dev_partner_alive = false;  // Co-op+ dev: the revive prompt sees the other player alive ([dev] partner_alive)
@@ -793,7 +797,7 @@ index 3cd2ce2..d93166a 100644
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
-@@ -66,7 +101,7 @@ struct Config {
+@@ -66,7 +103,7 @@ struct Config {
      float coop_offset_m = 0.0f;    // sideways offset of the remote character
      // Experimental, off by default: the copy's horse is not created by the
      // client (owned load) or crashes the game (ownerless load); live tests 1-2.
@@ -802,7 +806,7 @@ index 3cd2ce2..d93166a 100644
      // Works since the copy got its own character number (live test 3).
      bool coop_equip = true;        // relay equipment changes
      // Mirrored damage: each world keeps its enemies; hits by the other player
-@@ -85,7 +120,7 @@ struct Config {
+@@ -85,7 +122,7 @@ struct Config {
      int coop_minimap_icon = 0x124;
      // Our enemies may attack the other player's copy (aggro_test.h). Off
      // until the hits reach the other player and they see our enemies.
@@ -811,7 +815,7 @@ index 3cd2ce2..d93166a 100644
      // The other player's blows on the copies of our enemies hurt them
      // (guest_hits.h). Off until tested with two players.
      bool coop_guest_hits = false;
-@@ -94,15 +129,19 @@ struct Config {
+@@ -94,15 +131,19 @@ struct Config {
      bool coop_guest_hit_stagger = false;
      // Our player reacts (stagger, knock-down) to the other player's enemies'
      // blows on our copy over there: experimental until tested.
@@ -835,7 +839,7 @@ index 3cd2ce2..d93166a 100644
      // Host: copies of our enemies that fight go to the guest on their own
      // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
      bool coop_enemy_auto = true;
-@@ -125,6 +164,9 @@ struct Config {
+@@ -125,6 +166,9 @@ struct Config {
      // does the finish, which is what advances its script. Off restores the old
      // behaviour exactly, for comparison.
      bool coop_boss_safe = true;
@@ -845,7 +849,7 @@ index 3cd2ce2..d93166a 100644
      // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
      // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
      int coop_enemy_minimap_icon = 0x10A;
-@@ -146,6 +188,14 @@ struct Config {
+@@ -146,6 +190,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -2296,7 +2300,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..004efb3 100644
+index 79ccd06..190177e 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,9 @@
@@ -3059,7 +3063,7 @@ index 79ccd06..004efb3 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1422,37 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1422,39 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3075,6 +3079,7 @@ index 79ccd06..004efb3 100644
 +        net::activity_set_skip_test(cfg.dev_skip_test);
 +        if (cfg.dev_trace_op) net::sniffer_set_trace_op(static_cast<uint16_t>(cfg.dev_trace_op));
 +        net::activity_set_versus_test(static_cast<int>(cfg.dev_versus_test));
++        net::activity_set_seat_test(cfg.dev_seat_test);
 +        net::weather_set_enabled(cfg.coop_weather_sync);
 +        net::weather_set_test(cfg.dev_weather_test);
 +        net::cinema_set_enabled(cfg.coop_stage_cinema);
@@ -3084,6 +3089,7 @@ index 79ccd06..004efb3 100644
 +        net::duel_set_test(cfg.dev_duel_test);
 +        net::party_quests_set_test(cfg.dev_quest_test);
 +        net::hunt_set_test(cfg.dev_hunt_test);
++        net::enemy_set_zone_copy_test(cfg.dev_zone_copy_test);
 +        input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
 +        input::set_sim(cfg.dev_pad_sim);
 +        if (cfg.dev_boss_hp) {
@@ -3097,7 +3103,7 @@ index 79ccd06..004efb3 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1504,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1506,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3131,7 +3137,7 @@ index 79ccd06..004efb3 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1527,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1529,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3143,7 +3149,7 @@ index 79ccd06..004efb3 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1552,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1554,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -3875,10 +3881,10 @@ index a328bc0..695a4fb 100644
  public:
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..9347998
+index 0000000..9354c1f
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,861 @@
+@@ -0,0 +1,926 @@
 +#include "mod/net/coop_activity.h"
 +#include "mod/input/actions.h"
 +#include "mod/input/pad_input.h"
@@ -3901,6 +3907,8 @@ index 0000000..9347998
 +#include "mod/net/coop_hunt.h"
 +#include "mod/net/party_quests.h"
 +#include "mod/net/local_capture.h"
++#include "mod/net/puppet_visibility.h"
++#include "mod/net/remote_puppet.h"
 +#include "mod/net/stage_cinema.h"
 +
 +namespace cdmp::net {
@@ -3909,6 +3917,8 @@ index 0000000..9347998
 +constexpr uint16_t kOpActivateMiniGameReq = 2507;  // u16 minigame id | u32 our player
 +constexpr uint16_t kOpLeaveMiniGameReq = 2379;     // u8 4 | u32 actor | 14 x 0 | u32 stage key
 +constexpr uint16_t kOpSpawnMiniGameCharacterReq = 3124;  // every match: the NPC opponent is spawned
++constexpr uint16_t kOpJoinMiniGameReq = 2151;     // u8 4 | u16 minigame id | u32 actor (us, then the NPC opponent)
++constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the NPC opponent's actions
 +constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 +constexpr uint32_t kSkipTestDelayMs = 6000;
 +
@@ -3923,6 +3933,22 @@ index 0000000..9347998
 +std::atomic<bool> g_match_on{false};      // between SpawnMiniGameCharacterReq and LeaveMiniGameReq
 +std::atomic<uint32_t> g_match_stage{0};   // the match's minigame stage key (0 = unknown)
 +
++// The other player in the NPC opponent's seat (F9, user 2026-11-03: "we also need to see my friend sitting in the
++// NPC's seat during arm wrestling"). Our client runs the match against an NPC it spawns at the table; the other
++// player sits in the player's seat of their own table and plays the same actions as that NPC does (capture
++// 2026-11-02: both seats play 837487D4 / 35DD392F..., 1.07 m apart, facing each other). So while both are in a
++// versus match, their copy is drawn at the NPC's transform (its own actions from our client) and the NPC is hidden.
++struct Opponent {
++    uint32_t key = 0;     // the NPC opponent of our match (its JoinMiniGameReq)
++    bool posed = false;   // pos / rot from one of its StartActionReq
++    proto::Vec3 pos;
++    proto::Quat rot;
++};
++std::mutex g_opp_mutex;
++Opponent g_opp;
++bool g_partner_game = false;  // between their kGameOn and kGameOff (under g_mutex)
++bool g_seated = false;        // the copy is in the NPC's seat (activity tick)
++
 +// The minigames that use the strength gauge the versus shares (arm wrestling's stages, hand wrestling). Any other
 +// minigame keeps its own rules: the versus never writes into it.
 +bool is_gauge_game(uint32_t stage) {
@@ -3931,6 +3957,7 @@ index 0000000..9347998
 +        default: return false;
 +    }
 +}
++std::atomic<bool> g_seat_test{false};     // [dev] seat_test (coop_activity.h)
 +std::atomic<int> g_versus_test_rate{0};   // [dev] versus_test: a simulated other player pushing this many times/s
 +struct Versus {
 +    bool live = false;          // our match is running (gauge readable, no cutscene)
@@ -4152,11 +4179,32 @@ index 0000000..9347998
 +
 +void activity_set_skip_test(bool on) { g_skip_test = on; }
 +void activity_set_versus_test(int presses_per_s) { g_versus_test_rate = presses_per_s; }
++void activity_set_seat_test(bool on) { g_seat_test = on; }
 +
 +namespace {
 +
 +void write_gauge(uintptr_t a, float v) {
 +    if (a) *reinterpret_cast<volatile float*>(a) = v;  // a writable float (game::minigame_gauge_address checked it)
++}
++
++// The other player's copy takes the NPC opponent's seat while `want` (both in a versus match) and the NPC's place is
++// known; the NPC is hidden meanwhile.
++void seat_tick(bool want) {
++    Opponent o;
++    {
++        std::lock_guard lock(g_opp_mutex);
++        o = g_opp;
++    }
++    const bool seat = want && o.key && o.posed;
++    if (seat) {
++        puppet_set_seat(o.pos, o.rot);  // also follows the NPC if the game moves it
++        puppet_hide_tick();
++    }
++    if (seat == g_seated) return;
++    g_seated = seat;
++    if (!seat) puppet_set_seat(std::nullopt);
++    puppet_hide_actor(seat ? o.key : 0);
++    log::info("Activity: the other player's copy {} the opponent's seat (NPC 0x{:08X})", seat ? "takes" : "leaves", o.key);
 +}
 +
 +// Versus arm wrestling (see kPushGain): every tick of the network loop.
@@ -4170,6 +4218,8 @@ index 0000000..9347998
 +    std::lock_guard lock(g_mutex);
 +    // Only inside an accepted wrestling challenge (or the one-PC test): otherwise a match against the NPC, as normal.
 +    const bool challenged = (g_ch.state == kChOn && game_of(g_ch.stage) == kGameWrestle) || test_rate > 0;
++    seat_tick(g_match_on.load() && is_gauge_game(g_match_stage.load()) &&
++              ((challenged && (connected || test_rate > 0) && (g_partner_game || test_rate > 0)) || g_seat_test.load()));
 +    Versus& v = g_vs;
 +    if (live && !v.live) {
 +        v.base = g_e_presses.load();
@@ -4505,7 +4555,27 @@ index 0000000..9347998
 +        std::memcpy(&seq, packet + 6, 8);
 +        g_match_stage = cinema_stage_key(seq);
 +        g_match_on = true;
++        {
++            std::lock_guard lock(g_opp_mutex);
++            g_opp = Opponent{};
++        }
 +        log::info("Activity: a match of {} (stage {})", activity_minigame_name(g_match_stage.load()), g_match_stage.load());
++    } else if (op == kOpJoinMiniGameReq && size >= 5 + 7 && g_match_on.load()) {
++        uint32_t key = 0;
++        std::memcpy(&key, packet + 5 + 3, 4);
++        if (key && key != capture_own_player_key()) {
++            std::lock_guard lock(g_opp_mutex);
++            g_opp.key = key;
++        }
++    } else if (op == kOpStartActionReq && size >= 5 + 0x15A && g_match_on.load()) {
++        uint32_t key = 0;
++        std::memcpy(&key, packet + 5, 4);
++        std::lock_guard lock(g_opp_mutex);
++        if (key && key == g_opp.key) {
++            std::memcpy(&g_opp.rot, packet + 5 + 0x13E, 16);  // wire::kActionRot / kActionPos
++            std::memcpy(&g_opp.pos, packet + 5 + 0x14E, 12);
++            g_opp.posed = std::isfinite(g_opp.pos.x) && std::isfinite(g_opp.pos.z) && std::isfinite(g_opp.rot.w);
++        }
 +    } else if (op == kOpLeaveMiniGameReq && size >= 5 + 23) {
 +        g_match_on = false;
 +        uint32_t stage = 0;
@@ -4528,7 +4598,7 @@ index 0000000..9347998
 +        case kCutsceneOn: g_partner_cutscene = true; g_partner_cut_pos = pos; g_partner_skip = false; break;
 +        case kCutsceneOff: g_partner_cutscene = false; g_partner_skip = false; break;
 +        case kSkip: g_partner_skip = true; g_skip_from = pos; break;
-+        case kGameOn: g_toasts.push_back("{} is playing a minigame"); break;
++        case kGameOn: g_toasts.push_back("{} is playing a minigame"); g_partner_game = true; break;
 +        case kVersus:  // u8 live | u32 presses since their match started | f32 gauge (the host's)
 +            if (p.size() >= 5 + 9) {
 +                g_vs.partner_live = p[5] != 0;
@@ -4541,6 +4611,7 @@ index 0000000..9347998
 +            uint32_t stage = 0;
 +            if (p.size() >= 9) std::memcpy(&stage, p.data() + 5, 4);
 +            g_toasts.push_back("{} finished " + activity_minigame_name(stage));
++            g_partner_game = false;
 +            break;
 +        }
 +        case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)
@@ -4742,10 +4813,10 @@ index 0000000..9347998
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.h b/upstream/cd-coop-3446/src/mod/net/coop_activity.h
 new file mode 100644
-index 0000000..127c61e
+index 0000000..5b4dbb0
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.h
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,86 @@
 +#pragma once
 +// Co-op+: shared activities (cutscenes and minigames), EventKind::Activity.
 +//
@@ -4802,6 +4873,9 @@ index 0000000..127c61e
 +// [dev] versus_test: one-PC test of versus arm wrestling: a simulated other player in every match of ours, pushing
 +// this many times a second (0 = off).
 +void activity_set_versus_test(int presses_per_s);
++// [dev] seat_test: in any arm / hand wrestling match against the NPC (no versus, no challenge), the other player's
++// copy takes the NPC's seat and the NPC is hidden (F9 one-PC test: the echo copy plays our own actions there).
++void activity_set_seat_test(bool on);
 +
 +// [dev] challenge_test: one-PC test of challenges: 1 = a simulated other player accepts our Shift+F5 invite after
 +// 2 s; 2 = also Shift+F6 (with nothing pending) makes them challenge us to a rock-paper-scissors duel.
@@ -5977,7 +6051,7 @@ index 0000000..5496f86
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
-index 72da385..8bb1709 100644
+index 72da385..ff908f4 100644
 --- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 @@ -1,4 +1,5 @@
@@ -6036,16 +6110,17 @@ index 72da385..8bb1709 100644
  constexpr uint32_t kPuppetUser = 0x9010F001;
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
  constexpr float kPickRadius = 40.0f;
-@@ -190,6 +193,8 @@ bool valid_size(uint16_t op, size_t n) {
+@@ -190,6 +193,9 @@ bool valid_size(uint16_t op, size_t n) {
  }
  
  std::atomic<bool> g_receive_enabled{false};
 +std::atomic<bool> g_copies_allowed{false};  // Co-op+: [dev] enemy_copies (enemy_relay.h)
++std::atomic<bool> g_zone_copy_test{false};  // [dev] zone_copy_test (enemy_relay.h)
 +std::atomic<bool> g_keep_origin{false};     // Co-op+: [dev] enemy_keep_origin (enemy_relay.h)
  // kNoVariant is declared in enemy_relay.h: loot_twin enforces it too.
  std::map<uint32_t, bool> g_copies;          // copy keys loaded here
  std::map<uint32_t, uint32_t> g_copy_variant;  // copy key -> its enemy variant (load +0x18), or kNoVariant
-@@ -306,15 +311,10 @@ std::optional<uint32_t> pick_manual() {
+@@ -306,15 +312,10 @@ std::optional<uint32_t> pick_manual() {
  // without one, like an ambient spawn. (Not the cause of the invisible
  // originals, copias-grupo-invisibles.md §6.7: that is the camp group.)
  int strip_spawn_identity(Bytes& load) {
@@ -6065,7 +6140,7 @@ index 72da385..8bb1709 100644
      float scale[3];
      std::memcpy(scale, load.data() + t0 + 28, sizeof scale);
      if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) return -1;
-@@ -571,7 +571,9 @@ void map_field_locked(Bytes& v, size_t off, bool parent64) {
+@@ -571,7 +572,9 @@ void map_field_locked(Bytes& v, size_t off, bool parent64) {
  uint64_t g_dropped_messages = 0;
  bool map_message_locked(uint16_t op, Bytes& v, uint32_t self) {
      switch (op) {
@@ -6076,7 +6151,7 @@ index 72da385..8bb1709 100644
          case kOpRotateActorReq: map_field_locked(v, 0x54, true); break;
          case kOpVaryHPAck: map_field_locked(v, 0x54, false); break;
          case kOpNotifyHandleDeadAck: map_field_locked(v, 0x04, false); break;
-@@ -683,7 +685,7 @@ bool send_enemy(uint32_t key, const char* why, uint32_t epoch = 0) {
+@@ -683,7 +686,7 @@ bool send_enemy(uint32_t key, const char* why, uint32_t epoch = 0) {
      // copy key, our user and player become the receiver's copies of us.
      translate(load, key, copy);
      translate(action, key, copy);
@@ -6085,7 +6160,7 @@ index 72da385..8bb1709 100644
      std::string cleaned;
      if (!sanitize_load(load, copy, cleaned)) {
          std::lock_guard lock(g_mutex);
-@@ -759,7 +761,7 @@ bool send_enemy(uint32_t key, const char* why, uint32_t epoch = 0) {
+@@ -759,7 +762,7 @@ bool send_enemy(uint32_t key, const char* why, uint32_t epoch = 0) {
      log::info("Enemy relay: sending enemy 0x{:08X} \"{}\" as copy 0x{:08X} ({}; {} B load, {} recent actions, {}; "
                "sanitized: {})",
                key, name, copy, why, n, action.size() / kStartActionReqSize,
@@ -6094,7 +6169,7 @@ index 72da385..8bb1709 100644
      return true;
  }
  
-@@ -1093,6 +1095,15 @@ uint32_t enemy_variant(uint32_t key) {
+@@ -1093,6 +1096,15 @@ uint32_t enemy_variant(uint32_t key) {
      return l != g_loads.end() && l->second.size() >= 0x1C ? u32_at(l->second.data() + 0x18) : 0;
  }
  
@@ -6110,7 +6185,7 @@ index 72da385..8bb1709 100644
  uint32_t enemy_copy_of(uint32_t key) {
      std::lock_guard lock(g_mutex);
      auto c = g_sent.find(key);
-@@ -1241,13 +1252,13 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -1241,13 +1253,13 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size) {
          }
          return;
      }
@@ -6127,7 +6202,18 @@ index 72da385..8bb1709 100644
              if (!keys::is_actor_key(t)) break;
              at_us = at_us || (own && t == own) || t == kPuppetPlayer;
          }
-@@ -1557,6 +1568,7 @@ struct WaitingCopy {
+@@ -1354,7 +1366,9 @@ proto::EnemyZoneMsg zone_answer_locked(bool capable) {
+ }
+ }  // namespace
+ 
+-proto::EnemyZoneMsg enemy_on_zone_request(const proto::EnemyZoneMsg& req) {
++proto::EnemyZoneMsg enemy_on_zone_request(const proto::EnemyZoneMsg& in) {
++    proto::EnemyZoneMsg req = in;
++    if (g_zone_copy_test.load()) req.flags &= static_cast<uint8_t>(~proto::EnemyZoneMsg::kDryRun);
+     const bool capable = zone_capable();
+     bool was_relaying = false, relays = false;
+     proto::EnemyZoneMsg answer;
+@@ -1557,6 +1571,7 @@ struct WaitingCopy {
      Bytes hp, dead;
      uint64_t state_delay_ms = 0;
      std::optional<proto::Vec3> pos;  // its latest EnemyPos while waiting (before: its load's place)
@@ -6135,7 +6221,7 @@ index 72da385..8bb1709 100644
  };
  std::deque<WaitingCopy> g_waiting;
  std::map<uint32_t, uint64_t> g_removed_at;  // copy key -> when its copy here was removed
-@@ -1611,9 +1623,9 @@ void no_parent(Bytes& v, size_t off) {
+@@ -1611,9 +1626,9 @@ void no_parent(Bytes& v, size_t off) {
  void scrub_message(uint16_t op, Bytes& v, uint32_t copy, uint32_t own) {
      switch (op) {
          case kOpStartActionReq:
@@ -6148,7 +6234,7 @@ index 72da385..8bb1709 100644
              break;
          case kOpRotateActorReq: no_parent(v, 0x54); break;
          case kOpVaryHPAck: scrub_field(v, 0x54, copy, own); break;
-@@ -1810,9 +1822,22 @@ std::optional<proto::Vec3> spawn_place(const Bytes& spawn) {
+@@ -1810,9 +1825,22 @@ std::optional<proto::Vec3> spawn_place(const Bytes& spawn) {
  // copies came with "0 recent actions", 7 Oct 17:46:35). It waits for its
  // first relayed StartAction (enemy_on_event).
  void load_waiting() {
@@ -6173,7 +6259,7 @@ index 72da385..8bb1709 100644
      // Loading (the tunnel walk into the world): our actor is parked at
      // (0, 1000, 0) (both of Shadow's crashes, 7 Oct).
      if (std::fabs(me->x) < 50.0f && std::fabs(me->z) < 50.0f && std::fabs(me->y - 1000.0f) < 50.0f) return;
-@@ -1820,10 +1845,13 @@ void load_waiting() {
+@@ -1820,10 +1848,13 @@ void load_waiting() {
      for (auto it = g_waiting.begin(); it != g_waiting.end();) {
          if (const auto at = it->pos ? it->pos : spawn_place(it->spawn);
              at && enemy_load::flat_distance(*at, *me) > kMaxLoadDistance) {
@@ -6187,16 +6273,17 @@ index 72da385..8bb1709 100644
              ++it;
              continue;
          }
-@@ -1910,6 +1938,8 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
+@@ -1910,6 +1941,9 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
  }
  
  void enemy_set_receive_enabled(bool on) { g_receive_enabled = on; }
 +void enemy_set_copies_allowed(bool on) { g_copies_allowed = on; }
++void enemy_set_zone_copy_test(bool on) { g_zone_copy_test = on; }
 +void enemy_set_keep_origin(bool on) { g_keep_origin = on; }
  
  namespace {
  // Dead copies whose loot is still ours to take: removed when looted or after
-@@ -1932,6 +1962,14 @@ void remove_copy_now(uint32_t copy) {
+@@ -1932,6 +1966,14 @@ void remove_copy_now(uint32_t copy) {
  
  void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
      if (bytes.size() < 12) return;
@@ -6211,7 +6298,7 @@ index 72da385..8bb1709 100644
      if (!g_receive_enabled) {
          static bool told = false;
          if (!told) log::warn("Enemy relay: the other player's enemy copies are refused (no crash guards)");
-@@ -1979,6 +2017,11 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
+@@ -1979,6 +2021,11 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
          }
          return;
      }
@@ -6224,7 +6311,7 @@ index 72da385..8bb1709 100644
      load_waiting();
  }
 diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.h b/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
-index b09873f..d607f7b 100644
+index b09873f..461c438 100644
 --- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
 +++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
 @@ -34,6 +34,8 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size);
@@ -6236,13 +6323,16 @@ index b09873f..d607f7b 100644
  uint32_t enemy_copy_of(uint32_t key);
  // The reverse: our enemy behind one of the copies we announced, 0 if none.
  uint32_t enemy_original_of(uint32_t copy);
-@@ -90,6 +92,12 @@ std::vector<proto::GameEvent> enemy_host_tick();
+@@ -90,6 +92,15 @@ std::vector<proto::GameEvent> enemy_host_tick();
  // Copies of the other player's enemies are loaded only once their crash
  // guards are installed (mod.cpp).
  void enemy_set_receive_enabled(bool on);
 +// Co-op+: the other player's enemy copies ([coop] enemy_copies, default on). Off, they are refused
 +// with one log line.
 +void enemy_set_copies_allowed(bool on);
++// [dev] zone_copy_test: one-PC test of the guest's whole zone. The echo guest only asks for a dry run (hiding its
++// natives would hide what we copy); with this the host side copies the zone for real anyway, nothing is hidden.
++void enemy_set_zone_copy_test(bool on);
 +// Co-op+ experiment ([dev] enemy_keep_origin=1): do not strip the spawn identity (schedule, sequence,
 +// camp node) from the loads we send.
 +void enemy_set_keep_origin(bool on);
@@ -13815,10 +13905,10 @@ index bd802c7..05bb4f3 100644
  
 diff --git a/upstream/cd-coop-3446/src/mod/net/puppet_visibility.cpp b/upstream/cd-coop-3446/src/mod/net/puppet_visibility.cpp
 new file mode 100644
-index 0000000..b33038a
+index 0000000..3652d05
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/puppet_visibility.cpp
-@@ -0,0 +1,122 @@
+@@ -0,0 +1,195 @@
 +#include "mod/net/puppet_visibility.h"
 +
 +#include <windows.h>
@@ -13831,6 +13921,7 @@ index 0000000..b33038a
 +
 +#include <safetyhook.hpp>
 +
++#include "mod/game/actor_lookup.h"
 +#include "mod/game/offsets.h"
 +#include "mod/game/safe_memory.h"
 +#include "mod/log.h"
@@ -13859,6 +13950,15 @@ index 0000000..b33038a
 +};
 +std::mutex g_mutex;
 +std::unordered_map<uintptr_t, Watch> g_watch;
++
++// Co-op+ (F9): one actor of our world drawn hidden (the NPC opponent at a wrestling table while the other player's
++// copy sits in its place): the hide bits the game itself uses, set through its own flag-change handler, cleared again
++// when released. Bit 20 alone (a loading copy's) did not hide the seated NPC; with bit 2 (the "alpha 0" of hidden
++// party members, enemy_relay.cpp) it is gone (live, 2026-11-03).
++constexpr uint64_t kHideBit = 0x100004;
++std::atomic<uint32_t> g_hide_key{0};
++std::atomic<uintptr_t> g_hidden_actor{0};  // the actor we set the bit on (game thread)
++std::atomic<uint64_t> g_hide_logs{0};
 +
 +bool is_copy(uint32_t key) { return key == kPuppetPlayer || key == kPuppetHorse || is_enemy_copy_key(key); }
 +
@@ -13889,13 +13989,44 @@ index 0000000..b33038a
 +    }
 +}
 +
++// Sets (hide) or clears the bit through the game's own flag-change handler, as show() does.
++bool set_hidden(uintptr_t actor, bool hide) {
++    const uintptr_t status = component(actor, off::kVtStatusComponent);
++    uint64_t flags[2] = {};
++    if (!status || !game::safe_read(status + off::kStatus_HideFlags, flags, sizeof flags)) return false;
++    const uint64_t before = flags[0] | flags[1];
++    const uint64_t a = hide ? flags[0] | kHideBit : flags[0] & ~kHideBit;
++    if (a == flags[0]) return true;
++    __try {
++        *reinterpret_cast<volatile uint64_t*>(status + off::kStatus_HideFlags) = a;
++        reinterpret_cast<FlagsChangedFn>(g_base + off::kStatusFlagsChanged)(status, a | flags[1], before, 0.0f);
++        return true;
++    } __except (EXCEPTION_EXECUTE_HANDLER) {
++        return false;
++    }
++}
++
++// The hidden actor's own step: hide it, or show it again once released.
++void hide_step(uintptr_t actor, uint32_t key) {
++    const uint32_t want = g_hide_key.load();
++    if (want && key == want) {
++        if (g_hidden_actor.load() == actor) return;
++        const bool ok = set_hidden(actor, true);
++        if (ok) g_hidden_actor = actor;
++        if (g_hide_logs.fetch_add(1) < 20) log::info("Puppet: 0x{:08X} hidden{}", key, ok ? "" : " -- FAILED");
++    } else if (g_hidden_actor.load() == actor) {
++        const bool ok = set_hidden(actor, false);
++        g_hidden_actor = 0;
++        if (g_hide_logs.fetch_add(1) < 20) log::info("Puppet: 0x{:08X} shown again{}", key, ok ? "" : " -- FAILED");
++    }
++}
++
 +void on_step(safetyhook::Context& ctx) {
 +    uintptr_t actor = 0;
 +    uint32_t key = 0;
-+    if (!game::safe_read(ctx.rcx + 0x20, &actor, 8) || !actor || !game::safe_read(actor + 0x60, &key, 4) ||
-+        !is_copy(key)) {
-+        return;
-+    }
++    if (!game::safe_read(ctx.rcx + 0x20, &actor, 8) || !actor || !game::safe_read(actor + 0x60, &key, 4)) return;
++    if (g_hide_key.load() || g_hidden_actor.load()) hide_step(actor, key);
++    if (!is_copy(key)) return;
 +    uint16_t state = 0;
 +    if (!game::safe_read(actor + 0x5E, &state, 2) || state != kLoaded) return;  // not loaded yet: next frame
 +    {
@@ -13924,6 +14055,38 @@ index 0000000..b33038a
 +
 +}  // namespace
 +
++void puppet_hide_tick() {
++    const uint32_t key = g_hide_key.load();
++    if (!key) return;
++    const auto actor = game::find_actor(key);
++    if (!actor) return;
++    const uintptr_t status = component(*actor, off::kVtStatusComponent);
++    uint64_t flags[2] = {};
++    if (!status || !game::safe_read(status + off::kStatus_HideFlags, flags, sizeof flags)) return;
++    // The game clears bit 20 again within ~2 s (live, 2026-11-03), and the actor may not have existed yet when
++    // puppet_hide_actor ran: set the bits whenever one is missing.
++    if (((flags[0] | flags[1]) & kHideBit) != kHideBit && set_hidden(*actor, true)) g_hidden_actor = *actor;
++}
++
++void puppet_hide_actor(uint32_t key) {
++    const uint32_t before = g_hide_key.exchange(key);
++    if (before == key) return;
++    log::info("Puppet: {} 0x{:08X}", key ? "hiding" : "no longer hiding", key ? key : before);
++    // A seated minigame NPC runs no movement step (2026-11-03): applied from here as well, through the same handler.
++    if (key) {
++        if (const auto actor = game::find_actor(key); actor && g_hidden_actor.load() != *actor) {
++            const bool ok = set_hidden(*actor, true);
++            if (ok) g_hidden_actor = *actor;
++            log::info("Puppet: 0x{:08X} hidden{}", key, ok ? "" : " -- FAILED");
++        }
++    } else if (const uintptr_t actor = g_hidden_actor.exchange(0)) {
++        // Only while it still exists (the game unspawns the opponent at the end of the match).
++        const auto now = game::find_actor(before);
++        const bool ok = now && *now == actor && set_hidden(actor, false);
++        log::info("Puppet: 0x{:08X} {}", before, ok ? "shown again" : "gone already");
++    }
++}
++
 +bool puppet_visibility_install() {
 +    if (g_hook) return true;
 +    g_base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
@@ -13943,10 +14106,10 @@ index 0000000..b33038a
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/puppet_visibility.h b/upstream/cd-coop-3446/src/mod/net/puppet_visibility.h
 new file mode 100644
-index 0000000..dae629f
+index 0000000..e100785
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/puppet_visibility.h
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,23 @@
 +#pragma once
 +// Co-op+: makes the copies we load (the other player's character, enemy copies) visible.
 +//
@@ -13956,14 +14119,22 @@ index 0000000..dae629f
 +// handler, which sets the alpha back to 1 and applies it. It runs on the game thread, from the
 +// copy's own per-frame movement step.
 +
++#include <cstdint>
++
 +namespace cdmp::net {
 +
 +// Hooks the movement step; false (and a WRN) if the game build does not match.
 +bool puppet_visibility_install();
 +
++// Co-op+ (F9): draws this actor of our own world hidden (0 = none; the previous one is shown again, if it still
++// exists). Used for the NPC opponent whose seat the other player's copy takes. Any thread.
++void puppet_hide_actor(uint32_t key);
++// Every tick while an actor is hidden: the game clears the bits after a while; sets them again.
++void puppet_hide_tick();
++
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
-index 1754b2d..895b276 100644
+index 1754b2d..8c27206 100644
 --- a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 @@ -1,4 +1,5 @@
@@ -13988,7 +14159,55 @@ index 1754b2d..895b276 100644
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
  constexpr uint32_t kPuppetBody = 0xB010F001;
  // The sender's horse (caballo-coop.md §2.3) and the extra member of the
-@@ -419,53 +422,55 @@ void rebase_timestamp(Bytes& ack, size_t off) {
+@@ -159,6 +162,47 @@ bool has_foreign_key(const Bytes& v) {
+ // with the real geometry.
+ std::atomic<float> g_offset_x{0.0f};
+ 
++// Co-op+ (F9): while on, the copy is drawn at this transform whatever the sender's own position is (the NPC
++// opponent's seat at a wrestling table: the sender sits in the player's seat of its own table, and both seats play
++// the same actions, so its actions there make it our opponent). Network thread and the activity tick.
++struct SeatPose {
++    bool on = false;
++    float pos[3] = {};
++    float rot[4] = {0, 0, 0, 1};
++};
++std::mutex g_seat_mutex;
++SeatPose g_seat;
++float g_seat_saved_offset = 0.0f;
++
++// Moves and actions get the seat's transform; rotations are dropped (their position field would pull the copy
++// back to the sender's spot). True = drop the event.
++bool apply_seat(proto::EventKind kind, Bytes& p) {
++    SeatPose s;
++    {
++        std::lock_guard lock(g_seat_mutex);
++        s = g_seat;
++    }
++    if (!s.on) return false;
++    const auto put = [&](size_t pos_at, size_t rot_at) {
++        if (pos_at + 12 <= p.size()) std::memcpy(p.data() + pos_at, s.pos, 12);
++        if (rot_at + 16 <= p.size()) std::memcpy(p.data() + rot_at, s.rot, 16);
++    };
++    switch (kind) {
++        case proto::EventKind::Move:
++            put(wire::kMovePos, wire::kMoveRot);
++            put(wire::kMoveLocalPos, wire::kMoveLocalRot);
++            return false;
++        case proto::EventKind::StartAction:
++            put(wire::kActionPos, wire::kActionRot);
++            put(wire::kActionLocalPos, wire::kActionMoveData + wire::kMoveLocalRot - 4);
++            return false;
++        case proto::EventKind::Rotate:
++            return true;
++        default:
++            return false;
++    }
++}
++
+ uint64_t steady_ms() {
+     return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                      std::chrono::steady_clock::now().time_since_epoch())
+@@ -419,53 +463,55 @@ void rebase_timestamp(Bytes& ack, size_t off) {
      std::memcpy(ack.data() + off, &ts, 8);
  }
  
@@ -14081,7 +14300,7 @@ index 1754b2d..895b276 100644
      return ack;
  }
  
-@@ -591,7 +596,9 @@ std::atomic<float> g_end_gap_copy{-1.0f}, g_end_gap_ours{-1.0f};  // |B - target
+@@ -591,7 +637,9 @@ std::atomic<float> g_end_gap_copy{-1.0f}, g_end_gap_ours{-1.0f};  // |B - target
  bool g_rope_lookup_faulted = false;
  // ReleaseRemoteCatchResultAck: u32 catcher | u8 slot | u8 reason (reader
  // 0xB5BD60 -> 0x5A7A10; the game's own releases use reason 2).
@@ -14092,7 +14311,7 @@ index 1754b2d..895b276 100644
  constexpr uint8_t kReleaseReason = 2;
  
  std::string scene_text(const SceneId& id) {
-@@ -719,13 +726,13 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
+@@ -719,13 +767,13 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
      if (g_gap_ref_stale.exchange(false)) return;  // reloaded since that Move (5 Oct: 1-7 m jumps)
      if (g_last_move.empty()) return;
      uint64_t ts_next = 0;
@@ -14109,7 +14328,7 @@ index 1754b2d..895b276 100644
      const float dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
      const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
      if (dist < kGapMinJump || dist > kGapMaxJump) return;
-@@ -762,17 +769,17 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
+@@ -762,17 +810,17 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
      AcquireSRWLockExclusive(&g_queue_lock);
      for (Pending& item : g_queue) {
          Bytes& pk = item.packet;
@@ -14130,7 +14349,7 @@ index 1754b2d..895b276 100644
              float v[3];
              std::memcpy(v, pk.data() + 5 + at, sizeof v);
              const float ex = v[0] - (a[0] + g_offset_x), ey = v[1] - a[1], ez = v[2] - a[2];
-@@ -794,10 +801,10 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
+@@ -794,10 +842,10 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
          float p[3];
          path_at(f, p);
          Bytes req = g_last_move;
@@ -14144,7 +14363,7 @@ index 1754b2d..895b276 100644
          auto ack = move_ack(req);
          if (!ack) return;
          // Due when the original sample would have been: received at the time
-@@ -1158,6 +1165,7 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
+@@ -1158,6 +1206,7 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
          g_horse_spawned = true;
          g_src_horse_key = info.horse_key;
      }
@@ -14152,7 +14371,7 @@ index 1754b2d..895b276 100644
      log::info("Puppet: spawn queued at ({:.1f}, {:.1f}, {:.1f}) (2 packets, {} + {} bytes, "
                "sender player 0x{:08X}, generation {})",
                pos[0], pos[1], pos[2], user.size(), body.size(), info.player_key, info.generation);
-@@ -1192,6 +1200,8 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
+@@ -1192,6 +1241,8 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
      return true;
  }
  
@@ -14161,7 +14380,7 @@ index 1754b2d..895b276 100644
  bool puppet_remove() {
      {
          std::lock_guard lock(g_mutex);
-@@ -1296,10 +1306,12 @@ bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vecto
+@@ -1296,10 +1347,12 @@ bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vecto
          if (const uint64_t est = capture_game_clock_ms()) game_now = est;  // the estimate (clock read off)
      }
      int with_action = 0;
@@ -14177,7 +14396,7 @@ index 1754b2d..895b276 100644
              enqueue_at(make_packet(off::kOpStartActionAck, *ack), now, /*movement=*/false);
              ++with_action;
          }
-@@ -1308,18 +1320,18 @@ bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vecto
+@@ -1308,18 +1361,18 @@ bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vecto
      // without one the first copies loaded but never showed (live test). One
      // still sample where it stands, built on the other player's last Move.
      bool with_move = false;
@@ -14205,7 +14424,7 @@ index 1754b2d..895b276 100644
          float ref[3];
          std::memcpy(ref, g_ref_pos, sizeof ref);  // the sender's reference stays
          auto ack = move_ack(m);
-@@ -1342,21 +1354,21 @@ std::map<uint32_t, std::array<float, 3>> g_enemy_pos;
+@@ -1342,21 +1395,21 @@ std::map<uint32_t, std::array<float, 3>> g_enemy_pos;
  
  void puppet_enemy_move(uint32_t copy_key, uint64_t ts, const proto::Vec3& pos, const proto::Quat& rot,
                         int64_t ts_shift_ms, uint64_t delay_ms) {
@@ -14237,7 +14456,7 @@ index 1754b2d..895b276 100644
      g_enemy_pos[copy_key] = {p[0], p[1], p[2]};
      float ref[3];
      std::memcpy(ref, g_ref_pos, sizeof ref);
-@@ -1454,6 +1466,27 @@ void puppet_map_pin(uint32_t owner, const std::optional<proto::Vec3>& pos, bool
+@@ -1454,6 +1507,27 @@ void puppet_map_pin(uint32_t owner, const std::optional<proto::Vec3>& pos, bool
      enqueue_at(make_packet(off::kOpCreateOrChangePinMarkerAck, c), now, /*movement=*/false);
  }
  
@@ -14265,7 +14484,7 @@ index 1754b2d..895b276 100644
  std::optional<proto::Vec3> puppet_position() {
      if (!puppet_spawned()) return std::nullopt;
      return game::actor_world_position(kPuppetPlayer);
-@@ -1471,17 +1504,17 @@ void ride_horse(const Bytes& rider_req, uint64_t now, uint64_t delay_ms) {
+@@ -1471,17 +1545,17 @@ void ride_horse(const Bytes& rider_req, uint64_t now, uint64_t delay_ms) {
      if (!g_horse_spawned) return;
      Bytes h = rider_req;
      std::memcpy(h.data() + 0x00, &kPuppetHorse, 4);
@@ -14292,7 +14511,7 @@ index 1754b2d..895b276 100644
      if (!std::isfinite(hp[0]) || (hp[0] == 0.0f && hp[2] == 0.0f)) return;
      float ref[3];
      std::memcpy(ref, g_ref_pos, sizeof ref);  // keep the rider's reference position
-@@ -1561,7 +1594,7 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1561,7 +1635,7 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
      const uint32_t src = g_src_player_key;
      Bytes payload = ev.payload;
      // Moves arrive without their unused trailing history (local_capture emit).
@@ -14301,7 +14520,13 @@ index 1754b2d..895b276 100644
      // The actor key leads every payload, after a fragment marker byte in
      // OtherEquipItemAck.
      const size_t key_at = ev.kind == proto::EventKind::Equip   ? 1
-@@ -1602,21 +1635,21 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1597,26 +1671,27 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+         horse_event(ev.kind, payload, now, move_hold);
+         return;
+     }
++    if (apply_seat(ev.kind, payload)) return;
+ 
+     uint16_t ack_op = 0;
      std::optional<Bytes> ack;
      switch (ev.kind) {
          case proto::EventKind::Move:
@@ -14328,7 +14553,7 @@ index 1754b2d..895b276 100644
                  const uint32_t horse = g_sender_horse;
                  const bool riding = horse && (parent == kPuppetHorse || parent == horse);
                  if (riding) {
-@@ -1642,9 +1675,9 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1642,9 +1717,9 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
          case proto::EventKind::StartAction:
              // A StartAction right after a filled climb-up that still carries the
              // frozen start position: move it to where the sender ended up.
@@ -14340,7 +14565,7 @@ index 1754b2d..895b276 100644
                          float v[3];
                          std::memcpy(v, payload.data() + at, sizeof v);
                          const float ex = v[0] - g_recent_gap.start[0], ey = v[1] - g_recent_gap.start[1],
-@@ -1773,14 +1806,16 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1773,14 +1848,16 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
          }
      }
      if (!ack) {
@@ -14359,7 +14584,7 @@ index 1754b2d..895b276 100644
          const uint64_t due = action_due(now + g_action_hold);
          if (ev.kind == proto::EventKind::StartAction && !is_horse && g_copy_hooked && payload.size() >= 12) {
              const uint32_t next = u32_at(payload, 8);
-@@ -2045,8 +2080,8 @@ void puppet_tick() {
+@@ -2045,8 +2122,8 @@ void puppet_tick() {
  bool movement_ts(const Bytes& pk, size_t& at, InjectClock::Buffer& buffer) {
      if (pk.size() < 5 + 4) return false;
      const uint16_t op = static_cast<uint16_t>(pk[0] | (pk[1] << 8));
@@ -14370,7 +14595,7 @@ index 1754b2d..895b276 100644
      else if (op == off::kOpRotateActorAck) at = 5 + 0x9C, buffer = InjectClock::Buffer::Rotation;
      else return false;
      return pk.size() >= at + 8;
-@@ -2469,12 +2504,13 @@ bool puppet_take_injection(std::vector<uint8_t>& out) {
+@@ -2469,12 +2546,13 @@ bool puppet_take_injection(std::vector<uint8_t>& out) {
          break;
      }
      if (has) {
@@ -14387,8 +14612,36 @@ index 1754b2d..895b276 100644
                  g_told_x.store(g_told_pos[0], std::memory_order_relaxed);
                  g_told_z.store(g_told_pos[2], std::memory_order_relaxed);
                  g_told_ms = now;
+@@ -2566,6 +2644,27 @@ void puppet_set_offset(float metres) {
+ 
+ float puppet_offset_m() { return g_offset_x.load(); }
+ 
++void puppet_set_seat(const std::optional<proto::Vec3>& pos, const proto::Quat& rot) {
++    std::lock_guard lock(g_seat_mutex);
++    if (pos.has_value() == g_seat.on) {
++        if (pos) {
++            g_seat.pos[0] = pos->x, g_seat.pos[1] = pos->y, g_seat.pos[2] = pos->z;
++            g_seat.rot[0] = rot.x, g_seat.rot[1] = rot.y, g_seat.rot[2] = rot.z, g_seat.rot[3] = rot.w;
++        }
++        return;
++    }
++    if (pos) {
++        g_seat = {true, {pos->x, pos->y, pos->z}, {rot.x, rot.y, rot.z, rot.w}};
++        // The seat is the sender's place here: no sideways offset (the one-PC test's) while it sits there.
++        g_seat_saved_offset = g_offset_x.exchange(0.0f);
++        log::info("Puppet: the copy takes the seat at ({:.2f}, {:.2f}, {:.2f})", pos->x, pos->y, pos->z);
++    } else {
++        g_seat.on = false;
++        g_offset_x = g_seat_saved_offset;
++        log::info("Puppet: the copy leaves the seat");
++    }
++}
++
+ void puppet_observe_s2c(const uint8_t* packet, size_t size) {
+     if (size < 5 + 22) return;
+     uint16_t op = 0;
 diff --git a/upstream/cd-coop-3446/src/mod/net/remote_puppet.h b/upstream/cd-coop-3446/src/mod/net/remote_puppet.h
-index 7f8f56d..0d48bbd 100644
+index 7f8f56d..7ee9e5b 100644
 --- a/upstream/cd-coop-3446/src/mod/net/remote_puppet.h
 +++ b/upstream/cd-coop-3446/src/mod/net/remote_puppet.h
 @@ -25,6 +25,9 @@ namespace cdmp::net {
@@ -14410,6 +14663,17 @@ index 7f8f56d..0d48bbd 100644
  
  // Replays one event on the puppet.
  //   ts_shift_ms: added to the event's timestamps to express them on THIS
+@@ -96,6 +101,10 @@ bool puppet_install_layer_guards();
+ void puppet_set_offset(float metres);
+ float puppet_offset_m();
+ 
++// Co-op+ (F9): while `pos` is set the copy is drawn at that transform (the NPC opponent's seat at a wrestling table
++// in a versus match), whatever the sender's position; nullopt = the sender's own position again. Any thread.
++void puppet_set_seat(const std::optional<proto::Vec3>& pos, const proto::Quat& rot = {});
++
+ // Sniffer writer thread, every server->client packet: which scene objects
+ // (trees) are loaded as gimmicks here, for the other player's tree hook.
+ void puppet_observe_s2c(const uint8_t* packet, size_t size);
 diff --git a/upstream/cd-coop-3446/src/mod/net/revive_prompt.cpp b/upstream/cd-coop-3446/src/mod/net/revive_prompt.cpp
 new file mode 100644
 index 0000000..d0c7ed4

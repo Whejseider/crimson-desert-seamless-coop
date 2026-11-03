@@ -1434,6 +1434,7 @@ DWORD WINAPI worker(LPVOID) {
         net::activity_set_skip_test(cfg.dev_skip_test);
         if (cfg.dev_trace_op) net::sniffer_set_trace_op(static_cast<uint16_t>(cfg.dev_trace_op));
         net::activity_set_versus_test(static_cast<int>(cfg.dev_versus_test));
+        net::activity_set_seat_test(cfg.dev_seat_test);
         net::weather_set_enabled(cfg.coop_weather_sync);
         net::weather_set_test(cfg.dev_weather_test);
         net::cinema_set_enabled(cfg.coop_stage_cinema);
@@ -1443,6 +1444,7 @@ DWORD WINAPI worker(LPVOID) {
         net::duel_set_test(cfg.dev_duel_test);
         net::party_quests_set_test(cfg.dev_quest_test);
         net::hunt_set_test(cfg.dev_hunt_test);
+        net::enemy_set_zone_copy_test(cfg.dev_zone_copy_test);
         input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
         input::set_sim(cfg.dev_pad_sim);
         if (cfg.dev_boss_hp) {

@@ -101,6 +101,10 @@ bool puppet_install_layer_guards();
 void puppet_set_offset(float metres);
 float puppet_offset_m();
 
+// Co-op+ (F9): while `pos` is set the copy is drawn at that transform (the NPC opponent's seat at a wrestling table
+// in a versus match), whatever the sender's position; nullopt = the sender's own position again. Any thread.
+void puppet_set_seat(const std::optional<proto::Vec3>& pos, const proto::Quat& rot = {});
+
 // Sniffer writer thread, every server->client packet: which scene objects
 // (trees) are loaded as gimmicks here, for the other player's tree hook.
 void puppet_observe_s2c(const uint8_t* packet, size_t size);

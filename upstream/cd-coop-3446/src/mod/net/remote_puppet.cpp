@@ -162,6 +162,47 @@ bool has_foreign_key(const Bytes& v) {
 // with the real geometry.
 std::atomic<float> g_offset_x{0.0f};
 
+// Co-op+ (F9): while on, the copy is drawn at this transform whatever the sender's own position is (the NPC
+// opponent's seat at a wrestling table: the sender sits in the player's seat of its own table, and both seats play
+// the same actions, so its actions there make it our opponent). Network thread and the activity tick.
+struct SeatPose {
+    bool on = false;
+    float pos[3] = {};
+    float rot[4] = {0, 0, 0, 1};
+};
+std::mutex g_seat_mutex;
+SeatPose g_seat;
+float g_seat_saved_offset = 0.0f;
+
+// Moves and actions get the seat's transform; rotations are dropped (their position field would pull the copy
+// back to the sender's spot). True = drop the event.
+bool apply_seat(proto::EventKind kind, Bytes& p) {
+    SeatPose s;
+    {
+        std::lock_guard lock(g_seat_mutex);
+        s = g_seat;
+    }
+    if (!s.on) return false;
+    const auto put = [&](size_t pos_at, size_t rot_at) {
+        if (pos_at + 12 <= p.size()) std::memcpy(p.data() + pos_at, s.pos, 12);
+        if (rot_at + 16 <= p.size()) std::memcpy(p.data() + rot_at, s.rot, 16);
+    };
+    switch (kind) {
+        case proto::EventKind::Move:
+            put(wire::kMovePos, wire::kMoveRot);
+            put(wire::kMoveLocalPos, wire::kMoveLocalRot);
+            return false;
+        case proto::EventKind::StartAction:
+            put(wire::kActionPos, wire::kActionRot);
+            put(wire::kActionLocalPos, wire::kActionMoveData + wire::kMoveLocalRot - 4);
+            return false;
+        case proto::EventKind::Rotate:
+            return true;
+        default:
+            return false;
+    }
+}
+
 uint64_t steady_ms() {
     return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                      std::chrono::steady_clock::now().time_since_epoch())
@@ -1630,6 +1671,7 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
         horse_event(ev.kind, payload, now, move_hold);
         return;
     }
+    if (apply_seat(ev.kind, payload)) return;
 
     uint16_t ack_op = 0;
     std::optional<Bytes> ack;
@@ -2601,6 +2643,27 @@ void puppet_set_offset(float metres) {
 }
 
 float puppet_offset_m() { return g_offset_x.load(); }
+
+void puppet_set_seat(const std::optional<proto::Vec3>& pos, const proto::Quat& rot) {
+    std::lock_guard lock(g_seat_mutex);
+    if (pos.has_value() == g_seat.on) {
+        if (pos) {
+            g_seat.pos[0] = pos->x, g_seat.pos[1] = pos->y, g_seat.pos[2] = pos->z;
+            g_seat.rot[0] = rot.x, g_seat.rot[1] = rot.y, g_seat.rot[2] = rot.z, g_seat.rot[3] = rot.w;
+        }
+        return;
+    }
+    if (pos) {
+        g_seat = {true, {pos->x, pos->y, pos->z}, {rot.x, rot.y, rot.z, rot.w}};
+        // The seat is the sender's place here: no sideways offset (the one-PC test's) while it sits there.
+        g_seat_saved_offset = g_offset_x.exchange(0.0f);
+        log::info("Puppet: the copy takes the seat at ({:.2f}, {:.2f}, {:.2f})", pos->x, pos->y, pos->z);
+    } else {
+        g_seat.on = false;
+        g_offset_x = g_seat_saved_offset;
+        log::info("Puppet: the copy leaves the seat");
+    }
+}
 
 void puppet_observe_s2c(const uint8_t* packet, size_t size) {
     if (size < 5 + 22) return;

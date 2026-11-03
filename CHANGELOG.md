@@ -61,9 +61,10 @@ Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC
 - The name tag is no longer drawn on top of the map, inventory, journal or pause menu.
 - Enemies are recognised again: since 1.0.0.3460 every enemy was rejected (a field the mod reads moved by 4
   bytes), so the shared-enemy feature could never start. Bandits now pass the check on both sides.
-- Copies of the other player's enemies are OFF for now (`[dev] enemy_copies=1` turns them on for testing): on
-  1.0.0.3479 a copy crashes the game right after it loads. Until that is fixed, each player fights the enemies of
-  their own world; nothing is hidden.
+- Shared enemies work on 1.0.0.3479: the guest sees the host's enemies (its own there are hidden) and both can
+  fight them. The crash of a copy right after loading is fixed; re-tested with 33 enemy copies at once.
+- Arm / hand wrestling: during a challenge your friend's character sits in the opponent's chair (the game's NPC
+  opponent is hidden for the match).
 - The game's clock could never be read (an address check compared the wrong numbers); the mod now falls back to
   estimating it, as designed, instead of waiting forever.
 

@@ -30,6 +30,7 @@ A = host (you), B = friend. Both on game 1.0.0.3479, both installed from the SAM
 ## 3. Fighting together (20 min)
 Go somewhere with ordinary enemies near A (a bandit camp).
 - [ ] B sees A's enemies; B's own enemies there are gone (and come back when B walks 250 m away).
+- [ ] Both count the bandits in the camp: the same number in the same places (D45; one PC loaded 33 copies at once).
 - [ ] B hits an enemy: its HP drops on A's screen too; B can finish it.
 - [ ] Enemies attack either player (usually whoever hit them last); their blows hurt B for real.
 - [ ] **No friendly fire (A11):** A and B swing at each other for a while: nobody loses HP.
@@ -80,6 +81,9 @@ with two real players, that is good news (the one-PC test clones your own charac
    both see the same Victory / Defeat. Tell me if a kill did not count (the log line "Hunt: we brought down").
 2. Hernand pub (game time ~10:27-10:58, the host's time is used): both at the arm wrestling table; host Shift+F5,
    guest accepts; both hold R then E at the table; mash E: the faster one must win on BOTH screens; series toast.
+   [ ] During the match each sees the OTHER player in the opponent's chair (not the game's NPC), arms locked; after
+   the match the NPC is back and the friend stands up. (D46; with the one-PC peer the table sometimes stayed empty:
+   note if it is unstaffed while connected.)
 3. Shift+F6 on an invite declines it; Shift+F5 during a challenge ends it ("Final series").
 4. Weather: both screens show the same sky / rain (the host's).
 5. Boss / story cutscene: walk into one together; the guest should see the same cinematic; it skips only when both

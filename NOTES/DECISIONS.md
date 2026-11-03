@@ -343,3 +343,32 @@
   in the last 8 s (guest_hits_we_hit). KillCheatReq gets no answer on the ambient animals, so the one-PC test could not
   produce a kill: verified in game are the picker, countdown, timer line, result card, series and next round
   (hunt3); the kill count is for the playtest (PLAYTEST-1 1c).
+
+## 2026-11-03 D45: Shared enemies re-verified on 3479 (user: "priority #1")
+- The CHANGELOG still said enemy copies were OFF (written 2026-11-01 17:10, before the crash fix of 17:15-19:55 that
+  guarded the three crash paths of actionless copies and turned copies on by default, D25). They have been on since.
+  CHANGELOG and README corrected.
+- Re-verified with the current build (one PC, echo peer, bandits test save):
+  * enemy1: walking into the Rodbel bandit camp: copies of the bandits fighting us loaded beside them, no crash.
+  * zone3 ([dev] zone_copy_test=1, new): the guest's whole 150 m zone copied at once as in a real session (the echo
+    guest otherwise asks only for a dry run, since hiding its natives would hide what it copies): 33 bandit copies
+    loaded over 75 s, no crash, game alive; the real hiding of the guest's natives was verified separately on 11-01
+    (suppress lab, 25 hidden and restored).
+- What only two PCs show: the guest seeing exactly the host's set while its own are hidden, and kills on both sides.
+
+## 2026-11-03 D46: The friend in the NPC opponent's seat at arm / hand wrestling (F9 done)
+- Capture 2026-11-02: in a match the player (seat A) and the spawned NPC opponent (seat B, 1.07 m away, yaw +180)
+  play the SAME action hashes (837487D4, 35DD392F...). The other player sits in seat A of their own table, so their
+  copy, drawn at seat B's transform with their own actions, is our opponent.
+- coop_activity: the NPC is the second JoinMiniGameReq of the match (not our key); its transform comes from our
+  client's own StartActionReq for it. While our wrestling match runs and the other player is in a minigame inside an
+  accepted wrestling challenge, puppet_set_seat(NPC transform) (remote_puppet: Move / StartAction get that position
+  and rotation, RotateActor dropped, sideways offset 0) and puppet_hide_actor(NPC).
+- Hiding: Status hide bits through the game's own flag-change handler, from the network thread (a seated minigame NPC
+  runs no movement step, so the step hook never saw it). Bit 20 alone did not hide it; 0x100004 (+ bit 2, the
+  "alpha 0" of hidden party members) did; the game clears them within ~2 s, so they are set again every tick. Shown
+  again at the end of the match (before the game unspawns the NPC).
+- Verified on one PC (late4/late5, [dev] seat_test=1: the seat in any wrestling match; the echo peer started after
+  the match began): the copy sits in the opponent's chair gripping hands, the Hernandian Guard is gone for the match
+  and back after. With the echo peer present from the start the pub table stayed unstaffed in 7 runs today (staffed at
+  every hour without it, and with it on 11-03 01:20): noted, not chased (echo-only setup; check on two PCs).

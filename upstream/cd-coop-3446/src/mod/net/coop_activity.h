@@ -54,6 +54,9 @@ void activity_set_skip_test(bool on);
 // [dev] versus_test: one-PC test of versus arm wrestling: a simulated other player in every match of ours, pushing
 // this many times a second (0 = off).
 void activity_set_versus_test(int presses_per_s);
+// [dev] seat_test: in any arm / hand wrestling match against the NPC (no versus, no challenge), the other player's
+// copy takes the NPC's seat and the NPC is hidden (F9 one-PC test: the echo copy plays our own actions there).
+void activity_set_seat_test(bool on);
 
 // [dev] challenge_test: one-PC test of challenges: 1 = a simulated other player accepts our Shift+F5 invite after
 // 2 s; 2 = also Shift+F6 (with nothing pending) makes them challenge us to a rock-paper-scissors duel.

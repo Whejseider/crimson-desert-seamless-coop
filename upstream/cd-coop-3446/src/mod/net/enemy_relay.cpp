@@ -194,6 +194,7 @@ bool valid_size(uint16_t op, size_t n) {
 
 std::atomic<bool> g_receive_enabled{false};
 std::atomic<bool> g_copies_allowed{false};  // Co-op+: [dev] enemy_copies (enemy_relay.h)
+std::atomic<bool> g_zone_copy_test{false};  // [dev] zone_copy_test (enemy_relay.h)
 std::atomic<bool> g_keep_origin{false};     // Co-op+: [dev] enemy_keep_origin (enemy_relay.h)
 // kNoVariant is declared in enemy_relay.h: loot_twin enforces it too.
 std::map<uint32_t, bool> g_copies;          // copy keys loaded here
@@ -1365,7 +1366,9 @@ proto::EnemyZoneMsg zone_answer_locked(bool capable) {
 }
 }  // namespace
 
-proto::EnemyZoneMsg enemy_on_zone_request(const proto::EnemyZoneMsg& req) {
+proto::EnemyZoneMsg enemy_on_zone_request(const proto::EnemyZoneMsg& in) {
+    proto::EnemyZoneMsg req = in;
+    if (g_zone_copy_test.load()) req.flags &= static_cast<uint8_t>(~proto::EnemyZoneMsg::kDryRun);
     const bool capable = zone_capable();
     bool was_relaying = false, relays = false;
     proto::EnemyZoneMsg answer;
@@ -1939,6 +1942,7 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
 
 void enemy_set_receive_enabled(bool on) { g_receive_enabled = on; }
 void enemy_set_copies_allowed(bool on) { g_copies_allowed = on; }
+void enemy_set_zone_copy_test(bool on) { g_zone_copy_test = on; }
 void enemy_set_keep_origin(bool on) { g_keep_origin = on; }
 
 namespace {

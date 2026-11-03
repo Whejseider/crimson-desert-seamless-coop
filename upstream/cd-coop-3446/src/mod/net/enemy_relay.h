@@ -95,6 +95,9 @@ void enemy_set_receive_enabled(bool on);
 // Co-op+: the other player's enemy copies ([coop] enemy_copies, default on). Off, they are refused
 // with one log line.
 void enemy_set_copies_allowed(bool on);
+// [dev] zone_copy_test: one-PC test of the guest's whole zone. The echo guest only asks for a dry run (hiding its
+// natives would hide what we copy); with this the host side copies the zone for real anyway, nothing is hidden.
+void enemy_set_zone_copy_test(bool on);
 // Co-op+ experiment ([dev] enemy_keep_origin=1): do not strip the spawn identity (schedule, sequence,
 // camp node) from the loads we send.
 void enemy_set_keep_origin(bool on);
