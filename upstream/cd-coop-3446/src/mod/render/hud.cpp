@@ -18,6 +18,7 @@
 #include "mod/render/dx12_hook.h"
 #include "mod/input/actions.h"
 #include "mod/render/game_ui.h"
+#include "mod/settings_menu.h"
 
 namespace cdmp::render {
 namespace {
@@ -163,6 +164,12 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
         ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
     }
     if (!d.coop_hint.empty()) ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.6f, 1), "%s", d.coop_hint.c_str());
+    // Co-op+ (T30/T40): the settings (settings_menu.h).
+    ImGui::Separator();
+    for (const auto& l : settings::lines()) {
+        if (l.selected) ImGui::TextColored(ImVec4(0.91f, 0.78f, 0.51f, 1), "%s", l.text.c_str());
+        else ImGui::TextDisabled("%s", l.text.c_str());
+    }
     ImGui::End();
 }
 
@@ -219,6 +226,7 @@ void hud_draw(float width, float height) {
     // ---- status panel
     float remote_distance = 0;
     if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
+    settings::set_panel_open(panel_visible && opt.build_problem.empty());
     if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure(), problems);
     if (problem_fresh && !panel_visible && opt.build_problem.empty()) {
         for (size_t i = 0; i < problems.size(); ++i) {

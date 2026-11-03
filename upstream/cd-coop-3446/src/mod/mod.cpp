@@ -63,6 +63,7 @@
 #include "mod/net/troc_sniffer.h"
 #include "mod/render/dx12_hook.h"
 #include "mod/render/hud.h"
+#include "mod/settings_menu.h"
 #ifdef CDMP_COOPPLUS_SIM
 #include "sim/config.hpp"
 #endif
@@ -761,7 +762,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                         up_at = 0;
                         const float dx = s.position.x - died_at.x, dz = s.position.z - died_at.z;
                         const auto& rs = session.remote_state();
-                        if (cfg.coop_respawn_at_partner && connected && rs && rs->health > 0 && dx * dx + dz * dz > 50.0f * 50.0f) {
+                        if (settings::respawn_at_partner() && connected && rs && rs->health > 0 && dx * dx + dz * dz > 50.0f * 50.0f) {
                             net::revive_teleport_to(rs->pos.x + 1.0f, rs->pos.y + 0.5f, rs->pos.z);
                             toast = "Co-op\nBack to " + session.peer_name();
                             toast_until = now + 4000;
@@ -1667,7 +1668,26 @@ DWORD WINAPI worker(LPVOID) {
         // on a stage boss kills it outside the host's script, which leaves the
         // host's quest stuck behind the arena barrier.
         net::boss_set_safe_mode(cfg.coop_boss_safe);
-        net::scaling_configure(scaling_settings(cfg, dir));
+        {
+            scaling::Settings sc = scaling_settings(cfg, dir);
+            // Co-op+ (T40): the multipliers set in the F8 settings win over scaling.toml's 2-player values.
+            const auto panel_value = [&](const wchar_t* key) {
+                wchar_t buf[32] = {};
+                GetPrivateProfileStringW(L"scaling", key, L"0", buf, 32, (dir + L"cdmp.ini").c_str());
+                const float v = std::wcstof(buf, nullptr);
+                return v >= 1.0f && v <= 4.0f ? v : 0.0f;
+            };
+            if (const float v = panel_value(L"panel_health_2p")) sc.health_2p = sc.health[2] = v;
+            if (const float v = panel_value(L"panel_boss_health_2p")) sc.boss_health_2p = sc.boss_health[2] = v;
+            net::scaling_configure(sc);
+            settings::init(dir + L"cdmp.ini", cfg, sc.health[2] > 0 ? sc.health[2] : sc.health_2p,
+                           sc.boss_health[2] > 0 ? sc.boss_health[2] : sc.boss_health_2p);
+            // Co-op+ (T30): rebound hotkeys, and what is wrong with them.
+            for (const auto& w : input::load_bindings(dir + L"cdmp.ini")) {
+                log::warn("Keys: {}", w);
+                g_compat_note += (g_compat_note.empty() ? std::string() : std::string("\n")) + "Keys: " + w;
+            }
+        }
         net::save_guard_configure(cfg.coop_save_guard);
         net::room_set_invite_only(cfg.net_join_invite_only);
         net::load_trace_set_mode(cfg.dev_load_trace);

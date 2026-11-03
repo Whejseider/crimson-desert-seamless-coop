@@ -305,3 +305,17 @@ Done: errors_test (build/port3479): A guest with no host, 60 s after load: panel
 games running with a save loaded, the same Co-op+ zip, Steam online. Still stuck: Ctrl+F2, then Join Game again.";
 B stand-in host joins: the line is gone; C stand-in drops: notice "Lost the connection to cdmp_peer (relay)'s world.
 Reconnecting by itself; [Ctrl][F2] goes back to your own world" (key glyphs drawn). docs/error-messages.md. [x]
+- Pushed T29 (ca3eeee).
+
+## T30 -- Settings and hotkeys
+Plan: one settings block at the bottom of the F8 panel (settings_menu.cpp): arrows (keyboard hook, swallowed while
+the panel is open) / D-pad without chord (masked from the game) pick and change; each change is written with
+WritePrivateProfileString (keeps cdmp.ini UTF-16) and applied live through the modules' setters where they exist
+(loot mode, guest finishes, revive, respawn, boss wait, weather, scaling); join and nameplates say "(next start)".
+Hotkeys: the bindings table is no longer const; [keys] <Action>=Ctrl+F1 / <Action>_pad=Y; warnings for unknown
+names, two co-op actions on one key or pad button, and plain keys (no Ctrl/Shift, not an F-key).
+Done: settings_test (build/port3479): [keys] Invite=G -> "Keys: Invite is on G with no Ctrl/Shift: the game probably
+uses that key too" (log + notice); F8, Down, Right -> "Settings: Loot of shared kills = host only", ini
+loot_mode=host_only; Down x7, Right x2 -> enemy health x1.5 -> x1.7, ini panel_health_2p=1.7; panel screenshot shows
+the block with the gold selection. Shipped ini restored after. README. [x]
+Not done: a full in-game key-capture rebinding UI (keys are rebound in the ini; the panel says where).

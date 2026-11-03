@@ -31,6 +31,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T28: launch-time note naming other ASI loaders, .asi mods and ReShade next to the game (log + notice, never blocking); a second copy of Co-op+ stays off; docs/compatibility.md; fixed a crash when a crash-guard hook needed a second try.
 - T27: release package - README install / manual / Vortex / other mods / known issues, BUG-REPORT.txt, OTHER-MODS.md, a mod-manager zip (bin64 layout), Nexus page and shot list in docs/release, fake-folder install test (tools/test-install-fake.ps1).
 - T29: failure states listed with their messages (docs/error-messages.md); new plain-language lines with the next step for join not reaching the host, Steam not ready, bad room code, network not starting, save backup failed, safety hooks off (panel + top strip); clearer version and connection-lost messages.
+- T30: co-op settings in the F8 panel (arrows / D-pad pick and change, saved to cdmp.ini, live where possible); co-op hotkeys rebindable under [keys] with warnings for clashes and plain game keys.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

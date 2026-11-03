@@ -15,7 +15,9 @@
 //   challenge picker  D-pad Left / Right (keyboard: the arrow keys) choose, the challenge chord sends
 
 #include <cstdint>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace cdmp::input {
 
@@ -54,5 +56,14 @@ private:
 
 // Action by its token name ("Challenge"), Count when unknown.
 Action action_by_name(std::string_view name);
+
+// Co-op+ (T30): [keys] in cdmp.ini rebinds the co-op hotkeys, by action name: "Invite=Ctrl+F1", "Panel=F9",
+// "Summon=Shift+G"; "<Action>_pad=..." the pad button (A B X Y LB RB L3 R3 Up Down Left Right). Read once at start.
+// Returns warnings for the player: names or keys not understood, two co-op actions on the same keys, a co-op hotkey
+// with no Ctrl / Shift (the game probably uses that key too). Empty = all fine.
+std::vector<std::string> load_bindings(const std::wstring& ini_path);
+
+// "Ctrl+F1" for the keyboard part of an action (the panel's key list).
+std::string key_text(Action a);
 
 }  // namespace cdmp::input

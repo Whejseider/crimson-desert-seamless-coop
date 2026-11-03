@@ -96,7 +96,22 @@ PLAYING TOGETHER
 - Set a waypoint on your map (right-click) and your friend sees it on theirs
   as a second pin.
 - Ctrl+F2 (guest): leave and go back to your own world.
-- F8: show/hide the co-op panel (top left): connection, ping, room code.
+- F8: show/hide the co-op panel (top left): connection, ping, room code, and the
+  co-op SETTINGS: Up/Down arrows (pad: D-pad) pick one, Left/Right change it. Saved
+  at once in cdmp.ini; most apply at once, "(next start)" ones after a restart. Who
+  can join, loot of shared kills, revive, respawn, weather, and how much tougher
+  enemies and bosses get with a guest (x1.0 to x3.0; the host's values count).
+- Different keys: in bin64\cdmp.ini add a [keys] section, one line per action, e.g.
+    [keys]
+    Invite=Ctrl+G
+    Panel=F9
+    Summon_pad=L3
+  Actions: Invite Leave Ping GoToFriend Challenge Decline Panel Nameplates Resync
+  ReviveFriend Summon Chat. Keys: A-Z, 0-9, F1-F12, Esc Tab Space Enter Insert
+  Delete Home End PageUp PageDown arrows, with Ctrl+ and/or Shift+. Pad (_pad):
+  A B X Y LB RB L3 R3 Up Down Left Right (always with View/Touchpad held). When
+  the game starts, a notice warns about two actions on the same keys, or a key
+  with no Ctrl/Shift that the game probably uses too.
 - Ctrl+F8: show/hide your friend's name over their head.
 - Ctrl+F3 (pad: View + D-pad Left): quick messages -- Go here, Danger here!, Loot
   here, Follow me, Wait for me, Help!, Thanks!, Ready? -- arrows / D-pad Left-Right

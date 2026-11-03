@@ -23,6 +23,7 @@
 #include "mod/net/coop_revive.h"
 #include "mod/net/coop_travel.h"
 #include "mod/net/coop_chat.h"
+#include "mod/settings_menu.h"
 #include "mod/net/aggro_test.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/loot_twin.h"
@@ -257,6 +258,7 @@ LRESULT CALLBACK keyboard_hook(int code, WPARAM wp, LPARAM lp) {
         const auto* k = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lp);
         const bool down = wp == WM_KEYDOWN || wp == WM_SYSKEYDOWN;
         if (k->dwExtraInfo != kOurKey && chat_hook_key(k->vkCode, k->scanCode, down)) return 1;
+        if (k->dwExtraInfo != kOurKey && settings::hook_key(k->vkCode, down)) return 1;  // Co-op+ (T30)
         if (chat_quick_open() && (k->vkCode == VK_LEFT || k->vkCode == VK_RIGHT)) {
             if (down) chat_quick_step(k->vkCode == VK_LEFT ? -1 : 1);
             return 1;
@@ -449,6 +451,16 @@ void versus_tick(ActivityTick& out, bool connected, bool host, bool cut, const s
 // The pad's side of what the keyboard hook catches (input/actions.h): mash presses, RPS hands, the cutscene skip.
 // XInput pads' buttons are kept from the game while a Co-op+ box wants them.
 void pad_tick() {
+    // Co-op+ (T30): the F8 settings take the D-pad while the panel is open.
+    if (settings::panel_open() && !input::chord_held()) {
+        static input::Edge up, down, left, right;
+        const uint16_t b = input::pad_buttons();
+        input::mask_from_game(input::kPadDpad, 150);
+        const int dy = up(b & input::kPadUp) ? -1 : down(b & input::kPadDown) ? 1 : 0;
+        const int dx = left(b & input::kPadLeft) ? -1 : right(b & input::kPadRight) ? 1 : 0;
+        if (dx || dy) settings::step(dx, dy);
+        return;
+    }
     static input::Edge mash, scissors, paper, rock, skip;
     if (mash(input::action_down(input::Action::Mash, false)) && g_match_on.load()) g_e_presses.fetch_add(1);
     const bool rps = g_rps_hold.load() && GetTickCount64() - g_hold_seen.load() < 500;

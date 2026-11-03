@@ -19,6 +19,10 @@ void scaling_configure(const scaling::Settings& s);
 // 2 with a guest connected) and whether this PC is the host.
 void scaling_set_party(int players, bool host);
 
+// Co-op+ (T30/T40): from the F8 settings, live: scaling on/off, and the 2-player multipliers (regular, bosses).
+void scaling_set_enabled(bool on);
+void scaling_set_2p(float regular, float boss);
+
 // k for the current party and kind of enemy (1 when off, alone, or not the host).
 float scaling_multiplier(bool boss = false);
 

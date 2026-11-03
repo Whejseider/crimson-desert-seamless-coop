@@ -66,6 +66,18 @@ void scaling_configure(const scaling::Settings& s) {
               scaling::health_multiplier(scaling::for_boss(s, true), 2));
 }
 
+void scaling_set_enabled(bool on) {
+    std::lock_guard lock(g_mutex);
+    g_settings.enabled = on;
+    g_enabled = on;
+}
+
+void scaling_set_2p(float regular, float boss) {
+    std::lock_guard lock(g_mutex);
+    g_settings.health_2p = g_settings.health[2] = regular;
+    g_settings.boss_health_2p = g_settings.boss_health[2] = boss;
+}
+
 void scaling_set_party(int players, bool host) {
     const int before = g_players.exchange(players);
     const bool was_host = g_host.exchange(host);
