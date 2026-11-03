@@ -256,3 +256,11 @@ StartAction (horse_event) and a new horse copy is placed there; forgotten when t
 kept copy is reused whenever it exists (the key check was not the failing part, kept for safety).
 mount3: reload placed the horse copy at (-10265.8, -4017.6), real horse at (-10267.4, -4017.4) (+2 m echo offset).
 The second summon in mount1 never reached the horse (Kliff stuck between rocks). [~] PLAYTEST 2.3b.
+- Pushed T25 (766a5ae).
+
+## T26 -- Death penalty and respawn options
+Plan: penalty options need an item / silver removal the server accepts (none found, T18) -> BLOCKED; respawn option:
+[coop] respawn_at=checkpoint|partner -- after any revive that put us more than 50 m from where we fell, 3 s after
+getting up, the go-to hop to the other player.
+Done: respawn1 (walked away, killed, U): checkpoint revive steps 1-3, "at the checkpoint", then "respawn_at=partner:
+from the checkpoint to the other player". Profile line, README, PLAYTEST 4.4c. [~]

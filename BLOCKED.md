@@ -74,3 +74,9 @@ Caveat: in the echo the copy teleports in WITH us (the test reaches the pub by t
 in on their own; the two-PC playtest (PLAYTEST 6.7) says whether real play has it.
 What would unblock it: the table stage's / game host's offer condition (the interaction's condition check), or a
 way to have the copy loaded as a non-player actor near minigame tables.
+
+## T26 (part) -- death penalty options (partial / full loss)
+A penalty means taking silver or items from the player who died, on their own server. The only item requests found
+(T18) are not accepted for that (AddMinusItemReq got no answer; the cheat item requests have unknown layouts), so
+"partial" and "full" loss cannot be applied safely. Shipped: the game's own rules stay ("none" from Co-op+), plus the
+respawn option [coop] respawn_at=checkpoint|partner. Unblocks with T18's add/remove item request.

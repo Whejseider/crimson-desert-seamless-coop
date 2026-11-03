@@ -83,7 +83,8 @@ struct Config {
     bool dev_hunt_test = false;      // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)
     bool dev_zone_copy_test = false; // Co-op+ dev: the guest's dry-run zone is copied for real (enemy_relay.h)
     bool coop_teammate_revive = true;
-    bool coop_guest_finishes = true;   // Co-op+ (T17): [coop] guest_finishes  // Co-op+ (T15): [coop] teammate_revive
+    bool coop_guest_finishes = true;
+    bool coop_respawn_at_partner = false;  // Co-op+ (T26): [coop] respawn_at = checkpoint (default) | partner   // Co-op+ (T17): [coop] guest_finishes  // Co-op+ (T15): [coop] teammate_revive
     bool dev_revive_test = false;
     bool dev_copy_untargetable = false;
     uint32_t dev_event_test = 0;      // Co-op+ dev (T22): a world-event stage key announced after connecting  // Co-op+ dev (T21): the copy is never anyone's target      // Co-op+ dev: one-PC teammate revive (a dead player may revive the echo)

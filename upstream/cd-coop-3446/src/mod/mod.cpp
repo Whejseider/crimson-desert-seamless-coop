@@ -708,6 +708,28 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 }
                 revive_prompt =
                     net::revive_prompt_tick(connected, s.health, s.health_max, partner_hp, game_has_focus(), now);
+                // Co-op+ (T26): [coop] respawn_at=partner -- a revive that put us back at the checkpoint (more than
+                // 50 m from where we fell) is followed by the hop to the other player, once we stand again.
+                {
+                    static bool was_dead = false;
+                    static proto::Vec3 died_at{};
+                    static uint32_t up_at = 0;
+                    const bool dead = s.health_max > 0 && s.health <= 0;
+                    if (dead && !was_dead) died_at = s.position;
+                    if (!dead && was_dead) up_at = now ? now : 1;
+                    was_dead = dead;
+                    if (up_at && now - up_at > 3000) {
+                        up_at = 0;
+                        const float dx = s.position.x - died_at.x, dz = s.position.z - died_at.z;
+                        const auto& rs = session.remote_state();
+                        if (cfg.coop_respawn_at_partner && connected && rs && rs->health > 0 && dx * dx + dz * dz > 50.0f * 50.0f) {
+                            net::revive_teleport_to(rs->pos.x + 1.0f, rs->pos.y + 0.5f, rs->pos.z);
+                            toast = "Co-op\nBack to " + session.peer_name();
+                            toast_until = now + 4000;
+                            log::info("Co-op: respawn_at=partner: from the checkpoint to the other player");
+                        }
+                    }
+                }
                 // Co-op+ (T15): reviving each other.
                 {
                     std::optional<net::ReviveRemote> rr;

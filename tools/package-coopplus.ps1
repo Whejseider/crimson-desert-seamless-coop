@@ -92,6 +92,8 @@ $lines = $lines | ForEach-Object {
             'guest_finishes=1'
             '; Co-op+: 1 = you can revive your friend where they fell (hold Shift+F7 by them, 30 s).'
             'teammate_revive=1'
+            '; Co-op+: where a checkpoint revive leaves you: checkpoint (as in the game) or partner (back to your friend).'
+            'respawn_at=checkpoint'
             break
         }
         default { $_ }

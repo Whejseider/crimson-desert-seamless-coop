@@ -81,6 +81,9 @@ PLAYING TOGETHER
   instant revive (30% health), U / Y revive at the checkpoint. For 30 seconds your
   friend can also get you up where you fell: they stand by you and hold Shift+F7
   (pad: View + LB) for 3 seconds. ([coop] teammate_revive=0 turns this off.)
+  [coop] respawn_at=partner: after a revive at the checkpoint you are taken back to
+  your friend (default: checkpoint, as in the game). Death costs what the game
+  itself takes; Co-op+ adds no penalty.
 - Cutscenes: when your friend is watching one near you (within 100 m), you see
   "<name> is watching a cutscene". When the host's cutscene belongs to a boss or
   story scene, the guest's game starts the same scene too (new, not yet tried by

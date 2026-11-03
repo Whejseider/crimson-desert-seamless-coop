@@ -89,6 +89,7 @@ Note which one each of you gets.
 | 4.3 | B walks a few hundred metres from the last checkpoint, dies, presses U. | B is at the checkpoint with full health (loading screen, or quick hops with Co-op+'s box); no falling through the ground; A sees B move there. | [ ] | [ ] | |
 | 4.4 | Same as 4.1-4.3 with A dying while B fights on. | Same results. | [ ] | [ ] | |
 | 4.4b | Teammate revive: B goes down near A (not in a boss fight). A walks to B and holds Shift+F7 (pad: hold View + LB) for 3 s. Then again, but A is far away for 30 s. | B: "<A> can revive you (N s)" under the death screen; A: "Hold to revive <B>", then "Reviving <B>... N%". B gets up where they fell with full health; A: "You revived <B>", B: "<A> revived you". After 30 s down the offer ends; Q / U still work. | [ ] | [ ] | |
+| 4.4c | Respawn option: both set `respawn_at=partner` under `[coop]`. B dies far from the checkpoint and presses U. | B gets up at the checkpoint, then is hopped back beside A ("Back to <A>"). Set `respawn_at=checkpoint` back. | [ ] | [ ] | |
 | 4.5 | A fall death (jump off a cliff). | Same death screen, same revive. | [ ] | [ ] | |
 | 4.6 | Instant revives used up as usual? | The count under "Instant Revive" goes down; with none left Q does nothing and U works. | [ ] | [ ] | |
 

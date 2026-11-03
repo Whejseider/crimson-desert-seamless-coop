@@ -813,7 +813,7 @@ index e7d51fb..40fe295 100644
  
  struct GameEvent {
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..47c7d55 100644
+index e89d220..06bb148 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -890,7 +890,7 @@ index e89d220..47c7d55 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,38 +210,88 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,38 +210,89 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
@@ -920,6 +920,7 @@ index e89d220..47c7d55 100644
 +    c.dev_desync_test = static_cast<int>(read_uint(ini_path, L"dev", L"desync_test", 0));
 +    c.coop_teammate_revive = read_uint(ini_path, L"coop", L"teammate_revive", 1) != 0;
 +    c.coop_guest_finishes = read_uint(ini_path, L"coop", L"guest_finishes", 1) != 0;
++    c.coop_respawn_at_partner = read_string(ini_path, L"coop", L"respawn_at", "checkpoint") == L"partner";
 +    c.dev_revive_test = read_uint(ini_path, L"dev", L"revive_test", 0) != 0;
 +    c.dev_copy_untargetable = read_uint(ini_path, L"dev", L"copy_untargetable", 0) != 0;
 +    c.dev_event_test = read_uint(ini_path, L"dev", L"event_test", 0);
@@ -986,7 +987,7 @@ index e89d220..47c7d55 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +304,11 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +305,11 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -999,7 +1000,7 @@ index e89d220..47c7d55 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..bdf6ddc 100644
+index 3cd2ce2..6568301 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -1027,7 +1028,7 @@ index 3cd2ce2..bdf6ddc 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -57,6 +68,40 @@ struct Config {
+@@ -57,6 +68,41 @@ struct Config {
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
@@ -1046,7 +1047,8 @@ index 3cd2ce2..bdf6ddc 100644
 +    bool dev_hunt_test = false;      // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)
 +    bool dev_zone_copy_test = false; // Co-op+ dev: the guest's dry-run zone is copied for real (enemy_relay.h)
 +    bool coop_teammate_revive = true;
-+    bool coop_guest_finishes = true;   // Co-op+ (T17): [coop] guest_finishes  // Co-op+ (T15): [coop] teammate_revive
++    bool coop_guest_finishes = true;
++    bool coop_respawn_at_partner = false;  // Co-op+ (T26): [coop] respawn_at = checkpoint (default) | partner   // Co-op+ (T17): [coop] guest_finishes  // Co-op+ (T15): [coop] teammate_revive
 +    bool dev_revive_test = false;
 +    bool dev_copy_untargetable = false;
 +    uint32_t dev_event_test = 0;      // Co-op+ dev (T22): a world-event stage key announced after connecting  // Co-op+ dev (T21): the copy is never anyone's target      // Co-op+ dev: one-PC teammate revive (a dead player may revive the echo)
@@ -1068,7 +1070,7 @@ index 3cd2ce2..bdf6ddc 100644
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
-@@ -66,7 +111,7 @@ struct Config {
+@@ -66,7 +112,7 @@ struct Config {
      float coop_offset_m = 0.0f;    // sideways offset of the remote character
      // Experimental, off by default: the copy's horse is not created by the
      // client (owned load) or crashes the game (ownerless load); live tests 1-2.
@@ -1077,7 +1079,7 @@ index 3cd2ce2..bdf6ddc 100644
      // Works since the copy got its own character number (live test 3).
      bool coop_equip = true;        // relay equipment changes
      // Mirrored damage: each world keeps its enemies; hits by the other player
-@@ -85,7 +130,7 @@ struct Config {
+@@ -85,7 +131,7 @@ struct Config {
      int coop_minimap_icon = 0x124;
      // Our enemies may attack the other player's copy (aggro_test.h). Off
      // until the hits reach the other player and they see our enemies.
@@ -1086,7 +1088,7 @@ index 3cd2ce2..bdf6ddc 100644
      // The other player's blows on the copies of our enemies hurt them
      // (guest_hits.h). Off until tested with two players.
      bool coop_guest_hits = false;
-@@ -94,15 +139,19 @@ struct Config {
+@@ -94,15 +140,19 @@ struct Config {
      bool coop_guest_hit_stagger = false;
      // Our player reacts (stagger, knock-down) to the other player's enemies'
      // blows on our copy over there: experimental until tested.
@@ -1110,7 +1112,7 @@ index 3cd2ce2..bdf6ddc 100644
      // Host: copies of our enemies that fight go to the guest on their own
      // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
      bool coop_enemy_auto = true;
-@@ -112,6 +161,9 @@ struct Config {
+@@ -112,6 +162,9 @@ struct Config {
      bool dev_rope_piece_lookup = false;
      // Guest: loot from the host's enemies we help kill, via a twin on our server (loot_twin.h).
      bool coop_guest_loot = false;
@@ -1120,7 +1122,7 @@ index 3cd2ce2..bdf6ddc 100644
      // Boss safety (boss_safe.h, pendiente-jefes.md plan J1). A boss fight here is
      // a scripted STAGE that the host's client drives: it owns the phases, the
      // cinematics and the set_battleEnd that closes the fight. The boss exists
-@@ -125,6 +177,9 @@ struct Config {
+@@ -125,6 +178,9 @@ struct Config {
      // does the finish, which is what advances its script. Off restores the old
      // behaviour exactly, for comparison.
      bool coop_boss_safe = true;
@@ -1130,7 +1132,7 @@ index 3cd2ce2..bdf6ddc 100644
      // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
      // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
      int coop_enemy_minimap_icon = 0x10A;
-@@ -146,6 +201,14 @@ struct Config {
+@@ -146,6 +202,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -2586,7 +2588,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..06d942a 100644
+index 79ccd06..b3b27d9 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,9 +1,13 @@
@@ -2940,7 +2942,7 @@ index 79ccd06..06d942a 100644
          if (host && was_connected && !connected && peer) {
              log::info("Network: {} left; waiting for a player", peer->str());
              peer.reset();
-@@ -426,18 +605,194 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -426,18 +605,216 @@ void run_network(const Config& cfg, LocalSource& local) {
              peer.reset();
              if (steam) steam->set_peer(0);
          }
@@ -3047,6 +3049,28 @@ index 79ccd06..06d942a 100644
 +                }
 +                revive_prompt =
 +                    net::revive_prompt_tick(connected, s.health, s.health_max, partner_hp, game_has_focus(), now);
++                // Co-op+ (T26): [coop] respawn_at=partner -- a revive that put us back at the checkpoint (more than
++                // 50 m from where we fell) is followed by the hop to the other player, once we stand again.
++                {
++                    static bool was_dead = false;
++                    static proto::Vec3 died_at{};
++                    static uint32_t up_at = 0;
++                    const bool dead = s.health_max > 0 && s.health <= 0;
++                    if (dead && !was_dead) died_at = s.position;
++                    if (!dead && was_dead) up_at = now ? now : 1;
++                    was_dead = dead;
++                    if (up_at && now - up_at > 3000) {
++                        up_at = 0;
++                        const float dx = s.position.x - died_at.x, dz = s.position.z - died_at.z;
++                        const auto& rs = session.remote_state();
++                        if (cfg.coop_respawn_at_partner && connected && rs && rs->health > 0 && dx * dx + dz * dz > 50.0f * 50.0f) {
++                            net::revive_teleport_to(rs->pos.x + 1.0f, rs->pos.y + 0.5f, rs->pos.z);
++                            toast = "Co-op\nBack to " + session.peer_name();
++                            toast_until = now + 4000;
++                            log::info("Co-op: respawn_at=partner: from the checkpoint to the other player");
++                        }
++                    }
++                }
 +                // Co-op+ (T15): reviving each other.
 +                {
 +                    std::optional<net::ReviveRemote> rr;
@@ -3136,7 +3160,7 @@ index 79ccd06..06d942a 100644
              last_state = now;
              if (auto state = local.sample(now)) session.send_local_state(*state, now);
  
-@@ -449,14 +804,25 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -449,14 +826,25 @@ void run_network(const Config& cfg, LocalSource& local) {
              hud.local_status = local.status();
              hud.remote = session.remote_state();
              hud.peer_problem = session.peer_problem();
@@ -3163,7 +3187,7 @@ index 79ccd06..06d942a 100644
                  hud.boss_active = true;
                  hud.boss_name = b.name;
                  hud.boss_hp = b.hp;
-@@ -475,6 +841,55 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +863,55 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -3219,7 +3243,7 @@ index 79ccd06..06d942a 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -491,14 +906,36 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,14 +928,36 @@ void run_network(const Config& cfg, LocalSource& local) {
                  remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                       rs->pos.z, rs->health);
              }
@@ -3260,7 +3284,7 @@ index 79ccd06..06d942a 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +946,125 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +968,125 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -3387,7 +3411,7 @@ index 79ccd06..06d942a 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +1166,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +1188,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -3396,7 +3420,7 @@ index 79ccd06..06d942a 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +1220,7 @@ void combat_test_loop() {
+@@ -669,7 +1242,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -3405,7 +3429,7 @@ index 79ccd06..06d942a 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +1238,7 @@ void combat_test_loop() {
+@@ -687,7 +1260,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -3414,7 +3438,7 @@ index 79ccd06..06d942a 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1303,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1325,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -3423,7 +3447,7 @@ index 79ccd06..06d942a 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1317,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1339,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -3431,7 +3455,7 @@ index 79ccd06..06d942a 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,12 +1346,24 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,12 +1368,24 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -3458,7 +3482,7 @@ index 79ccd06..06d942a 100644
          if (!contained) {
              net::puppet_set_horse_enabled(false);
              log::warn("Horse and enemy copies disabled: their crash containment could not be installed");
-@@ -902,22 +1466,79 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,22 +1488,79 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -3538,7 +3562,7 @@ index 79ccd06..06d942a 100644
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
                    cfg.coop_enabled ? "on" : "off");
-@@ -925,7 +1546,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1568,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -3547,7 +3571,7 @@ index 79ccd06..06d942a 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -956,6 +1577,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -956,6 +1599,7 @@ DWORD WINAPI worker(LPVOID) {
                    cfg.coop_suppress_lab ? ", suppressed by suppress_lab=1 (the one-PC lab)" : "");
          log::info("Config: time sync {}", cfg.coop_time_sync == 1   ? "send ours"
                                            : cfg.coop_time_sync == 2 ? "take the other player's"
@@ -3555,7 +3579,7 @@ index 79ccd06..06d942a 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1591,44 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1613,44 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3600,7 +3624,7 @@ index 79ccd06..06d942a 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1680,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1702,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3634,7 +3658,7 @@ index 79ccd06..06d942a 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1703,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1725,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3646,7 +3670,7 @@ index 79ccd06..06d942a 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1728,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1750,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
