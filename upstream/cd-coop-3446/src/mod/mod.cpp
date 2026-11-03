@@ -44,6 +44,7 @@
 #include "mod/net/dev_script.h"
 #include "mod/net/coop_activity.h"
 #include "mod/net/coop_sync.h"
+#include "mod/net/state_audit.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
 #include "mod/net/coop_hunt.h"
@@ -247,6 +248,20 @@ struct HotkeyEdge {
     }
 };
 bool key_down(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
+
+uint32_t g_audit_due = 0;  // Co-op+ (T08): when the last session ended (0 = no audit due)
+
+// Co-op+ (T08): the state audit, once, 30 s after a session ended (net/state_audit.h).
+void audit_tick(uint32_t now) {
+    if (!g_audit_due || now - g_audit_due < 30000) return;
+    g_audit_due = 0;
+    const net::StateAudit audit = net::state_audit();
+    if (audit.clean) {
+        log::info("State audit 30 s after the session: clean ({})", audit.line);
+    } else {
+        log::warn("State audit 30 s after the session: LEFT BEHIND: {} ({})", audit.leaks, audit.line);
+    }
+}
 
 SessionEnd run_network(const Config& cfg, LocalSource& local) {
     using Kind = SessionEnd::Kind;
@@ -592,6 +607,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                          : std::format("Co-op\nLost the connection to {}'s world", toast_name);
             toast_until = now + 6000;
         }
+        // Co-op+ (T08): 30 s after a session ends (the host's weather goes after 20 s), nothing of it may be left.
+        if (!connected && was_connected) g_audit_due = now ? now : 1;
+        if (!connected) audit_tick(now);
         was_connected = connected;
         // Co-op+ (T03): a refused handshake (versions) as a notice too, once per new reason.
         if (const std::string& problem = session.peer_problem(); problem != shown_problem) {
@@ -854,6 +872,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     net::save_guard_set_connected(false, {});
     net::scaling_set_party(1, host);  // nobody in our world until the next session says so
     coop.reset();
+    if (was_connected) g_audit_due = now_ms();  // a Leave / Join: audited by the next session's loop (T08)
+    // Co-op+ (T08): our own weather back now (it came back only from the next session's loop, which may not start).
+    if (local.in_game()) net::weather_tick(false, host, true, std::nullopt, now_ms());
     session.disconnect(now_ms());
     // Co-op+ (T07): nothing of the other player stays on screen (their name tag stood where they were after a
     // Leave until the next session drew a new HUD).
@@ -940,7 +961,17 @@ void run_coop(const Config& base, LocalSource& local, bool in_game) {
     }
     for (;;) {
         const SessionEnd end = run_network(cfg, local);
-        if (end.kind == SessionEnd::Kind::Stop || stop_requested()) break;
+        if (stop_requested()) break;
+        if (end.kind == SessionEnd::Kind::Stop) {
+            // Co-op+ (T08): the network could not start (or stopped by itself). This used to end the worker, so co-op
+            // stayed off for the rest of the game session (seen after a Leave on the one-PC transport). Try again.
+            log::warn("Co-op+: the network did not start; trying again in 10 s");
+            for (int i = 0; i < 10; ++i) {
+                audit_tick(now_ms());
+                if (stop_requested(1000)) return;
+            }
+            continue;
+        }
         if (end.kind == SessionEnd::Kind::Join) {
             cfg.net_role_host = false;
             cfg.room_lobby = end.lobby;

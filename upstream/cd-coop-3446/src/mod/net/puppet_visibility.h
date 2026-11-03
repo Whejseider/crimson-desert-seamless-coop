@@ -19,5 +19,7 @@ bool puppet_visibility_install();
 void puppet_hide_actor(uint32_t key);
 // Every tick while an actor is hidden: the game clears the bits after a while; sets them again.
 void puppet_hide_tick();
+// Co-op+ (T08 state audit): the actor hidden now (0 = none).
+uint32_t puppet_hidden_key();
 
 }  // namespace cdmp::net

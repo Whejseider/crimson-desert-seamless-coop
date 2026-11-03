@@ -505,7 +505,12 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
     {
         std::lock_guard lock(g_mutex);
         Challenge& c = g_ch;
-        if (!connected && !test && c.state != kChNone) {
+        // Co-op+ (T08): a lost link ends the challenge in the one-PC tests too (their duel / hunt went on after the
+        // session, state audit); without a link at all a test still challenges its simulated friend.
+        static bool was_linked = false;
+        const bool lost = was_linked && !connected;
+        was_linked = connected;
+        if (c.state != kChNone && ((!connected && !test) || lost)) {
             c = Challenge{};
             toast = "Challenge ended: the other player left";
         }

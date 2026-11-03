@@ -354,4 +354,9 @@ void cinema_tick(bool connected, bool host, bool cut, std::optional<std::array<f
     (void)now;
 }
 
+bool cinema_copy_active() {
+    std::lock_guard lock(g_mutex);
+    return g_copy.pending || g_copy.active;
+}
+
 }  // namespace cdmp::net

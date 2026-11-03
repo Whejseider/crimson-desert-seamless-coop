@@ -130,7 +130,9 @@ std::map<uint32_t, uint64_t> g_retired;         // net id -> when its copy was r
 std::deque<std::pair<proto::RelKind, Bytes>> g_outgoing;
 // A new partner: what a tick read before the reset must not send (7 Oct: 24
 // copies sent 79 ms after the link went, to the next partner).
-uint32_t g_partner_epoch = 0;  // under g_mutex
+// Under g_mutex. Starts at 1: send_enemy reads an epoch of 0 as "the current partner", so a zone tick of the first
+// session that was decided before a lost link still sent its copies after the reset (T08 state audit, audit2).
+uint32_t g_partner_epoch = 1;
 std::map<uint32_t, Bytes> g_last_hp;  // world NPC key -> its last VaryHPAck payload
 // Every actor of our world we saw loaded (any record of any ActorLoadDataAck)
 // and its record type: a copy must not name any of them.

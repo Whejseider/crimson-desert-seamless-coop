@@ -47,4 +47,7 @@ void weather_set_test(uint32_t stage_key);
 // For the panel / log: the stage name of a weather key ("Rainy_Hard"), "" when not a weather stage.
 const char* weather_stage_name(uint32_t stage_key);
 
+// Co-op+ (T08 state audit): the host's weather stages running in our client now.
+size_t weather_host_stages_running();
+
 }  // namespace cdmp::net

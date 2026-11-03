@@ -82,4 +82,7 @@ bool suppress_is_hidden(uint32_t key);  // one of our natives held out of the cl
 std::optional<uint32_t> suppress_take_native_for_loot(uint32_t variant, const float pos[3], float max_m);
 std::string suppress_hud_text();        // a line for the overlay ("" = none)
 
+// Co-op+ (T08 state audit): our natives held out of the client right now.
+size_t suppress_held_count();
+
 }  // namespace cdmp::net

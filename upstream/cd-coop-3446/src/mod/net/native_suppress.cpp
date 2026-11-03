@@ -1366,4 +1366,6 @@ std::string suppress_hud_text() {
     return s;
 }
 
+size_t suppress_held_count() { return g_held_count.load(); }
+
 }  // namespace cdmp::net

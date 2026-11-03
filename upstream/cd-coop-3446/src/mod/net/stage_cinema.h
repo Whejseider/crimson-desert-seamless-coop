@@ -51,4 +51,7 @@ void cinema_set_enabled(bool on);
 // host had sent it (shows whether a second copy at the same branch plays, and that ending it cleans up).
 void cinema_set_test(bool on);
 
+// Co-op+ (T08 state audit): a copy of the host's cutscene stage is pending or running in our client.
+bool cinema_copy_active();
+
 }  // namespace cdmp::net

@@ -157,6 +157,8 @@ void puppet_hide_tick() {
     if (((flags[0] | flags[1]) & kHideBit) != kHideBit && set_hidden(*actor, true)) g_hidden_actor = *actor;
 }
 
+uint32_t puppet_hidden_key() { return g_hidden_actor.load() ? g_hide_key.load() : 0; }
+
 void puppet_hide_actor(uint32_t key) {
     const uint32_t before = g_hide_key.exchange(key);
     if (before == key) return;

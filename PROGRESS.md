@@ -74,3 +74,19 @@ a minigame without focus; normal play does not pause.
   lost (rejoin2-d1): "Lost the connection to ...'s world", no name tag, copies removed. Hidden natives: both paths
   call suppress_stop(restore=true) (restore verified in the 11-01 suppress lab); weather returns to the guest's own
   20 s after the host's reports stop (D37). Two-PC check: PLAYTEST 7.1 / 7.2.
+- Pushed T07 (59e1c6e).
+- T08 findings (audit1, first run of the state audit): (1) after a Leave on the one-PC (UDP) transport re-hosting
+  could not bind the port the echo relay holds; run_network returned "stop" and the WORKER EXITED, i.e. co-op off for
+  the rest of the game (any failed network start did this) -> run_coop now retries every 10 s; (2) audit "host
+  weather stages 1" and "duel 1" 30 s after a lost link: both from the one-PC test switches (weather_test followed the
+  host without a link; challenge_test kept the challenge) -- the real paths end them; the test paths now end with
+  the link too so the audit measures the real behaviour.
+- T08 audit2: B clean. A "enemy copies sent 6": g_partner_epoch started at 0 and send_enemy reads 0 as "current
+  partner", so a zone tick decided before the first reset still sent after it -> epoch starts at 1. C "host weather
+  stages 1" after Leave: weather was only restored by the next session's loop (which on the one-PC transport did not
+  start) -> run_network restores our own weather when it stops.
+- T08 done. net/state_audit.* (partner, seat, hidden NPC, enemy copies here / sent, our enemies hidden, scaling,
+  host weather stages, cutscene copy, duel, hunt) logged 30 s after every session end ("State audit 30 s after the
+  session: clean (...)" or "LEFT BEHIND: ..."). audit3: A (zone copies + host rain, partner crashes), B (duel running,
+  partner crashes), C (plain session, Ctrl+F2): all three clean. The save is never written by Co-op+; savecheck after
+  every session confirms the user's saves equal the 2026-11-01 backup.

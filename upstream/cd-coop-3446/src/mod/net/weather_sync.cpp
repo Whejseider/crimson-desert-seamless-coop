@@ -280,7 +280,7 @@ void weather_tick(bool connected, bool host, bool in_world, std::optional<std::a
         const uint32_t player = capture_own_player_key();
         const bool loading = sniffer_world_loading();
         // Our position goes away in a minigame or a cutscene: that does not stop following.
-        const bool follow = g_enabled && player && (in_world || g_follow.load()) && !loading && (test || (connected && !host)) &&
+        const bool follow = g_enabled && player && (in_world || g_follow.load()) && !loading && connected && (test || !host) &&
                             g_host_ms && now - g_host_ms < kHostStaleMs;
         if (loading && !g_was_loading && !g_started.empty()) {
             // A loading screen: the client may drop its sequencers. Ours start again under new ids after it (the
@@ -336,6 +336,11 @@ void weather_tick(bool connected, bool host, bool in_world, std::optional<std::a
     if (!send.empty()) capture_emit_weather(std::move(send));
     if (!inject.empty()) puppet_inject_s2c_batch(inject);
     if (!log_line.empty()) log::info("{}", log_line);
+}
+
+size_t weather_host_stages_running() {
+    std::lock_guard lock(g_mutex);
+    return g_started.size();
 }
 
 }  // namespace cdmp::net
