@@ -96,6 +96,7 @@ Note which one each of you gets.
 | 5.4 | **Final blow:** let B try to land the last hit. | The boss cannot die from B's hit; A lands the final blow; A's victory cinematic plays normally and A's quest advances. | [ ] | [ ] | |
 | 5.5 | **Boss death wait:** B dies during the fight. | B sees "Your partner is still fighting the boss. Hold on..." (no Q/U). | [ ] | [ ] | |
 | 5.6 | A then wins. | B gets up where they fell with full health within a few seconds (log: "the other player beat the boss"). | [ ] | [ ] | |
+| 5.6b | Per boss (Matthias, Kailok the Hornsplitter, the Reed Devil, Kearush the Slayer; docs/research/boss-audit.md): did the boss ever hang on B (a grab on B's character that never ended)? Did every phase start? Did the end cinematic play for A and the barrier drop? | No hang; phases and end as alone. If a boss hangs on B: set `enemies_target_copy=0` under `[coop]` for both and note the boss. | [ ] | [ ] | |
 | 5.7 | Both go down. | Each sees "Everyone is down. [U] Revive at Checkpoint"; both press U and can try again. | [ ] | [ ] | |
 
 ## 6. Challenges

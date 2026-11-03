@@ -130,3 +130,10 @@ all in animal_names.inc (hex keys). huntkill2: walking up and swinging hit nothi
 reach them). huntkill3 (no hunt_test bypass): picker -> hunting contest, KillCheatReq on 6 animals -> the death
 notices name our player as killer -> "Hunt: we brought down Goose (+1), score 1" and "... score 2". The real-blow
 attribution path (guest_hits_we_hit) is the PLAYTEST 6.6 step.
+- Pushed T12 (736daaf).
+
+## T13 -- Boss mechanics audit
+Plan: table of every one-player assumption (from the mod's boss research and the guides), its risk with two, the
+handling or fallback; first five bosses into the playtest. [needs-2PC].
+Done: docs/research/boss-audit.md (12 mechanics); PLAYTEST 5.6b per boss. Only open risk: grabs / paired attacks on
+the guest's copy (fallback enemies_target_copy=0). Kearush's fog is host-only (guest unaffected; accepted). [~]
