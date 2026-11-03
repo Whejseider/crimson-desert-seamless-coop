@@ -29,3 +29,15 @@ versions, matching Hello connects). In game: ver1/ver2 (fake build 12345678): "C
 build 12345678 on game ?, you have build 2526DEB6 on game 1.0.0.3479. Both install the same Co-op+ zip." as a notice,
 no puppet; ver3 (control): connects, puppet spawns. Older (protocol 10) builds are refused by the old protocol check.
 Note: the relay (cdmp_peer) announces build 0 / no game version: not compared (dev tool only).
+
+## T04 -- Reconnect and rejoin
+Plan: one-PC kill-and-rejoin loop (echo peer killed = the partner crashes; started again = rejoin), with and without
+enemy copies; long alt-tab; check one spawn per connection, removal on each loss, no duplicate copies, no stuck UI.
+Findings (build/port3479/rejoin_test.sh, alttab_test.sh):
+- rejoin1: 5 cycles, game alive, 6 connections = 6 spawns, 6 "Puppet: remove queued" on the 5 s timeouts.
+- rejoin2 ([dev] zone_copy_test=1): each loss "13 copies of theirs removed", each reconnect sends 13 new ones (new
+  keys), never more: no duplicate enemies.
+- alttab1: 40 s in the background (Notepad focused): no timeout, session kept (the game keeps running unfocused).
+- The partner's own crash/restart is a new process: clean by construction; Steam / room-code rejoin: PLAYTEST 1.6b-d.
+No code change was needed. Notes: the peer in the earlier late1 run timed out the client while the game was paused in
+a minigame without focus; normal play does not pause.

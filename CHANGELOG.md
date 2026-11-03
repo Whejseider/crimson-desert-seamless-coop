@@ -6,6 +6,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T01: two-player playtest checklist rewritten as numbered steps with expected results and pass/fail boxes.
 - T02: anti-cheat guard: if an anti-cheat is ever found at start, Co-op+ installs nothing and says so; findings in docs/research/online-integrity.md.
 - T03: version handshake: players with different Co-op+ builds or game versions are refused with a notice naming both (protocol 11).
+- T04: reconnect / rejoin verified: 5 partner crashes in a row each clean (partner and enemy copies removed, sent again once); a long alt-tab keeps the session.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

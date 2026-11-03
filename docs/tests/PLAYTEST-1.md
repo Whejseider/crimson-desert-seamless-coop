@@ -35,6 +35,9 @@ when, which Ctrl+F12 mark). A step that could not be tried: leave both boxes emp
 | 1.4 | B right-clicks A in the Steam friends list > "Join Game". | B joins again as in 1.1. | [ ] | [ ] | |
 | 1.5 | B quits the game completely; A sends a new invite (Ctrl+F1); B accepts from the Steam overlay / client. | Steam starts B's game; after B loads a save B lands in A's world. | [ ] | [ ] | |
 | 1.6 | Room code: B leaves (Ctrl+F2). B types A's 7-letter room code (A's F8 panel) into B's `cdmp.ini` under `[room] code=`, restarts the game, loads a save. | B joins A's world. Afterwards B empties `code=` again. | [ ] | [ ] | |
+| 1.6b | Crash and rejoin: B ends the game in Task Manager while connected, starts it again, loads, A invites again (or B uses "Join Game"). Repeat 3 times. | A: "<B> left your world" within ~5 s and B's character disappears (no frozen copy); after each rejoin exactly ONE B on A's screen; B's bandit copies near A are not doubled. | [ ] | [ ] | |
+| 1.6c | A alt-tabs to the desktop for a minute, comes back. | Still connected; B kept moving on A's screen after A came back. | [ ] | [ ] | |
+| 1.6d | Different versions: B installs an older Co-op+ zip (or one of you is on another game patch) and tries to join. | Both see "Can't play together: ... has Co-op+ build X on game ..., you have build Y ..." and what to install; nothing of the other appears. B reinstalls the same zip. | [ ] | [ ] | |
 | 1.7 | Invite-only: A sets `join=invite` under `[net]`, restarts. B tries "Join Game" without an invite. | B cannot join; with an invite (Ctrl+F1) B can. A sets `join=friends` back. | [ ] | [ ] | |
 
 ## 2. Looks and movement
