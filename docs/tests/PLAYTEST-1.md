@@ -121,6 +121,13 @@ Note which one each of you gets.
 | 6.9 | Mash E. | The faster one wins on BOTH screens; series toast; after the match the NPC is back and the friend stands up. | [ ] | [ ] | |
 | 6.10 | Shift+F6 on an invite; Shift+F5 during a challenge. | The invite is declined; the challenge ends with the final series. | [ ] | [ ] | |
 
+## 6b. Other mods (T28)
+
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 6b.1 | Each player installs the mods they normally use (docs/compatibility.md), starts the game, loads in. | A notice "Other mods next to the game: ..." names them (or no notice with none); `cdmp.log` has a "Compatibility:" line. | [ ] | [ ] | |
+| 6b.2 | Play 10 minutes of co-op with one fight and some loot. | Same as without the mods. If not: take the named files out, retry, note which mod. | [ ] | [ ] | |
+
 ## 7. Ending
 
 | # | Do | Expected | Pass | Fail | Notes |

@@ -2613,15 +2613,19 @@ bool puppet_install_layer_guards() {
         uint8_t h[sizeof off::kActionLayerAdvanceHead];
         if (game::safe_read(base + off::kActionLayerAdvance, h, sizeof h) &&
             std::memcmp(h, off::kActionLayerAdvanceHead, sizeof h) == 0) {
+            // Co-op+ (T28 found): the stub is written once; a retry (mod.cpp, T06) must not write the read-only page.
             if (!g_ret_stub) {
-                g_ret_stub = static_cast<uint8_t*>(
+                auto* stub = static_cast<uint8_t*>(
                     VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+                if (stub) {
+                    stub[0] = 0xC3;
+                    DWORD old = 0;
+                    VirtualProtect(stub, 16, PAGE_EXECUTE_READ, &old);
+                    FlushInstructionCache(GetCurrentProcess(), stub, 16);
+                    g_ret_stub = stub;
+                }
             }
             if (g_ret_stub) {
-                g_ret_stub[0] = 0xC3;
-                DWORD old = 0;
-                VirtualProtect(g_ret_stub, 16, PAGE_EXECUTE_READ, &old);
-                FlushInstructionCache(GetCurrentProcess(), g_ret_stub, 16);
                 auto hook = safetyhook::MidHook::create(reinterpret_cast<void*>(base + off::kActionLayerAdvance),
                                                         action_layer_advance);
                 if (hook) {

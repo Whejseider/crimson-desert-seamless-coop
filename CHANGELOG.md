@@ -28,6 +28,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T24: text chat (Shift+F2) and quick messages with ping types (Ctrl+F3 / pad View + D-pad Left: Go here, Danger here!, Loot here, Follow me, Wait, Help!, Thanks!, Ready?), shown as notices and a chat log.
 - T25: mounts: after your friend dismounts, their horse is shown where it really is (it came back where they had first called it).
 - T26: respawn option [coop] respawn_at=partner (after a checkpoint revive you are taken back to your friend); death penalties stay the game's own (partial / full loss options blocked: BLOCKED.md).
+- T28: launch-time note naming other ASI loaders, .asi mods and ReShade next to the game (log + notice, never blocking); a second copy of Co-op+ stays off; docs/compatibility.md; fixed a crash when a crash-guard hook needed a second try.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

@@ -254,6 +254,7 @@ struct HotkeyEdge {
 };
 bool key_down(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
 
+std::string g_compat_note;  // Co-op+ (T28): other mods next to the game, shown once in the world
 uint32_t g_audit_due = 0;  // Co-op+ (T08): when the last session ended (0 = no audit due)
 
 // Co-op+ (T08): the state audit, once, 30 s after a session ended (net/state_audit.h).
@@ -645,6 +646,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 pos = local.snapshot()->position;
                 rot = local.snapshot()->rotation;
                 const auto& s = *local.snapshot();
+                // Co-op+ (T28): the compatibility note, once, when we are first in the world.
+                if (!g_compat_note.empty()) {
+                    toast = "Co-op\n" + g_compat_note;
+                    toast_until = now + 12000;
+                    g_compat_note.clear();
+                }
                 // [dev] kill_key: Ctrl+Shift+F9 kills us (repeatable death tests on one PC).
                 static bool kill_was_down = false;
                 const bool kill_down = cfg.dev_kill_key && (GetAsyncKeyState(VK_CONTROL) & 0x8000) &&
@@ -1550,6 +1557,12 @@ DWORD WINAPI worker(LPVOID) {
             log::warn("{}", build_problem);
         }
         const Config cfg = load_config(dir + L"cdmp.ini");
+        // Co-op+ (T28): a second ASI loader loads us twice; only the first copy runs.
+        if (in_game && !online_guard::first_instance()) {
+            log::warn("Co-op+ was loaded twice (two ASI loaders next to the game?); this copy stays off");
+            return 0;
+        }
+        if (in_game) g_compat_note = online_guard::compat_check();
         // Co-op+ (T02): never next to an anti-cheat (online_guard.h). Nothing of ours is hooked then, not even the
         // overlay, so the message goes out in a plain Windows box (its own thread: the game does not wait for it).
         if (in_game && build_ok) {

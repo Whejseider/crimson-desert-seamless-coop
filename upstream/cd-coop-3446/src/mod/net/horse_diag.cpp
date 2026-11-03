@@ -372,12 +372,17 @@ bool hook(const Site& site, SafetyHookMid& out, safetyhook::MidHookFn fn) {
 bool horse_diag_install(bool contain) {
     if (g_cc_hook) return true;
     g_t0 = now_ms();
-    if (!g_ret) g_ret = static_cast<uint8_t*>(VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
-    if (!g_ret) return false;
-    g_ret[0] = 0xC3;
-    DWORD old = 0;
-    VirtualProtect(g_ret, 16, PAGE_EXECUTE_READ, &old);
-    FlushInstructionCache(GetCurrentProcess(), g_ret, 16);
+    // Co-op+ (T28 found): written once. A retry (mod.cpp, T06) wrote into the page made read-only by the first try
+    // and crashed the game (compat-a, 2026-11-03: exception writing g_ret 2 s after a failed first try).
+    if (!g_ret) {
+        uint8_t* ret = static_cast<uint8_t*>(VirtualAlloc(nullptr, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+        if (!ret) return false;
+        ret[0] = 0xC3;
+        DWORD old = 0;
+        VirtualProtect(ret, 16, PAGE_EXECUTE_READ, &old);
+        FlushInstructionCache(GetCurrentProcess(), ret, 16);
+        g_ret = ret;
+    }
     const bool ok = hook(kCcUpdate, g_cc_hook, on_cc_update) && hook(kRestore, g_restore_hook, on_restore) &&
                     hook(kPending, g_pending_hook, on_pending);
     if (!ok) {

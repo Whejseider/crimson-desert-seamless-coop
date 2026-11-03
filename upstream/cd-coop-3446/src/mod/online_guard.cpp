@@ -37,6 +37,39 @@ std::string narrow(const std::wstring& w) {
 
 }  // namespace
 
+bool first_instance() {
+    wchar_t name[64];
+    swprintf_s(name, L"Local\cdmp_coopplus_%lu", GetCurrentProcessId());
+    CreateMutexW(nullptr, FALSE, name);  // kept for the life of the process
+    return GetLastError() != ERROR_ALREADY_EXISTS;
+}
+
+std::string compat_check() {
+    const std::filesystem::path dir = exe_dir();
+    std::error_code ec;
+    std::string found;
+    // Ultimate ASI Loader goes by many proxy names; ours is winmm.dll.
+    for (const wchar_t* proxy : {L"version.dll", L"dinput8.dll", L"dsound.dll", L"winhttp.dll", L"xinput1_3.dll",
+                                 L"d3d9.dll", L"d3d11.dll", L"wininet.dll", L"msacm32.dll"}) {
+        if (std::filesystem::exists(dir / proxy, ec)) found += std::format("{}{} (another ASI loader?)", found.empty() ? "" : ", ", narrow(proxy));
+    }
+    if (std::filesystem::exists(dir / L"dxgi.dll", ec) || std::filesystem::exists(dir / L"ReShade64.dll", ec) ||
+        std::filesystem::exists(dir / L"ReShade.ini", ec)) {
+        found += std::string(found.empty() ? "" : ", ") + "ReShade / a dxgi.dll proxy";
+    }
+    for (const auto& e : std::filesystem::directory_iterator(dir, ec)) {
+        const std::wstring n = e.path().filename().wstring();
+        if (e.path().extension() == L".asi" && n != L"cdmp.asi") found += std::format("{}{}", found.empty() ? "" : ", ", narrow(n));
+    }
+    if (found.empty()) {
+        log::info("Compatibility: no other ASI loader, .asi mod or ReShade next to the game");
+        return {};
+    }
+    log::warn("Compatibility: next to the game: {}. Co-op+ is tested alone; if anything misbehaves, take those out "
+              "first (docs/compatibility.md)", found);
+    return "Other mods next to the game: " + found + ". If co-op misbehaves, try without them first.";
+}
+
 std::string check(const std::wstring& extra_module) {
     std::wstring found;
     for (const wchar_t* m : kModules) {

@@ -264,3 +264,18 @@ Plan: penalty options need an item / silver removal the server accepts (none fou
 getting up, the go-to hop to the other player.
 Done: respawn1 (walked away, killed, U): checkpoint revive steps 1-3, "at the checkpoint", then "respawn_at=partner:
 from the checkpoint to the other player". Profile line, README, PLAYTEST 4.4c. [~]
+- Pushed T26 (63d9d7f).
+
+## T28 -- Mod compatibility testing
+Plan: no downloads of other authors' mods, so (1) list the kinds of mods in use (nexus survey) and what each means
+for co-op, (2) at launch look in bin64 for other ASI loaders (proxy DLL names), other .asi files and ReShade, and say
+so in the log and once on screen (never blocking), (3) guard against Co-op+ being loaded twice (two loaders),
+(4) test both cases with a harmless ReShade.ini stand-in.
+Finding (compat-a, 15:43): the game crashed 2 s after "Crash guards: try 1 of 5 failed". Symbolised (dbghelp,
+cdmp.pdb): horse_diag.cpp:377, `g_ret[0] = 0xC3` -- the retry (T06) wrote into the return stub the first try had made
+PAGE_EXECUTE_READ. remote_puppet's g_ret_stub had the same pattern. Both now written once, at allocation. The T06
+retry had never actually been exercised before (it fires on ~1 launch in 80).
+Also: compat_test first passed a /c/... path to powershell -Command (game never started); fixed with a Windows path.
+Done: compat-a (ReShade.ini present): "WRN Compatibility: next to the game: ReShade / a dxgi.dll proxy..."; compat-b:
+"Compatibility: no other ASI loader, .asi mod or ReShade next to the game". docs/compatibility.md; PLAYTEST 6b. [~]
+(real third-party mods are a 2-PC/user test.)
