@@ -115,6 +115,19 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
         return;
     }
     ++stats_.received;
+    // Co-op+ (T32): packet loss from the other side's packet numbers (one counter per sender, +1 per datagram).
+    if (const uint32_t seq = packet->seq; seq) {
+        // netq1: a reconnecting peer starts again at 1, which the old "seq + 1000 < last" test took as 800 late
+        // packets. Late ones arrive within a few numbers; anything further back is a new numbering.
+        if (last_rx_seq_ == 0 || (seq < last_rx_seq_ && last_rx_seq_ - seq > 64) || seq > last_rx_seq_ + 100000) {
+            last_rx_seq_ = seq;  // first packet, or the other game restarted its numbering
+        } else if (seq > last_rx_seq_) {
+            stats_.lost += seq - last_rx_seq_ - 1;
+            last_rx_seq_ = seq;
+        } else if (stats_.lost) {
+            --stats_.lost;  // a late one, counted as lost before
+        }
+    }
     if (other_version(*packet, now_ms)) {
         ++stats_.rejected;
         return;

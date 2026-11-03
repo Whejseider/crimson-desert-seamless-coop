@@ -97,11 +97,13 @@ PLAYING TOGETHER
 - Set a waypoint on your map (right-click) and your friend sees it on theirs
   as a second pin.
 - Ctrl+F2 (guest): leave and go back to your own world.
-- F8: show/hide the co-op panel (top left): connection, ping, room code, and the
+- F8: show/hide the co-op panel (top left): connection, ping, packet loss (green /
+  yellow / red), room code, and the
   co-op SETTINGS: Up/Down arrows (pad: D-pad) pick one, Left/Right change it. Saved
   at once in cdmp.ini; most apply at once, "(next start)" ones after a restart. Who
-  can join, loot of shared kills, revive, respawn, weather, and how much tougher
-  enemies and bosses get with a guest (x1.0 to x3.0; the host's values count).
+  can join, loot of shared kills, revive, respawn, weather, how much tougher
+  enemies and bosses get with a guest (x1.0 to x3.0; the host's values count), and
+  "Ping and packet loss on screen" (a small readout, top right).
 - Different keys: in bin64\cdmp.ini add a [keys] section, one line per action, e.g.
     [keys]
     Invite=Ctrl+G

@@ -114,6 +114,13 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
     if (d.connected) {
         ImGui::Text(en ? "Network: connected to '%s' (%.1f ms)" : "Red: conectado a '%s' (%.1f ms)",
                     d.peer_name.c_str(), d.rtt_ms);
+        // Co-op+ (T32): connection quality.
+        if (d.loss_pct >= 0) {
+            ImGui::SameLine();
+            ImGui::TextColored(d.loss_pct < 2 ? ImVec4(0.5f, 0.9f, 0.5f, 1) : d.loss_pct < 8 ? ImVec4(1, 0.8f, 0.3f, 1)
+                                                                                         : ImVec4(1, 0.35f, 0.3f, 1),
+                               en ? "loss %.1f%%" : "perdida %.1f%%", d.loss_pct);
+        }
     } else {
         ImGui::TextColored(ImVec4(1, 0.8f, 0.3f, 1),
                            en ? "Network: looking for the other player..." : "Red: buscando al otro jugador...");
@@ -231,6 +238,20 @@ void hud_draw(float width, float height) {
     float remote_distance = 0;
     if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
     settings::set_panel_open(panel_visible && opt.build_problem.empty());
+    // Co-op+ (T32): the small connection readout, top right ([overlay] net_hud, F8 settings).
+    if (d.connected && d.net_hud && !game::ui_menu_open()) {
+        const bool good = d.rtt_ms < 120 && d.loss_pct < 2, ok = d.rtt_ms < 250 && d.loss_pct < 8;
+        const ImU32 col = good ? IM_COL32(130, 220, 130, 230) : ok ? IM_COL32(255, 205, 80, 230) : IM_COL32(255, 90, 75, 230);
+        const std::string t = d.loss_pct >= 0 ? std::format("Co-op  {:.0f} ms  {:.0f}% loss", d.rtt_ms, d.loss_pct)
+                                              : std::format("Co-op  {:.0f} ms", d.rtt_ms);
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        const float fs = std::max(13.0f, height / 1080.0f * 16.0f);
+        ImFont* f = ui::serif() ? ui::serif() : ImGui::GetFont();
+        const ImVec2 sz = f->CalcTextSizeA(fs, FLT_MAX, 0, t.c_str());
+        const float x = width - sz.x - 24, y = 14;
+        dl->AddText(f, fs, ImVec2(x + 1, y + 1), IM_COL32(0, 0, 0, 200), t.c_str());
+        dl->AddText(f, fs, ImVec2(x, y), col, t.c_str());
+    }
     // Co-op+ (T31): the controls card.
     static input::Edge help_edge;
     if (help_edge(input::action_down(input::Action::Help, focus)) && opt.build_problem.empty()) {

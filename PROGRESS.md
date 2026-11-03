@@ -336,3 +336,14 @@ no [general] onboarded=1 (then written), toggled by Help, closes itself after 60
 Done: guide_test run 1 (25 s load wait) toggled the card during the loading screen (fine, but too early for the
 first-run check); run 2 (55 s): first shot in the world shows the card ("Co-op+: first run: controls card shown"),
 Shift+F1 closes, Shift+F1 reopens; ini onboarded=1 after. Shipped ini restored. README / Nexus controls. [x]
+- Pushed T31 (4e3e2bc).
+
+## T32 -- Connection quality indicator
+Plan: every datagram carries the sender's packet number; ClientSession counts the gaps (stats.lost, a late one taken
+back); mod.cpp turns lost / received over ~3 s into a loss %; panel line "loss x%" coloured; [overlay] net_hud (F8
+settings row "Ping and packet loss on screen") draws "Co-op 28 ms 0% loss" top right, green / yellow / red; the Net
+log line gets "lost N".
+Finding (netq1): with a stand-in that reconnected, the loss stayed 0: the new peer numbers from 1, and my first test
+("seq + 1000 < last" = restart) took 1..800 as late packets. Now anything more than 64 back is a new numbering.
+Done: netq2: clean (25 ms delay) "Co-op 28 ms 0% loss" green; 10 % relay loss: the log's lost count grows ~8-11 per
+5 s (~10 %), panel "loss 6.9%" yellow, readout "33 ms 7% loss" yellow. [x]

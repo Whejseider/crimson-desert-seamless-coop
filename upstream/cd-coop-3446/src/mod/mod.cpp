@@ -870,6 +870,23 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             hud.connected = session.state() == ClientSession::State::Connected;
             hud.peer_name = session.peer_name();
             hud.rtt_ms = session.stats().rtt_ms;
+            // Co-op+ (T32): packet loss over the last ~3 s.
+            {
+                static uint64_t last_lost = 0, last_recv = 0;
+                static uint32_t last_at = 0;
+                static float loss = -1;
+                const auto& st = session.stats();
+                if (!connected) {
+                    loss = -1;
+                    last_at = 0;
+                } else if (!last_at || now - last_at >= 3000) {
+                    const uint64_t dl = st.lost - std::min(st.lost, last_lost), dr = st.received - std::min(st.received, last_recv);
+                    if (last_at && dl + dr > 0) loss = 100.0f * static_cast<float>(dl) / static_cast<float>(dl + dr);
+                    last_lost = st.lost, last_recv = st.received, last_at = now ? now : 1;
+                }
+                hud.loss_pct = loss;
+                hud.net_hud = settings::net_hud();
+            }
             hud.local = local.snapshot();
             hud.local_status = local.status();
             hud.remote = session.remote_state();
@@ -991,9 +1008,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             const double kbps_out = static_cast<double>(st.bytes_sent - last_out) / bw_span,
                          kbps_in = static_cast<double>(st.bytes_received - last_in) / bw_span;
             last_out = st.bytes_sent, last_in = st.bytes_received, last_bw_ms = now_ms();
-            log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | out {:.1f} kB/s in {:.1f} kB/s | "
+            log::info("Net: {} | sent {} recv {} lost {} rejected {} | rtt {:.1f} ms | out {:.1f} kB/s in {:.1f} kB/s | "
                       "remote states {} | last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
-                      state, st.sent, st.received, st.rejected, st.rtt_ms, kbps_out, kbps_in, st.remote_states,
+                      state, st.sent, st.received, st.lost, st.rejected, st.rtt_ms, kbps_out, kbps_in, st.remote_states,
                       remote, session.reliable_pending(), session.reliable_refused(), st.unknown_kinds,
                       transport->status());
             if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());

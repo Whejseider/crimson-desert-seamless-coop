@@ -36,6 +36,7 @@ public:
         uint64_t unknown_kinds = 0;  // events / reliable messages of a newer version, dropped
         uint64_t bytes_sent = 0;      // Co-op+ (T11): datagram bytes, for the bandwidth figures
         uint64_t bytes_received = 0;
+        uint64_t lost = 0;            // Co-op+ (T32): gaps in the other side's packet numbers (late ones taken back)
     };
 
     static constexpr uint32_t kHelloRetryMs = 1000;
@@ -126,6 +127,7 @@ private:
     std::optional<proto::PlayerState> remote_state_;
 
     uint32_t next_seq_ = 1;
+    uint32_t last_rx_seq_ = 0;  // Co-op+ (T32): the other side's newest packet number
     bool started_ = false;
     uint32_t last_hello_ms_ = 0;
     uint32_t last_ping_ms_ = 0;

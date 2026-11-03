@@ -38,6 +38,7 @@ std::vector<Item> g_items;
 int g_sel = 0;
 std::atomic<bool> g_open{false};
 std::atomic<bool> g_respawn_partner{false};
+std::atomic<bool> g_net_hud{false};
 float g_health = 1.5f, g_boss = 1.7f;
 
 std::vector<std::string> on_off() { return {"on", "off"}; }
@@ -102,6 +103,9 @@ void init(const std::wstring& ini_path, const Config& cfg, float health_2p, floa
         g_boss = (i + 10) / 10.0f;
         net::scaling_set_2p(g_health, g_boss);
     }));
+    g_net_hud = GetPrivateProfileIntW(L"overlay", L"net_hud", 0, ini_path.c_str()) != 0;
+    g_items.push_back({"Ping and packet loss on screen", L"overlay", L"net_hud", on_off(), one_zero(),
+                       g_net_hud ? 0 : 1, true, [](int i) { g_net_hud = i == 0; }});
     g_items.push_back({"Name over my friend (Ctrl+F8 too)", L"overlay", L"nameplates", on_off(), one_zero(),
                        cfg.overlay_nameplates ? 0 : 1, false, nullptr});
 }
@@ -140,5 +144,6 @@ std::vector<Line> lines() {
 }
 
 bool respawn_at_partner() { return g_respawn_partner.load(); }
+bool net_hud() { return g_net_hud.load(); }
 
 }  // namespace cdmp::settings

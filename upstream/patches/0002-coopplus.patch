@@ -325,7 +325,7 @@ index d6c385a..98ef058 100644
  print('  (all four MUST match: one bad address disables the whole containment)')
  for name, rva, sig in containment:
 diff --git a/upstream/cd-coop-3446/src/common/client_session.cpp b/upstream/cd-coop-3446/src/common/client_session.cpp
-index 20b9936..d2b2d9a 100644
+index 20b9936..46487ef 100644
 --- a/upstream/cd-coop-3446/src/common/client_session.cpp
 +++ b/upstream/cd-coop-3446/src/common/client_session.cpp
 @@ -23,7 +23,7 @@ void ClientSession::tick(uint32_t now_ms) {
@@ -350,7 +350,7 @@ index 20b9936..d2b2d9a 100644
      if (last_problem_event_ms_ == 0 || now_ms - last_problem_event_ms_ >= 10000) {
          last_problem_event_ms_ = now_ms;
          event("cannot connect: peer " + peer_problem_);
-@@ -80,19 +82,33 @@ bool ClientSession::other_version(const proto::Packet& packet, uint32_t now_ms)
+@@ -80,32 +82,59 @@ bool ClientSession::other_version(const proto::Packet& packet, uint32_t now_ms)
      return true;
  }
  
@@ -389,7 +389,25 @@ index 20b9936..d2b2d9a 100644
      auto packet = proto::decode(bytes);
      if (!packet) {
          ++stats_.rejected;
-@@ -105,7 +121,7 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
+         return;
+     }
+     ++stats_.received;
++    // Co-op+ (T32): packet loss from the other side's packet numbers (one counter per sender, +1 per datagram).
++    if (const uint32_t seq = packet->seq; seq) {
++        // netq1: a reconnecting peer starts again at 1, which the old "seq + 1000 < last" test took as 800 late
++        // packets. Late ones arrive within a few numbers; anything further back is a new numbering.
++        if (last_rx_seq_ == 0 || (seq < last_rx_seq_ && last_rx_seq_ - seq > 64) || seq > last_rx_seq_ + 100000) {
++            last_rx_seq_ = seq;  // first packet, or the other game restarted its numbering
++        } else if (seq > last_rx_seq_) {
++            stats_.lost += seq - last_rx_seq_ - 1;
++            last_rx_seq_ = seq;
++        } else if (stats_.lost) {
++            --stats_.lost;  // a late one, counted as lost before
++        }
++    }
+     if (other_version(*packet, now_ms)) {
+         ++stats_.rejected;
+         return;
      }
  
      if (auto* hello = std::get_if<proto::Hello>(&packet->body)) {
@@ -398,7 +416,7 @@ index 20b9936..d2b2d9a 100644
          if (state_ == State::Connected && hello->nonce == peer_nonce_) {
              last_recv_ms_ = now_ms;  // a duplicate of the Hello we already answered
              return;
-@@ -113,9 +129,14 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
+@@ -113,9 +142,14 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
          if (state_ == State::Connected && restarted_ && now_ms - last_restart_ms_ < kMinRestartMs) {
              return;  // restarting again so soon: ignored
          }
@@ -414,7 +432,7 @@ index 20b9936..d2b2d9a 100644
          peer_nonce_ = hello->nonce;
          if (state_ == State::Connected) {
              // Only a side in Connecting says Hello: the other end restarted.
-@@ -140,7 +161,10 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
+@@ -140,7 +174,10 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
              return;
          }
          if (state_ == State::Connecting) {
@@ -426,7 +444,7 @@ index 20b9936..d2b2d9a 100644
              peer_name_ = welcome->name;
              peer_nonce_ = welcome->nonce;
              state_ = State::Connected;
-@@ -207,7 +231,9 @@ void ClientSession::send(proto::Body body, uint32_t now_ms) {
+@@ -207,7 +244,9 @@ void ClientSession::send(proto::Body body, uint32_t now_ms) {
      packet.seq = next_seq_++;
      packet.send_ms = now_ms;
      packet.body = std::move(body);
@@ -438,19 +456,20 @@ index 20b9936..d2b2d9a 100644
  }
  
 diff --git a/upstream/cd-coop-3446/src/common/client_session.h b/upstream/cd-coop-3446/src/common/client_session.h
-index 343a0f9..b5bb1c9 100644
+index 343a0f9..078ba80 100644
 --- a/upstream/cd-coop-3446/src/common/client_session.h
 +++ b/upstream/cd-coop-3446/src/common/client_session.h
-@@ -34,6 +34,8 @@ public:
+@@ -34,6 +34,9 @@ public:
          uint64_t events_received = 0;
          uint64_t reliable_received = 0;
          uint64_t unknown_kinds = 0;  // events / reliable messages of a newer version, dropped
 +        uint64_t bytes_sent = 0;      // Co-op+ (T11): datagram bytes, for the bandwidth figures
 +        uint64_t bytes_received = 0;
++        uint64_t lost = 0;            // Co-op+ (T32): gaps in the other side's packet numbers (late ones taken back)
      };
  
      static constexpr uint32_t kHelloRetryMs = 1000;
-@@ -64,6 +66,13 @@ public:
+@@ -64,6 +67,13 @@ public:
      }
      size_t reliable_pending() const { return reliable_.unacked_fragments(); }
  
@@ -464,7 +483,7 @@ index 343a0f9..b5bb1c9 100644
      // Sends Bye (best effort) and resets to Connecting.
      void disconnect(uint32_t now_ms);
  
-@@ -77,8 +86,7 @@ public:
+@@ -77,8 +87,7 @@ public:
      uint32_t epoch() const { return epoch_; }
      Role role() const { return role_; }
      const std::optional<proto::PlayerState>& remote_state() const { return remote_state_; }
@@ -474,7 +493,7 @@ index 343a0f9..b5bb1c9 100644
      const std::string& peer_problem() const { return peer_problem_; }
      size_t reliable_refused() const { return reliable_.refused(); }
  
-@@ -87,10 +95,12 @@ private:
+@@ -87,10 +96,12 @@ private:
      void event(const std::string& text) const;
      void reset_to_connecting(uint32_t now_ms);
      bool other_version(const proto::Packet& packet, uint32_t now_ms);
@@ -488,6 +507,14 @@ index 343a0f9..b5bb1c9 100644
      Role role_;
      uint32_t epoch_ = 0;
      uint32_t nonce_;           // ours, random per session object
+@@ -116,6 +127,7 @@ private:
+     std::optional<proto::PlayerState> remote_state_;
+ 
+     uint32_t next_seq_ = 1;
++    uint32_t last_rx_seq_ = 0;  // Co-op+ (T32): the other side's newest packet number
+     bool started_ = false;
+     uint32_t last_hello_ms_ = 0;
+     uint32_t last_ping_ms_ = 0;
 diff --git a/upstream/cd-coop-3446/src/common/enemy_load.cpp b/upstream/cd-coop-3446/src/common/enemy_load.cpp
 index 41d94eb..baa7a31 100644
 --- a/upstream/cd-coop-3446/src/common/enemy_load.cpp
@@ -2753,7 +2780,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..36148fe 100644
+index 79ccd06..c031ccc 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,9 +1,13 @@
@@ -3383,7 +3410,28 @@ index 79ccd06..36148fe 100644
              last_state = now;
              if (auto state = local.sample(now)) session.send_local_state(*state, now);
  
-@@ -449,14 +874,25 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -445,18 +870,46 @@ void run_network(const Config& cfg, LocalSource& local) {
+             hud.connected = session.state() == ClientSession::State::Connected;
+             hud.peer_name = session.peer_name();
+             hud.rtt_ms = session.stats().rtt_ms;
++            // Co-op+ (T32): packet loss over the last ~3 s.
++            {
++                static uint64_t last_lost = 0, last_recv = 0;
++                static uint32_t last_at = 0;
++                static float loss = -1;
++                const auto& st = session.stats();
++                if (!connected) {
++                    loss = -1;
++                    last_at = 0;
++                } else if (!last_at || now - last_at >= 3000) {
++                    const uint64_t dl = st.lost - std::min(st.lost, last_lost), dr = st.received - std::min(st.received, last_recv);
++                    if (last_at && dl + dr > 0) loss = 100.0f * static_cast<float>(dl) / static_cast<float>(dl + dr);
++                    last_lost = st.lost, last_recv = st.received, last_at = now ? now : 1;
++                }
++                hud.loss_pct = loss;
++                hud.net_hud = settings::net_hud();
++            }
+             hud.local = local.snapshot();
              hud.local_status = local.status();
              hud.remote = session.remote_state();
              hud.peer_problem = session.peer_problem();
@@ -3410,7 +3458,7 @@ index 79ccd06..36148fe 100644
                  hud.boss_active = true;
                  hud.boss_name = b.name;
                  hud.boss_hp = b.hp;
-@@ -475,6 +911,55 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +928,55 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -3466,7 +3514,7 @@ index 79ccd06..36148fe 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -491,14 +976,36 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,14 +993,36 @@ void run_network(const Config& cfg, LocalSource& local) {
                  remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                       rs->pos.z, rs->health);
              }
@@ -3489,9 +3537,9 @@ index 79ccd06..36148fe 100644
 +            const double kbps_out = static_cast<double>(st.bytes_sent - last_out) / bw_span,
 +                         kbps_in = static_cast<double>(st.bytes_received - last_in) / bw_span;
 +            last_out = st.bytes_sent, last_in = st.bytes_received, last_bw_ms = now_ms();
-+            log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | out {:.1f} kB/s in {:.1f} kB/s | "
++            log::info("Net: {} | sent {} recv {} lost {} rejected {} | rtt {:.1f} ms | out {:.1f} kB/s in {:.1f} kB/s | "
 +                      "remote states {} | last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
-+                      state, st.sent, st.received, st.rejected, st.rtt_ms, kbps_out, kbps_in, st.remote_states,
++                      state, st.sent, st.received, st.lost, st.rejected, st.rtt_ms, kbps_out, kbps_in, st.remote_states,
 +                      remote, session.reliable_pending(), session.reliable_refused(), st.unknown_kinds,
                        transport->status());
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
@@ -3507,7 +3555,7 @@ index 79ccd06..36148fe 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +1016,128 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +1033,128 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -3637,7 +3685,7 @@ index 79ccd06..36148fe 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +1239,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +1256,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -3646,7 +3694,7 @@ index 79ccd06..36148fe 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +1293,7 @@ void combat_test_loop() {
+@@ -669,7 +1310,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -3655,7 +3703,7 @@ index 79ccd06..36148fe 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +1311,7 @@ void combat_test_loop() {
+@@ -687,7 +1328,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -3664,7 +3712,7 @@ index 79ccd06..36148fe 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1376,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1393,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -3673,7 +3721,7 @@ index 79ccd06..36148fe 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1390,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1407,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -3681,7 +3729,7 @@ index 79ccd06..36148fe 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,15 +1419,30 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,15 +1436,30 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -3714,7 +3762,7 @@ index 79ccd06..36148fe 100644
          } else if (!guarded) {
              // This one line is the whole visible trace of the enemy relay being dead. It was
              // printed once at boot, between dozens of status lines, and it went unnoticed for
-@@ -813,6 +1453,9 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -813,6 +1470,9 @@ DWORD WINAPI late_init(LPVOID param) {
              // So it now says what it costs, and it does not leave the reader to infer that
              // enemy copies, shared loot and joint boss damage are ALL off as a result.
              log::warn("Enemy copies disabled: their crash guards could not be installed");
@@ -3724,7 +3772,7 @@ index 79ccd06..36148fe 100644
              log::warn("  -> the enemy relay is OFF for this whole session: no copies of the other");
              log::warn("     player's enemies, so no shared loot and no guest hits on them either.");
              log::warn("     Everything else (your own copy, movement, equipment, horses) still works.");
-@@ -902,22 +1545,85 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,22 +1562,85 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -3810,7 +3858,7 @@ index 79ccd06..36148fe 100644
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
                    cfg.coop_enabled ? "on" : "off");
-@@ -925,7 +1631,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1648,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -3819,7 +3867,7 @@ index 79ccd06..36148fe 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -956,6 +1662,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -956,6 +1679,7 @@ DWORD WINAPI worker(LPVOID) {
                    cfg.coop_suppress_lab ? ", suppressed by suppress_lab=1 (the one-PC lab)" : "");
          log::info("Config: time sync {}", cfg.coop_time_sync == 1   ? "send ours"
                                            : cfg.coop_time_sync == 2 ? "take the other player's"
@@ -3827,7 +3875,7 @@ index 79ccd06..36148fe 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1676,67 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1693,67 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3895,7 +3943,7 @@ index 79ccd06..36148fe 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1788,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1805,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3929,7 +3977,7 @@ index 79ccd06..36148fe 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1811,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1828,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3941,7 +3989,7 @@ index 79ccd06..36148fe 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1836,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1853,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -20793,7 +20841,7 @@ index 0000000..d470699
 +
 +}  // namespace cdmp::render::ui
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..750c100 100644
+index 14edc91..2a5260f 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 @@ -5,59 +5,67 @@
@@ -20888,7 +20936,7 @@ index 14edc91..750c100 100644
  void hud_configure(const HudOptions& options) {
      std::lock_guard lock(g_mutex);
      g_options = options;
-@@ -68,53 +76,41 @@ void hud_update(HudData data) {
+@@ -68,79 +76,56 @@ void hud_update(HudData data) {
      g_data = std::move(data);
  }
  
@@ -20971,7 +21019,14 @@ index 14edc91..750c100 100644
      if (d.connected) {
          ImGui::Text(en ? "Network: connected to '%s' (%.1f ms)" : "Red: conectado a '%s' (%.1f ms)",
                      d.peer_name.c_str(), d.rtt_ms);
-@@ -122,25 +118,7 @@ void hud_draw(float width, float height) {
++        // Co-op+ (T32): connection quality.
++        if (d.loss_pct >= 0) {
++            ImGui::SameLine();
++            ImGui::TextColored(d.loss_pct < 2 ? ImVec4(0.5f, 0.9f, 0.5f, 1) : d.loss_pct < 8 ? ImVec4(1, 0.8f, 0.3f, 1)
++                                                                                         : ImVec4(1, 0.35f, 0.3f, 1),
++                               en ? "loss %.1f%%" : "perdida %.1f%%", d.loss_pct);
++        }
+     } else {
          ImGui::TextColored(ImVec4(1, 0.8f, 0.3f, 1),
                             en ? "Network: looking for the other player..." : "Red: buscando al otro jugador...");
      }
@@ -20998,7 +21053,7 @@ index 14edc91..750c100 100644
      if (!d.peer_problem.empty()) {
          // In English from the session; the essential part is the instruction.
          ImGui::TextColored(ImVec4(1, 0.35f, 0.3f, 1), en ? "Different mod versions: both of you update"
-@@ -153,14 +131,14 @@ void hud_draw(float width, float height) {
+@@ -153,14 +138,14 @@ void hud_draw(float width, float height) {
      } else {
          ImGui::TextDisabled(en ? "You: %s" : "Tú: %s", d.local_status.c_str());
      }
@@ -21016,7 +21071,7 @@ index 14edc91..750c100 100644
  
      // The room code, ALWAYS shown -- with the code when we have one, and an explicit
      // "no code" plus the reason when we do not.
-@@ -189,19 +167,216 @@ void hud_draw(float width, float height) {
+@@ -189,19 +174,230 @@ void hud_draw(float width, float height) {
          // read a file to find out what went wrong.
          ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
      }
@@ -21086,6 +21141,20 @@ index 14edc91..750c100 100644
 +    float remote_distance = 0;
 +    if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
 +    settings::set_panel_open(panel_visible && opt.build_problem.empty());
++    // Co-op+ (T32): the small connection readout, top right ([overlay] net_hud, F8 settings).
++    if (d.connected && d.net_hud && !game::ui_menu_open()) {
++        const bool good = d.rtt_ms < 120 && d.loss_pct < 2, ok = d.rtt_ms < 250 && d.loss_pct < 8;
++        const ImU32 col = good ? IM_COL32(130, 220, 130, 230) : ok ? IM_COL32(255, 205, 80, 230) : IM_COL32(255, 90, 75, 230);
++        const std::string t = d.loss_pct >= 0 ? std::format("Co-op  {:.0f} ms  {:.0f}% loss", d.rtt_ms, d.loss_pct)
++                                              : std::format("Co-op  {:.0f} ms", d.rtt_ms);
++        ImDrawList* dl = ImGui::GetForegroundDrawList();
++        const float fs = std::max(13.0f, height / 1080.0f * 16.0f);
++        ImFont* f = ui::serif() ? ui::serif() : ImGui::GetFont();
++        const ImVec2 sz = f->CalcTextSizeA(fs, FLT_MAX, 0, t.c_str());
++        const float x = width - sz.x - 24, y = 14;
++        dl->AddText(f, fs, ImVec2(x + 1, y + 1), IM_COL32(0, 0, 0, 200), t.c_str());
++        dl->AddText(f, fs, ImVec2(x, y), col, t.c_str());
++    }
 +    // Co-op+ (T31): the controls card.
 +    static input::Edge help_edge;
 +    if (help_edge(input::action_down(input::Action::Help, focus)) && opt.build_problem.empty()) {
@@ -21237,10 +21306,19 @@ index 14edc91..750c100 100644
      if (d.local) {
          const proto::Vec3 chest{d.local->position.x, d.local->position.y + 1.2f,
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.h b/upstream/cd-coop-3446/src/mod/render/hud.h
-index 532564a..c7d8316 100644
+index 532564a..3a97322 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.h
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.h
-@@ -29,6 +29,23 @@ struct HudData {
+@@ -14,6 +14,8 @@ namespace cdmp::render {
+ struct HudData {
+     bool connected = false;
+     std::string peer_name;
++    float loss_pct = -1;      // Co-op+ (T32): packet loss over the last seconds (< 0 = not known yet)
++    bool net_hud = false;     // Co-op+ (T32): the small ping / loss readout on screen ([overlay] net_hud)
+     float rtt_ms = 0.0f;
+     std::optional<game::PlayerSnapshot> local;
+     std::string local_status;
+@@ -29,6 +31,23 @@ struct HudData {
      // where the code would be, so a missing code explains itself on screen instead
      // of only in the log.
      std::string room_status;
@@ -21264,7 +21342,7 @@ index 532564a..c7d8316 100644
      // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
      // copy. The guest has no native boss bar -- the stage that draws it exists
      // only in the host's world -- so we draw our own.
-@@ -37,13 +54,44 @@ struct HudData {
+@@ -37,13 +56,44 @@ struct HudData {
      float boss_hp = 0.0f;
      float boss_hp_max = 0.0f;
      bool boss_cutscene = false;
@@ -21311,10 +21389,10 @@ index 532564a..c7d8316 100644
  void hud_draw(float width, float height);
 diff --git a/upstream/cd-coop-3446/src/mod/settings_menu.cpp b/upstream/cd-coop-3446/src/mod/settings_menu.cpp
 new file mode 100644
-index 0000000..343a8f3
+index 0000000..8606c1f
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/settings_menu.cpp
-@@ -0,0 +1,144 @@
+@@ -0,0 +1,149 @@
 +#include "mod/settings_menu.h"
 +
 +#include <windows.h>
@@ -21355,6 +21433,7 @@ index 0000000..343a8f3
 +int g_sel = 0;
 +std::atomic<bool> g_open{false};
 +std::atomic<bool> g_respawn_partner{false};
++std::atomic<bool> g_net_hud{false};
 +float g_health = 1.5f, g_boss = 1.7f;
 +
 +std::vector<std::string> on_off() { return {"on", "off"}; }
@@ -21419,6 +21498,9 @@ index 0000000..343a8f3
 +        g_boss = (i + 10) / 10.0f;
 +        net::scaling_set_2p(g_health, g_boss);
 +    }));
++    g_net_hud = GetPrivateProfileIntW(L"overlay", L"net_hud", 0, ini_path.c_str()) != 0;
++    g_items.push_back({"Ping and packet loss on screen", L"overlay", L"net_hud", on_off(), one_zero(),
++                       g_net_hud ? 0 : 1, true, [](int i) { g_net_hud = i == 0; }});
 +    g_items.push_back({"Name over my friend (Ctrl+F8 too)", L"overlay", L"nameplates", on_off(), one_zero(),
 +                       cfg.overlay_nameplates ? 0 : 1, false, nullptr});
 +}
@@ -21457,14 +21539,15 @@ index 0000000..343a8f3
 +}
 +
 +bool respawn_at_partner() { return g_respawn_partner.load(); }
++bool net_hud() { return g_net_hud.load(); }
 +
 +}  // namespace cdmp::settings
 diff --git a/upstream/cd-coop-3446/src/mod/settings_menu.h b/upstream/cd-coop-3446/src/mod/settings_menu.h
 new file mode 100644
-index 0000000..4001b4b
+index 0000000..d7c1f46
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/settings_menu.h
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,41 @@
 +#pragma once
 +// Co-op+ (roadmap T30, T40): the co-op settings in the F8 panel.
 +//
@@ -21503,6 +21586,7 @@ index 0000000..4001b4b
 +
 +// Live values the network loop reads (the config is const there).
 +bool respawn_at_partner();
++bool net_hud();  // T32: the small ping / loss readout
 +
 +}  // namespace cdmp::settings
 diff --git a/upstream/cd-coop-3446/tests/tests.cpp b/upstream/cd-coop-3446/tests/tests.cpp
