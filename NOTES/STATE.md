@@ -1,6 +1,14 @@
 # STATE (single source of truth for resuming)
 
-## NOW (2026-11-01 late) -- read this first
+## NOW (2026-11-03 01:30) -- read this first
+- Overnight list (memory overnight-list-2026-11-03; user back 2026-11-03 22:00): see LOG "overnight list" entry and
+  D41-D44. Installed: dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+10c0ce8d.zip (Defender clean, hash matches, user
+  cdmp.ini kept, test save OUT, SAVES OK). Done + verified on one PC: duel (picker, ring, countdown, hits, yield,
+  out-of-bounds, heal, series), RPS hand medallions, party journal notice, hunting contest UI (kills unverified),
+  Blackstar ridden (test save dragon-rope) and flown to Wyvern's Cradle (wyvern-egg-dragon). Open: arm wrestling
+  with the friend in the NPC's seat, F8 panel restyle, hatching the egg (pet only in this game version).
+
+## Earlier (2026-11-01 late)
 - FIRST read NOTES/HANDOFF-2026-11-01.md (test kit; its "OPEN BUG" section is now RESOLVED-ish, see its top note).
 - Work from NOTES/PLAN.md (user's standing instruction: plan, then carry it out without stopping to ask).
 - Game **1.0.0.3479**. verify-port ALL PASS (run from upstream/cd-coop-3446 with -Exe "D:\SteamLibrary\...\CrimsonDesert.exe");

@@ -15,6 +15,19 @@ Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC
 - Weather follows the host: the game picks random weather stages per load; the guest now runs the host's instead of
   its own ([coop] weather_sync). Time of day follows the host by default ([coop] time_sync=3; it never worked on
   3479 before: wrong address).
+- Looks like the game: notices, banners and prompts in the game's serif type and dialog style; the death screen
+  redrawn as the game's own; your friend's name tag and the boss / opponent health bar redrawn the game's way;
+  the co-op panel is hidden until F8.
+- Controller support for every co-op action (hold View / the touchpad button + a button); prompts show keys, Xbox
+  buttons or PlayStation symbols, whichever you used last.
+- Duels: challenge a friend to a 1v1 fight (Shift+F5 -> Duel). A gold ring marks the duel ground; 3, 2, 1, Fight!;
+  your friend's health at the top; hits make the other player flinch and lose health on both screens; nobody dies
+  (3% = you yield); 10 s outside the ring loses the round; healed after each round; series score.
+- Challenge picker: Duel, Rock-paper-scissors, Hunting contest, and the wrestling table you stand at.
+- Rock-paper-scissors: each player's hand appears over their character at the reveal.
+- Hunting contest: 3 minutes, the most game brought down wins (big game scores more).
+- Party journal: when your friend completes a quest step or challenge you get the game-style notice with its name,
+  marked if you are on the same quest.
 - Challenge your friend (Shift+F5): to arm / hand wrestling at a table (both play a match at the same table in their
   own worlds and share one strength gauge: the faster masher wins on both screens), or anywhere to a rock-paper-
   scissors duel (U / F / E, both hands shown at once, first to 2). Shift+F5 accepts an invite, Shift+F6 declines;
