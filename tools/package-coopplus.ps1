@@ -83,6 +83,13 @@ $lines = $lines | ForEach-Object {
             break
         }
         '^self_marker=1$' { 'self_marker=0'; break }
+        '^guest_loot=1$' {
+            'guest_loot=1'
+            '; Co-op+: who loots a kill you both took part in. per_player = each of you takes your own drop (default);'
+            ';   host_only = only the host; first_come = whoever loots first takes it, the other body is empty.'
+            'loot_mode=per_player'
+            break
+        }
         default { $_ }
     }
 }

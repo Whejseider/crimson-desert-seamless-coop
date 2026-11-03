@@ -112,3 +112,4 @@ Done: loot_mode (config, loot_twin, enemy_relay, Activity 17 kLooted both ways).
 0x72 killed (KillCheatReq) and looted (LootingDropFromDeadBodyReq 2491 -> RemoveLootableAck) on the host side ->
 0.1 s later the guest side emptied copy 0xB01F0017 ("the host looted the original ... first"). Guest-first and the
 real guest need two PCs (PLAYTEST 3.8b). XP: 3 approaches failed -> BLOCKED.md. [~].
+- Pushed T10 (ae487ea).
