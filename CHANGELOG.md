@@ -46,6 +46,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T42: duel extras - the duel ground size (12 / 20 / 35 m) in the F8 settings (the one who places it decides, both see it), and quick rematch (the picker opens on the last game).
 - T43: lasting scoreboard per friend (cdmp_scores.ini) shown on the F8 panel, and titles from wins that the friend sees after your name on their partner frame.
 - T44: group photos use the game's own photo mode (the friend is a real character in the scene); quick message "Hold still: photo!"; the partner frame hides while the F8 panel is open.
+- T45: shared stash blocked (moving an item into the other save needs the add-item request T18 is missing; BLOCKED.md). T46: baby wyvern stays blocked (pet only in this game version).
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

@@ -123,7 +123,7 @@ Steam join/invite/leave and room code, friends-only vs invite-only, join/leave n
 - [~] **T42 — Duel extras.** Wagers, selectable arenas, spectator camera, rematch.
 - [~] **T43 — Cosmetics and recognition.** Titles, co-op bounties and a scoreboard.
 - [~] **T44 — Group photo mode.** Posed shots with both characters.
-- [ ] **T45 — Shared stash.**
-- [ ] **T46 — Baby wyvern hatching.** Blocked until the game supports it; leave `[!]` unless that changes.
+- [!] **T45 — Shared stash.**
+- [!] **T46 — Baby wyvern hatching.** Blocked until the game supports it; leave `[!]` unless that changes.
 - [ ] **T47 — Voice chat.** Steam voice integration (low priority, friends usually use Discord).
 - [ ] **T48 — 3-4 player support.** Only if the architecture allows it without destabilizing 2-player play.

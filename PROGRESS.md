@@ -485,3 +485,20 @@ stands; the pause freezes it too. What co-op needs is the pose: a ninth quick me
 list is now sized by its array, not a fixed 8). Our overlay already hides over game menus (ui_menu_open), and now the
 partner frame hides while the F8 panel is open (it overlapped the long panel, T43).
 Not tested on one PC (the photo mode menu entry was not driven by keys here; the echo copy mirrors us). [~] PLAYTEST 2.7g.
+- Pushed T44 (353290d).
+
+## T45 -- Shared stash: [!] (BLOCKED.md): same missing add-item request as T18 (three approaches there); a mod-side
+stash would delete items. T46 -- Baby wyvern: stays [!] (pet only in this version; F7).
+
+## T47 -- Voice chat: not started (deferred)
+Low priority by the roadmap's own words (friends use Discord). Plan for later: Steam voice through the same
+steam_api64 the mod already resolves at runtime (ISteamUser::StartVoiceRecording / GetAvailableVoice / GetVoice on the
+sender, DecompressVoice + a waveOut stream on the receiver, push-to-talk on a [keys] binding), sent as an unreliable
+event type over the existing Steam transport; volume falloff by distance like T33. Needs two PCs to test at all.
+
+## T48 -- 3-4 player support: not started (deferred)
+The architecture is two-player throughout: ClientSession has one peer, the puppet is one copy (kPuppetBody /
+kPuppetHorse keys), the enemy relay keys copies by "the partner", challenges and revive assume one other player,
+the party frame shows one friend. Scaling already has 3-4 player curves (scaling.toml). Doing it without destabilising
+2-player play means a session per peer and N puppets (new reserved actor keys) -- a project of its own; the roadmap
+allows skipping it ("only if the architecture allows it").

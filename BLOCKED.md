@@ -80,3 +80,16 @@ A penalty means taking silver or items from the player who died, on their own se
 (T18) are not accepted for that (AddMinusItemReq got no answer; the cheat item requests have unknown layouts), so
 "partial" and "full" loss cannot be applied safely. Shipped: the game's own rules stay ("none" from Co-op+), plus the
 respawn option [coop] respawn_at=checkpoint|partner. Unblocks with T18's add/remove item request.
+
+## T45 -- Shared stash
+A stash both players can put items into and take from means moving items between two saves (two in-process
+servers): the same missing piece as T18. Putting in = the giver loses the item (a game action that works: discard);
+taking out = the receiver's server must ADD a chosen item, and no request for that is accepted (T18 tries 1-3:
+AddMinusItemReq ignored, cheat item requests with unknown layouts, the shared-kill loot path cannot carry a chosen
+item). A stash in the mod's own file without the game giving the item back would delete items, so it is not built.
+Unblocks with T18 (a captured BuyItem* / quest-reward flow, or the CreateItemFromTrItemValueCheatReq layout).
+
+## T46 -- Baby wyvern hatching
+Left [!] as the roadmap says: the hatched baby wyvern is a pet only in this game version (Pearl Abyss: a mount "in a
+future update"; NOTES/FLAGS.md F7). The egg, the nest and the route there are reachable on test save
+"wyvern-egg-dragon"; nothing for co-op until the game makes it rideable.
