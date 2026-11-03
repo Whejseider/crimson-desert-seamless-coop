@@ -327,3 +327,12 @@ Plan: two settings rows for the 2-player multipliers (regular, boss), live throu
 after scaling.toml so the panel's value wins; the on/off switch too.
 Done: settings_test: enemy health x1.5 -> x1.7 live ("Settings:   Enemy health with a guest = x1.7"), saved in the
 ini. 3-4 player values stay in scaling.toml (2 players only today). Applied on the host (it is the host's world). [x]
+- Pushed T40 (5da9e59).
+
+## T31 -- First-run onboarding
+Plan: a new Help action (Shift+F1 / chord + L3; chord + L3 now masked from the game like R3); ui::guide_card (game
+dialog style, action tokens drawn as key / pad glyphs); shown once at the first in-world snapshot when cdmp.ini has
+no [general] onboarded=1 (then written), toggled by Help, closes itself after 60 s or when a game menu opens.
+Done: guide_test run 1 (25 s load wait) toggled the card during the loading screen (fine, but too early for the
+first-run check); run 2 (55 s): first shot in the world shows the card ("Co-op+: first run: controls card shown"),
+Shift+F1 closes, Shift+F1 reopens; ini onboarded=1 after. Shipped ini restored. README / Nexus controls. [x]

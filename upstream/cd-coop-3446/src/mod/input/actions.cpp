@@ -32,6 +32,7 @@ Binding kBindings[] = {  // Co-op+ (T30): not const, [keys] in cdmp.ini rebinds 
     {"ReviveFriend", VK_F7, false, true, kPadLB, kPadLB, true},
     {"Summon", VK_F4, false, true, kPadR3, kPadR3, true},
     {"Chat", VK_F2, false, true, 0, 0, true},  // keyboard only (pads use the quick list on Ping)
+    {"Help", VK_F1, false, true, kPadL3, kPadL3, true},  // Co-op+ (T31): the controls card
 };
 static_assert(std::size(kBindings) == static_cast<size_t>(Action::Count));
 

@@ -284,9 +284,9 @@ void poll_loop() {
             back_down_at = t;
             chord_used = false;
         }
-        if (back && (all & (kPadFace | kPadDpad | kPadLB | kPadRB | kPadR3))) chord_used = true;
+        if (back && (all & (kPadFace | kPadDpad | kPadLB | kPadRB | kPadR3 | kPadL3))) chord_used = true;
         if (!back && back_was && !chord_used && t - back_down_at < kChordTapMs) g_back_tap_until = t + kTapInjectMs;
-        if (back) mask_from_game(kPadFace | kPadDpad | kPadLB | kPadRB | kPadR3, 120);
+        if (back) mask_from_game(kPadFace | kPadDpad | kPadLB | kPadRB | kPadR3 | kPadL3, 120);
         back_was = back;
         if (int f = g_sim_family.load()) g_method = f == 2 ? Method::PlayStation : Method::Xbox;
     }

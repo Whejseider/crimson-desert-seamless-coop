@@ -33,6 +33,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T29: failure states listed with their messages (docs/error-messages.md); new plain-language lines with the next step for join not reaching the host, Steam not ready, bad room code, network not starting, save backup failed, safety hooks off (panel + top strip); clearer version and connection-lost messages.
 - T30: co-op settings in the F8 panel (arrows / D-pad pick and change, saved to cdmp.ini, live where possible); co-op hotkeys rebindable under [keys] with warnings for clashes and plain game keys.
 - T40: enemy and boss health with a guest (x1.0-x3.0) changeable in the F8 settings, live, saved in cdmp.ini (wins over scaling.toml's 2-player values).
+- T31: first-run controls card (game style, key/pad glyphs), shown once the first time in the world; Help (Shift+F1, pad View + L3) opens and closes it any time.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

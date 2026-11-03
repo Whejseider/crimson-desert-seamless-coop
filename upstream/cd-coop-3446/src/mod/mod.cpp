@@ -255,7 +255,8 @@ struct HotkeyEdge {
 };
 bool key_down(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
 
-std::string g_compat_note;  // Co-op+ (T28): other mods next to the game, shown once in the world
+std::string g_compat_note;
+std::wstring g_onboard_ini;  // Co-op+ (T31): cdmp.ini when the controls card has not been shown yet ("" = it has)  // Co-op+ (T28): other mods next to the game, shown once in the world
 uint32_t g_audit_due = 0;  // Co-op+ (T08): when the last session ended (0 = no audit due)
 
 // Co-op+ (T08): the state audit, once, 30 s after a session ended (net/state_audit.h).
@@ -679,6 +680,13 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 pos = local.snapshot()->position;
                 rot = local.snapshot()->rotation;
                 const auto& s = *local.snapshot();
+                // Co-op+ (T31): the controls card, the first time ever in the world with Co-op+.
+                if (!g_onboard_ini.empty()) {
+                    render::hud_show_guide();
+                    WritePrivateProfileStringW(L"general", L"onboarded", L"1", g_onboard_ini.c_str());
+                    log::info("Co-op+: first run: controls card shown (the Help key, Shift+F1, opens it again)");
+                    g_onboard_ini.clear();
+                }
                 // Co-op+ (T28): the compatibility note, once, when we are first in the world.
                 if (!g_compat_note.empty()) {
                     toast = "Co-op\n" + g_compat_note;
@@ -1682,6 +1690,10 @@ DWORD WINAPI worker(LPVOID) {
             net::scaling_configure(sc);
             settings::init(dir + L"cdmp.ini", cfg, sc.health[2] > 0 ? sc.health[2] : sc.health_2p,
                            sc.boss_health[2] > 0 ? sc.boss_health[2] : sc.boss_health_2p);
+            // Co-op+ (T31): first run?
+            if (GetPrivateProfileIntW(L"general", L"onboarded", 0, (dir + L"cdmp.ini").c_str()) == 0) {
+                g_onboard_ini = dir + L"cdmp.ini";
+            }
             // Co-op+ (T30): rebound hotkeys, and what is wrong with them.
             for (const auto& w : input::load_bindings(dir + L"cdmp.ini")) {
                 log::warn("Keys: {}", w);

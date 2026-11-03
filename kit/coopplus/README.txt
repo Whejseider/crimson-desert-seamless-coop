@@ -85,6 +85,7 @@ PLAYING TOGETHER
     Shift+F8    RB / R1                      resync (if your friend or the enemies look wrong)
     Shift+F7    LB / L1 (hold)               revive your friend when they are down (stand by them)
     Shift+F4    right stick click            ask your friend to come to you (they accept with Ctrl+F4)
+    Shift+F1    left stick click             the controls card (shown once on the first start)
   A quick tap on View still does what it does in the game.
 - Host: press Ctrl+F1 to open the Steam overlay and invite your friend.
 - Friend: accept the invite, or right-click the host in the Steam friends list and
@@ -107,7 +108,7 @@ PLAYING TOGETHER
     Panel=F9
     Summon_pad=L3
   Actions: Invite Leave Ping GoToFriend Challenge Decline Panel Nameplates Resync
-  ReviveFriend Summon Chat. Keys: A-Z, 0-9, F1-F12, Esc Tab Space Enter Insert
+  ReviveFriend Summon Chat Help. Keys: A-Z, 0-9, F1-F12, Esc Tab Space Enter Insert
   Delete Home End PageUp PageDown arrows, with Ctrl+ and/or Shift+. Pad (_pad):
   A B X Y LB RB L3 R3 Up Down Left Right (always with View/Touchpad held). When
   the game starts, a notice warns about two actions on the same keys, or a key

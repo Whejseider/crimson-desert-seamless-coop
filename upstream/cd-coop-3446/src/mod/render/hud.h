@@ -88,6 +88,10 @@ struct HudOptions {
 enum class Problem { Network, Join, Backup, Guards, Count };
 void hud_set_problem(Problem kind, std::string text);
 
+// Co-op+ (T31): the controls card. Shown by the Help action (toggle) or by hud_show_guide (first run); hides after
+// 60 s or on Help again.
+void hud_show_guide();
+
 void hud_configure(const HudOptions& options);
 void hud_update(HudData data);
 void hud_draw(float width, float height);

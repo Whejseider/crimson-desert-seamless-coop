@@ -27,6 +27,10 @@ ImFont* serif_bold();
 // A centred notice band at `y` (screen px): title (gold, may be empty) over body text, game dialog style.
 void band(float screen_w, float y, const std::string& title, const std::string& body, float alpha = 1.0f);
 
+// Co-op+ (T31): a centred card, game dialog style: a gold title, lines with action tokens, a dimmer footer.
+void guide_card(float screen_w, float screen_h, const std::string& title, const std::vector<std::string>& lines,
+                const std::string& footer, float alpha = 1.0f);
+
 // A one-line band (lighter), e.g. the running state of a challenge.
 void strip(float screen_w, float y, const std::string& text, float alpha = 1.0f);
 

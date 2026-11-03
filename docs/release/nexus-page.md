@@ -83,6 +83,7 @@ CrimsonDesert.exe). Back up your saves yourself.
 | Shift+F8 | RB / R1 | resync |
 | F8 | X / Square | co-op panel |
 | Ctrl+F8 | A / Cross | name over your friend's head |
+| Shift+F1 | L3 | the controls card |
 
 ### Known issues
 - Two players only.

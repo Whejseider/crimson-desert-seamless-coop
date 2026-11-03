@@ -258,6 +258,33 @@ void band(float sw, float y, const std::string& title, const std::string& body, 
     rich_text(dl, sw * 0.5f - bw * 0.5f, ty, bs, body, with_alpha(kText, alpha));
 }
 
+void guide_card(float sw, float sh, const std::string& title, const std::vector<std::string>& lines,
+                const std::string& footer, float alpha) {
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    const float k = std::max(0.6f, sh / 1080.0f);
+    const float ts = 34.0f * k, ls = 21.0f * k, fs = 17.0f * k, gap = ls * 0.62f;
+    float w = text_w(g_serif_bold, ts, title);
+    for (const auto& l : lines) w = std::max(w, rich_text(nullptr, 0, 0, ls, l, kText));
+    w = std::max(w, rich_text(nullptr, 0, 0, fs, footer, kText)) + 120.0f * k;
+    const float h = ts + 30 * k + static_cast<float>(lines.size()) * (ls + gap) + fs + 44 * k;
+    const float x0 = sw * 0.5f - w * 0.5f, y0 = sh * 0.5f - h * 0.5f;
+    faded_rect(dl, x0, y0, x0 + w, y0 + h, with_alpha(IM_COL32(8, 7, 6, 228), alpha));
+    faded_rect(dl, x0, y0, x0 + w, y0 + 1.0f, with_alpha(kRule, alpha));
+    faded_rect(dl, x0, y0 + h - 1.0f, x0 + w, y0 + h, with_alpha(kRule, alpha));
+    float y = y0 + 20 * k;
+    text(dl, g_serif_bold, ts, sw * 0.5f - text_w(g_serif_bold, ts, title) * 0.5f, y, with_alpha(kGold, alpha), title);
+    y += ts + 6 * k;
+    faded_rect(dl, sw * 0.5f - 200 * k, y, sw * 0.5f + 200 * k, y + 1.0f, with_alpha(kRule, alpha));
+    y += 18 * k;
+    for (const auto& l : lines) {
+        rich_text(dl, x0 + 60 * k, y, ls, l, with_alpha(kText, alpha));
+        y += ls + gap;
+    }
+    y += 6 * k;
+    const float fw = rich_text(nullptr, 0, 0, fs, footer, kText);
+    rich_text(dl, sw * 0.5f - fw * 0.5f, y, fs, footer, with_alpha(IM_COL32(200, 192, 176, 255), alpha * 0.9f));
+}
+
 void strip(float sw, float y, const std::string& body, float alpha) {
     ImDrawList* dl = ImGui::GetForegroundDrawList();
     const float k = std::max(0.6f, sw / 1920.0f);

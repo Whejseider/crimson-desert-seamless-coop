@@ -5,6 +5,7 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <format>
@@ -34,6 +35,7 @@ HudData g_data;
 HudOptions g_options;
 std::string g_problems[static_cast<int>(Problem::Count)];  // Co-op+ (T29)
 ULONGLONG g_problem_changed = 0;
+std::atomic<ULONGLONG> g_guide_since{0};  // Co-op+ (T31): when the controls card opened (0 = closed)
 
 // Co-op+: the same colour at `alpha` of its own opacity (nameplate fade).
 ImU32 faded(ImU32 color, float alpha) {
@@ -53,6 +55,8 @@ void draw_remote_marker(ImDrawList* dl, const game::ScreenPoint& p, const HudDat
 }
 
 }  // namespace
+
+void hud_show_guide() { g_guide_since = GetTickCount64(); }
 
 void hud_set_problem(Problem kind, std::string text) {
     std::lock_guard lock(g_mutex);
@@ -227,6 +231,28 @@ void hud_draw(float width, float height) {
     float remote_distance = 0;
     if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
     settings::set_panel_open(panel_visible && opt.build_problem.empty());
+    // Co-op+ (T31): the controls card.
+    static input::Edge help_edge;
+    if (help_edge(input::action_down(input::Action::Help, focus)) && opt.build_problem.empty()) {
+        g_guide_since = g_guide_since.load() ? 0 : GetTickCount64();
+    }
+    if (const ULONGLONG since = g_guide_since.load()) {
+        const ULONGLONG age = GetTickCount64() - since;
+        if (age > 60000 || game::ui_menu_open()) {
+            g_guide_since = 0;
+        } else {
+            const float a = age > 58000 ? static_cast<float>(60000 - age) / 2000.0f : 1.0f;
+            ui::guide_card(width, height, "Seamless Co-op+",
+                           {"{Invite}  Invite a Steam friend (or they pick Join Game on you in Steam)",
+                            "{Panel}  Co-op panel and settings          {Leave}  Leave a friend's world",
+                            "{GoToFriend}  Go to your friend          {Summon}  Ask your friend to come to you",
+                            "{Ping}  Quick messages and map pins          {Chat}  Type a chat line",
+                            "{Challenge}  Challenge: duel, rock-paper-scissors, hunting, arm wrestling",
+                            "{ReviveFriend}  Hold by a downed friend to revive          {Resync}  Resync if things look wrong",
+                            "Don't save while your friend is in your world: Co-op+ backs your saves up for you."},
+                           "{Help}  closes this card and opens it again any time", a);
+        }
+    }
     if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure(), problems);
     if (problem_fresh && !panel_visible && opt.build_problem.empty()) {
         for (size_t i = 0; i < problems.size(); ++i) {

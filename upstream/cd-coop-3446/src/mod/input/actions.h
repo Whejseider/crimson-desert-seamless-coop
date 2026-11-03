@@ -23,7 +23,7 @@ namespace cdmp::input {
 
 enum class Action : uint8_t {
     Invite, Leave, Ping, GoToFriend, Challenge, Decline, Panel, Nameplates,
-    ReviveNow, ReviveCheckpoint, RpsScissors, RpsPaper, RpsRock, Skip, Mash, MenuPrev, MenuNext, Resync, ReviveFriend, Summon, Chat,
+    ReviveNow, ReviveCheckpoint, RpsScissors, RpsPaper, RpsRock, Skip, Mash, MenuPrev, MenuNext, Resync, ReviveFriend, Summon, Chat, Help,
     Count
 };
 
