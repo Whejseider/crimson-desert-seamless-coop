@@ -120,7 +120,7 @@ Steam join/invite/leave and room code, friends-only vs invite-only, join/leave n
 ### P3 — Fun and stretch (only after everything above)
 
 - [~] **T41 — More challenges.** Horse race, fishing contest, boss rush or arena, hide and seek, scavenger hunt.
-- [ ] **T42 — Duel extras.** Wagers, selectable arenas, spectator camera, rematch.
+- [~] **T42 — Duel extras.** Wagers, selectable arenas, spectator camera, rematch.
 - [ ] **T43 — Cosmetics and recognition.** Titles, co-op bounties and a scoreboard.
 - [ ] **T44 — Group photo mode.** Posed shots with both characters.
 - [ ] **T45 — Shared stash.**

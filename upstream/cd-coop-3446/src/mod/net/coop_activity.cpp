@@ -196,6 +196,8 @@ std::string how_to_play(uint32_t stage) {
     }
 }
 
+uint32_t g_last_game = 0;  // Co-op+ (T42): the last game we challenged to (the picker opens on it)
+
 Game game_of(uint32_t stage) {
     if (std::find(std::begin(kWrestleStages), std::end(kWrestleStages), stage) != std::end(kWrestleStages)) return kGameWrestle;
     if (stage == kRpsNameStage) return kGameRps;
@@ -647,11 +649,16 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
                     c.options.push_back(kRpsNameStage);
                     c.options.push_back(kHuntStage);
                     c.options.push_back(kRaceStage);  // Co-op+ (T41)
+                    // Co-op+ (T42): rematch -- the picker opens on the game played last ({Challenge} twice).
+                    for (size_t i = 0; i < c.options.size(); ++i) {
+                        if (c.options[i] == g_last_game) c.pick = i;
+                    }
                     g_menu_step = 0;
                     break;
                 }
                 case kChPick: {
                     const uint32_t chosen = c.options.empty() ? kDuelStage : c.options[std::min(c.pick, c.options.size() - 1)];
+                    g_last_game = chosen;
                     c = Challenge{};
                     c.state = kChSent;
                     c.stage = chosen;

@@ -163,6 +163,9 @@ PLAYING TOGETHER
     friend's character sits across from you in the opponent's chair, and you share
     one strength bar: whoever mashes E (pad: any face button) faster wins on both
     screens.
+  * Rematch: after a challenge ends, Shift+F5 opens the picker on the game you played
+    last, so Shift+F5 twice asks for a rematch. The duel ground's size (12 / 20 / 35 m)
+    is in the F8 settings; the one who places the ground decides.
   * RACE TO THE WAYPOINT: the host's map waypoint (right-click on the map) is the
     finish; after 3, 2, 1 the first to get within 12 m wins (ride, glide, run). Set a
     new waypoint for the next race.

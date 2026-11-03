@@ -451,3 +451,14 @@ player finished ... 0:27.9", "round 1 ends"; screen: banner "Race to the waypoin
 "Victory / You 0:27.9 them 0:27.9", toast "You win the race. Series: you 1 - 0". [~]
 Not done: fishing contest (no fishing hook found yet), boss rush / arena (bosses are the host's story stages),
 hide and seek, scavenger hunt. PLAYTEST 6.9b for the race.
+- Pushed T41 (7d8efca).
+
+## T42 -- Duel extras
+Plan: of wagers, selectable arenas, spectator camera, rematch: (1) arenas = the duel ground's size, a settings row
+([coop] duel_ring_m 12 / 20 / 35); the side that places the ground already sends centre + radius, so both use the
+placer's size; (2) rematch = the picker remembers the last game and opens on it (Shift+F5 twice). Wagers need an item
+or silver transfer the game server accepts (none found, T18 / BLOCKED.md); a spectator camera needs control of the
+game camera (not hooked).
+Done: duelx_test: [coop] duel_ring_m=12 -> "Duel: round 1 at (...), radius 12 m"; after ending, the picker opened on
+Duel (Duel is also the first option, so this shot does not prove the rematch memory; the code is 4 lines: the
+chosen stage is kept and the picker's selection set to it). [~]

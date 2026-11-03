@@ -4854,10 +4854,10 @@ index a328bc0..5778775 100644
      // order (a resent ApplyBuff could land after its Unapply), so they carry
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..b66c4ae
+index 0000000..af445ba
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,1128 @@
+@@ -0,0 +1,1135 @@
 +#include "mod/net/coop_activity.h"
 +#include "mod/input/actions.h"
 +#include "mod/input/pad_input.h"
@@ -5055,6 +5055,8 @@ index 0000000..b66c4ae
 +        default: return "Both sit at the table and start a match, then mash {Mash}!";
 +    }
 +}
++
++uint32_t g_last_game = 0;  // Co-op+ (T42): the last game we challenged to (the picker opens on it)
 +
 +Game game_of(uint32_t stage) {
 +    if (std::find(std::begin(kWrestleStages), std::end(kWrestleStages), stage) != std::end(kWrestleStages)) return kGameWrestle;
@@ -5507,11 +5509,16 @@ index 0000000..b66c4ae
 +                    c.options.push_back(kRpsNameStage);
 +                    c.options.push_back(kHuntStage);
 +                    c.options.push_back(kRaceStage);  // Co-op+ (T41)
++                    // Co-op+ (T42): rematch -- the picker opens on the game played last ({Challenge} twice).
++                    for (size_t i = 0; i < c.options.size(); ++i) {
++                        if (c.options[i] == g_last_game) c.pick = i;
++                    }
 +                    g_menu_step = 0;
 +                    break;
 +                }
 +                case kChPick: {
 +                    const uint32_t chosen = c.options.empty() ? kDuelStage : c.options[std::min(c.pick, c.options.size() - 1)];
++                    g_last_game = chosen;
 +                    c = Challenge{};
 +                    c.state = kChSent;
 +                    c.stage = chosen;
@@ -6336,10 +6343,11 @@ index 0000000..7467e58
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_duel.cpp b/upstream/cd-coop-3446/src/mod/net/coop_duel.cpp
 new file mode 100644
-index 0000000..4b526a3
+index 0000000..22212f5
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_duel.cpp
-@@ -0,0 +1,387 @@
+@@ -0,0 +1,388 @@
++#include "mod/settings_menu.h"
 +#include "mod/net/coop_duel.h"
 +
 +#include <windows.h>
@@ -6561,7 +6569,7 @@ index 0000000..4b526a3
 +                    if (partner && dist_xz(*me, *partner) < 60.0f) {
 +                        for (int i = 0; i < 3; ++i) g.centre[i] = ((*me)[i] + (*partner)[i]) * 0.5f;
 +                    }
-+                    g.radius = kRadiusM;
++                    g.radius = settings::duel_ring_m();  // Co-op+ (T42): sent below, so both use it
 +                    std::vector<uint8_t> b(16);
 +                    std::memcpy(b.data(), g.centre.data(), 12);
 +                    std::memcpy(b.data() + 12, &g.radius, 4);
@@ -21890,10 +21898,10 @@ index 532564a..07de0a2 100644
  void hud_draw(float width, float height);
 diff --git a/upstream/cd-coop-3446/src/mod/settings_menu.cpp b/upstream/cd-coop-3446/src/mod/settings_menu.cpp
 new file mode 100644
-index 0000000..79f43e3
+index 0000000..ff0a7dd
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/settings_menu.cpp
-@@ -0,0 +1,178 @@
+@@ -0,0 +1,192 @@
 +#include "mod/settings_menu.h"
 +
 +#include <windows.h>
@@ -21939,6 +21947,7 @@ index 0000000..79f43e3
 +std::atomic<bool> g_respawn_partner{false};
 +std::atomic<bool> g_net_hud{false};
 +std::atomic<bool> g_colourblind{false};
++std::atomic<float> g_ring{20.0f};
 +float g_health = 1.5f, g_boss = 1.7f;
 +
 +std::vector<std::string> on_off() { return {"on", "off"}; }
@@ -22017,6 +22026,18 @@ index 0000000..79f43e3
 +                               net::party_quests_set_spoiler_guard(i == 1);
 +                           }});
 +    }
++    // T42: the duel ground.
++    {
++        const int ring = GetPrivateProfileIntW(L"coop", L"duel_ring_m", 20, ini_path.c_str());
++        const int idx = ring <= 12 ? 0 : ring >= 35 ? 2 : 1;
++        constexpr float kRings[] = {12.0f, 20.0f, 35.0f};
++        g_ring = kRings[idx];
++        g_items.push_back({"Duel ground (when I place it)", L"coop", L"duel_ring_m", {"small, 12 m", "normal, 20 m", "large, 35 m"},
++                           {L"12", L"20", L"35"}, idx, true, [](int i) {
++                               constexpr float r[] = {12.0f, 20.0f, 35.0f};
++                               g_ring = r[i];
++                           }});
++    }
 +    // T34: colours.
 +    g_colourblind = GetPrivateProfileIntW(L"overlay", L"colourblind", 0, ini_path.c_str()) != 0;
 +    g_items.push_back({"Player colours", L"overlay", L"colourblind", {"gold host, blue guest", "colour-blind safe"},
@@ -22070,14 +22091,15 @@ index 0000000..79f43e3
 +bool respawn_at_partner() { return g_respawn_partner.load(); }
 +bool net_hud() { return g_net_hud.load(); }
 +bool colourblind() { return g_colourblind.load(); }
++float duel_ring_m() { return g_ring.load(); }
 +
 +}  // namespace cdmp::settings
 diff --git a/upstream/cd-coop-3446/src/mod/settings_menu.h b/upstream/cd-coop-3446/src/mod/settings_menu.h
 new file mode 100644
-index 0000000..94c9f8a
+index 0000000..b440209
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/settings_menu.h
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,43 @@
 +#pragma once
 +// Co-op+ (roadmap T30, T40): the co-op settings in the F8 panel.
 +//
@@ -22118,6 +22140,7 @@ index 0000000..94c9f8a
 +bool respawn_at_partner();
 +bool net_hud();  // T32: the small ping / loss readout
 +bool colourblind();  // T34: the colour-blind-safe player colours
++float duel_ring_m();  // T42: the duel ground's radius when we place it
 +
 +}  // namespace cdmp::settings
 diff --git a/upstream/cd-coop-3446/tests/tests.cpp b/upstream/cd-coop-3446/tests/tests.cpp

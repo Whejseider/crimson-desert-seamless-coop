@@ -1,3 +1,4 @@
+#include "mod/settings_menu.h"
 #include "mod/net/coop_duel.h"
 
 #include <windows.h>
@@ -219,7 +220,7 @@ DuelTick duel_tick(bool on, bool inviter, bool connected, std::optional<std::arr
                     if (partner && dist_xz(*me, *partner) < 60.0f) {
                         for (int i = 0; i < 3; ++i) g.centre[i] = ((*me)[i] + (*partner)[i]) * 0.5f;
                     }
-                    g.radius = kRadiusM;
+                    g.radius = settings::duel_ring_m();  // Co-op+ (T42): sent below, so both use it
                     std::vector<uint8_t> b(16);
                     std::memcpy(b.data(), g.centre.data(), 12);
                     std::memcpy(b.data() + 12, &g.radius, 4);

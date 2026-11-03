@@ -43,6 +43,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T38: post-patch playbook (docs/post-patch-playbook.md) and tools/port/post_patch_check.ps1 (offline verifier + the hook problems in the last log), checked on the current exe and on a copy with two hook sites changed.
 - T39: spoiler guard (F8 settings, [coop] spoiler_guard): the friend's quest steps you have not reached are not named, their story scenes are not started in your game. Also fixed: cutscene, duel and quest events ran the menu code since T09 (the partner could read as "in a menu").
 - T41: new challenge "Race to the waypoint" (the host's map waypoint is the finish, 3-2-1, first within 12 m, times on both screens, a new waypoint = next round).
+- T42: duel extras - the duel ground size (12 / 20 / 35 m) in the F8 settings (the one who places it decides, both see it), and quick rematch (the picker opens on the last game).
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

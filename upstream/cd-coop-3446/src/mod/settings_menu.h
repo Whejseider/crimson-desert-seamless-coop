@@ -38,5 +38,6 @@ std::vector<Line> lines();
 bool respawn_at_partner();
 bool net_hud();  // T32: the small ping / loss readout
 bool colourblind();  // T34: the colour-blind-safe player colours
+float duel_ring_m();  // T42: the duel ground's radius when we place it
 
 }  // namespace cdmp::settings

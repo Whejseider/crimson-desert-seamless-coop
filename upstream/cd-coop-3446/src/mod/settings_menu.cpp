@@ -43,6 +43,7 @@ std::atomic<bool> g_open{false};
 std::atomic<bool> g_respawn_partner{false};
 std::atomic<bool> g_net_hud{false};
 std::atomic<bool> g_colourblind{false};
+std::atomic<float> g_ring{20.0f};
 float g_health = 1.5f, g_boss = 1.7f;
 
 std::vector<std::string> on_off() { return {"on", "off"}; }
@@ -121,6 +122,18 @@ void init(const std::wstring& ini_path, const Config& cfg, float health_2p, floa
                                net::party_quests_set_spoiler_guard(i == 1);
                            }});
     }
+    // T42: the duel ground.
+    {
+        const int ring = GetPrivateProfileIntW(L"coop", L"duel_ring_m", 20, ini_path.c_str());
+        const int idx = ring <= 12 ? 0 : ring >= 35 ? 2 : 1;
+        constexpr float kRings[] = {12.0f, 20.0f, 35.0f};
+        g_ring = kRings[idx];
+        g_items.push_back({"Duel ground (when I place it)", L"coop", L"duel_ring_m", {"small, 12 m", "normal, 20 m", "large, 35 m"},
+                           {L"12", L"20", L"35"}, idx, true, [](int i) {
+                               constexpr float r[] = {12.0f, 20.0f, 35.0f};
+                               g_ring = r[i];
+                           }});
+    }
     // T34: colours.
     g_colourblind = GetPrivateProfileIntW(L"overlay", L"colourblind", 0, ini_path.c_str()) != 0;
     g_items.push_back({"Player colours", L"overlay", L"colourblind", {"gold host, blue guest", "colour-blind safe"},
@@ -174,5 +187,6 @@ std::vector<Line> lines() {
 bool respawn_at_partner() { return g_respawn_partner.load(); }
 bool net_hud() { return g_net_hud.load(); }
 bool colourblind() { return g_colourblind.load(); }
+float duel_ring_m() { return g_ring.load(); }
 
 }  // namespace cdmp::settings
