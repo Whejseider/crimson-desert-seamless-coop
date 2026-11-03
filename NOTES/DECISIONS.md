@@ -323,3 +323,9 @@
   drops you (at 1346 m after ~70 s of climbing). flyto.py (build/port3479) steers it.
 - Route to Delesyia for the wyvern: the flight reached Wells Estate / Mistveil Forest (-8660, 453, -4474), 2.1 km from
   Wyvern's Cradle, past the bay that blocked every walking/teleport route. Next: fly level (stamina), land to rest.
+- Delesyia reached (2026-11-03 00:30): test save wyvern-dragon / wyvern-egg-dragon (= dragon-rope, start moved to
+  the nest's revive point; the game loads it at Trembling Gorge (-9004, 479, -5066)). Summon Blackstar (it needs open
+  ground: twice it did not come in the forest right after loading; a second wheel use worked), flyto.py -6736 -5330:
+  2.3 km in ~100 s, "Wyvern's Cradle" / "Three Brothers Cliff Wyvern Nest - Knowledge Acquired". Dismounting 290 m up
+  (R) killed Kliff (no glide); "Revive at Checkpoint" puts him at the nest's revive point (-6727, 533, -5305).
+  tools/save/move_save.py now finds the position field in saves of other sizes.
