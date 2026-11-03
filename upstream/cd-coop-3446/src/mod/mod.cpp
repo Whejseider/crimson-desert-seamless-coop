@@ -573,12 +573,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         // with the panel hidden.
         if (connected && !was_connected) {
             toast_name = session.peer_name().empty() ? std::string("Your friend") : session.peer_name();
-            toast = host ? std::format("{} joined your world", toast_name)
-                         : std::format("You are in {}'s world", toast_name);
+            toast = host ? std::format("Co-op\n{} joined your world", toast_name)
+                         : std::format("Co-op\nYou are in {}'s world", toast_name);
             toast_until = now + 6000;
         } else if (!connected && was_connected) {
-            toast = host ? std::format("{} left your world", toast_name)
-                         : std::format("Lost the connection to {}'s world", toast_name);
+            toast = host ? std::format("Co-op\n{} left your world", toast_name)
+                         : std::format("Co-op\nLost the connection to {}'s world", toast_name);
             toast_until = now + 6000;
         }
         was_connected = connected;
@@ -685,6 +685,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             hud.remote = session.remote_state();
             hud.peer_problem = session.peer_problem();
             hud.revive_prompt = static_cast<uint8_t>(revive_prompt);
+            if (cfg.dev_ui_preview == 1) hud.revive_prompt = 1;  // [dev] ui_preview: the death screen
             // In co-op, put the marker on the character actually drawn (it
             // plays the network state `delay` ms later).
             if (coop && hud.remote) {
@@ -730,6 +731,13 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 const std::string who = session.peer_name().empty() ? "Your friend" : session.peer_name();
                 toast = std::format("{} pinged their position (see your map)", who);
                 toast_until = now + 6000;
+            }
+            // Co-op+: once per session, when we first stand in the world: how to use co-op (the status panel is
+            // hidden by default, as the game shows no debug boxes).
+            if (static bool welcomed = false; !welcomed && hud.local) {
+                welcomed = true;
+                toast = "Seamless Co-op\n{Invite} Invite a friend      {Challenge} Challenge      {Panel} Co-op panel";
+                toast_until = now + 9000;
             }
             if (!toast.empty() && static_cast<int32_t>(now - toast_until) < 0) hud.toast = toast;
             hud.activity = activity_banner;

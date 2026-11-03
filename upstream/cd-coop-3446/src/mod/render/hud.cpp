@@ -181,7 +181,7 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
 }
 
 void hud_draw(float width, float height) {
-    static bool panel_visible = true;
+    static bool panel_visible = false;  // Co-op+: hidden until F8 / chord + X (the game shows no debug boxes)
     static bool plates_visible = true;
     static bool plates_init = false;
     static bool f8_was_down = false;
