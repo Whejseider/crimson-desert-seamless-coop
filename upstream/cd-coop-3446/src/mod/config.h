@@ -82,6 +82,7 @@ struct Config {
     uint32_t dev_quest_test = 0;     // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key
     bool dev_hunt_test = false;      // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)
     bool dev_zone_copy_test = false; // Co-op+ dev: the guest's dry-run zone is copied for real (enemy_relay.h)
+    std::wstring dev_online_guard_test;  // Co-op+ dev: a module name the online guard also looks for (online_guard.h)
     int dev_pad_sim = 0;             // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)
     int dev_ui_preview = 0;          // Co-op+ dev: 1 = show the death screen ([dev] ui_preview)
     int dev_rps_test = -1;  // Co-op+ dev: simulated RPS opponent's hand 0/1/2 ([dev] rps_test=1..3, 0 = off)

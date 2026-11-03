@@ -7,6 +7,7 @@
 #include <exception>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "build_id.h"
@@ -20,6 +21,7 @@
 #include "mod/game/player_reader.h"
 #include "mod/game/safe_memory.h"
 #include "mod/crash_log.h"
+#include "mod/online_guard.h"
 #include "mod/log.h"
 #include "mod/net/coop.h"
 #include "mod/net/aggro_test.h"
@@ -1370,6 +1372,17 @@ DWORD WINAPI worker(LPVOID) {
             log::warn("{}", build_problem);
         }
         const Config cfg = load_config(dir + L"cdmp.ini");
+        // Co-op+ (T02): never next to an anti-cheat (online_guard.h). Nothing of ours is hooked then, not even the
+        // overlay, so the message goes out in a plain Windows box (its own thread: the game does not wait for it).
+        if (in_game && build_ok) {
+            if (std::string why = online_guard::check(cfg.dev_online_guard_test); !why.empty()) {
+                std::thread([why] {
+                    MessageBoxA(nullptr, why.c_str(), "Crimson Desert Seamless Co-op+", MB_OK | MB_ICONINFORMATION);
+                }).detach();
+                log::warn("Online guard: nothing installed (no overlay, no packet hooks, no co-op)");
+                return 0;
+            }
+        }
         log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                   cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
                   cfg.coop_enabled ? "on" : "off");

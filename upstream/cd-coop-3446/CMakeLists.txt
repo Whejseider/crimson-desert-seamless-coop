@@ -88,6 +88,7 @@ add_library(cdmp_mod SHARED
     src/mod/dllmain.cpp
     src/mod/mod.cpp
     src/mod/crash_log.cpp
+    src/mod/online_guard.cpp
     src/mod/log.cpp
     src/mod/config.cpp
     src/mod/game/safe_memory.cpp

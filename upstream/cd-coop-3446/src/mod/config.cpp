@@ -231,6 +231,7 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_quest_test = static_cast<uint32_t>(read_uint(ini_path, L"dev", L"quest_test", 0));
     c.dev_hunt_test = read_uint(ini_path, L"dev", L"hunt_test", 0) != 0;
     c.dev_zone_copy_test = read_uint(ini_path, L"dev", L"zone_copy_test", 0) != 0;
+    c.dev_online_guard_test = read_string(ini_path, L"dev", L"online_guard_test", "");
     c.dev_rps_test = static_cast<int>(read_uint(ini_path, L"dev", L"rps_test", 0)) - 1;  // 1 scissors, 2 paper, 3 rock
     c.dev_cinema_test = read_uint(ini_path, L"dev", L"cinema_test", 0) != 0;
     c.dev_weather_test = read_uint(ini_path, L"dev", L"weather_test", 0);

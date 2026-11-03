@@ -144,6 +144,17 @@ saved during co-op (the game also autosaves on its own). To restore one: game cl
 copy that folder's contents back into %LOCALAPPDATA%\Pearl Abyss\CD\save.
 
 
+IS IT SAFE? (ANTI-CHEAT, ACCOUNTS, CROSS-SAVE)
+---------------------------------------------
+- Crimson Desert has no anti-cheat. Its Denuvo is copy protection only, and the game
+  has no online play of its own. Co-op+ changes only your local game.
+- Should an update ever add an anti-cheat, Co-op+ notices at start, installs nothing
+  at all and tells you in a small window; the game runs normally.
+- Co-op+ never touches your account, the store, cross-save or Steam Cloud, and sends
+  nothing anywhere except to the friend you play with.
+- Cross-save / Steam Cloud upload your save when the game saves: that is one more
+  reason not to save while your friend is connected.
+
 AFTER A GAME UPDATE
 -------------------
 Co-op+ is made for one exact game version. When Steam updates the game, the panel
