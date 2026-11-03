@@ -88,6 +88,10 @@ $lines = $lines | ForEach-Object {
             '; Co-op+: who loots a kill you both took part in. per_player = each of you takes your own drop (default);'
             ';   host_only = only the host; first_come = whoever loots first takes it, the other body is empty.'
             'loot_mode=per_player'
+            '; Co-op+: 0 = the guest never finishes one of the host''s enemies (it stops at 1 HP for the host).'
+            'guest_finishes=1'
+            '; Co-op+: 1 = you can revive your friend where they fell (hold Shift+F7 by them, 30 s).'
+            'teammate_revive=1'
             break
         }
         default { $_ }

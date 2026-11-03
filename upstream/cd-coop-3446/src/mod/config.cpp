@@ -235,6 +235,7 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_fake_peer_build = read_uint(ini_path, L"dev", L"fake_peer_build", 0);
     c.dev_desync_test = static_cast<int>(read_uint(ini_path, L"dev", L"desync_test", 0));
     c.coop_teammate_revive = read_uint(ini_path, L"coop", L"teammate_revive", 1) != 0;
+    c.coop_guest_finishes = read_uint(ini_path, L"coop", L"guest_finishes", 1) != 0;
     c.dev_revive_test = read_uint(ini_path, L"dev", L"revive_test", 0) != 0;
     c.dev_rps_test = static_cast<int>(read_uint(ini_path, L"dev", L"rps_test", 0)) - 1;  // 1 scissors, 2 paper, 3 rock
     c.dev_cinema_test = read_uint(ini_path, L"dev", L"cinema_test", 0) != 0;

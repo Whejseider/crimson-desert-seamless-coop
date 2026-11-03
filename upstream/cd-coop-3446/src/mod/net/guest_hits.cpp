@@ -27,6 +27,10 @@
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::net {
+
+std::atomic<bool> g_guest_finishes{true};  // Co-op+ (T17): [coop] guest_finishes
+std::atomic<uint32_t> g_clamped{0};
+void guest_hits_set_finishes(bool on) { g_guest_finishes = on; }
 namespace {
 
 using Bytes = std::vector<uint8_t>;
@@ -640,7 +644,7 @@ std::vector<proto::GameEvent> guest_hits_take_events() {
         // for. Both leave the host's stage without its set_battleEnd, so the
         // arena barrier stays up and the host's quest is stuck. Leave it alive:
         // the host's own next blow drives the script.
-        if (boss_is_boss(enemy) && boss_safe_mode()) {
+        if ((boss_is_boss(enemy) && boss_safe_mode()) || !g_guest_finishes.load()) {
             log::info("Boss: enemy 0x{:08X} survived the finishing blow and is left alive "
                       "for the host to finish", enemy);
             continue;
@@ -799,7 +803,9 @@ void apply_hit(const proto::GameEvent& ev) {
         }
         return;
     }
-    const bool clamp_lethal = boss && boss_safe_mode();
+    // Co-op+ (T17): [coop] guest_finishes=0 -- the strict anti-grief mode: the guest helps but never lands a killing
+    // blow on any of the host's enemies (as with bosses), so no quest target of the host dies to the guest.
+    const bool clamp_lethal = (boss && boss_safe_mode()) || !g_guest_finishes.load();
     const bool lethal = damage > 0 && state.hp > 0 && static_cast<int64_t>(damage) * 1000 >= state.hp &&
                         !clamp_lethal;
 
@@ -823,12 +829,20 @@ void apply_hit(const proto::GameEvent& ev) {
         g_finishing[enemy] = {now_ms(), false};
     } else if (damage > 0) {
         // VaryStatCheatReq mode 0: HP lost with our player as the source (live test V2).
+        // Co-op+ (T17): a blow that would kill while killing is not the guest's to do (boss safety, guest_finishes=0)
+        // leaves the enemy at 1 HP instead (the full damage went through this branch before and could take it to 0).
+        int32_t dealt = damage;
+        if (clamp_lethal && state.hp > 0 && static_cast<int64_t>(dealt) * 1000 >= state.hp) {
+            dealt = static_cast<int32_t>((state.hp - 1) / 1000);
+            if (g_clamped++ < 20) log::info("Co-op: blow on 0x{:08X} left it at 1 HP for the host to finish", enemy);
+        }
+        if (dealt <= 0) return;
         uint8_t b[15] = {};
-        const int32_t delta = -damage;
+        const int32_t delta = -dealt;
         std::memcpy(b, &enemy, 4);
         std::memcpy(b + 4, &kStatHP, 4);
         std::memcpy(b + 9, &delta, 4);
-        scaling_note_injected(enemy, damage);
+        scaling_note_injected(enemy, dealt);
         ok = sniffer_inject_c2s(packet(kOpVaryStatCheatReq, b, sizeof b));
         std::lock_guard lock(g_mutex);
         g_cheated[enemy] = now_ms();

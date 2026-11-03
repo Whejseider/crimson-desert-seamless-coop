@@ -167,3 +167,15 @@ Ack 2569, ChangeWantedStateAck 2324, IncreaseWantedPriceAck 2249, SetWantedForDe
 Done: activity_observe_s2c -> Activity 19 kWanted (once a minute) -> notice; wanted1: an injected
 ChangeWantedStateAck -> "cdmp_peer (relay) is now wanted by the guards (in their own world)", game fine. Shared
 bounty -> BLOCKED.md. [~] (PLAYTEST 3.8c with a real crime).
+- Pushed T16 (ec5be27).
+- T17 finding: guest lethal blows already become the HOST's normal kills (VaryStatCheatReq to 1 HP + our collision: quest credit, skill XP, loot stay with the host). Lead for T10 XP noted in BLOCKED.md.
+
+## T17 -- Anti-grief protections
+Plan: list what the guest can reach in the host's world (only copies of enemies take its blows; townsfolk, items,
+objects are per world), check quest credit of guest kills, add a strict switch.
+Findings: guest lethal blows already become the HOST's normal kills (VaryStatCheatReq to 1 HP + host collision):
+quest credit stays with the host. Bug fixed: with the lethal clamp on (bosses), the non-lethal branch applied the
+full damage and could still take the enemy to 0 -> now capped at 1 HP. Added [coop] guest_finishes (default 1;
+0 = never finish any host enemy) + profile lines (also loot_mode, teammate_revive).
+grief1: no relayed blows landed (Kliff's swings never connected with a copy on one PC), so the clamp itself is for
+the playtest (PLAYTEST 3.5c). [~]

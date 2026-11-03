@@ -129,6 +129,11 @@ WHAT WORKS / WHAT DOESN'T (YET)
   partly refills after each blow: that is the extra toughness. Off: enabled=0
   under [scaling] in cdmp.ini.
 - No friendly fire: you cannot hurt each other.
+- Your friend cannot harm your world: they never touch your townsfolk, items or
+  story objects (each of you plays in your own world), and when their blow finishes
+  one of your enemies it counts as YOUR kill (your quest, your loot). Bosses are
+  always finished by the host. Strict mode, [coop] guest_finishes=0: the guest's
+  blows never finish any of the host's enemies (they stop at 1 HP for the host).
 - Deaths: each of you dies and revives in your own world; the other keeps playing.
   Once your friend's character has been in your world, the game's own death screen
   no longer appears, so Co-op+ shows the same choice in its place ("Death has found

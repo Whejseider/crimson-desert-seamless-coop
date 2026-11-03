@@ -27,6 +27,10 @@
 
 namespace cdmp::net {
 
+// Co-op+ (T17): [coop] guest_finishes (default 1). 0: the guest's blows never kill one of the host's enemies (left at
+// 1 HP for the host), as with bosses -- the strict anti-grief mode.
+void guest_hits_set_finishes(bool on);
+
 void guest_hits_set_enabled(bool on, bool stagger);
 // [coop] finish_arrow: a lethal blow of the other player ends with our usual
 // arrow (a normal death animation) instead of the old collision.

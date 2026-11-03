@@ -30,3 +30,8 @@ Tried / considered:
 What would unblock it: one capture of a real crime (theft at a stall or an assault in town, witnessed) to read
 WantedAddCrimeRecordReq / ChangeWantedStateAck, and the layout of SetWantedForDevReq.
 Shipped instead: each player's bounty stays their own; the other player gets a notice when one becomes wanted.
+
+### Lead for T10 found later (2026-11-03, T17 reading): the host side already turns a guest's lethal blow into a
+NORMAL kill with skill XP and loot: VaryStatCheatReq (not VaryStatByAccInputReq) takes the enemy to 1 HP, then
+send_collision() (AttackByCollisionReq of our player) kills it -- guest_hits.cpp "motive 8, skill XP, loot". The same
+two requests on the guest's own hidden native (the loot twin) may give the guest XP; untested.
