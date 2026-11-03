@@ -28,6 +28,7 @@ constexpr Binding kBindings[] = {
     {"Resync", VK_F8, false, true, kPadRB, kPadRB, true},
     {"ReviveFriend", VK_F7, false, true, kPadLB, kPadLB, true},
     {"Summon", VK_F4, false, true, kPadR3, kPadR3, true},
+    {"Chat", VK_F2, false, true, 0, 0, true},  // keyboard only (pads use the quick list on Ping)
 };
 static_assert(std::size(kBindings) == static_cast<size_t>(Action::Count));
 

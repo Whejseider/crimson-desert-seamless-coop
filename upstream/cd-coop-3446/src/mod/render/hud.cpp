@@ -226,6 +226,9 @@ void hud_draw(float width, float height) {
 
     if (!d.revive_line.empty()) ui::strip(width, height * 0.74f, d.revive_line);  // Co-op+ (T15)
     if (!d.travel_line.empty()) ui::strip(width, height * 0.23f, d.travel_line);  // Co-op+ (T19)
+    if (!d.chat_input.empty()) ui::strip(width, height * 0.82f, d.chat_input);    // Co-op+ (T24)
+    if (!d.chat_quick.empty()) ui::strip(width, height * 0.82f, d.chat_quick);
+    if (!d.chat_log.empty() && !game::ui_menu_open()) ui::chat_log(width, height, d.chat_log);
     if (d.revive_prompt) {
         // Co-op+: the game's own death screen, redrawn (revive_prompt.h): same words, same buttons.
         const char* choices = d.revive_prompt == 2 ? "Your partner is still fighting the boss. Hold on..."

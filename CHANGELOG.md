@@ -25,6 +25,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T20: what a session leaves in each world is written down (README "What stays after a session", docs/world-state-rules.md) and backed by the state audit and loot tests.
 - T21: the empty arm wrestling table is not fixed (BLOCKED.md): found that it happens when your friend's character arrives at the pub together with you; your server is no longer told about the copy's triggers, regions and gimmick bumps (cleaner either way).
 - T22: world events (reinforcements, bounty hunters, camp and outpost activity; 519 named from the game data) are announced to the other player; their fighters are already shared as enemies.
+- T24: text chat (Shift+F2) and quick messages with ping types (Ctrl+F3 / pad View + D-pad Left: Go here, Danger here!, Loot here, Follow me, Wait, Help!, Thanks!, Ready?), shown as notices and a chat log.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

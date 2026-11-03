@@ -46,6 +46,7 @@
 #include "mod/net/coop_sync.h"
 #include "mod/net/coop_revive.h"
 #include "mod/net/coop_travel.h"
+#include "mod/net/coop_chat.h"
 #include "mod/net/state_audit.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
@@ -415,6 +416,8 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     bool reduced_rate = false;  // Co-op+ (T11): poor link, half rate
     std::string revive_line;    // Co-op+ (T15)
     std::string travel_line;    // Co-op+ (T19)
+    std::string chat_input, chat_quick;  // Co-op+ (T24)
+    std::vector<std::string> chat_log;
     uint32_t last_state = 0;
     uint32_t last_report = now_ms();
     uint32_t last_room_attempt = 0;  // host lobby retry, see the loop below
@@ -680,14 +683,23 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 }
                 go_was_down = go_down;
                 // Co-op+: Ctrl+F3 pings our position to the other player (their map + a toast).
-                static bool ping_was_down = false;
-                const bool ping_down = connected && input::action_down(input::Action::Ping, game_has_focus());
-                if (ping_down && !ping_was_down) {
-                    net::capture_emit_ping(s.position.x, s.position.y, s.position.z);
-                    log::info("Co-op: pinged our position ({:.0f}, {:.0f}) to the other player", s.position.x,
-                              s.position.z);
+                // Co-op+ (T24): the Ping action opens the quick messages (coop_chat.h); "Go here", "Danger here!",
+                // "Loot here" also drop the pin as before.
+                {
+                    const net::ChatView cv = net::chat_tick(connected, session.peer_name(), game_has_focus(), now);
+                    chat_input = cv.input;
+                    chat_quick = cv.quick;
+                    chat_log = cv.log;
+                    if (!cv.toast.empty()) {
+                        toast = cv.toast;
+                        toast_until = now + 6000;
+                    }
+                    if (cv.ping) {
+                        net::capture_emit_ping(s.position.x, s.position.y, s.position.z);
+                        log::info("Co-op: pinged our position ({:.0f}, {:.0f}) to the other player", s.position.x,
+                                  s.position.z);
+                    }
                 }
-                ping_was_down = ping_down;
                 // Co-op+: our own revive choices when the game's death screen stays away (revive_prompt.h).
                 std::optional<float> partner_hp;
                 if (connected) {
@@ -795,6 +807,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             hud.partner_in_menu = connected && net::activity_partner_in_menu();
             hud.revive_line = revive_line;
             hud.travel_line = travel_line;
+            hud.chat_input = chat_input;
+            hud.chat_quick = chat_quick;
+            hud.chat_log = chat_log;
             hud.revive_prompt = static_cast<uint8_t>(revive_prompt);
             if (cfg.dev_ui_preview == 1) hud.revive_prompt = 1;  // [dev] ui_preview: the death screen
             // In co-op, put the marker on the character actually drawn (it

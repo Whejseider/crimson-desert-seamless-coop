@@ -311,6 +311,19 @@ void boss_bar(float sw, float sh, const std::string& name, float frac, const std
     }
 }
 
+void chat_log(float sw, float sh, const std::vector<std::string>& lines) {
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    const float k = std::max(0.6f, sh / 1080.0f);
+    const float x = 34 * k, ls = 17 * k;
+    float y = sh * 0.555f - 14 * k - ls * 1.3f * static_cast<float>(lines.size());
+    (void)sw;
+    for (const auto& l : lines) {
+        text(dl, g_serif, ls, x + 1, y + 1, IM_COL32(0, 0, 0, 200), l);
+        text(dl, g_serif, ls, x, y, kText, l);
+        y += ls * 1.3f;
+    }
+}
+
 void party_frame(float sw, float sh, const std::string& name, float hp, float stamina, const std::string& status,
                  double t) {
     ImDrawList* dl = ImGui::GetForegroundDrawList();

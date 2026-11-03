@@ -22,6 +22,7 @@
 #include "mod/net/coop_sync.h"
 #include "mod/net/coop_revive.h"
 #include "mod/net/coop_travel.h"
+#include "mod/net/coop_chat.h"
 #include "mod/net/aggro_test.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/loot_twin.h"
@@ -42,7 +43,7 @@ constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the N
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22 };
 
 // Co-op+ (T22): world events (reinforcements, bounty hunters, camp and outpost activity) are stages our server starts
 // (PrepareSequencerAck); their fighters are enemies, which the guest already gets as copies near the host. What the
@@ -251,6 +252,16 @@ bool game_in_front() {
 // Low-level keyboard hook on its own thread (it needs a message loop): swallows Esc while g_hold_esc is set and the
 // game is in front, except the Esc we press ourselves. Every other key passes untouched.
 LRESULT CALLBACK keyboard_hook(int code, WPARAM wp, LPARAM lp) {
+    // Co-op+ (T24): the open chat line takes every key; the quick list takes the arrows.
+    if (code == HC_ACTION && game_in_front()) {
+        const auto* k = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lp);
+        const bool down = wp == WM_KEYDOWN || wp == WM_SYSKEYDOWN;
+        if (k->dwExtraInfo != kOurKey && chat_hook_key(k->vkCode, k->scanCode, down)) return 1;
+        if (chat_quick_open() && (k->vkCode == VK_LEFT || k->vkCode == VK_RIGHT)) {
+            if (down) chat_quick_step(k->vkCode == VK_LEFT ? -1 : 1);
+            return 1;
+        }
+    }
     if (code == HC_ACTION && (wp == WM_KEYDOWN || wp == WM_SYSKEYDOWN)) {
         const auto* k = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lp);
         if (k->vkCode == 'E' && k->dwExtraInfo != kOurKey && !(k->flags & LLKHF_UP)) g_e_presses.fetch_add(1);
@@ -451,9 +462,14 @@ void pad_tick() {
     if (skip(input::action_down(input::Action::Skip, false)) && hold) g_esc_held = true;
     static input::Edge prev, next;
     const bool menu = g_menu_hold.load() && GetTickCount64() - g_hold_seen.load() < 500;
-    if (menu) input::mask_from_game(input::kPadLeft | input::kPadRight, 150);
-    if (prev(input::action_down(input::Action::MenuPrev, false) && !input::chord_held()) && menu) g_menu_step.fetch_add(-1);
-    if (next(input::action_down(input::Action::MenuNext, false) && !input::chord_held()) && menu) g_menu_step.fetch_add(1);
+    const bool quick = chat_quick_open();  // Co-op+ (T24)
+    if (menu || quick) input::mask_from_game(input::kPadLeft | input::kPadRight, 150);
+    const bool p_down = prev(input::action_down(input::Action::MenuPrev, false) && !input::chord_held());
+    const bool n_down = next(input::action_down(input::Action::MenuNext, false) && !input::chord_held());
+    if (p_down && menu) g_menu_step.fetch_add(-1);
+    if (n_down && menu) g_menu_step.fetch_add(1);
+    if (p_down && quick) chat_quick_step(-1);
+    if (n_down && quick) chat_quick_step(1);
 }
 
 // The rock-paper-scissors duel (see Rps): every tick of the network loop.
@@ -824,6 +840,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
                 if (const char* n = event_name(key)) g_toasts.push_back(std::string("World event near {}\n") + n);
             }
             break;
+        case kChat:              // coop_chat.h, below
         case kTravel:            // coop_travel.h, below
         case kReviveYou:         // coop_revive.h, below
         case kHunt:              // coop_hunt.h, below
@@ -877,6 +894,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
     if (p[4] == 15) sync_on_event(p.data() + 5, p.size() - 5);      // coop_sync.h (its own lock)
     if (p[4] == kReviveYou) revive_partner_on_event();              // coop_revive.h
     if (p[4] == kTravel) travel_on_event(p.data() + 5, p.size() - 5);  // coop_travel.h
+    if (p[4] == kChat) chat_on_event(p.data() + 5, p.size() - 5);      // coop_chat.h
 }
 
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,

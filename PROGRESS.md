@@ -225,3 +225,22 @@ stages, readable names) -> host-side PrepareSequencerAck watch -> Activity 21 kE
 Findings: no event stage occurred in today's captures (start area, camp, pub), so natural events are for two PCs.
 Done: event1 ([dev] event_test=1001215): "World event near cdmp_peer (relay) / Bounty hunters (Tashkalp, level 1)".
 [~] PLAYTEST 3.8d.
+- Pushed T22 (8486e81).
+
+## T23 -- Object interaction sync  (deferred, revisit if time remains)
+Findings: objects are per world; static scene objects share scene ids across worlds (the rope / tree feature
+locates trees by scene id, remote_puppet.cpp g_scene_gimmicks). Plan: relay the host's persisted object states
+(UpdateFieldGimmickSaveDataKeyAck: door opened, lever pulled, destroyed) by scene id and inject them into the
+guest's client (visual only; the guest's server keeps its own); needs a door / lever near a test save to read the
+layout. Not started: lower value per hour than T24-T40.
+- T24 BUG found in testing: after chatting, Ctrl (for Ctrl+F3) triggered LEAVE (Ctrl+F2): F2 counted as held (half of its press swallowed by the hook). Fixed: the opening Shift+F2 is never swallowed (seen only); typed keys are swallowed down and up together.
+
+## T24 -- Communication
+Plan: net/coop_chat.* (Activity 22: u8 kind | text), typed line through the activity keyboard hook (keys kept from
+the game while open), quick list on the Ping action (pad usable), notices + chat log (ui::chat_log), "here" quick
+messages drop the old map pin.
+Bugs found in testing and fixed: (1) the line reopened after sending and (2) Ctrl then triggered LEAVE (Ctrl+F2):
+the hook had swallowed half of the F2 press so F2 stayed "held". Now the opening key is only seen, never
+swallowed; typed keys are swallowed down and up together; the line opens from the hook's own Shift+F2 event.
+Done: chat7: typing line, "cdmp_peer (relay): hello friend" notice + log, quick list (gold choice), "Danger here!"
+sent + pin. Pad: same actions (View + D-pad Left opens, D-pad Left/Right choose), not driven by a pad here.

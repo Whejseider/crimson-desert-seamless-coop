@@ -10,6 +10,7 @@
 // button(s) (input/actions.h). "{*}" switches the text that follows to gold and back (a chosen item).
 
 #include <string>
+#include <vector>
 
 struct ImDrawList;
 struct ImFont;
@@ -40,6 +41,9 @@ void title_card(float screen_w, float screen_h, const std::string& title, const 
 // A health bar at the top of the screen, the game's boss bar look: the name in gold over a thin dark bar with a red
 // fill (the guest's boss bar, the duel opponent's health). `note` under it ("" = none).
 void boss_bar(float screen_w, float screen_h, const std::string& name, float frac, const std::string& note = {});
+
+// Co-op+ (T24): recent chat lines on the left, above the partner frame, in the game's serif with a soft shadow.
+void chat_log(float screen_w, float screen_h, const std::vector<std::string>& lines);
 
 // Co-op+ (T14): the partner frame on the left edge (above the game's date and place text): a gold diamond and the
 // name, a red health bar and a thin stamina bar under it, a status line ("in a menu", distance). Below 25 % health

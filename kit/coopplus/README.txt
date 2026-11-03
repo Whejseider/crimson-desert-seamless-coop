@@ -44,7 +44,8 @@ PLAYING TOGETHER
     Keyboard    Pad (hold View/Touchpad +)   Action
     Ctrl+F1     Y / Triangle                 invite a friend (Steam overlay)
     Ctrl+F2     B / Circle                   leave (guest): back to your own world
-    Ctrl+F3     D-pad Left                   ping your position
+    Ctrl+F3     D-pad Left                   quick messages (Go here, Danger, Loot here, Follow me...)
+    Shift+F2    -                            chat: type a line, Enter sends, Esc cancels
     Ctrl+F4     D-pad Right                  go to your friend
     Shift+F5    D-pad Up                     challenge / accept / end a challenge
     Shift+F6    D-pad Down                   decline / cancel
@@ -66,7 +67,11 @@ PLAYING TOGETHER
 - Ctrl+F2 (guest): leave and go back to your own world.
 - F8: show/hide the co-op panel (top left): connection, ping, room code.
 - Ctrl+F8: show/hide your friend's name over their head.
-- Ctrl+F3: ping your position: your friend gets a message and a pin on their map.
+- Ctrl+F3 (pad: View + D-pad Left): quick messages -- Go here, Danger here!, Loot
+  here, Follow me, Wait for me, Help!, Thanks!, Ready? -- arrows / D-pad Left-Right
+  choose, Ctrl+F3 again sends; the three "here" ones also put a pin on your friend's map.
+- Shift+F2: chat. Type a line (the game does not see your keys meanwhile), Enter sends,
+  Esc cancels. Messages show as a notice and in a short log on the left.
 - Ctrl+F4: go to your friend (you are moved next to them in short hops; works best
   within a few hundred metres; it stops if you are swimming).
 - Shift+F4: ask your friend to come to you. They see "<name> asks you to come to

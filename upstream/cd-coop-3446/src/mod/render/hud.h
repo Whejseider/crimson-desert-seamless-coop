@@ -65,7 +65,9 @@ struct HudData {
     // Co-op+ rock-paper-scissors duel: the hands over the two characters (coop_activity.h RpsView).
     bool partner_in_menu = false;
     std::string revive_line;
-    std::string travel_line;  // Co-op+ (T19): a summon / party travel request  // Co-op+ (T15): "hold to revive" / progress (reviver) or the bleed-out (downed)  // Co-op+ (T09): their name tag says "in a menu"
+    std::string travel_line;
+    std::string chat_input, chat_quick;  // Co-op+ (T24): the open chat line / quick list
+    std::vector<std::string> chat_log;   // recent chat lines  // Co-op+ (T19): a summon / party travel request  // Co-op+ (T15): "hold to revive" / progress (reviver) or the bleed-out (downed)  // Co-op+ (T09): their name tag says "in a menu"
     bool rps_on = false;
     int rps_ours = -1, rps_theirs = -1;
     bool rps_ours_picked = false, rps_theirs_picked = false;
