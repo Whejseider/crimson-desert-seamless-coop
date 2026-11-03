@@ -329,3 +329,17 @@
   2.3 km in ~100 s, "Wyvern's Cradle" / "Three Brothers Cliff Wyvern Nest - Knowledge Acquired". Dismounting 290 m up
   (R) killed Kliff (no glide); "Revive at Checkpoint" puts him at the nest's revive point (-6727, 533, -5305).
   tools/save/move_save.py now finds the position field in saves of other sizes.
+
+## 2026-11-03 D44: Hunting contest (the two-player "target shooting" game)
+- The game's shooting contests (archery at Lioncrest Manor after "Skilled in Archery", the firearm contest) are
+  client-run stages vs an NPC that unlock with the story; the test saves are too early. So the mod's own contest on
+  the game's animals: challenge picker "Hunting contest" (kHuntStage 0xD0E10002). 3-2-1 "Hunt!", 3 minutes, score
+  per kill 1 small / 2 medium (deer, foxes...) / 3 big game (bears, wolves, boars...) from animal_names.inc (441 wild
+  animals, tools/gen/animal_names_inc.py from the game's character table; insects, pets, domestic, ridden and baby
+  animals left out). Scores to the other player (Activity 14: round | score | kills); result card Victory / Defeat /
+  A Draw with points and kills; series; next round after 8 s.
+- Kills: the captures hold no NotifyHandleFatalAck (2225); NotifyHandleDeadAck (2985) is what arrives, with the
+  victim's key twice (no killer). A death counts as ours when one of our DoFrameEventReqs (blows and arrows) named it
+  in the last 8 s (guest_hits_we_hit). KillCheatReq gets no answer on the ambient animals, so the one-PC test could not
+  produce a kill: verified in game are the picker, countdown, timer line, result card, series and next round
+  (hunt3); the kill count is for the playtest (PLAYTEST-1 1c).

@@ -43,6 +43,7 @@
 #include "mod/net/coop_activity.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
+#include "mod/net/coop_hunt.h"
 #include "mod/net/stage_cinema.h"
 #include "mod/net/weather_sync.h"
 #include "mod/net/party_scaling.h"
@@ -750,6 +751,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 hud.rps_winner = rv.winner;
                 hud.rps_reveal_t = rv.reveal_t;
             }
+            if (const net::HuntHud hh = net::hunt_hud(); !hh.title.empty()) {
+                hud.duel_title = hh.title;
+                hud.duel_subtitle = hh.subtitle;
+                hud.duel_title_color = hh.color;
+                hud.duel_title_alpha = hh.alpha;
+            }
             if (const net::DuelHud dh = net::duel_hud(); dh.active) {
                 hud.duel_active = true;
                 hud.duel_centre = {dh.centre[0], dh.centre[1], dh.centre[2]};
@@ -1435,6 +1442,7 @@ DWORD WINAPI worker(LPVOID) {
         net::activity_set_challenge_test(cfg.dev_challenge_test);
         net::duel_set_test(cfg.dev_duel_test);
         net::party_quests_set_test(cfg.dev_quest_test);
+        net::hunt_set_test(cfg.dev_hunt_test);
         input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
         input::set_sim(cfg.dev_pad_sim);
         if (cfg.dev_boss_hp) {

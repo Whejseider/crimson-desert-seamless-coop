@@ -2,6 +2,7 @@
 #include "mod/net/coop_activity.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
+#include "mod/net/coop_hunt.h"
 #include "mod/net/wire_layout.h"
 
 #include <windows.h>
@@ -513,6 +514,7 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     save_guard_observe_s2c(packet, size);  // Co-op+
     cinema_observe_s2c(packet, size);      // Co-op+
     party_quests_observe_s2c(packet, size);  // Co-op+ party journal
+    hunt_observe_s2c(packet, size);          // Co-op+ hunting contest: our kills
     uint16_t op = 0;
     if (size >= 5) std::memcpy(&op, packet, 2);
     // Co-op+: SetAvoidByCutSceneAck (18 bytes on 3479: u8 4 | u32 user | u64 stage | u8 flag | u32 user) flips on

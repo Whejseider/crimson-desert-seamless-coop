@@ -75,6 +75,9 @@ with two real players, that is good news (the one-PC test clones your own charac
    "3, 2, 1, Fight!", the opponent's health bar at the top. Hit each other: the one hit must flinch and lose health on
    BOTH screens. At 3% health "Defeat" / "Victory" on the right screens, both healed after 6 s, round 2 starts.
    Then one runs out of the ring: red ring + "Return within 10 s"; after 10 s that player loses the round.
+1c. Hunting contest (picker, third choice): 3, 2, 1, Hunt! Both hunt animals for 3 minutes (bow or blade). Each kill
+   shows "Hunt / <animal> +N" for the hunter and the score line "You a - b <name>" changes on BOTH screens. At 0:00
+   both see the same Victory / Defeat. Tell me if a kill did not count (the log line "Hunt: we brought down").
 2. Hernand pub (game time ~10:27-10:58, the host's time is used): both at the arm wrestling table; host Shift+F5,
    guest accepts; both hold R then E at the table; mash E: the faster one must win on BOTH screens; series toast.
 3. Shift+F6 on an invite declines it; Shift+F5 during a challenge ends it ("Final series").

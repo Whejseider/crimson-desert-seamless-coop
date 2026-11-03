@@ -41,6 +41,9 @@ void guest_hits_on_gear_change();
 // Co-op+ duel (coop_duel.h): how much one of our attacks (StartActionReq action hash) takes from a defence-1.0
 // enemy, learnt or from the seed table (the strongest of its hit frames); 0 when it is not a known attack.
 double guest_hits_action_damage(uint32_t action_hash);
+// Co-op+ hunting contest (coop_hunt.h): one of our attacks (DoFrameEventReq, arrows included) named `key` as a target
+// within the last `within_ms`.
+bool guest_hits_we_hit(uint32_t key, uint64_t within_ms);
 
 // Sniffer writer thread.
 void guest_hits_observe_c2s(const uint8_t* packet, size_t size);

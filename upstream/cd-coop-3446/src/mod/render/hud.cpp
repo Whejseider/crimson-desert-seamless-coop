@@ -209,7 +209,7 @@ void hud_draw(float width, float height) {
         ui::boss_bar(width, height, d.peer_name.empty() ? std::string("Your opponent") : d.peer_name,
                      d.remote->health / d.remote->health_max);
     }
-    if (d.duel_active && !d.duel_title.empty() && d.duel_title_alpha > 0.01f) {
+    if (!d.duel_title.empty() && d.duel_title_alpha > 0.01f) {  // the duel's or the hunting contest's
         ui::title_card(width, height, d.duel_title, d.duel_subtitle, d.duel_title_color, d.duel_title_alpha);
     }
 

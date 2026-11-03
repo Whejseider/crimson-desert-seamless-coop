@@ -293,6 +293,15 @@ double seed_base(uint64_t act) {
 
 }  // namespace
 
+bool guest_hits_we_hit(uint32_t key, uint64_t within_ms) {
+    std::lock_guard lock(g_mutex);
+    const uint64_t now = now_ms();
+    for (auto it = g_pending.rbegin(); it != g_pending.rend() && now - it->ms <= within_ms; ++it) {
+        if (std::find(it->targets.begin(), it->targets.end(), key) != it->targets.end()) return true;
+    }
+    return false;
+}
+
 double guest_hits_action_damage(uint32_t hash) {
     std::lock_guard lock(g_mutex);
     double best = 0;

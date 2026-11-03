@@ -1095,6 +1095,15 @@ uint32_t enemy_variant(uint32_t key) {
     return l != g_loads.end() && l->second.size() >= 0x1C ? u32_at(l->second.data() + 0x18) : 0;
 }
 
+std::vector<std::pair<uint32_t, uint32_t>> enemy_loaded_variants() {
+    std::lock_guard lock(g_mutex);
+    std::vector<std::pair<uint32_t, uint32_t>> out;
+    for (const auto& [key, load] : g_loads) {
+        if (load.size() >= 0x1C) out.emplace_back(key, u32_at(load.data() + 0x18));
+    }
+    return out;
+}
+
 uint32_t enemy_copy_of(uint32_t key) {
     std::lock_guard lock(g_mutex);
     auto c = g_sent.find(key);

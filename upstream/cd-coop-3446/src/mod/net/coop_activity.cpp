@@ -17,6 +17,7 @@
 #include "mod/log.h"
 #include "mod/net/boss_safe.h"
 #include "mod/net/coop_duel.h"
+#include "mod/net/coop_hunt.h"
 #include "mod/net/party_quests.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/stage_cinema.h"
@@ -30,7 +31,7 @@ constexpr uint16_t kOpSpawnMiniGameCharacterReq = 3124;  // every match: the NPC
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14 };
 
 // Versus arm wrestling (D35): while both players are in a match, the host owns one gauge,
 // 50 + kPushGain x (host's E presses - guest's E presses), clamped to 0..100, and writes it into its game every tick;
@@ -93,7 +94,7 @@ struct Rps {
 // above making it player against player; the duel runs in the mod. A running series score is kept until either player
 // ends the challenge (Shift+F5 again).
 // Event kChallenge: u8 action | u32 the game's stage key.
-enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3 };
+enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3, kGameHunt = 4 };
 enum ChallengeAction : uint8_t { kInvite = 1, kAccept = 2, kDecline = 3, kEnd = 4 };
 enum ChallengeState : uint8_t { kChNone, kChPick, kChSent, kChReceived, kChOn };
 constexpr uint32_t kWrestleStages[] = {16005100, 1001987, 1001988, 1003873, 1003875, 1018693};
@@ -132,6 +133,7 @@ std::string how_to_play(uint32_t stage) {
     switch (game_of(stage)) {
         case kGameRps: return "Pick your hand:  {RpsScissors} scissors  {RpsPaper} paper  {RpsRock} rock  (first to 2)";
         case kGameDuel: return "Bring your opponent to their knees. Stay within the duel ground!";
+        case kGameHunt: return "Bring down the most game in 3 minutes: big game counts more!";
         default: return "Both sit at the table and start a match, then mash {Mash}!";
     }
 }
@@ -140,6 +142,7 @@ Game game_of(uint32_t stage) {
     if (std::find(std::begin(kWrestleStages), std::end(kWrestleStages), stage) != std::end(kWrestleStages)) return kGameWrestle;
     if (stage == kRpsNameStage) return kGameRps;
     if (stage == kDuelStage) return kGameDuel;
+    if (stage == kHuntStage) return kGameHunt;
     return kNoGame;
 }
 
@@ -259,6 +262,7 @@ std::string activity_minigame_name(uint32_t stage) {
         case 1000219: case 1001269: return "Duo";
         case 1001524: case 1018696: return "Five-Card";
         case kDuelStage: return "a duel";
+        case kHuntStage: return "a hunting contest";
         default: return "a minigame";
     }
 }
@@ -525,6 +529,7 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
                     }
                     c.options.push_back(kDuelStage);
                     c.options.push_back(kRpsNameStage);
+                    c.options.push_back(kHuntStage);
                     g_menu_step = 0;
                     break;
                 }
@@ -560,6 +565,9 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
                 out.banner = std::format("{} challenges you to {}!   {{Challenge}} accept   {{Decline}} decline", who, game);
             } else if (c.state == kChSent) {
                 out.banner = std::format("Challenge sent: {} vs {}. Waiting for an answer ({{Challenge}} withdraws)", game, who);
+            } else if (c.state == kChOn && game_of(c.stage) == kGameHunt) {
+                out.banner = std::format("Hunting contest vs {}   series you {} - {} {}   ({{Challenge}} ends)", who,
+                                         c.ours, c.theirs, who);
             } else if (c.state == kChOn && game_of(c.stage) == kGameDuel) {
                 out.banner = std::format("Duel vs {}   series you {} - {} {}   ({{Challenge}} ends the duel)", who,
                                          c.ours, c.theirs, who);
@@ -657,6 +665,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
         case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)
         case kDuel:              // coop_duel.h, below
         case kQuest:             // party_quests.h, below
+        case kHunt:              // coop_hunt.h, below
             break;
         case kChallenge:  // u8 action | u32 stage key
             if (p.size() >= 10) {
@@ -702,6 +711,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
     if (p[4] >= 7 && p[4] <= 9) cinema_on_event(p[4], p.data() + 5, p.size() - 5);
     if (p[4] == kDuel) duel_on_event(p.data() + 5, p.size() - 5);  // coop_duel.h (its own lock)
     if (p[4] == kQuest) party_quests_on_event(p.data() + 5, p.size() - 5);  // party_quests.h (its own lock)
+    if (p[4] == kHunt) hunt_on_event(p.data() + 5, p.size() - 5);  // coop_hunt.h (its own lock)
 }
 
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
@@ -818,6 +828,23 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
     }
     if (!d.banner.empty()) out.banner = std::move(d.banner);
     if (!d.toast.empty() && out.toast.empty()) out.toast = std::move(d.toast);
+    bool hunt_on = false;
+    {
+        std::lock_guard lock(g_mutex);
+        hunt_on = g_ch.state == kChOn && game_of(g_ch.stage) == kGameHunt;
+    }
+    HuntTick h = hunt_tick(hunt_on, connected, who);
+    if (h.round_result) {
+        std::lock_guard lock(g_mutex);
+        if (h.round_result == 1) ++g_ch.ours;
+        if (h.round_result == 2) ++g_ch.theirs;
+        out.toast = std::format("Hunting contest\n{}   Series: you {} - {} {}",
+                                h.round_result == 1 ? std::string("The hunt is yours.")
+                                : h.round_result == 2 ? who + " takes the hunt." : std::string("An even hunt."),
+                                g_ch.ours, g_ch.theirs, who);
+    }
+    if (!h.banner.empty()) out.banner = std::move(h.banner);
+    if (!h.toast.empty() && out.toast.empty()) out.toast = std::move(h.toast);
     // The party journal (party_quests.h): the other player's completed quests. Held back while another notice shows.
     static uint32_t journal_after = 0;
     if (out.toast.empty() && static_cast<int32_t>(now - journal_after) >= 0) {

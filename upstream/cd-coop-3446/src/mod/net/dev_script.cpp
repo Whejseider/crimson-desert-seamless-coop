@@ -16,13 +16,14 @@
 #include "mod/net/revive_prompt.h"
 #include "mod/net/time_sync.h"
 #include "mod/net/dev_watch.h"
+#include "mod/net/coop_hunt.h"
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -111,6 +112,11 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "killgame") {  // killgame: KillCheatReq on a loaded wild animal (coop_hunt.h)
+            st.kind = Step::KillGame;
+            steps.push_back(st);
+            continue;
+        }
         if (kind == "day") {
             st.kind = Step::Day;
             in >> st.to[0];
@@ -180,6 +186,8 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
                 input::dev_pad_press(static_cast<uint16_t>(st.addr), st.wait_ms ? st.wait_ms : 150);
                 log::info("Dev script: pad 0x{:04X} for {} ms", st.addr, st.wait_ms);
                 Sleep(st.wait_ms ? st.wait_ms : 150);
+            } else if (st.kind == Step::KillGame) {
+                hunt_dev_kill();
             } else if (st.kind == Step::Day) {
                 time_sync_dev_add_days(static_cast<int>(st.to[0]));
             } else if (st.kind == Step::Time) {

@@ -73,7 +73,7 @@ PLAYING TOGETHER
   (pad: Menu/Options or B): yours says "waiting for <name>" until they press too.
 - Time of day and weather follow the host (rain, clouds and wind included).
 - CHALLENGE YOUR FRIEND (Shift+F5, pad: View + D-pad Up):
-  * A choice opens: Duel, Rock-paper-scissors, and the arm / hand wrestling table
+  * A choice opens: Duel, Rock-paper-scissors, Hunting contest, and the arm / hand wrestling table
     you stand at (if any). Left/Right arrows (pad: D-pad Left/Right) choose,
     Shift+F5 sends, Shift+F6 cancels.
   * Your friend gets "<name> challenges you to ...": Shift+F5 accepts, Shift+F6
@@ -82,6 +82,8 @@ PLAYING TOGETHER
     Your friend's health shows at the top. Bring them down to win the round
     (nobody dies: the loser kneels at 3% health). Leave the ring for 10 seconds and
     you lose the round. After each round both are healed and the next one starts.
+  * HUNTING CONTEST: 3 minutes to bring down the most game (bow or blade). Small
+    game scores 1, deer and foxes 2, bears, wolves and boars 3.
   * Arm / hand wrestling: both of you sit at the table and start a match; you share
     one strength bar: whoever mashes E (pad: any face button) faster wins on both
     screens.

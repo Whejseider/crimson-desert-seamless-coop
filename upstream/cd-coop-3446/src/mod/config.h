@@ -79,7 +79,8 @@ struct Config {
     bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
     int dev_challenge_test = 0;
     bool dev_duel_test = false;
-    uint32_t dev_quest_test = 0;  // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key  // Co-op+ dev: one-PC duel with the echo peer (coop_duel.h)
+    uint32_t dev_quest_test = 0;
+    bool dev_hunt_test = false;  // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)  // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key  // Co-op+ dev: one-PC duel with the echo peer (coop_duel.h)
     int dev_pad_sim = 0;
     int dev_ui_preview = 0;  // Co-op+ dev: 1 = show the death screen ([dev] ui_preview)  // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)  // Co-op+ dev: a simulated friend accepts our challenges ([dev] challenge_test)
     int dev_rps_test = -1;  // Co-op+ dev: simulated RPS opponent's hand 0/1/2 ([dev] rps_test=1..3, 0 = off)

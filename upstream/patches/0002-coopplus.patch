@@ -1,5 +1,5 @@
 diff --git a/upstream/cd-coop-3446/CMakeLists.txt b/upstream/cd-coop-3446/CMakeLists.txt
-index c83acf3..ef3e79c 100644
+index c83acf3..76bf22e 100644
 --- a/upstream/cd-coop-3446/CMakeLists.txt
 +++ b/upstream/cd-coop-3446/CMakeLists.txt
 @@ -87,11 +87,13 @@ configure_file(cmake/build_id.h.in ${CMAKE_BINARY_DIR}/generated/build_id.h)
@@ -16,7 +16,7 @@ index c83acf3..ef3e79c 100644
      src/mod/game/rtti.cpp
      src/mod/net/troc_sniffer.cpp
      src/mod/net/local_capture.cpp
-@@ -113,15 +115,47 @@ add_library(cdmp_mod SHARED
+@@ -113,15 +115,48 @@ add_library(cdmp_mod SHARED
      src/mod/game/game_clock.cpp
      src/mod/net/steam_transport.cpp
      src/mod/net/room_code.cpp
@@ -28,6 +28,7 @@ index c83acf3..ef3e79c 100644
 +    src/mod/net/coop_activity.cpp
 +    src/mod/net/coop_duel.cpp
 +    src/mod/net/party_quests.cpp
++    src/mod/net/coop_hunt.cpp
 +    src/mod/net/weather_sync.cpp
 +    src/mod/net/stage_cinema.cpp
 +    src/mod/net/dev_watch.cpp
@@ -64,7 +65,7 @@ index c83acf3..ef3e79c 100644
  # Only the symbol file's name goes into cdmp.asi, not the path of the PC that
  # built it (it named the user's folders).
  target_link_options(cdmp_mod PRIVATE "/PDBALTPATH:cdmp.pdb")
-@@ -156,6 +190,11 @@ if(TARGET Zydis)
+@@ -156,6 +191,11 @@ if(TARGET Zydis)
      endif()
  endif()
  
@@ -563,7 +564,7 @@ index e7d51fb..577cd4c 100644
  // Wire: u32 copy key | u64 game clock ms | f32 x, y, z | f32 qx, qy, qz, qw.
  inline constexpr size_t kEnemyPosEventSize = 40;
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..5e2cdc7 100644
+index e89d220..25b1202 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -640,7 +641,7 @@ index e89d220..5e2cdc7 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,19 +210,50 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,19 +210,51 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
@@ -663,6 +664,7 @@ index e89d220..5e2cdc7 100644
 +    c.dev_challenge_test = static_cast<int>(read_uint(ini_path, L"dev", L"challenge_test", 0));
 +    c.dev_duel_test = read_uint(ini_path, L"dev", L"duel_test", 0) != 0;
 +    c.dev_quest_test = static_cast<uint32_t>(read_uint(ini_path, L"dev", L"quest_test", 0));
++    c.dev_hunt_test = read_uint(ini_path, L"dev", L"hunt_test", 0) != 0;
 +    c.dev_rps_test = static_cast<int>(read_uint(ini_path, L"dev", L"rps_test", 0)) - 1;  // 1 scissors, 2 paper, 3 rock
 +    c.dev_cinema_test = read_uint(ini_path, L"dev", L"cinema_test", 0) != 0;
 +    c.dev_weather_test = read_uint(ini_path, L"dev", L"weather_test", 0);
@@ -696,7 +698,7 @@ index e89d220..5e2cdc7 100644
      c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
      c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
      c.coop_finish_arrow = read_uint(ini_path, L"coop", L"finish_arrow", 1) != 0;
-@@ -203,17 +262,20 @@ Config load_config(const std::wstring& ini_path) {
+@@ -203,17 +263,20 @@ Config load_config(const std::wstring& ini_path) {
      // Boss safety (boss_safe.h): default ON, because the failure it prevents is a
      // stuck quest in the HOST's save, not a cosmetic problem.
      c.coop_boss_safe = read_uint(ini_path, L"coop", L"boss_safe", 1) != 0;
@@ -719,7 +721,7 @@ index e89d220..5e2cdc7 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +288,11 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +289,11 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -732,7 +734,7 @@ index e89d220..5e2cdc7 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..cf08b64 100644
+index 3cd2ce2..d93166a 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -760,7 +762,7 @@ index 3cd2ce2..cf08b64 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -57,6 +68,29 @@ struct Config {
+@@ -57,6 +68,30 @@ struct Config {
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
@@ -775,7 +777,8 @@ index 3cd2ce2..cf08b64 100644
 +    bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
 +    int dev_challenge_test = 0;
 +    bool dev_duel_test = false;
-+    uint32_t dev_quest_test = 0;  // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key  // Co-op+ dev: one-PC duel with the echo peer (coop_duel.h)
++    uint32_t dev_quest_test = 0;
++    bool dev_hunt_test = false;  // Co-op+ dev: hunting contest one-PC test (coop_hunt.h)  // Co-op+ dev: party journal one-PC test (party_quests.h), a mission key  // Co-op+ dev: one-PC duel with the echo peer (coop_duel.h)
 +    int dev_pad_sim = 0;
 +    int dev_ui_preview = 0;  // Co-op+ dev: 1 = show the death screen ([dev] ui_preview)  // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)  // Co-op+ dev: a simulated friend accepts our challenges ([dev] challenge_test)
 +    int dev_rps_test = -1;  // Co-op+ dev: simulated RPS opponent's hand 0/1/2 ([dev] rps_test=1..3, 0 = off)
@@ -790,7 +793,7 @@ index 3cd2ce2..cf08b64 100644
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
-@@ -66,7 +100,7 @@ struct Config {
+@@ -66,7 +101,7 @@ struct Config {
      float coop_offset_m = 0.0f;    // sideways offset of the remote character
      // Experimental, off by default: the copy's horse is not created by the
      // client (owned load) or crashes the game (ownerless load); live tests 1-2.
@@ -799,7 +802,7 @@ index 3cd2ce2..cf08b64 100644
      // Works since the copy got its own character number (live test 3).
      bool coop_equip = true;        // relay equipment changes
      // Mirrored damage: each world keeps its enemies; hits by the other player
-@@ -85,7 +119,7 @@ struct Config {
+@@ -85,7 +120,7 @@ struct Config {
      int coop_minimap_icon = 0x124;
      // Our enemies may attack the other player's copy (aggro_test.h). Off
      // until the hits reach the other player and they see our enemies.
@@ -808,7 +811,7 @@ index 3cd2ce2..cf08b64 100644
      // The other player's blows on the copies of our enemies hurt them
      // (guest_hits.h). Off until tested with two players.
      bool coop_guest_hits = false;
-@@ -94,15 +128,19 @@ struct Config {
+@@ -94,15 +129,19 @@ struct Config {
      bool coop_guest_hit_stagger = false;
      // Our player reacts (stagger, knock-down) to the other player's enemies'
      // blows on our copy over there: experimental until tested.
@@ -832,7 +835,7 @@ index 3cd2ce2..cf08b64 100644
      // Host: copies of our enemies that fight go to the guest on their own
      // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
      bool coop_enemy_auto = true;
-@@ -125,6 +163,9 @@ struct Config {
+@@ -125,6 +164,9 @@ struct Config {
      // does the finish, which is what advances its script. Off restores the old
      // behaviour exactly, for comparison.
      bool coop_boss_safe = true;
@@ -842,7 +845,7 @@ index 3cd2ce2..cf08b64 100644
      // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
      // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
      int coop_enemy_minimap_icon = 0x10A;
-@@ -146,6 +187,14 @@ struct Config {
+@@ -146,6 +188,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -2293,7 +2296,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..043fae8 100644
+index 79ccd06..004efb3 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,6 +1,9 @@
@@ -2323,7 +2326,7 @@ index 79ccd06..043fae8 100644
  #include "mod/net/local_capture.h"
  #include "mod/net/guest_hits.h"
  #include "mod/net/loot_twin.h"
-@@ -31,13 +38,26 @@
+@@ -31,13 +38,27 @@
  #include "mod/net/player_hits.h"
  #include "mod/net/puppet_minimap.h"
  #include "mod/net/remote_puppet.h"
@@ -2332,6 +2335,7 @@ index 79ccd06..043fae8 100644
 +#include "mod/net/coop_activity.h"
 +#include "mod/net/coop_duel.h"
 +#include "mod/net/party_quests.h"
++#include "mod/net/coop_hunt.h"
 +#include "mod/net/stage_cinema.h"
 +#include "mod/net/weather_sync.h"
 +#include "mod/net/party_scaling.h"
@@ -2350,7 +2354,7 @@ index 79ccd06..043fae8 100644
  
  #pragma comment(lib, "version.lib")
  
-@@ -100,6 +120,16 @@ std::string file_version(const std::wstring& path) {
+@@ -100,6 +121,16 @@ std::string file_version(const std::wstring& path) {
  
  // Facts that identify the exact game build. Every offset/signature we find
  // later is only valid for one build, so the log must always say which one.
@@ -2367,7 +2371,7 @@ index 79ccd06..043fae8 100644
  bool log_process_info() {
      const std::wstring exe = module_path(nullptr);
      const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-@@ -138,7 +168,7 @@ public:
+@@ -138,7 +169,7 @@ public:
      explicit LocalSource(bool in_game) : in_game_(in_game) {
          if (!in_game_) return;
          if (reader_.init()) {
@@ -2376,7 +2380,7 @@ index 79ccd06..043fae8 100644
          } else {
              log::warn("Game reader DISABLED: {}. Only networking will run.",
                        reader_.last_failure());
-@@ -188,10 +218,37 @@ private:
+@@ -188,10 +219,37 @@ private:
      std::string status_;
  };
  
@@ -2416,7 +2420,7 @@ index 79ccd06..043fae8 100644
      }
  
      // A guest knows whom to talk to; a host learns it from the first Hello.
-@@ -203,6 +260,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -203,6 +261,8 @@ void run_network(const Config& cfg, LocalSource& local) {
      // needs a moment to join the lobby and see the host field).
      bool room_code_pending = false;
      std::string room_code_text;
@@ -2425,7 +2429,7 @@ index 79ccd06..043fae8 100644
      bool room_failed_logged = false;
      // The host's lobby creation is retried in the loop for the same reason: this
      // point in startup is reached BEFORE the save finishes loading (the mod loads
-@@ -216,7 +275,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -216,7 +276,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          if (!local.in_game()) {
              log::error("The Steam transport only works inside the game");
              net::cleanup();
@@ -2434,7 +2438,7 @@ index 79ccd06..043fae8 100644
          }
          auto st = std::make_unique<net::SteamTransport>(cfg.steam_channel, host, cfg.steam_peer_id);
          steam = st.get();
-@@ -225,7 +284,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -225,7 +285,14 @@ void run_network(const Config& cfg, LocalSource& local) {
          // creates the lobby and reads the code out; the guest resolves the
          // host's SteamID64 from it. If anything fails, the old paths
          // (peer_steamid, then the "only friend playing" scan) still work.
@@ -2450,7 +2454,7 @@ index 79ccd06..043fae8 100644
              if (host) {
                  // One attempt now, and the loop retries if it does not take.
                  //
-@@ -278,19 +344,19 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -278,19 +345,19 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!ep->is_loopback()) {
                  log::error("UDP only connects within this PC (tests); to play with someone use transport=steam");
                  net::cleanup();
@@ -2473,7 +2477,7 @@ index 79ccd06..043fae8 100644
          }
          transport = std::move(udp);
      }
-@@ -305,6 +371,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -305,6 +372,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          [](const std::string& text) { log::info("Session: {}", text); },
          host ? ClientSession::Role::Responder : ClientSession::Role::Initiator);
      bool was_connected = false;
@@ -2481,7 +2485,7 @@ index 79ccd06..043fae8 100644
      uint32_t peer_since = 0;  // host: when it locked onto its player
      uint32_t last_friend_scan = 0;
      size_t last_friend_count = SIZE_MAX;
-@@ -327,10 +394,80 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -327,10 +395,80 @@ void run_network(const Config& cfg, LocalSource& local) {
      bool mark_was_down = false;
      int marks = 0;
      std::vector<uint8_t> buf(proto::kMaxPacketSize);
@@ -2562,7 +2566,7 @@ index 79ccd06..043fae8 100644
          // The host's lobby, retried until it takes. Startup runs before the save is
          // loaded, so the first attempt reliably fails on a cold start; without this
          // the host never gets a room code at all and the guest has nothing to type.
-@@ -363,7 +500,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -363,7 +501,8 @@ void run_network(const Config& cfg, LocalSource& local) {
              last_friend_scan = now_ms();
              // A room code wins over the friends scan: it names one host exactly.
              if (room_code_pending) {
@@ -2572,7 +2576,7 @@ index 79ccd06..043fae8 100644
                  if (host_id) {
                      peer = net::PeerAddr::steam(host_id);
                      steam->set_peer(host_id);
-@@ -403,7 +541,13 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -403,7 +542,13 @@ void run_network(const Config& cfg, LocalSource& local) {
                  // Only a Hello of our protocol: one of another version would
                  // never connect and would keep the place (security review M2).
                  auto packet = proto::decode({buf.data(), *n});
@@ -2587,7 +2591,7 @@ index 79ccd06..043fae8 100644
                      std::holds_alternative<proto::Hello>(packet->body)) {
                      peer = from;
                      peer_since = now_ms();
-@@ -417,6 +561,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -417,6 +562,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          const uint32_t now = now_ms();
          session.tick(now);
          const bool connected = session.state() == ClientSession::State::Connected;
@@ -2595,7 +2599,7 @@ index 79ccd06..043fae8 100644
          if (host && was_connected && !connected && peer) {
              log::info("Network: {} left; waiting for a player", peer->str());
              peer.reset();
-@@ -426,13 +571,105 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -426,13 +572,105 @@ void run_network(const Config& cfg, LocalSource& local) {
              peer.reset();
              if (steam) steam->set_peer(0);
          }
@@ -2701,7 +2705,7 @@ index 79ccd06..043fae8 100644
              }
              coop->update(pos, rot, now);
          }
-@@ -449,14 +686,19 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -449,14 +687,19 @@ void run_network(const Config& cfg, LocalSource& local) {
              hud.local_status = local.status();
              hud.remote = session.remote_state();
              hud.peer_problem = session.peer_problem();
@@ -2722,7 +2726,7 @@ index 79ccd06..043fae8 100644
                  hud.boss_active = true;
                  hud.boss_name = b.name;
                  hud.boss_hp = b.hp;
-@@ -475,6 +717,49 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +718,55 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -2759,6 +2763,12 @@ index 79ccd06..043fae8 100644
 +                hud.rps_winner = rv.winner;
 +                hud.rps_reveal_t = rv.reveal_t;
 +            }
++            if (const net::HuntHud hh = net::hunt_hud(); !hh.title.empty()) {
++                hud.duel_title = hh.title;
++                hud.duel_subtitle = hh.subtitle;
++                hud.duel_title_color = hh.color;
++                hud.duel_title_alpha = hh.alpha;
++            }
 +            if (const net::DuelHud dh = net::duel_hud(); dh.active) {
 +                hud.duel_active = true;
 +                hud.duel_centre = {dh.centre[0], dh.centre[1], dh.centre[2]};
@@ -2772,7 +2782,7 @@ index 79ccd06..043fae8 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -491,6 +776,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,6 +783,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                  remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                       rs->pos.z, rs->health);
              }
@@ -2787,7 +2797,7 @@ index 79ccd06..043fae8 100644
              log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | remote states {} | "
                        "last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
                        state, st.sent, st.received, st.rejected, st.rtt_ms, st.remote_states, remote,
-@@ -498,7 +791,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -498,7 +798,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                        transport->status());
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
@@ -2802,7 +2812,7 @@ index 79ccd06..043fae8 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +809,108 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +816,108 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -2912,7 +2922,7 @@ index 79ccd06..043fae8 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +1012,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +1019,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -2921,7 +2931,7 @@ index 79ccd06..043fae8 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +1066,7 @@ void combat_test_loop() {
+@@ -669,7 +1073,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -2930,7 +2940,7 @@ index 79ccd06..043fae8 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +1084,7 @@ void combat_test_loop() {
+@@ -687,7 +1091,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -2939,7 +2949,7 @@ index 79ccd06..043fae8 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1149,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1156,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -2948,7 +2958,7 @@ index 79ccd06..043fae8 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1163,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1170,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -2956,7 +2966,7 @@ index 79ccd06..043fae8 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,6 +1192,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,6 +1199,7 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -2964,7 +2974,7 @@ index 79ccd06..043fae8 100644
          net::puppet_install_rope_bend();
          // Horse and enemy copies (the other player may send theirs at any
          // time) need the crash containment (docs/INFORME-CABALLO-CRASH.md)
-@@ -902,21 +1301,67 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,21 +1308,67 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -3032,7 +3042,7 @@ index 79ccd06..043fae8 100644
          const Config cfg = load_config(dir + L"cdmp.ini");
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
-@@ -925,7 +1370,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1377,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -3041,7 +3051,7 @@ index 79ccd06..043fae8 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -956,6 +1401,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -956,6 +1408,7 @@ DWORD WINAPI worker(LPVOID) {
                    cfg.coop_suppress_lab ? ", suppressed by suppress_lab=1 (the one-PC lab)" : "");
          log::info("Config: time sync {}", cfg.coop_time_sync == 1   ? "send ours"
                                            : cfg.coop_time_sync == 2 ? "take the other player's"
@@ -3049,7 +3059,7 @@ index 79ccd06..043fae8 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1415,36 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1422,37 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3073,6 +3083,7 @@ index 79ccd06..043fae8 100644
 +        net::activity_set_challenge_test(cfg.dev_challenge_test);
 +        net::duel_set_test(cfg.dev_duel_test);
 +        net::party_quests_set_test(cfg.dev_quest_test);
++        net::hunt_set_test(cfg.dev_hunt_test);
 +        input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
 +        input::set_sim(cfg.dev_pad_sim);
 +        if (cfg.dev_boss_hp) {
@@ -3086,7 +3097,7 @@ index 79ccd06..043fae8 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1496,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1504,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3120,7 +3131,7 @@ index 79ccd06..043fae8 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1519,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1527,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3132,7 +3143,7 @@ index 79ccd06..043fae8 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1544,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1552,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -3189,6 +3200,454 @@ index 355b8df..be88b8a 100644
  
  SafetyHookInline g_is_targetable;
  SafetyHookInline g_battle_type;
+diff --git a/upstream/cd-coop-3446/src/mod/net/animal_names.inc b/upstream/cd-coop-3446/src/mod/net/animal_names.inc
+new file mode 100644
+index 0000000..68a4a32
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/animal_names.inc
+@@ -0,0 +1,442 @@
++// Generated by tools/gen/animal_names_inc.py from the game data (character key, points, name). Do not edit.
++{0x000009CC, 2, "Marni GolemHorse"},
++{0x00007531, 1, "Rabbit"},
++{0x00007536, 1, "Scolt"},
++{0x00007539, 1, "WhiteWing Flycatcher"},
++{0x0000753E, 1, "Small LandSpider"},
++{0x00007541, 1, "SnowRabbit"},
++{0x00007542, 3, "Wolf"},
++{0x00007543, 1, "Medium LandSpider"},
++{0x00007544, 1, "Duck"},
++{0x00007545, 1, "Big LandSpider"},
++{0x0000754D, 1, "Crow"},
++{0x0000754E, 3, "Boar"},
++{0x0000754F, 2, "Deer"},
++{0x00007550, 2, "Female Deer"},
++{0x00007551, 3, "White Wolf"},
++{0x00007553, 2, "Gazelle"},
++{0x00007556, 2, "Arctic Fox"},
++{0x00007557, 1, "Weasel"},
++{0x00007558, 2, "MountainGoat"},
++{0x0000755A, 1, "Raccoon"},
++{0x0000755B, 3, "Hyena"},
++{0x0000755D, 1, "Hedgehog"},
++{0x0000755E, 2, "Fox"},
++{0x00007560, 3, "Bear"},
++{0x00007562, 1, "Eagle"},
++{0x00007563, 1, "Scorpion"},
++{0x00007564, 3, "Crocodile"},
++{0x00007565, 1, "Elephant"},
++{0x00007566, 1, "Hippo"},
++{0x00007567, 1, "Rat"},
++{0x00007569, 1, "Common Heron"},
++{0x0000756B, 1, "Hawk"},
++{0x0000756C, 1, "Owl"},
++{0x0000756E, 1, "Rattlesnake"},
++{0x00007571, 1, "Squirrel"},
++{0x00007572, 1, "Turtle"},
++{0x00007573, 2, "Camel"},
++{0x00007575, 1, "Iguana"},
++{0x00007577, 1, "Sparrow"},
++{0x00007578, 1, "Goose"},
++{0x00007579, 1, "Small Grass LandSpider"},
++{0x0000757A, 3, "Bison"},
++{0x0000757C, 3, "Leopard"},
++{0x0000757E, 1, "Armadillo"},
++{0x0000757F, 1, "BlueJay"},
++{0x00007581, 2, "Pigeon"},
++{0x00007582, 1, "Parrot"},
++{0x00007583, 3, "LongHair Bison"},
++{0x00007584, 1, "Seagull"},
++{0x00007585, 1, "Spoonbill"},
++{0x00007586, 1, "Flamingos"},
++{0x00007587, 1, "Oriole"},
++{0x0000758D, 3, "Female Bison"},
++{0x00007590, 2, "Female Gazelle"},
++{0x0000759C, 3, "Black Bear"},
++{0x0000759F, 3, "Grizzly Bear"},
++{0x000075AA, 1, "Hila Lizard"},
++{0x000075BA, 1, "Possum"},
++{0x000075BB, 1, "Beaver"},
++{0x000075BC, 1, "Muskrat"},
++{0x000075BD, 1, "Skunk"},
++{0x000075BE, 2, "Badger"},
++{0x000075BF, 1, "Frog"},
++{0x000075C0, 3, "Battle Rhinoceros"},
++{0x000075C1, 1, "Frog"},
++{0x000075CC, 1, "KukuBird"},
++{0x000075D1, 3, "White Bear"},
++{0x000075D3, 1, "Roedeer"},
++{0x000075D9, 2, "Reindeer"},
++{0x000075DA, 2, "Arctic ReinDeer"},
++{0x000075DB, 1, "Mallard"},
++{0x000075DC, 1, "BlackDuck"},
++{0x000075F1, 1, "TreeFrog"},
++{0x000075F2, 1, "Boss Cucubird"},
++{0x000075F5, 1, "Boss Cucubird Gimmick"},
++{0x000075F6, 1, "Elephant"},
++{0x000075F7, 2, "BactrianCamel"},
++{0x00007636, 3, "Rhino"},
++{0x0000763D, 3, "Battle Boar"},
++{0x000076A6, 3, "Lion"},
++{0x000076A7, 3, "Lioness"},
++{0x0000772B, 3, "Wyvern"},
++{0x0000772C, 3, "Wyvern"},
++{0x000079DA, 1, "Dog"},
++{0x000079DB, 1, "Dog"},
++{0x00007A7D, 1, "Lumif"},
++{0x00007A84, 1, "Stefano"},
++{0x00007A8A, 1, "Davrella"},
++{0x00007A8D, 1, "Phuket"},
++{0x00007A91, 2, "White Horse"},
++{0x00007A92, 2, "Black Horse"},
++{0x00007A93, 2, "RedHare Horse"},
++{0x00007AAC, 1, "Goanna"},
++{0x00007AAD, 1, "Desert Snake"},
++{0x00007AB1, 1, "Desert Rabbit"},
++{0x00007AB2, 2, "Desert Fox"},
++{0x00007AB7, 1, "Condor"},
++{0x00007AB8, 1, "WhiteHawk"},
++{0x00007ABC, 1, "Steppe Eagle"},
++{0x00007AC3, 2, "Coyote"},
++{0x00007AED, 3, "Moose"},
++{0x00007B10, 1, "Hedgehog"},
++{0x00007B11, 1, "Hedgehog"},
++{0x00007B12, 1, "Hedgehog"},
++{0x00007B13, 1, "Hedgehog"},
++{0x00007B16, 1, "Hedgehog"},
++{0x00007B1B, 1, "Cobra"},
++{0x00007D22, 1, "Snow Weasel"},
++{0x00007D23, 1, "Snow Chipmunk"},
++{0x00007D26, 1, "Cuckoo"},
++{0x00007D28, 1, "Wood Pecker"},
++{0x00007D8D, 1, "Setaria Viridis LandSpider"},
++{0x00007D8E, 1, "Spirodela Polyrhiza LandSpider"},
++{0x00007D8F, 1, "Big Grass LandSpider"},
++{0x00007D90, 1, "Medium Grass LandSpider"},
++{0x00007D96, 1, "Rock LandSpider"},
++{0x00007D98, 1, "Pebble LandSpider"},
++{0x00007DA0, 1, "Medium Grass LandSpider"},
++{0x00007DA1, 2, "Antelope"},
++{0x00007DAD, 1, "Wapiti"},
++{0x00007DB1, 1, "Female Wapiti"},
++{0x00007DD4, 2, "Pig"},
++{0x00007DD5, 2, "Sheep"},
++{0x00007DD6, 2, "Goat"},
++{0x00007DD9, 1, "Bull"},
++{0x00007DDC, 1, "Lamb"},
++{0x00007DDF, 1, "Hamish"},
++{0x00007DF4, 1, "CollaredPeccary"},
++{0x00007DF5, 2, "PronghornDeer"},
++{0x00007DF6, 1, "Longhorn"},
++{0x00007DF7, 1, "Oxpecker"},
++{0x00007DFD, 1, "Warthog"},
++{0x00007DFE, 2, "DesertBigHornSheep"},
++{0x00007DFF, 2, "Snow Mountain Goat"},
++{0x00007E04, 1, "Female Hamish"},
++{0x00007E05, 1, "Porcupine"},
++{0x00007E06, 1, "Kid"},
++{0x00007E08, 1, "Warthogbaby"},
++{0x00007E0A, 1, "WhiteBilled Loon"},
++{0x00007E0B, 1, "GaviaStellata"},
++{0x00007E0E, 1, "Acid Spider"},
++{0x00007E17, 1, "Dog"},
++{0x00007E18, 1, "Acid Spider"},
++{0x00007E19, 2, "KomodoDragon"},
++{0x00007E1C, 1, "RuddyshelDuck"},
++{0x00007E1D, 1, "Mergellus"},
++{0x00007E1E, 1, "Puma"},
++{0x00007E1F, 1, "DarkPuma"},
++{0x00007E20, 1, "Sterna"},
++{0x00007E2C, 1, "Caretta"},
++{0x00007E42, 1, "Female Bull"},
++{0x00007E54, 1, "Ayut"},
++{0x00007E5E, 1, "Hippo Sircus"},
++{0x00007E5F, 3, "Rhino Sircus"},
++{0x00007E60, 1, "Snowy Plover"},
++{0x00007E63, 1, "Skunky"},
++{0x00007E65, 1, "Choppy"},
++{0x00007E67, 1, "Wood Weasel"},
++{0x00007E6E, 1, "BlackTail Flycatcher"},
++{0x00007E6F, 1, "Bunting Bird"},
++{0x00007E72, 1, "Red Squirrel"},
++{0x00007E75, 3, "Giant Crocodile"},
++{0x00007E76, 2, "Female PronghornDeer"},
++{0x00007E78, 2, "Female ReinDeer"},
++{0x00007E7A, 2, "Female Arctic ReinDeer"},
++{0x00007E7C, 1, "Red Footed Falcon"},
++{0x00007E7D, 1, "SyrrhaptesParadoxus"},
++{0x00007E7E, 3, "Female Moose"},
++{0x00007E80, 1, "Female Roedeer"},
++{0x00007E82, 2, "Female Camel"},
++{0x00007E84, 2, "Female Antelope"},
++{0x00007E85, 2, "Female MountainGoat"},
++{0x00007E87, 2, "Female Snow Mountain Goat"},
++{0x00007E89, 2, "Female DesertBigHornSheep"},
++{0x00007E8B, 1, "FalcoCherrug"},
++{0x00007E8C, 1, "Female Longhorn"},
++{0x00007E91, 1, "Bad Rattlesnake"},
++{0x00007E92, 1, "Blacktail Rattlesnake"},
++{0x00007E93, 1, "Timber Rattlesnake"},
++{0x00007E94, 1, "North CopperHead"},
++{0x00007E95, 1, "Lancehead"},
++{0x00007E96, 1, "South CopperHead"},
++{0x00007E97, 1, "RedTail anaconda"},
++{0x00007E98, 1, "Rainbow anaconda"},
++{0x00007E99, 1, "Sunglow anaconda"},
++{0x00007E9A, 1, "Mole"},
++{0x00007E9B, 1, "Collared Dove"},
++{0x00007EAC, 1, "Giant Salamander"},
++{0x00007EAD, 1, "Salamander"},
++{0x00007EAE, 1, "Axolotl"},
++{0x00007EAF, 1, "BurrowingToad"},
++{0x00007EF5, 1, "Lumif"},
++{0x00007EF6, 1, "Lumif"},
++{0x00007EF7, 1, "Lumif"},
++{0x00007EF8, 1, "Lumif"},
++{0x00007EF9, 1, "Lumif"},
++{0x00007F04, 1, "Stefero"},
++{0x00007F05, 1, "Stefero"},
++{0x00007F06, 1, "Stefero"},
++{0x00007F07, 1, "Stefero"},
++{0x00007F08, 1, "Stefero"},
++{0x00007F13, 1, "Davrella"},
++{0x00007F14, 1, "Davrella"},
++{0x00007F15, 1, "Davrella"},
++{0x00007F16, 1, "Davrella"},
++{0x00007F17, 1, "Davrella"},
++{0x00007F22, 1, "Pukret"},
++{0x00007F24, 1, "Pukret"},
++{0x00007F25, 1, "Pukret"},
++{0x00007F26, 1, "Pukret"},
++{0x00007F4F, 1, "Ayut"},
++{0x00007F50, 1, "Ayut"},
++{0x00007F51, 1, "Ayut"},
++{0x00007F52, 1, "Ayut"},
++{0x00007F53, 1, "Ayut"},
++{0x00007F5E, 1, "Davrella"},
++{0x00007F5F, 1, "Davrella"},
++{0x00007FBD, 1, "Stefero Quest"},
++{0x00007FBE, 1, "Stefero Quest"},
++{0x00007FC0, 1, "Stefero Quest"},
++{0x00007FC1, 1, "Stefero Quest"},
++{0x00008071, 1, "EclectusParrot"},
++{0x00008072, 1, "SunConure"},
++{0x00008073, 1, "Parrot"},
++{0x00008074, 1, "SpixsMacaw"},
++{0x00008075, 1, "RoseringedParakeet"},
++{0x00008076, 1, "CitronCockatoo"},
++{0x0000807E, 1, "White Stag"},
++{0x0000807F, 1, "Giant Bull"},
++{0x0000814D, 2, "Pigeon"},
++{0x0000814E, 3, "Boar"},
++{0x0000814F, 2, "Goat"},
++{0x00008152, 3, "Wolf"},
++{0x00008153, 2, "Deer"},
++{0x00008157, 2, "Camel"},
++{0x00008161, 1, "Condor"},
++{0x00008162, 1, "Crow"},
++{0x00008163, 1, "Eagle"},
++{0x00008164, 3, "Crocodile"},
++{0x00008165, 1, "Crow"},
++{0x00008166, 2, "ReinDeer"},
++{0x00008167, 2, "DeerFemale"},
++{0x00008169, 1, "Dead Bull"},
++{0x0000816A, 3, "Dead Bison"},
++{0x000088C3, 1, "SnappingTurtle"},
++{0x00008997, 1, "Marni MachineFish"},
++{0x000089A2, 1, "Electric Eel"},
++{0x00009493, 3, "Black Bear"},
++{0x00009859, 2, "Unique PureWhite Deer"},
++{0x0000985A, 2, "Unique Vined Deer"},
++{0x0000985B, 3, "Unique Black Lion"},
++{0x0000985C, 3, "Unique White Lion"},
++{0x0000985D, 1, "Unique PureWhite Bion"},
++{0x0000985E, 3, "Unique White Moose"},
++{0x0000985F, 3, "Unique White Crocodile"},
++{0x00009860, 1, "Unique White Stag"},
++{0x00009861, 1, "Unique Giant Bull"},
++{0x00009863, 2, "Unique RedRiverPig"},
++{0x00009865, 3, "Unique SilverFangs Wolf"},
++{0x000098BD, 1, "PaddleFish"},
++{0x000098BE, 1, "SevenGill"},
++{0x000098BF, 1, "PagrusMajor"},
++{0x000098C0, 1, "RedOpaleye"},
++{0x000098C1, 1, "Giant MudFish"},
++{0x000098C2, 1, "SailFish"},
++{0x000098C3, 1, "GoldenTench"},
++{0x000098C5, 1, "GoldenCarp"},
++{0x000098C7, 1, "FootballFish"},
++{0x0007A305, 1, "Unique Black Cat"},
++{0x0007A306, 1, "Unique Spotted Cat"},
++{0x0007A307, 1, "Unique Calico Cat"},
++{0x000F4248, 1, "Angry Crow"},
++{0x000F42F2, 1, "Righteous Arrows Dog"},
++{0x000F42FE, 1, "BlueWhale"},
++{0x000F436A, 1, "Caliburn Dog"},
++{0x000F438F, 1, "Cat Hernand Unique"},
++{0x000F4390, 1, "Cat Demeniss Unique"},
++{0x000F4391, 1, "Cat Delesyian Unique"},
++{0x000F4392, 1, "Cat Pailune Unique"},
++{0x000F43B0, 1, "Dog Hernand Unique"},
++{0x000F43B1, 1, "Dog Demeniss Unique"},
++{0x000F43B2, 1, "Dog Delesyian Unique"},
++{0x000F43B3, 1, "Dog Pailune Unique"},
++{0x000F43C5, 1, "Small BlackbrowBleak Fish"},
++{0x000F43C6, 1, "Pukret"},
++{0x000F43C7, 1, "Small BaliOgluChub Fish"},
++{0x000F43C9, 1, "Small Schneider Fish"},
++{0x000F43D4, 1, "RedFooted Turtle"},
++{0x000F43D5, 3, "Leopard Turtle"},
++{0x000F43D6, 1, "Sulcata Turtle"},
++{0x000F43D7, 3, "Abyss Dimension Wyvern"},
++{0x000F43D8, 3, "Water Buffalo"},
++{0x000F443F, 1, "WhiteCrow"},
++{0x000F44F3, 3, "visione Wyvern"},
++{0x000F44F6, 3, "Bear DeadBody"},
++{0x000F454C, 1, "EuropeanPartridge"},
++{0x000F454F, 1, "Fulica"},
++{0x000F4552, 1, "RiceFish"},
++{0x000F4554, 1, "Kiwi Bird"},
++{0x000F4555, 1, "Small Desert LandSpider"},
++{0x000F455B, 1, "Dodo Bird"},
++{0x000F455C, 1, "Turkey"},
++{0x000F4560, 1, "Mesite"},
++{0x000F4563, 1, "Watercock"},
++{0x000F4564, 1, "Flying Squirrel"},
++{0x000F4565, 1, "Takahe"},
++{0x000F4566, 1, "Galapagos Cormorant"},
++{0x000F4567, 1, "kakapo"},
++{0x000F4589, 1, "Wombat"},
++{0x000F459A, 1, "Cassowary"},
++{0x000F45B7, 1, "Spider"},
++{0x000F45C9, 1, "WaterStrider"},
++{0x000F45CA, 3, "BossHyenaSkevald"},
++{0x000F45DB, 1, "Platypus"},
++{0x000F45E9, 1, "Emu"},
++{0x000F45EA, 1, "Elephant Bird"},
++{0x000F45EB, 1, "Medium Desert LandSpider"},
++{0x000F45EC, 1, "Genyornis"},
++{0x000F45EE, 1, "RatsSwarm"},
++{0x000F45F9, 1, "SpiderSwarm"},
++{0x000F4604, 1, "GrassHopperSwarm"},
++{0x000F4605, 1, "CrowSwarm"},
++{0x000F4606, 1, "CrowSwarm Dome"},
++{0x000F4613, 1, "Meerkat"},
++{0x000F4614, 1, "Frilled Lizard"},
++{0x000F461F, 1, "Porcupine Desert"},
++{0x000F4620, 1, "Medium Abyss Grass LandSpider"},
++{0x000F4631, 3, "Wolf"},
++{0x000F4639, 1, "MilkCow"},
++{0x000F465E, 1, "Stefero Quest"},
++{0x000F4663, 1, "MilkCow"},
++{0x000F4675, 3, "Tiger"},
++{0x000F46DF, 1, "Small Sammy Fish"},
++{0x000F46E1, 1, "Small Beyaz Fish"},
++{0x000F46E7, 1, "Middle Pikefish"},
++{0x000F46E8, 1, "Tench"},
++{0x000F46E9, 1, "Small Mudfish Fish"},
++{0x000F46F0, 1, "Middle Catfish"},
++{0x000F46F8, 1, "Middle Lenok"},
++{0x000F46FA, 1, "Middle Burbot"},
++{0x000F4700, 1, "Perch"},
++{0x000F4701, 1, "Bass"},
++{0x000F4702, 1, "Yellow Bass"},
++{0x000F470B, 1, "Golden mandarinFish"},
++{0x000F470C, 1, "Crucian Carp"},
++{0x000F471C, 1, "Dover Sole"},
++{0x000F477F, 1, "Dune Coelacanth"},
++{0x000F4789, 1, "Dune Golden Coelacanth"},
++{0x000F479C, 1, "Emu Chick"},
++{0x000F479F, 1, "Little Grebe"},
++{0x000F47B3, 1, "WhiteCrow"},
++{0x000F47BC, 2, "Deer DeadBody Rotten"},
++{0x000F47BD, 2, "Deer DeadBody Skeleton"},
++{0x000F47C0, 3, "Boar DeadBody Rotten"},
++{0x000F47C1, 2, "Goat DeadBody Rotten"},
++{0x000F47C2, 3, "Dead Bison DeadBody Rotten"},
++{0x000F47C3, 1, "Bull DeadBody Rotten"},
++{0x000F47E5, 1, "Sulfur LandSpider"},
++{0x000F47EF, 3, "Boar DeadBody Skeleton"},
++{0x000F47F7, 2, "UniqueNpc Horse"},
++{0x000F47F9, 2, "UniqueNpc Horse"},
++{0x000F47FA, 2, "UniqueNpc Horse"},
++{0x000F47FF, 2, "UniqueNpc Horse"},
++{0x000F4800, 3, "Wolf DeadBody Skeleton"},
++{0x000F4801, 2, "Goat DeadBody Skeleton"},
++{0x000F4802, 3, "Bison DeadBody Skeleton"},
++{0x000F4805, 2, "UniqueNpc Horse"},
++{0x000F4807, 3, "Bear DeadBody Skeleton"},
++{0x000F487A, 1, "Dog"},
++{0x000F488E, 2, "WaterDeer"},
++{0x000F4892, 1, "Unique Phoenix"},
++{0x000F48C5, 1, "Benjari"},
++{0x000F48D7, 1, "Venomous Bee"},
++{0x000F4928, 1, "Sick GreatDane"},
++{0x000F493C, 1, "Middle Red Seabream"},
++{0x000F4945, 1, "Middle BlackSeaBream"},
++{0x000F4948, 1, "Middle Red Snapper"},
++{0x000F4968, 1, "Common RedCrownedCrane"},
++{0x000F497D, 1, "Cat Pororin Unique"},
++{0x000F497E, 1, "Cat RedOrc Unique"},
++{0x000F497F, 1, "Dog JijeongTemple Unique"},
++{0x000F4980, 1, "Dog LongleafTree Unique"},
++{0x000F4997, 1, "Pygmy Teal"},
++{0x000F49A0, 1, "Whistling Duck"},
++{0x000F49A1, 1, "Desert Goose"},
++{0x000F49CB, 1, "Small Desert LandSpider"},
++{0x000F49CC, 1, "Medium Desert LandSpider"},
++{0x000F49CE, 1, "Big Desert LandSpider"},
++{0x000F49D0, 1, "Middle Rock Bream"},
++{0x000F49D3, 1, "Mackerel"},
++{0x000F49D9, 1, "VeryBig Marlin"},
++{0x000F49DD, 1, "Middle Cuvier"},
++{0x000F49ED, 1, "Middle Salmon"},
++{0x000F49F0, 1, "Middle Sockeye Salmon"},
++{0x000F49F3, 1, "Middle Trout"},
++{0x000F49F6, 1, "Big Eel"},
++{0x000F49F9, 1, "Big Sturgeon"},
++{0x000F4A36, 1, "BleedBlade Dog"},
++{0x000F4A37, 2, "LonelyJackal Dog"},
++{0x000F4A38, 1, "DemenissMP Dog"},
++{0x000F4A47, 1, "Rock LandSpider"},
++{0x000F4AD5, 1, "Medium Abyss Grass LandSpider"},
++{0x000F4B0F, 1, "Small Snow LandSpider"},
++{0x000F4B10, 1, "Medium Snow LandSpider"},
++{0x000F4B11, 1, "Big Snow LandSpider"},
++{0x000F4B1F, 1, "Dog Hernand Unique"},
++{0x000F4B3E, 3, "Wolf Clone"},
++{0x000F4B3F, 3, "White Tiger"},
++{0x000F4B4B, 2, "AlpineIbex"},
++{0x000F4B4C, 3, "Lion Circus"},
++{0x000F4BE6, 1, "Middle Carp"},
++{0x000F4BFE, 1, "Crow"},
++{0x000F4C45, 1, "Unique Leebur"},
++{0x000F4D93, 1, "Cat Tashkalp Unique"},
++{0x000F4D94, 1, "Dog Tashkalp Unique"},
++{0x000F4E3C, 3, "Wolf DeadBody"},
++{0x000F4E61, 2, "GoatFemale"},
++{0x000F4E63, 2, "SheepFemale"},
++{0x000F4E67, 2, "PigFemale"},
++{0x000F5012, 1, "Lumif"},
++{0x000F5013, 1, "Lumif"},
++{0x000F5014, 1, "Lumif"},
++{0x000F5015, 1, "Lumif"},
++{0x000F5016, 1, "Stefero"},
++{0x000F5017, 1, "Stefero"},
++{0x000F504A, 1, "Chameleon"},
++{0x000F5071, 1, "Big Desert LandSpider"},
++{0x000F50F9, 3, "White Wolf"},
++{0x000F5100, 3, "Tiger"},
++{0x000F5103, 1, "Longtailedtit"},
++{0x6200BD00, 1, "HexePot LandSpider"},
++{0x78CF2232, 1, "Bismuth LandSpider"},
++{0x78CF2233, 1, "Bismuth LandSpider"},
++{0x78CF2234, 1, "Bismuth LandSpider"},
++{0x78CF2235, 1, "Bismuth LandSpider"},
++{0x78CF2236, 1, "Bismuth LandSpider"},
++{0xAA223A34, 1, "Flower LandSpider"},
++{0xAA223A35, 1, "Flower LandSpider"},
++{0xAA223A36, 1, "Flower LandSpider"},
++{0xAA223A37, 1, "Flower LandSpider"},
++{0xD9BD0729, 1, "StoneLampExplosion Spider"},
 diff --git a/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp b/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp
 index 4e09fdc..5a743d9 100644
 --- a/upstream/cd-coop-3446/src/mod/net/attack_probe.cpp
@@ -3416,10 +3875,10 @@ index a328bc0..695a4fb 100644
  public:
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..3470012
+index 0000000..9347998
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,834 @@
+@@ -0,0 +1,861 @@
 +#include "mod/net/coop_activity.h"
 +#include "mod/input/actions.h"
 +#include "mod/input/pad_input.h"
@@ -3439,6 +3898,7 @@ index 0000000..3470012
 +#include "mod/log.h"
 +#include "mod/net/boss_safe.h"
 +#include "mod/net/coop_duel.h"
++#include "mod/net/coop_hunt.h"
 +#include "mod/net/party_quests.h"
 +#include "mod/net/local_capture.h"
 +#include "mod/net/stage_cinema.h"
@@ -3452,7 +3912,7 @@ index 0000000..3470012
 +constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 +constexpr uint32_t kSkipTestDelayMs = 6000;
 +
-+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13 };
++enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14 };
 +
 +// Versus arm wrestling (D35): while both players are in a match, the host owns one gauge,
 +// 50 + kPushGain x (host's E presses - guest's E presses), clamped to 0..100, and writes it into its game every tick;
@@ -3515,7 +3975,7 @@ index 0000000..3470012
 +// above making it player against player; the duel runs in the mod. A running series score is kept until either player
 +// ends the challenge (Shift+F5 again).
 +// Event kChallenge: u8 action | u32 the game's stage key.
-+enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3 };
++enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3, kGameHunt = 4 };
 +enum ChallengeAction : uint8_t { kInvite = 1, kAccept = 2, kDecline = 3, kEnd = 4 };
 +enum ChallengeState : uint8_t { kChNone, kChPick, kChSent, kChReceived, kChOn };
 +constexpr uint32_t kWrestleStages[] = {16005100, 1001987, 1001988, 1003873, 1003875, 1018693};
@@ -3554,6 +4014,7 @@ index 0000000..3470012
 +    switch (game_of(stage)) {
 +        case kGameRps: return "Pick your hand:  {RpsScissors} scissors  {RpsPaper} paper  {RpsRock} rock  (first to 2)";
 +        case kGameDuel: return "Bring your opponent to their knees. Stay within the duel ground!";
++        case kGameHunt: return "Bring down the most game in 3 minutes: big game counts more!";
 +        default: return "Both sit at the table and start a match, then mash {Mash}!";
 +    }
 +}
@@ -3562,6 +4023,7 @@ index 0000000..3470012
 +    if (std::find(std::begin(kWrestleStages), std::end(kWrestleStages), stage) != std::end(kWrestleStages)) return kGameWrestle;
 +    if (stage == kRpsNameStage) return kGameRps;
 +    if (stage == kDuelStage) return kGameDuel;
++    if (stage == kHuntStage) return kGameHunt;
 +    return kNoGame;
 +}
 +
@@ -3681,6 +4143,7 @@ index 0000000..3470012
 +        case 1000219: case 1001269: return "Duo";
 +        case 1001524: case 1018696: return "Five-Card";
 +        case kDuelStage: return "a duel";
++        case kHuntStage: return "a hunting contest";
 +        default: return "a minigame";
 +    }
 +}
@@ -3947,6 +4410,7 @@ index 0000000..3470012
 +                    }
 +                    c.options.push_back(kDuelStage);
 +                    c.options.push_back(kRpsNameStage);
++                    c.options.push_back(kHuntStage);
 +                    g_menu_step = 0;
 +                    break;
 +                }
@@ -3982,6 +4446,9 @@ index 0000000..3470012
 +                out.banner = std::format("{} challenges you to {}!   {{Challenge}} accept   {{Decline}} decline", who, game);
 +            } else if (c.state == kChSent) {
 +                out.banner = std::format("Challenge sent: {} vs {}. Waiting for an answer ({{Challenge}} withdraws)", game, who);
++            } else if (c.state == kChOn && game_of(c.stage) == kGameHunt) {
++                out.banner = std::format("Hunting contest vs {}   series you {} - {} {}   ({{Challenge}} ends)", who,
++                                         c.ours, c.theirs, who);
 +            } else if (c.state == kChOn && game_of(c.stage) == kGameDuel) {
 +                out.banner = std::format("Duel vs {}   series you {} - {} {}   ({{Challenge}} ends the duel)", who,
 +                                         c.ours, c.theirs, who);
@@ -4079,6 +4546,7 @@ index 0000000..3470012
 +        case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)
 +        case kDuel:              // coop_duel.h, below
 +        case kQuest:             // party_quests.h, below
++        case kHunt:              // coop_hunt.h, below
 +            break;
 +        case kChallenge:  // u8 action | u32 stage key
 +            if (p.size() >= 10) {
@@ -4124,6 +4592,7 @@ index 0000000..3470012
 +    if (p[4] >= 7 && p[4] <= 9) cinema_on_event(p[4], p.data() + 5, p.size() - 5);
 +    if (p[4] == kDuel) duel_on_event(p.data() + 5, p.size() - 5);  // coop_duel.h (its own lock)
 +    if (p[4] == kQuest) party_quests_on_event(p.data() + 5, p.size() - 5);  // party_quests.h (its own lock)
++    if (p[4] == kHunt) hunt_on_event(p.data() + 5, p.size() - 5);  // coop_hunt.h (its own lock)
 +}
 +
 +ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
@@ -4240,6 +4709,23 @@ index 0000000..3470012
 +    }
 +    if (!d.banner.empty()) out.banner = std::move(d.banner);
 +    if (!d.toast.empty() && out.toast.empty()) out.toast = std::move(d.toast);
++    bool hunt_on = false;
++    {
++        std::lock_guard lock(g_mutex);
++        hunt_on = g_ch.state == kChOn && game_of(g_ch.stage) == kGameHunt;
++    }
++    HuntTick h = hunt_tick(hunt_on, connected, who);
++    if (h.round_result) {
++        std::lock_guard lock(g_mutex);
++        if (h.round_result == 1) ++g_ch.ours;
++        if (h.round_result == 2) ++g_ch.theirs;
++        out.toast = std::format("Hunting contest\n{}   Series: you {} - {} {}",
++                                h.round_result == 1 ? std::string("The hunt is yours.")
++                                : h.round_result == 2 ? who + " takes the hunt." : std::string("An even hunt."),
++                                g_ch.ours, g_ch.theirs, who);
++    }
++    if (!h.banner.empty()) out.banner = std::move(h.banner);
++    if (!h.toast.empty() && out.toast.empty()) out.toast = std::move(h.toast);
 +    // The party journal (party_quests.h): the other player's completed quests. Held back while another notice shows.
 +    static uint32_t journal_after = 0;
 +    if (out.toast.empty() && static_cast<int32_t>(now - journal_after) >= 0) {
@@ -4809,12 +5295,288 @@ index 0000000..68cebd9
 +void duel_set_test(bool on);
 +
 +}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/coop_hunt.cpp b/upstream/cd-coop-3446/src/mod/net/coop_hunt.cpp
+new file mode 100644
+index 0000000..785e323
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/coop_hunt.cpp
+@@ -0,0 +1,215 @@
++#include "mod/net/coop_hunt.h"
++
++#include <windows.h>
++
++#include <algorithm>
++#include <atomic>
++#include <cstring>
++#include <format>
++#include <iterator>
++#include <mutex>
++#include <vector>
++
++#include "mod/log.h"
++#include "mod/net/coop_activity.h"
++#include "mod/net/enemy_relay.h"
++#include "mod/net/guest_hits.h"
++#include "mod/net/local_capture.h"
++#include "mod/net/troc_sniffer.h"
++
++namespace cdmp::net {
++namespace {
++
++struct Animal {
++    uint32_t key;
++    int points;
++    const char* name;
++};
++constexpr Animal kAnimals[] = {
++#include "mod/net/animal_names.inc"
++};
++
++const Animal* animal(uint32_t variant) {
++    const auto it = std::lower_bound(std::begin(kAnimals), std::end(kAnimals), variant,
++                                     [](const Animal& a, uint32_t k) { return a.key < k; });
++    return it != std::end(kAnimals) && it->key == variant ? it : nullptr;
++}
++
++constexpr uint16_t kOpNotifyHandleFatalAck = 2225;  // +0 victim | +4 killer
++constexpr uint16_t kOpNotifyHandleDeadAck = 2985;   // +0 victim | +4 (the victim again in the captures)
++constexpr uint64_t kOursWithinMs = 8000;            // a death within this of our last blow on it is our kill
++constexpr uint8_t kHuntType = 14;                   // Activity event type: u32 round | u16 score | u16 kills
++constexpr uint32_t kCountdownMs = 3000;
++constexpr uint32_t kRoundMs = 180000;
++constexpr uint32_t kSettleMs = 1500;  // the last scores reach both sides before the result
++constexpr uint32_t kOverMs = 8000;
++enum Phase : uint8_t { kIdle, kCountdown, kHunt, kSettle, kOver };
++
++struct State {
++    Phase phase = kIdle;
++    uint32_t round = 0, since = 0;
++    int ours = 0, theirs = 0, kills = 0, their_kills = 0;
++    int result = 0;
++    bool reported = false, send = false;
++    std::string last_kill;  // toast: "Red Deer +2"
++    uint32_t last_victim = 0;
++} g;
++std::mutex g_mutex;
++std::atomic<bool> g_test{false};
++
++}  // namespace
++
++void hunt_set_test(bool on) { g_test = on; }
++
++bool hunt_dev_kill() {
++    static std::vector<uint32_t> tried;
++    const auto loaded = enemy_loaded_variants();
++    int animals = 0;
++    for (const auto& [key, variant] : loaded) animals += animal(variant) != nullptr;
++    log::info("Hunt: [dev] {} actors loaded, {} wild animals", loaded.size(), animals);
++    int sent = 0;
++    for (const auto& [key, variant] : loaded) {
++        const Animal* a = animal(variant);
++        // Each one once (a far one gets no answer: try the next).
++        if (!a || std::find(tried.begin(), tried.end(), key) != tried.end()) continue;
++        tried.push_back(key);
++        std::vector<uint8_t> pkt(5 + 8, 0);
++        const uint16_t op = 2210, len = 8;  // KillCheatReq: u32 key | u32 option
++        std::memcpy(pkt.data(), &op, 2);
++        std::memcpy(pkt.data() + 3, &len, 2);
++        std::memcpy(pkt.data() + 5, &key, 4);
++        const bool ok = sniffer_inject_c2s(std::move(pkt));
++        log::info("Hunt: [dev] KillCheatReq on 0x{:08X} ({}){}", key, a->name, ok ? "" : " NOT sent");
++        if (++sent == 4) return ok;
++    }
++    if (sent) return true;
++    log::info("Hunt: [dev] no wild animal loaded");
++    return false;
++}
++
++void hunt_observe_s2c(const uint8_t* packet, size_t size) {
++    if (size < 5 + 8) return;
++    uint16_t op;
++    std::memcpy(&op, packet, 2);
++    if (op != kOpNotifyHandleFatalAck && op != kOpNotifyHandleDeadAck) return;
++    // NotifyHandleDeadAck (2985) is the one seen in captures, and it does not say who killed (both keys are the
++    // victim): the kill is ours when one of our blows (or arrows) named it in the last kOursWithinMs.
++    uint32_t victim, killer;
++    std::memcpy(&victim, packet + 5, 4);
++    std::memcpy(&killer, packet + 9, 4);
++    const uint32_t own = capture_own_player_key();
++    if (!own || victim == own) return;
++    if (killer != own && !guest_hits_we_hit(victim, kOursWithinMs) && !g_test) return;
++    const Animal* a = animal(enemy_variant(victim));
++    std::lock_guard lock(g_mutex);
++    if (g.phase != kHunt || victim == g.last_victim) return;  // the two notices of one death count once
++    g.last_victim = victim;
++    if (!a) {
++        log::info("Hunt: we killed 0x{:08X} (variant 0x{:08X}): not game", victim, enemy_variant(victim));
++        return;
++    }
++    g.ours += a->points;
++    g.kills += 1;
++    g.send = true;
++    g.last_kill = std::format("{} +{}", a->name, a->points);
++    log::info("Hunt: we brought down {} (+{}), score {}", a->name, a->points, g.ours);
++}
++
++void hunt_on_event(const uint8_t* d, size_t n) {
++    if (n < 8 || g_test) return;
++    uint32_t round;
++    uint16_t score, kills;
++    std::memcpy(&round, d, 4);
++    std::memcpy(&score, d + 4, 2);
++    std::memcpy(&kills, d + 6, 2);
++    std::lock_guard lock(g_mutex);
++    if (round != g.round || (g.phase != kHunt && g.phase != kSettle)) return;
++    g.theirs = score;
++    g.their_kills = kills;
++}
++
++HuntTick hunt_tick(bool on, bool connected, const std::string& who) {
++    HuntTick out;
++    const uint32_t now = GetTickCount();
++    std::vector<uint8_t> msg;
++    {
++        std::lock_guard lock(g_mutex);
++        if (!on || (!connected && !g_test)) {
++            if (g.phase != kIdle) log::info("Hunt: over");
++            g = State{};
++            return out;
++        }
++        switch (g.phase) {
++            case kIdle:
++                g.phase = kCountdown, g.since = now, g.round = 1;
++                break;
++            case kCountdown:
++                if (now - g.since >= kCountdownMs) {
++                    g.phase = kHunt, g.since = now;
++                    log::info("Hunt: round {} on", g.round);
++                }
++                break;
++            case kHunt:
++                if (now - g.since >= kRoundMs) g.phase = kSettle, g.since = now;
++                break;
++            case kSettle:
++                if (now - g.since >= kSettleMs) {
++                    g.phase = kOver, g.since = now;
++                    g.result = g.ours > g.theirs ? 1 : g.ours < g.theirs ? 2 : 3;
++                    log::info("Hunt: round {} ends {} - {}", g.round, g.ours, g.theirs);
++                }
++                break;
++            case kOver:
++                if (now - g.since >= kOverMs) {
++                    const uint32_t next = g.round + 1;
++                    g = State{};
++                    g.phase = kCountdown, g.since = now, g.round = next;
++                }
++                break;
++        }
++        if (g.send) {
++            g.send = false;
++            msg.resize(8);
++            const auto score = static_cast<uint16_t>(g.ours), kills = static_cast<uint16_t>(g.kills);
++            std::memcpy(msg.data(), &g.round, 4);
++            std::memcpy(msg.data() + 4, &score, 2);
++            std::memcpy(msg.data() + 6, &kills, 2);
++        }
++        if (!g.last_kill.empty()) out.toast = "Hunt\n" + std::exchange(g.last_kill, {});
++        if (g.phase == kOver && !g.reported) {
++            g.reported = true;
++            out.round_result = g.result;
++        }
++        if (g.phase == kHunt || g.phase == kSettle) {
++            const uint32_t left = g.phase == kHunt ? (kRoundMs - std::min(kRoundMs, now - g.since)) / 1000 : 0;
++            out.banner = std::format("Hunting contest vs {}   {}:{:02}   You {} - {} {}", who, left / 60, left % 60,
++                                     g.ours, g.theirs, who);
++        }
++    }
++    if (!msg.empty() && connected) activity_send(kHuntType, msg);
++    return out;
++}
++
++HuntHud hunt_hud() {
++    HuntHud h;
++    std::lock_guard lock(g_mutex);
++    const uint32_t t = GetTickCount() - g.since;
++    if (g.phase == kCountdown) {
++        h.title = std::to_string(std::max<uint32_t>(1, (kCountdownMs - std::min(kCountdownMs, t) + 999) / 1000));
++        h.subtitle = "Hunting contest: bring down the most game in 3 minutes (big game counts more)";
++        h.color = 0xFF82C8E8;
++        h.alpha = 1.0f - static_cast<float>(t % 1000) / 1600.0f;
++    } else if (g.phase == kHunt && t < 1200) {
++        h.title = "Hunt!";
++        h.color = 0xFF82C8E8;
++        h.alpha = 1.0f - static_cast<float>(t) / 1200.0f;
++    } else if (g.phase == kOver) {
++        h.title = g.result == 1 ? "Victory" : g.result == 2 ? "Defeat" : "A Draw";
++        h.subtitle = std::format("{} points ({} kills) to {} ({} kills)", g.ours, g.kills, g.theirs, g.their_kills);
++        h.color = g.result == 2 ? 0xFF2830C4 : 0xFF82C8E8;
++        h.alpha = t < kOverMs - 1000 ? 1.0f : std::max(0.0f, (kOverMs - t) / 1000.0f);
++    }
++    return h;
++}
++
++}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/coop_hunt.h b/upstream/cd-coop-3446/src/mod/net/coop_hunt.h
+new file mode 100644
+index 0000000..411c61f
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/coop_hunt.h
+@@ -0,0 +1,49 @@
++#pragma once
++// Co-op+ hunting contest (user 2026-11-02: "other competitive minigames vs friends: target shooting..."). D44.
++//
++// The game's own shooting contests (archery at Lioncrest Manor, the firearm contest) are client-run stages against
++// an NPC and unlock through the story, so the two-player contest is the mod's, on the game's own animals: a challenge
++// game ("Hunting contest" in the picker). After 3, 2, 1, each player has kRoundMs to bring down wild animals; each
++// kill (a death notice, NotifyHandleDeadAck / NotifyHandleFatalAck, of a wild animal we hit in the last 8 s: animal_names.inc, generated
++// from the game data) scores 1 (small game), 2 (deer, foxes...) or 3 (bears, wolves, boars...). Scores go to the other
++// player as they change (Activity type 14); highest score when time runs out wins the round; then a new round.
++
++#include <array>
++#include <cstddef>
++#include <cstdint>
++#include <optional>
++#include <string>
++
++namespace cdmp::net {
++
++inline constexpr uint32_t kHuntStage = 0xD0E10002;  // the challenge "stage" of a hunting contest
++
++// Our server's messages: our kills.
++void hunt_observe_s2c(const uint8_t* packet, size_t size);
++
++// Activity type 14 from the other player.
++void hunt_on_event(const uint8_t* data, size_t n);
++
++struct HuntTick {
++    std::string banner;
++    std::string toast;
++    int round_result = 0;  // this tick a round ended: 1 we won, 2 they did, 3 a draw
++};
++HuntTick hunt_tick(bool on, bool connected, const std::string& who);
++
++// The big centred title (countdown, result); "" = none.
++struct HuntHud {
++    std::string title, subtitle;
++    unsigned int color = 0;
++    float alpha = 0;
++};
++HuntHud hunt_hud();
++
++// [dev] hunt_test: one-PC test: any death we see counts as our kill (the KillCheatReq kills of the dev script name
++// no killer), and the echo of our score is ignored.
++void hunt_set_test(bool on);
++
++// [dev] script step "killgame": KillCheatReq on up to 4 loaded wild animals (false if none is loaded).
++bool hunt_dev_kill();
++
++}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/dev_script.cpp b/upstream/cd-coop-3446/src/mod/net/dev_script.cpp
 new file mode 100644
-index 0000000..16d482c
+index 0000000..af18203
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/dev_script.cpp
-@@ -0,0 +1,208 @@
+@@ -0,0 +1,216 @@
 +#include "mod/net/dev_script.h"
 +#include "mod/input/pad_input.h"
 +
@@ -4833,13 +5595,14 @@ index 0000000..16d482c
 +#include "mod/net/revive_prompt.h"
 +#include "mod/net/time_sync.h"
 +#include "mod/net/dev_watch.h"
++#include "mod/net/coop_hunt.h"
 +#include "mod/net/troc_sniffer.h"
 +
 +namespace cdmp::net {
 +namespace {
 +
 +struct Step {
-+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad } kind;
++    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame } kind;
 +    uintptr_t addr = 0;
 +    float to[3] = {};
 +    uint16_t op = 0;
@@ -4928,6 +5691,11 @@ index 0000000..16d482c
 +            steps.push_back(st);
 +            continue;
 +        }
++        if (kind == "killgame") {  // killgame: KillCheatReq on a loaded wild animal (coop_hunt.h)
++            st.kind = Step::KillGame;
++            steps.push_back(st);
++            continue;
++        }
 +        if (kind == "day") {
 +            st.kind = Step::Day;
 +            in >> st.to[0];
@@ -4997,6 +5765,8 @@ index 0000000..16d482c
 +                input::dev_pad_press(static_cast<uint16_t>(st.addr), st.wait_ms ? st.wait_ms : 150);
 +                log::info("Dev script: pad 0x{:04X} for {} ms", st.addr, st.wait_ms);
 +                Sleep(st.wait_ms ? st.wait_ms : 150);
++            } else if (st.kind == Step::KillGame) {
++                hunt_dev_kill();
 +            } else if (st.kind == Step::Day) {
 +                time_sync_dev_add_days(static_cast<int>(st.to[0]));
 +            } else if (st.kind == Step::Time) {
@@ -5207,7 +5977,7 @@ index 0000000..5496f86
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
-index 72da385..7fdab6e 100644
+index 72da385..8bb1709 100644
 --- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.cpp
 @@ -1,4 +1,5 @@
@@ -5324,7 +6094,23 @@ index 72da385..7fdab6e 100644
      return true;
  }
  
-@@ -1241,13 +1243,13 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -1093,6 +1095,15 @@ uint32_t enemy_variant(uint32_t key) {
+     return l != g_loads.end() && l->second.size() >= 0x1C ? u32_at(l->second.data() + 0x18) : 0;
+ }
+ 
++std::vector<std::pair<uint32_t, uint32_t>> enemy_loaded_variants() {
++    std::lock_guard lock(g_mutex);
++    std::vector<std::pair<uint32_t, uint32_t>> out;
++    for (const auto& [key, load] : g_loads) {
++        if (load.size() >= 0x1C) out.emplace_back(key, u32_at(load.data() + 0x18));
++    }
++    return out;
++}
++
+ uint32_t enemy_copy_of(uint32_t key) {
+     std::lock_guard lock(g_mutex);
+     auto c = g_sent.find(key);
+@@ -1241,13 +1252,13 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size) {
          }
          return;
      }
@@ -5341,7 +6127,7 @@ index 72da385..7fdab6e 100644
              if (!keys::is_actor_key(t)) break;
              at_us = at_us || (own && t == own) || t == kPuppetPlayer;
          }
-@@ -1557,6 +1559,7 @@ struct WaitingCopy {
+@@ -1557,6 +1568,7 @@ struct WaitingCopy {
      Bytes hp, dead;
      uint64_t state_delay_ms = 0;
      std::optional<proto::Vec3> pos;  // its latest EnemyPos while waiting (before: its load's place)
@@ -5349,7 +6135,7 @@ index 72da385..7fdab6e 100644
  };
  std::deque<WaitingCopy> g_waiting;
  std::map<uint32_t, uint64_t> g_removed_at;  // copy key -> when its copy here was removed
-@@ -1611,9 +1614,9 @@ void no_parent(Bytes& v, size_t off) {
+@@ -1611,9 +1623,9 @@ void no_parent(Bytes& v, size_t off) {
  void scrub_message(uint16_t op, Bytes& v, uint32_t copy, uint32_t own) {
      switch (op) {
          case kOpStartActionReq:
@@ -5362,7 +6148,7 @@ index 72da385..7fdab6e 100644
              break;
          case kOpRotateActorReq: no_parent(v, 0x54); break;
          case kOpVaryHPAck: scrub_field(v, 0x54, copy, own); break;
-@@ -1810,9 +1813,22 @@ std::optional<proto::Vec3> spawn_place(const Bytes& spawn) {
+@@ -1810,9 +1822,22 @@ std::optional<proto::Vec3> spawn_place(const Bytes& spawn) {
  // copies came with "0 recent actions", 7 Oct 17:46:35). It waits for its
  // first relayed StartAction (enemy_on_event).
  void load_waiting() {
@@ -5387,7 +6173,7 @@ index 72da385..7fdab6e 100644
      // Loading (the tunnel walk into the world): our actor is parked at
      // (0, 1000, 0) (both of Shadow's crashes, 7 Oct).
      if (std::fabs(me->x) < 50.0f && std::fabs(me->z) < 50.0f && std::fabs(me->y - 1000.0f) < 50.0f) return;
-@@ -1820,10 +1836,13 @@ void load_waiting() {
+@@ -1820,10 +1845,13 @@ void load_waiting() {
      for (auto it = g_waiting.begin(); it != g_waiting.end();) {
          if (const auto at = it->pos ? it->pos : spawn_place(it->spawn);
              at && enemy_load::flat_distance(*at, *me) > kMaxLoadDistance) {
@@ -5401,7 +6187,7 @@ index 72da385..7fdab6e 100644
              ++it;
              continue;
          }
-@@ -1910,6 +1929,8 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
+@@ -1910,6 +1938,8 @@ void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t de
  }
  
  void enemy_set_receive_enabled(bool on) { g_receive_enabled = on; }
@@ -5410,7 +6196,7 @@ index 72da385..7fdab6e 100644
  
  namespace {
  // Dead copies whose loot is still ours to take: removed when looted or after
-@@ -1932,6 +1953,14 @@ void remove_copy_now(uint32_t copy) {
+@@ -1932,6 +1962,14 @@ void remove_copy_now(uint32_t copy) {
  
  void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
      if (bytes.size() < 12) return;
@@ -5425,7 +6211,7 @@ index 72da385..7fdab6e 100644
      if (!g_receive_enabled) {
          static bool told = false;
          if (!told) log::warn("Enemy relay: the other player's enemy copies are refused (no crash guards)");
-@@ -1979,6 +2008,11 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
+@@ -1979,6 +2017,11 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
          }
          return;
      }
@@ -5438,10 +6224,19 @@ index 72da385..7fdab6e 100644
      load_waiting();
  }
 diff --git a/upstream/cd-coop-3446/src/mod/net/enemy_relay.h b/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
-index b09873f..35461f3 100644
+index b09873f..d607f7b 100644
 --- a/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
 +++ b/upstream/cd-coop-3446/src/mod/net/enemy_relay.h
-@@ -90,6 +90,12 @@ std::vector<proto::GameEvent> enemy_host_tick();
+@@ -34,6 +34,8 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size);
+ // Character variant (characterinfo key, load +0x18) of one of our world's
+ // enemies, 0 if unknown; and its copy key on the other side, 0 if none.
+ uint32_t enemy_variant(uint32_t key);
++// Every world NPC whose load we kept, with its variant (Co-op+ hunting contest test).
++std::vector<std::pair<uint32_t, uint32_t>> enemy_loaded_variants();
+ uint32_t enemy_copy_of(uint32_t key);
+ // The reverse: our enemy behind one of the copies we announced, 0 if none.
+ uint32_t enemy_original_of(uint32_t copy);
+@@ -90,6 +92,12 @@ std::vector<proto::GameEvent> enemy_host_tick();
  // Copies of the other player's enemies are loaded only once their crash
  // guards are installed (mod.cpp).
  void enemy_set_receive_enabled(bool on);
@@ -5455,7 +6250,7 @@ index b09873f..35461f3 100644
  // its actions all of that copy), and loaded from enemy_tick at a bounded rate
  // (at most 48 copies here, 8 at once then 2 a second, a key not again within
 diff --git a/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp b/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
-index 8411baa..37ac120 100644
+index 8411baa..e431f78 100644
 --- a/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/guest_hits.cpp
 @@ -1,4 +1,5 @@
@@ -5515,11 +6310,20 @@ index 8411baa..37ac120 100644
  constexpr size_t kGuestHitSize = 17;  // u32 copy | u32 action hash | u32 frame | u8 accessor type | i32 base x1000
  constexpr uint8_t kFlagsClean = 0xF7;  // AttackTargetAck +8: a clean blow
  constexpr uint8_t kFlagsNoDamage = 0xE3;  // frames that never hurt (pieza4-capturas.md §2.1)
-@@ -287,6 +291,22 @@ double seed_base(uint64_t act) {
+@@ -287,6 +291,31 @@ double seed_base(uint64_t act) {
      return 0;
  }
  
 +}  // namespace
++
++bool guest_hits_we_hit(uint32_t key, uint64_t within_ms) {
++    std::lock_guard lock(g_mutex);
++    const uint64_t now = now_ms();
++    for (auto it = g_pending.rbegin(); it != g_pending.rend() && now - it->ms <= within_ms; ++it) {
++        if (std::find(it->targets.begin(), it->targets.end(), key) != it->targets.end()) return true;
++    }
++    return false;
++}
 +
 +double guest_hits_action_damage(uint32_t hash) {
 +    std::lock_guard lock(g_mutex);
@@ -5538,7 +6342,7 @@ index 8411baa..37ac120 100644
  std::string act_text(uint64_t act) {
      return std::format("{:08X}/{}", static_cast<uint32_t>(act >> 32), static_cast<uint32_t>(act));
  }
-@@ -752,8 +772,11 @@ void apply_hit(const proto::GameEvent& ev) {
+@@ -752,8 +781,11 @@ void apply_hit(const proto::GameEvent& ev) {
              base = kDefaultBase, source = "default";
          }
      }
@@ -5552,7 +6356,7 @@ index 8411baa..37ac120 100644
      // Boss safety (boss_safe.h, pendiente-jefes.md plan J1). Against a stage boss
      // the guest must never land the killing blow: the boss's death has to come
      // from the host, because the host's stage script is what runs BossPhase, the
-@@ -783,6 +806,7 @@ void apply_hit(const proto::GameEvent& ev) {
+@@ -783,6 +815,7 @@ void apply_hit(const proto::GameEvent& ev) {
              std::memcpy(b, &enemy, 4);
              std::memcpy(b + 4, &kStatHP, 4);
              std::memcpy(b + 9, &delta, 4);
@@ -5560,7 +6364,7 @@ index 8411baa..37ac120 100644
              ok = sniffer_inject_c2s(packet(kOpVaryStatCheatReq, b, sizeof b));
          }
          ok = send_collision(enemy) && ok;
-@@ -795,6 +819,7 @@ void apply_hit(const proto::GameEvent& ev) {
+@@ -795,6 +828,7 @@ void apply_hit(const proto::GameEvent& ev) {
          std::memcpy(b, &enemy, 4);
          std::memcpy(b + 4, &kStatHP, 4);
          std::memcpy(b + 9, &delta, 4);
@@ -5569,16 +6373,19 @@ index 8411baa..37ac120 100644
          std::lock_guard lock(g_mutex);
          g_cheated[enemy] = now_ms();
 diff --git a/upstream/cd-coop-3446/src/mod/net/guest_hits.h b/upstream/cd-coop-3446/src/mod/net/guest_hits.h
-index e4adaaf..b9a777d 100644
+index e4adaaf..cd15a17 100644
 --- a/upstream/cd-coop-3446/src/mod/net/guest_hits.h
 +++ b/upstream/cd-coop-3446/src/mod/net/guest_hits.h
-@@ -38,6 +38,9 @@ void guest_hits_learnt_put(const LearntCombat& in);
+@@ -38,6 +38,12 @@ void guest_hits_learnt_put(const LearntCombat& in);
  // Our gear changed (local_capture): the next clean blows tell how much our
  // attacks changed, and every attack learnt before is rescaled by that.
  void guest_hits_on_gear_change();
 +// Co-op+ duel (coop_duel.h): how much one of our attacks (StartActionReq action hash) takes from a defence-1.0
 +// enemy, learnt or from the seed table (the strongest of its hit frames); 0 when it is not a known attack.
 +double guest_hits_action_damage(uint32_t action_hash);
++// Co-op+ hunting contest (coop_hunt.h): one of our attacks (DoFrameEventReq, arrows included) named `key` as a target
++// within the last `within_ms`.
++bool guest_hits_we_hit(uint32_t key, uint64_t within_ms);
  
  // Sniffer writer thread.
  void guest_hits_observe_c2s(const uint8_t* packet, size_t size);
@@ -6166,19 +6973,20 @@ index 0000000..6b6a821
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-index 22b77f6..01d0528 100644
+index 22b77f6..ef0d994 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-@@ -1,4 +1,8 @@
+@@ -1,4 +1,9 @@
  #include "mod/net/local_capture.h"
 +#include "mod/net/coop_activity.h"
 +#include "mod/net/coop_duel.h"
 +#include "mod/net/party_quests.h"
++#include "mod/net/coop_hunt.h"
 +#include "mod/net/wire_layout.h"
  
  #include <windows.h>
  
-@@ -9,6 +13,7 @@
+@@ -9,6 +14,7 @@
  #include <map>
  #include <set>
  #include <mutex>
@@ -6186,7 +6994,7 @@ index 22b77f6..01d0528 100644
  #include <vector>
  
  #include <safetyhook.hpp>
-@@ -27,15 +32,20 @@
+@@ -27,15 +33,20 @@
  #include "mod/net/guest_hits.h"
  #include "mod/net/loot_twin.h"
  #include "mod/net/native_suppress.h"
@@ -6208,7 +7016,7 @@ index 22b77f6..01d0528 100644
  using Bytes = std::vector<uint8_t>;
  
  // Keys our own puppet uses (remote_puppet.cpp): never learn templates from those.
-@@ -44,13 +54,13 @@ constexpr uint32_t kPuppetPlayer = 0xA010F001;
+@@ -44,13 +55,13 @@ constexpr uint32_t kPuppetPlayer = 0xA010F001;
  constexpr uint32_t kPuppetBody = 0xB010F001;
  constexpr uint32_t kPuppetHorse = 0xB010F002;
  
@@ -6227,7 +7035,7 @@ index 22b77f6..01d0528 100644
  constexpr size_t kRotateTs = 0x9C;
  
  uint64_t steady_ms() {
-@@ -96,9 +106,12 @@ std::map<uint32_t, ActorSeen> g_actors;
+@@ -96,9 +107,12 @@ std::map<uint32_t, ActorSeen> g_actors;
  std::atomic<uint32_t> g_last_attack_hash{0};
  std::atomic<uint32_t> g_last_attack_target{0};
  std::set<uint32_t> g_has_hp;  // under g_actors_mutex
@@ -6243,7 +7051,7 @@ index 22b77f6..01d0528 100644
  constexpr uint32_t kStatHP = 0x000F4240;
  
  // World actors with hit points, from their loads and HP messages.
-@@ -115,9 +128,9 @@ std::map<uint32_t, Enemy> g_enemies;  // under g_actors_mutex
+@@ -115,9 +129,9 @@ std::map<uint32_t, Enemy> g_enemies;  // under g_actors_mutex
  std::atomic<bool> g_damage_enabled{false};
  std::atomic<bool> g_key_alarm{false};
  uint64_t g_damage_sent = 0, g_damage_applied = 0, g_damage_unmatched = 0;
@@ -6256,7 +7064,7 @@ index 22b77f6..01d0528 100644
  
  // ---------------------------------------------------------------- writer-thread state
  game::PlayerReader g_reader;
-@@ -132,7 +145,7 @@ float g_horse_sent_pos[3] = {NAN, NAN, NAN};
+@@ -132,7 +146,7 @@ float g_horse_sent_pos[3] = {NAN, NAN, NAN};
  uint64_t g_horse_last_synth_ms = 0;
  Bytes g_last_move;                  // last real MoveActorReq payload (template for synth)
  uint64_t g_last_move_ms = 0;        // steady_ms when it was seen
@@ -6265,7 +7073,7 @@ index 22b77f6..01d0528 100644
  float g_last_sent_pos[3] = {NAN, NAN, NAN};
  uint64_t g_last_synth_ms = 0;
  uint64_t g_synthesized = 0;
-@@ -148,7 +161,7 @@ std::atomic<uint64_t> g_clock_at{0};
+@@ -148,7 +162,7 @@ std::atomic<uint64_t> g_clock_at{0};
  // wall clock, which runs on through a pause (pausa-copia-congelada.md F2).
  // Trusted once it agrees with the timestamps of our first Reqs.
  std::atomic<int> g_clock_reader{0};  // 0 checking, 1 trusted, -1 off
@@ -6274,7 +7082,7 @@ index 22b77f6..01d0528 100644
  
  constexpr uint64_t kWallUpRepeatMs = 50;  // resend an unchanged path this often
  Bytes g_last_wallup;
-@@ -172,6 +185,7 @@ struct EquipCopy {
+@@ -172,6 +186,7 @@ struct EquipCopy {
  };
  SafetyHookMid g_equip_hook;
  std::atomic<uint32_t> g_equip_key{0};  // our player key, for the hook
@@ -6282,7 +7090,7 @@ index 22b77f6..01d0528 100644
  SRWLOCK g_equip_lock = SRWLOCK_INIT;
  // Hook -> writer thread. Fixed storage: the hooks run on game server
  // threads and must not allocate.
-@@ -336,7 +350,16 @@ void note_clock(uint64_t ts) {
+@@ -336,7 +351,16 @@ void note_clock(uint64_t ts) {
      g_clock_at.store(steady_ms(), std::memory_order_relaxed);
      if (g_clock_reader.load(std::memory_order_relaxed) != 0) return;
      const auto read = game::client_game_clock_ms();
@@ -6300,7 +7108,7 @@ index 22b77f6..01d0528 100644
      // Read a little after the Req was stamped (this runs on the capture writer).
      const int64_t diff = static_cast<int64_t>(*read) - static_cast<int64_t>(ts);
      if (diff >= -250 && diff <= 250) ++g_clock_good;
-@@ -430,10 +453,10 @@ void capture_synth(uint64_t now) {
+@@ -430,10 +454,10 @@ void capture_synth(uint64_t now) {
      Bytes req = g_last_move;
      const float pos[3] = {me->position.x, me->position.y, me->position.z};
      const float rot[4] = {me->rotation.x, me->rotation.y, me->rotation.z, me->rotation.w};
@@ -6315,7 +7123,7 @@ index 22b77f6..01d0528 100644
      // Game clock: the game's own (stops in menus), else advanced from the
      // last real Move by the wall clock.
      uint64_t ts = g_clock_reader.load(std::memory_order_relaxed) == 1 ? capture_game_clock_ms() : 0;
-@@ -464,12 +487,12 @@ void capture_horse_synth(uint64_t now) {
+@@ -464,12 +488,12 @@ void capture_horse_synth(uint64_t now) {
      if (dx * dx + dy * dy + dz * dz < kSynthMinMove * kSynthMinMove) return;
      Bytes req = g_horse_last_move;
      const float p[3] = {pos->x, pos->y, pos->z};
@@ -6332,7 +7140,7 @@ index 22b77f6..01d0528 100644
      }
      std::memcpy(req.data() + kMoveTs, &clock, 8);
      std::memcpy(g_horse_sent_pos, p, sizeof p);
-@@ -486,17 +509,15 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -486,17 +510,16 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
      guest_hits_observe_s2c(packet, size);
      piece4_observe_s2c(packet, size);
      puppet_observe_s2c(packet, size);
@@ -6340,6 +7148,7 @@ index 22b77f6..01d0528 100644
 +    save_guard_observe_s2c(packet, size);  // Co-op+
 +    cinema_observe_s2c(packet, size);      // Co-op+
 +    party_quests_observe_s2c(packet, size);  // Co-op+ party journal
++    hunt_observe_s2c(packet, size);          // Co-op+ hunting contest: our kills
      uint16_t op = 0;
      if (size >= 5) std::memcpy(&op, packet, 2);
 -    if (op == kOpSetAvoidByCutSceneAck && size >= 5 + 21) {
@@ -6357,7 +7166,7 @@ index 22b77f6..01d0528 100644
      if (op == kOpChangedEquipByQuickSlotAck && size == 5 + 6) {
          // u32 key | u16 weapon set: our player switched weapons from the quick
          // slots (no OtherEquipItemAck; capture 20261006-190309): our attacks change.
-@@ -517,7 +538,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -517,7 +540,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
          std::memcpy(&key, packet + 5, 4);
          std::memcpy(&slot, packet + 9, 2);
          std::memcpy(&serial, packet + 13, 4);
@@ -6367,7 +7176,7 @@ index 22b77f6..01d0528 100644
          return;
      }
      if (op == kOpAttackTargetAck && size >= 5 + 0x28) {
-@@ -550,6 +572,10 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -550,6 +574,10 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
              // normal monster without needing the game's stage-name tables. The
              // research measured every NPC in 58 captures at <= 220 max HP.
              if (hp_max > 0) boss_note_max_hp(key, hp_max);
@@ -6378,7 +7187,7 @@ index 22b77f6..01d0528 100644
              std::optional<Bytes> event;
              {
                  std::lock_guard lock(g_actors_mutex);
-@@ -560,6 +586,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -560,6 +588,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
                  e.hp_max = hp_max;
                  // Damage dealt by the local player: mirror it to the other world.
                  const uint32_t own = g_equip_key.load();
@@ -6388,7 +7197,7 @@ index 22b77f6..01d0528 100644
                  if (own && source == own && hp < before && e.type && g_damage_enabled) {
                      Bytes b(proto::kDamageEventSize);
                      // Where it spawned (same in both worlds); else where it is.
-@@ -692,6 +721,18 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -692,6 +723,18 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
      }
  }
  
@@ -6407,7 +7216,7 @@ index 22b77f6..01d0528 100644
  void capture_observe_c2s(const uint8_t* packet, size_t size) {
      aggro_observe_c2s(packet, size);
      enemy_observe_c2s(packet, size);
-@@ -701,9 +742,19 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -701,9 +744,19 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      loot_observe_c2s(packet, size);
      piece4_observe_c2s(packet, size);
      attack_probe_observe_c2s(packet, size);
@@ -6427,7 +7236,7 @@ index 22b77f6..01d0528 100644
      proto::EventKind kind;
      size_t expected = 0, ts_off = 0;
      if (op == off::kOpMoveActorReq) {
-@@ -727,7 +778,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -727,7 +780,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (kind == proto::EventKind::Move && keys::is_class(key, keys::kClassWorld) && key != kPuppetBody &&
          key != kPuppetHorse && key != g_own_horse) {
          float p[3];
@@ -6436,7 +7245,7 @@ index 22b77f6..01d0528 100644
          std::lock_guard lock(g_actors_mutex);
          if (g_actors.size() > 4096) g_actors.clear();
          g_actors[key] = {{p[0], p[1], p[2]}, steady_ms()};
-@@ -736,7 +787,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -736,7 +789,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (g_own_horse && key == g_own_horse) {
          if (kind == proto::EventKind::Move) {
              g_horse_last_move = payload;
@@ -6445,7 +7254,7 @@ index 22b77f6..01d0528 100644
          }
          emit(kind, std::move(payload));
          return;
-@@ -748,24 +799,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -748,24 +801,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      std::memcpy(&ts, payload.data() + ts_off, 8);
      note_clock(ts);
      if (kind == proto::EventKind::Move && g_own_horse) {
@@ -6570,7 +7379,7 @@ index 22b77f6..01d0528 100644
  void capture_tick() {
      {
          std::lock_guard lock(g_mutex);
-@@ -777,14 +924,32 @@ void capture_tick() {
+@@ -777,14 +926,32 @@ void capture_tick() {
      if (!g_reader_ready) return;
      const uint64_t now = steady_ms();
      drain_equip();
@@ -16547,7 +17356,7 @@ index 0000000..ec7a6f2
 +
 +}  // namespace cdmp::render::ui
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..b77df75 100644
+index 14edc91..83defa2 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 @@ -11,14 +11,20 @@
@@ -16803,7 +17612,7 @@ index 14edc91..b77df75 100644
 +        ui::boss_bar(width, height, d.peer_name.empty() ? std::string("Your opponent") : d.peer_name,
 +                     d.remote->health / d.remote->health_max);
 +    }
-+    if (d.duel_active && !d.duel_title.empty() && d.duel_title_alpha > 0.01f) {
++    if (!d.duel_title.empty() && d.duel_title_alpha > 0.01f) {  // the duel's or the hunting contest's
 +        ui::title_card(width, height, d.duel_title, d.duel_subtitle, d.duel_title_color, d.duel_title_alpha);
 +    }
 +

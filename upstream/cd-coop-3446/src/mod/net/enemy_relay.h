@@ -34,6 +34,8 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size);
 // Character variant (characterinfo key, load +0x18) of one of our world's
 // enemies, 0 if unknown; and its copy key on the other side, 0 if none.
 uint32_t enemy_variant(uint32_t key);
+// Every world NPC whose load we kept, with its variant (Co-op+ hunting contest test).
+std::vector<std::pair<uint32_t, uint32_t>> enemy_loaded_variants();
 uint32_t enemy_copy_of(uint32_t key);
 // The reverse: our enemy behind one of the copies we announced, 0 if none.
 uint32_t enemy_original_of(uint32_t copy);
