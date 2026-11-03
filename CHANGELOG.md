@@ -29,6 +29,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T25: mounts: after your friend dismounts, their horse is shown where it really is (it came back where they had first called it).
 - T26: respawn option [coop] respawn_at=partner (after a checkpoint revive you are taken back to your friend); death penalties stay the game's own (partial / full loss options blocked: BLOCKED.md).
 - T28: launch-time note naming other ASI loaders, .asi mods and ReShade next to the game (log + notice, never blocking); a second copy of Co-op+ stays off; docs/compatibility.md; fixed a crash when a crash-guard hook needed a second try.
+- T27: release package - README install / manual / Vortex / other mods / known issues, BUG-REPORT.txt, OTHER-MODS.md, a mod-manager zip (bin64 layout), Nexus page and shot list in docs/release, fake-folder install test (tools/test-install-fake.ps1).
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

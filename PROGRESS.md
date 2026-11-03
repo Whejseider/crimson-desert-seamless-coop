@@ -279,3 +279,16 @@ Also: compat_test first passed a /c/... path to powershell -Command (game never 
 Done: compat-a (ReShade.ini present): "WRN Compatibility: next to the game: ReShade / a dxgi.dll proxy..."; compat-b:
 "Compatibility: no other ASI loader, .asi mod or ReShade next to the game". docs/compatibility.md; PLAYTEST 6b. [~]
 (real third-party mods are a 2-PC/user test.)
+- Pushed T28 (eb53dd5).
+
+## T27 -- Nexus release package
+Plan: README sections for manual / Vortex / MO2 installs, other mods, known issues (from BLOCKED.md and the [~]
+items); BUG-REPORT.txt and OTHER-MODS.md (docs/compatibility.md) into the zip; a second zip with the bin64 layout for
+mod managers; the Nexus page rewritten for 1.0.0.3479 and today's features (docs/release/nexus-page.md, moved from
+docs/drafts); a shot list; a clean-machine walkthrough on a fake game folder.
+Done: tools/test-install-fake.ps1 (temp "Crimson Desertin64" with a stand-in exe, another mod's winmm.dll and a
+stand-in save): zip contents + SHA256, install (files, the other winmm.dll kept, saves backed up, version note),
+update keeps an edited cdmp.ini (defaults as .new), vanilla on/off, uninstall leaves bin64 byte-identical to before,
+backups left alone, mod-manager zip lands next to the exe -- 13/13 PASS (eb53dd51 test package).
+Not done here (needs the user): the actual Nexus upload, screenshots (shot list) -- FLAGS. Vortex itself is not
+installed on this PC, so the Vortex lines are generic ("deploy into the game folder"). [~]

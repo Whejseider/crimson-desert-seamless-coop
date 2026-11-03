@@ -1,0 +1,39 @@
+CRIMSON DESERT SEAMLESS CO-OP+ - BUG REPORT
+===========================================
+Copy this into your report (Nexus "Bugs" tab or a message) and fill it in.
+The fastest way to get the logs: double-click "Diagnose Co-op+.cmd" (game closed).
+It writes a report to your Desktop with cdmp.log and the settings in it.
+
+1. Co-op+ version (the zip name, or the first line of bin64\cdmp.log):
+
+2. Game version (Steam > Crimson Desert > Properties > Updates, or cdmp.log line 4):
+
+3. Host or guest?                  Your friend's Co-op+ version (same zip?):
+
+4. What happened, in one sentence:
+
+5. What you expected:
+
+6. Steps (what you did just before; where in the world; fight, cutscene, menu, mount...):
+   1.
+   2.
+   3.
+
+7. How often: every time / sometimes / once
+
+8. Game time when it happened (or press Ctrl+F12 at the moment: it writes a numbered
+   mark in cdmp.log, so we can find the spot):
+
+9. Other mods next to the game (the in-game notice "Other mods next to the game"
+   lists them; OTHER-MODS.md says which kinds can clash):
+
+10. Attach, from BOTH players if you can:
+   - the Diagnose report from your Desktop (or bin64\cdmp.log)
+   - a screenshot or short clip, if it shows the problem
+   Do NOT attach your save files unless asked. The log has in-game data only
+   (positions, health, Steam display names), no passwords or account details.
+
+If the game crashed: cdmp.log right after the crash, before starting the game again
+(a new start replaces it). Its "Crash log:" line says where it happened.
+If a save looks wrong: your backups are in Documents\CrimsonDesert-CoopPlus-SaveBackups
+(see README, "IMPORTANT: do not save...").

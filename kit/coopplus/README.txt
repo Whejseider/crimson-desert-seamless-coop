@@ -29,10 +29,41 @@ INSTALL (each player, game closed)
    cdmp.ini (settings).
 3. Start the game from Steam as usual.
 
-To remove it: double-click "Uninstall Co-op+.cmd" (game closed).
+What the installer changes: only the game's bin64 folder (the files listed in
+bin64\coopplus-installed.txt). Anything it would replace is kept as *.before-coopplus.
+
+To remove it: double-click "Uninstall Co-op+.cmd" (game closed). It removes exactly
+the files it installed and puts back any *.before-coopplus file.
 To play without it for a while: "Vanilla mode on-off.cmd" switches Co-op+ off and on
 again, keeping your settings.
 Something wrong? "Diagnose Co-op+.cmd" writes a report to your Desktop to send along.
+
+
+MANUAL INSTALL / VORTEX / MOD ORGANIZER (instead of the installer)
+------------------------------------------------------------------
+Use the "...-mod-manager.zip" download. It has one folder, bin64, holding exactly the
+files the installer would copy: winmm.dll, cdmp.asi, cdmp.ini, cdcoop\config\scaling.toml
+and the Co-op+ readme / licence files.
+- By hand: back up %LOCALAPPDATA%\Pearl Abyss\CD\save yourself first (the manual way
+  makes no backup). Then copy the bin64 folder from the zip onto the game folder
+  (...\steamapps\common\Crimson Desert), so the files land next to CrimsonDesert.exe.
+  If the game folder already has a winmm.dll from another mod, it is the same kind of
+  ASI loader; keeping one is enough (see OTHER-MODS.md).
+  To remove: delete those files from bin64.
+- Vortex / MO2: add the zip as a mod that deploys into the GAME folder (not into a
+  data or archive folder), so bin64\cdmp.asi ends up next to CrimsonDesert.exe.
+  Vortex has no Crimson Desert support of its own that we have tested; if it asks,
+  pick the game's root folder as the target. Disable the mod in the manager to remove it.
+- Either way: both players must use the same Co-op+ version.
+
+
+OTHER MODS
+----------
+Most other mods work alongside Co-op+. Two rules: gameplay mods (stamina, stacks,
+loot, cooldowns) must be the same on both PCs, and keep only ONE ASI loader
+(Co-op+'s winmm.dll loads every .asi in bin64). When the game starts, Co-op+ names
+other loaders, .asi mods and ReShade it finds next to the game, once, as a notice.
+It never blocks them. Details and a table by kind of mod: OTHER-MODS.md.
 
 
 PLAYING TOGETHER
@@ -183,6 +214,19 @@ WHAT STAYS AFTER A SESSION
   was killed to give the guest its drop stays dead in the guest's world.
 - Time of day, weather and party scaling go back to normal when the session ends.
 
+KNOWN ISSUES (alpha)
+- Loot and XP: the guest gets loot from shared kills, but no XP for them yet.
+- Arm wrestling table: when the guest arrives at the pub while already connected,
+  the table can be empty for them. Leave and come back after your friend is in.
+- No trading or gifting items between players, and no death penalty options.
+- Doors, levers and thrown or broken objects are each player's own (not synced).
+- Quests and story progress are not shared; each of you keeps your own.
+- Bosses: the host always lands the final blow.
+- Not yet tried by two real players: shared boss cutscenes, world event notices,
+  teammate revive, summoning, the guest's loot from shared kills. Please report
+  what you see (BUG-REPORT.txt).
+- After a game update Co-op+ switches itself off until it is updated.
+
 IMPORTANT: do not save while the other player is in your world. Quit without
 saving, or wait until they leave. Saving during a session is the most likely way to
 damage a save. As a safety net the mod copies your saves to
@@ -212,7 +256,7 @@ runs without it. Nothing breaks; wait for a Co-op+ update, and both players inst
 PROBLEMS?
 ---------
 The mod writes cdmp.log in the game's bin64 folder. Send that file (and say what
-happened) when you report a problem. It contains in-game data such as positions,
+happened) when you report a problem; BUG-REPORT.txt is a short form to fill in. It contains in-game data such as positions,
 not personal information.
 
 

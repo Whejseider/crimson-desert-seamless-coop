@@ -108,6 +108,8 @@ foreach ($f in 'install.ps1', 'uninstall.ps1', 'diagnose.ps1', 'vanilla.ps1', 'c
 (Get-Content (Join-Path $kit 'README.txt') -Raw).Replace('@VERSION@', $version) |
     Set-Content -Encoding ascii (Join-Path $stage 'README.txt')
 Copy-Item (Join-Path $root 'CREDITS.md') $stage
+Copy-Item (Join-Path $kit 'BUG-REPORT.txt') $stage                                   # T27
+Copy-Item (Join-Path $root 'docs\compatibility.md') (Join-Path $stage 'OTHER-MODS.md')  # T28
 Copy-Item (Join-Path $root 'CHANGELOG.md') $stage
 Copy-Item (Join-Path $root 'LICENSE') (Join-Path $stage 'LICENSE.txt')
 Copy-Item (Join-Path $up 'kit\public\THIRD-PARTY-NOTICES.txt') $stage
@@ -120,9 +122,24 @@ Get-ChildItem $stage -File -Recurse | Where-Object Name -ne 'SHA256.txt' | ForEa
 $zip = Join-Path $out "$name.zip"
 if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip
+# T27: the same mod files laid out as bin64\... for mod managers (Vortex, MO2) and manual installs into the game
+# folder. No installer, no save backup: the README says so.
+$manager = Join-Path $out "$name-mod-manager.zip"
+$mstage = Join-Path $out "$name-mod-manager"
+if (Test-Path $mstage) { Remove-Item -Recurse -Force $mstage }
+New-Item -ItemType Directory -Force (Join-Path $mstage 'bin64') | Out-Null
+Copy-Item (Join-Path $stage 'mod\*') (Join-Path $mstage 'bin64') -Recurse
+Copy-Item (Join-Path $stage 'README.txt'), (Join-Path $stage 'LICENSE.txt'), (Join-Path $stage 'CREDITS.md'), (Join-Path $stage 'THIRD-PARTY-NOTICES.txt') (Join-Path $mstage 'bin64')
+Rename-Item (Join-Path $mstage 'bin64\README.txt') 'CoopPlus-README.txt'
+Rename-Item (Join-Path $mstage 'bin64\LICENSE.txt') 'CoopPlus-LICENSE.txt'
+Rename-Item (Join-Path $mstage 'bin64\CREDITS.md') 'CoopPlus-CREDITS.md'
+Rename-Item (Join-Path $mstage 'bin64\THIRD-PARTY-NOTICES.txt') 'CoopPlus-THIRD-PARTY-NOTICES.txt'
+if (Test-Path $manager) { Remove-Item $manager }
+Compress-Archive -Path (Join-Path $mstage 'bin64') -DestinationPath $manager
 $symbols = Join-Path $out "$name-symbols-KEEP-PRIVATE.zip"
 if (Test-Path $symbols) { Remove-Item $symbols }
 Compress-Archive -Path (Join-Path $bin 'cdmp.pdb'), (Join-Path $bin 'cdmp.asi') -DestinationPath $symbols
 
 Write-Host "Package: $zip ($([math]::Round((Get-Item $zip).Length / 1KB)) KB)"
+Write-Host "Mod-manager zip (bin64 layout): $manager"
 Write-Host "Symbols (keep, do not publish): $symbols"
