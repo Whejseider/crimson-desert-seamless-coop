@@ -97,6 +97,14 @@ bool puppet_install_climb_fix();
 // but nothing playing yet (INFORME-CABALLO-CRASH.md). Call once; idempotent.
 bool puppet_install_layer_guards();
 
+// Co-op+ (T21): our client tells its own server when one of our COPIES (the other player's character, its horse,
+// a copy of their enemies) enters a gameplay trigger or a sequencer trigger volume. The server then runs the
+// trigger as if someone of ours were there: at the Hernand pub the table's game host offered nothing while a copy
+// had entered the pub with us (2026-11-03, T21). Region entries (RegionInOutReq), gameplay triggers, sequencer
+// trigger volumes and the gimmicks a copy bumps are kept from our server. Called on every client message
+// (PostPacket, game thread, in place): such a message gets actor (or gimmick) 0, which the server ignores.
+void puppet_scrub_c2s(uint8_t* packet, uint16_t size);
+
 // Sideways offset of the puppet (world X, metres); 0 = the sender's exact path.
 void puppet_set_offset(float metres);
 // [dev] desync_test (coop_sync.h): the copy ignores the sender's events for this long (a desync to detect).

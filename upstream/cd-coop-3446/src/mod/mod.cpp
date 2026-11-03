@@ -1601,6 +1601,7 @@ DWORD WINAPI worker(LPVOID) {
         net::sync_set_test(cfg.dev_desync_test);
         net::revive_partner_set(cfg.coop_teammate_revive, cfg.dev_revive_test);
         net::guest_hits_set_finishes(cfg.coop_guest_finishes);
+        net::aggro_set_copy_never_target(cfg.dev_copy_untargetable);
         net::enemy_set_zone_copy_test(cfg.dev_zone_copy_test);
         input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
         input::set_sim(cfg.dev_pad_sim);

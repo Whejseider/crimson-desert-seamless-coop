@@ -25,6 +25,8 @@ bool aggro_test_install();
 void aggro_set_copy_targetable(bool on);
 // Co-op+ (T09): while the other player is in a menu (their world paused), our enemies do not target their copy.
 void aggro_set_partner_in_menu(bool on);
+// [dev] copy_untargetable (T21 research): the copy is never a target for anyone.
+void aggro_set_copy_never_target(bool on);
 // How many of our enemies may attack the other player's copy at once (they
 // mostly wait otherwise: copia-objetivo-sin-ataques.md section 7); 0 = the game.
 void aggro_set_copy_attack_slots(int slots);

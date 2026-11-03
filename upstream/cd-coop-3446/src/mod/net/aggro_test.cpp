@@ -212,11 +212,15 @@ bool __fastcall check_ai_battle_type(uintptr_t cond, uintptr_t obj_ia, uintptr_t
 }
 
 std::atomic<bool> g_partner_menu{false};  // Co-op+ (T09)
+std::atomic<bool> g_never_target{false};  // [dev] copy_untargetable
 
 bool __fastcall is_targetable(void* comp, uintptr_t candidate, uint8_t mode) {
     const bool ok = g_is_targetable.call<bool>(comp, candidate, mode);
     const uint32_t key = key_of_actor(candidate);
-    if (key == kPuppetPlayer && g_partner_menu.load(std::memory_order_relaxed)) return false;
+    if (key == kPuppetPlayer &&
+        (g_partner_menu.load(std::memory_order_relaxed) || g_never_target.load(std::memory_order_relaxed))) {
+        return false;
+    }
     const uint32_t bit = 1u << (mode & 31);
     if (key == kPuppetPlayer) {
         g_puppet_candidate.fetch_add(1, std::memory_order_relaxed);
@@ -506,6 +510,7 @@ bool aggro_request_target_on_copy(uint32_t enemy) {
 }
 
 void aggro_set_partner_in_menu(bool on) { g_partner_menu = on; }
+void aggro_set_copy_never_target(bool on) { g_never_target = on; }
 
 void aggro_set_copy_targetable(bool on) {
     g_force = on;

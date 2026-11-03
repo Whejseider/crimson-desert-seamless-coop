@@ -812,7 +812,7 @@ index e7d51fb..40fe295 100644
  
  struct GameEvent {
 diff --git a/upstream/cd-coop-3446/src/mod/config.cpp b/upstream/cd-coop-3446/src/mod/config.cpp
-index e89d220..f5092f2 100644
+index e89d220..3788196 100644
 --- a/upstream/cd-coop-3446/src/mod/config.cpp
 +++ b/upstream/cd-coop-3446/src/mod/config.cpp
 @@ -21,7 +21,12 @@ constexpr wchar_t kDefaultIni[] =
@@ -889,7 +889,7 @@ index e89d220..f5092f2 100644
      c.sniffer_enabled = read_uint(ini_path, L"sniffer", L"enabled", 1) != 0;
      c.sniffer_record = read_uint(ini_path, L"sniffer", L"record", 0) != 0;  // only when asked for
      c.dev_clone_hotkeys = read_uint(ini_path, L"dev", L"clone_hotkeys", 0) != 0;
-@@ -182,38 +210,86 @@ Config load_config(const std::wstring& ini_path) {
+@@ -182,38 +210,87 @@ Config load_config(const std::wstring& ini_path) {
      c.dev_enemy_relay = read_uint(ini_path, L"dev", L"enemy_relay", 0) != 0;
      c.dev_piece4_test = read_uint(ini_path, L"dev", L"piece4_test", 0) != 0;
      c.dev_attack_probe = read_uint(ini_path, L"dev", L"attack_probe", 0) != 0;
@@ -920,6 +920,7 @@ index e89d220..f5092f2 100644
 +    c.coop_teammate_revive = read_uint(ini_path, L"coop", L"teammate_revive", 1) != 0;
 +    c.coop_guest_finishes = read_uint(ini_path, L"coop", L"guest_finishes", 1) != 0;
 +    c.dev_revive_test = read_uint(ini_path, L"dev", L"revive_test", 0) != 0;
++    c.dev_copy_untargetable = read_uint(ini_path, L"dev", L"copy_untargetable", 0) != 0;
 +    c.dev_rps_test = static_cast<int>(read_uint(ini_path, L"dev", L"rps_test", 0)) - 1;  // 1 scissors, 2 paper, 3 rock
 +    c.dev_cinema_test = read_uint(ini_path, L"dev", L"cinema_test", 0) != 0;
 +    c.dev_weather_test = read_uint(ini_path, L"dev", L"weather_test", 0);
@@ -983,7 +984,7 @@ index e89d220..f5092f2 100644
          c.coop_suppress = (v == L"0" || v == L"off") ? 0 : (v == L"1" || v == L"on") ? 2 : 1;
          c.coop_suppress_radius_m = read_float(ini_path, L"coop", L"suppress_radius_m", 150.0f, 50.0f, 300.0f);
          c.coop_suppress_off_m = read_float(ini_path, L"coop", L"suppress_off_m", c.coop_suppress_radius_m + 100.0f,
-@@ -226,6 +302,11 @@ Config load_config(const std::wstring& ini_path) {
+@@ -226,6 +303,11 @@ Config load_config(const std::wstring& ini_path) {
          c.coop_suppress_node_events = read_uint(ini_path, L"coop", L"suppress_node_events", 0) != 0;
          c.coop_suppress_lab = read_uint(ini_path, L"coop", L"suppress_lab", 0) != 0;
          c.coop_suppress_lab_radius_m = read_float(ini_path, L"coop", L"suppress_lab_radius_m", 60.0f, 10.0f, 300.0f);
@@ -996,7 +997,7 @@ index e89d220..f5092f2 100644
      {
          // Decimal or 0x-hex; "-1" diagnostic.
 diff --git a/upstream/cd-coop-3446/src/mod/config.h b/upstream/cd-coop-3446/src/mod/config.h
-index 3cd2ce2..c6525b7 100644
+index 3cd2ce2..77c22c8 100644
 --- a/upstream/cd-coop-3446/src/mod/config.h
 +++ b/upstream/cd-coop-3446/src/mod/config.h
 @@ -19,6 +19,16 @@ struct Config {
@@ -1024,7 +1025,7 @@ index 3cd2ce2..c6525b7 100644
  
      bool sniffer_enabled = true;  // hook internal client/server packets (needed by co-op)
      bool sniffer_record = false;  // also write them to cdmp_packets_*.log/.bin (dev; 50-100 MB/session)
-@@ -57,6 +68,38 @@ struct Config {
+@@ -57,6 +68,39 @@ struct Config {
      // Every 2 s, log who sits in the attacker lists of our player and of the
      // other player's copy (attack_probe.h). Read only.
      bool dev_attack_probe = false;
@@ -1044,7 +1045,8 @@ index 3cd2ce2..c6525b7 100644
 +    bool dev_zone_copy_test = false; // Co-op+ dev: the guest's dry-run zone is copied for real (enemy_relay.h)
 +    bool coop_teammate_revive = true;
 +    bool coop_guest_finishes = true;   // Co-op+ (T17): [coop] guest_finishes  // Co-op+ (T15): [coop] teammate_revive
-+    bool dev_revive_test = false;      // Co-op+ dev: one-PC teammate revive (a dead player may revive the echo)
++    bool dev_revive_test = false;
++    bool dev_copy_untargetable = false;  // Co-op+ dev (T21): the copy is never anyone's target      // Co-op+ dev: one-PC teammate revive (a dead player may revive the echo)
 +    int dev_desync_test = 0;            // Co-op+ dev: induce a desync 30 s after connecting (coop_sync.h, T06)
 +    uint32_t dev_fake_peer_build = 0;   // Co-op+ dev: a build-0 peer (the echo relay) counts as this build (T03)
 +    std::wstring dev_online_guard_test;  // Co-op+ dev: a module name the online guard also looks for (online_guard.h)
@@ -1063,7 +1065,7 @@ index 3cd2ce2..c6525b7 100644
  
      // Co-op over the network ([coop]): the other player (or, through
      // cdmp_peer --mode relay with nobody else connected, yourself) appears as
-@@ -66,7 +109,7 @@ struct Config {
+@@ -66,7 +110,7 @@ struct Config {
      float coop_offset_m = 0.0f;    // sideways offset of the remote character
      // Experimental, off by default: the copy's horse is not created by the
      // client (owned load) or crashes the game (ownerless load); live tests 1-2.
@@ -1072,7 +1074,7 @@ index 3cd2ce2..c6525b7 100644
      // Works since the copy got its own character number (live test 3).
      bool coop_equip = true;        // relay equipment changes
      // Mirrored damage: each world keeps its enemies; hits by the other player
-@@ -85,7 +128,7 @@ struct Config {
+@@ -85,7 +129,7 @@ struct Config {
      int coop_minimap_icon = 0x124;
      // Our enemies may attack the other player's copy (aggro_test.h). Off
      // until the hits reach the other player and they see our enemies.
@@ -1081,7 +1083,7 @@ index 3cd2ce2..c6525b7 100644
      // The other player's blows on the copies of our enemies hurt them
      // (guest_hits.h). Off until tested with two players.
      bool coop_guest_hits = false;
-@@ -94,15 +137,19 @@ struct Config {
+@@ -94,15 +138,19 @@ struct Config {
      bool coop_guest_hit_stagger = false;
      // Our player reacts (stagger, knock-down) to the other player's enemies'
      // blows on our copy over there: experimental until tested.
@@ -1105,7 +1107,7 @@ index 3cd2ce2..c6525b7 100644
      // Host: copies of our enemies that fight go to the guest on their own
      // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
      bool coop_enemy_auto = true;
-@@ -112,6 +159,9 @@ struct Config {
+@@ -112,6 +160,9 @@ struct Config {
      bool dev_rope_piece_lookup = false;
      // Guest: loot from the host's enemies we help kill, via a twin on our server (loot_twin.h).
      bool coop_guest_loot = false;
@@ -1115,7 +1117,7 @@ index 3cd2ce2..c6525b7 100644
      // Boss safety (boss_safe.h, pendiente-jefes.md plan J1). A boss fight here is
      // a scripted STAGE that the host's client drives: it owns the phases, the
      // cinematics and the set_battleEnd that closes the fight. The boss exists
-@@ -125,6 +175,9 @@ struct Config {
+@@ -125,6 +176,9 @@ struct Config {
      // does the finish, which is what advances its script. Off restores the old
      // behaviour exactly, for comparison.
      bool coop_boss_safe = true;
@@ -1125,7 +1127,7 @@ index 3cd2ce2..c6525b7 100644
      // Minimap icon (table offset) of the other player's enemy copies; 0 = the game's (none).
      // +0x10A Actor_Enemy (the red dot); +0x112 is the boss diamond (minimapa-icono-enemigo.md).
      int coop_enemy_minimap_icon = 0x10A;
-@@ -146,6 +199,14 @@ struct Config {
+@@ -146,6 +200,14 @@ struct Config {
      // Lab (one PC, no partner): Ctrl+Home turns a zone around you on and off;
      // the relay of our enemies is off then.
      bool coop_suppress_lab = false;
@@ -2580,7 +2582,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..4ec4e18 100644
+index 79ccd06..8eb4b12 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,9 +1,13 @@
@@ -3534,7 +3536,7 @@ index 79ccd06..4ec4e18 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1576,42 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1576,43 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3563,6 +3565,7 @@ index 79ccd06..4ec4e18 100644
 +        net::sync_set_test(cfg.dev_desync_test);
 +        net::revive_partner_set(cfg.coop_teammate_revive, cfg.dev_revive_test);
 +        net::guest_hits_set_finishes(cfg.coop_guest_finishes);
++        net::aggro_set_copy_never_target(cfg.dev_copy_untargetable);
 +        net::enemy_set_zone_copy_test(cfg.dev_zone_copy_test);
 +        input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
 +        input::set_sim(cfg.dev_pad_sim);
@@ -3577,7 +3580,7 @@ index 79ccd06..4ec4e18 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1663,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1664,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3611,7 +3614,7 @@ index 79ccd06..4ec4e18 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1686,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1687,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3623,7 +3626,7 @@ index 79ccd06..4ec4e18 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1711,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1712,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -3635,7 +3638,7 @@ index 79ccd06..4ec4e18 100644
          log::error("Unhandled exception in worker: {}", e.what());
      } catch (...) {
 diff --git a/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp b/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
-index 355b8df..98d38b4 100644
+index 355b8df..aae353e 100644
 --- a/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
 @@ -23,17 +23,23 @@
@@ -3680,38 +3683,45 @@ index 355b8df..98d38b4 100644
  
  SafetyHookInline g_is_targetable;
  SafetyHookInline g_battle_type;
-@@ -205,9 +211,12 @@ bool __fastcall check_ai_battle_type(uintptr_t cond, uintptr_t obj_ia, uintptr_t
+@@ -205,9 +211,16 @@ bool __fastcall check_ai_battle_type(uintptr_t cond, uintptr_t obj_ia, uintptr_t
      return result;
  }
  
 +std::atomic<bool> g_partner_menu{false};  // Co-op+ (T09)
++std::atomic<bool> g_never_target{false};  // [dev] copy_untargetable
 +
  bool __fastcall is_targetable(void* comp, uintptr_t candidate, uint8_t mode) {
      const bool ok = g_is_targetable.call<bool>(comp, candidate, mode);
      const uint32_t key = key_of_actor(candidate);
-+    if (key == kPuppetPlayer && g_partner_menu.load(std::memory_order_relaxed)) return false;
++    if (key == kPuppetPlayer &&
++        (g_partner_menu.load(std::memory_order_relaxed) || g_never_target.load(std::memory_order_relaxed))) {
++        return false;
++    }
      const uint32_t bit = 1u << (mode & 31);
      if (key == kPuppetPlayer) {
          g_puppet_candidate.fetch_add(1, std::memory_order_relaxed);
-@@ -496,6 +505,8 @@ bool aggro_request_target_on_copy(uint32_t enemy) {
+@@ -496,6 +509,9 @@ bool aggro_request_target_on_copy(uint32_t enemy) {
      return true;
  }
  
 +void aggro_set_partner_in_menu(bool on) { g_partner_menu = on; }
++void aggro_set_copy_never_target(bool on) { g_never_target = on; }
 +
  void aggro_set_copy_targetable(bool on) {
      g_force = on;
      log::info("Co-op: the other player's copy {} a valid target for our enemies", on ? "is" : "is not");
 diff --git a/upstream/cd-coop-3446/src/mod/net/aggro_test.h b/upstream/cd-coop-3446/src/mod/net/aggro_test.h
-index 5c1edf2..3533563 100644
+index 5c1edf2..b3baecd 100644
 --- a/upstream/cd-coop-3446/src/mod/net/aggro_test.h
 +++ b/upstream/cd-coop-3446/src/mod/net/aggro_test.h
-@@ -23,6 +23,8 @@ bool aggro_test_install();
+@@ -23,6 +23,10 @@ bool aggro_test_install();
  // rejects it only for its "driven by the network" mark; this answers
  // "targetable" instead (never while it is dead or hidden).
  void aggro_set_copy_targetable(bool on);
 +// Co-op+ (T09): while the other player is in a menu (their world paused), our enemies do not target their copy.
 +void aggro_set_partner_in_menu(bool on);
++// [dev] copy_untargetable (T21 research): the copy is never a target for anyone.
++void aggro_set_copy_never_target(bool on);
  // How many of our enemies may attack the other player's copy at once (they
  // mostly wait otherwise: copia-objetivo-sin-ataques.md section 7); 0 = the game.
  void aggro_set_copy_attack_slots(int slots);
@@ -15503,7 +15513,7 @@ index 0000000..2fa592c
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
-index 1754b2d..41eb8e0 100644
+index 1754b2d..516b48f 100644
 --- a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 @@ -1,4 +1,5 @@
@@ -16041,7 +16051,51 @@ index 1754b2d..41eb8e0 100644
          if (!g_layer_guard_hook || !g_layers_skip_hook) {
              g_layer_guard_hook = {};
              g_layers_skip_hook = {};
-@@ -2566,6 +2665,32 @@ void puppet_set_offset(float metres) {
+@@ -2559,6 +2658,43 @@ bool puppet_install_climb_fix() {
+     return ok;
+ }
+ 
++void puppet_scrub_c2s(uint8_t* packet, uint16_t size) {
++    if (size < 5) return;
++    uint16_t op = 0;
++    std::memcpy(&op, packet, 2);
++    size_t at = 0;
++    if (op == 2849 && size >= 5 + 9) at = 5;            // GamePlayTriggerInfoEnterReq: u32 actor | u32 trigger | u8 in
++    else if (op == 2539 && size >= 5 + 8) at = 5;       // RegionInOutReq: u32 actor | u32 region | ... (the pub region)
++    else if (op == 2620 && size >= 5 + 18) at = 5 + 13;  // SequencerTriggerVolumeInOutReq: u64 | u32 | u8 | u32 actor | u8
++    else if ((op == 2787 || op == 2155) && size >= 5 + 28) {
++        // UpdateGimmickReq 2787 / GimmickExecuteFrameEventReq 2155 that a copy caused (it bumped a stool, sat on a bench):
++        // u32 gimmick first, the copy as its user further in. The gimmick key goes to 0: our server ignores it.
++        bool by_copy = false;
++        for (size_t i = 5 + 4; i + 4 <= std::min<size_t>(size, 5 + 64); i += 4) {
++            uint32_t k = 0;
++            std::memcpy(&k, packet + i, 4);
++            if (is_puppet_key(k) || is_enemy_copy_key(k)) by_copy = true;
++        }
++        if (!by_copy) return;
++        static std::atomic<uint32_t> gimmicks{0};
++        uint32_t g = 0;
++        std::memcpy(&g, packet + 5, 4);
++        if (gimmicks.fetch_add(1) < 20) log::info("Puppet: our server is not told that a copy used gimmick 0x{:08X}", g);
++        std::memset(packet + 5, 0, 4);
++        return;
++    } else {
++        return;
++    }
++    uint32_t key = 0;
++    std::memcpy(&key, packet + at, 4);
++    if (!is_puppet_key(key) && !is_enemy_copy_key(key)) return;
++    static std::atomic<uint32_t> logged{0};
++    if (logged.fetch_add(1) < 20) {
++        log::info("Puppet: our server is not told that copy 0x{:08X} entered a trigger (message {})", key, op);
++    }
++    std::memset(packet + at, 0, 4);
++}
++
+ void puppet_set_offset(float metres) {
+     g_offset_x = metres;
+     log::info("Puppet offset set to {:.2f} m", metres);
+@@ -2566,6 +2702,32 @@ void puppet_set_offset(float metres) {
  
  float puppet_offset_m() { return g_offset_x.load(); }
  
@@ -16075,7 +16129,7 @@ index 1754b2d..41eb8e0 100644
      if (size < 5 + 22) return;
      uint16_t op = 0;
 diff --git a/upstream/cd-coop-3446/src/mod/net/remote_puppet.h b/upstream/cd-coop-3446/src/mod/net/remote_puppet.h
-index 7f8f56d..3b802ec 100644
+index 7f8f56d..3102d01 100644
 --- a/upstream/cd-coop-3446/src/mod/net/remote_puppet.h
 +++ b/upstream/cd-coop-3446/src/mod/net/remote_puppet.h
 @@ -25,6 +25,9 @@ namespace cdmp::net {
@@ -16097,8 +16151,18 @@ index 7f8f56d..3b802ec 100644
  
  // Replays one event on the puppet.
  //   ts_shift_ms: added to the event's timestamps to express them on THIS
-@@ -94,8 +99,15 @@ bool puppet_install_layer_guards();
+@@ -92,10 +97,25 @@ bool puppet_install_climb_fix();
+ // but nothing playing yet (INFORME-CABALLO-CRASH.md). Call once; idempotent.
+ bool puppet_install_layer_guards();
  
++// Co-op+ (T21): our client tells its own server when one of our COPIES (the other player's character, its horse,
++// a copy of their enemies) enters a gameplay trigger or a sequencer trigger volume. The server then runs the
++// trigger as if someone of ours were there: at the Hernand pub the table's game host offered nothing while a copy
++// had entered the pub with us (2026-11-03, T21). Region entries (RegionInOutReq), gameplay triggers, sequencer
++// trigger volumes and the gimmicks a copy bumps are kept from our server. Called on every client message
++// (PostPacket, game thread, in place): such a message gets actor (or gimmick) 0, which the server ignores.
++void puppet_scrub_c2s(uint8_t* packet, uint16_t size);
++
  // Sideways offset of the puppet (world X, metres); 0 = the sender's exact path.
  void puppet_set_offset(float metres);
 +// [dev] desync_test (coop_sync.h): the copy ignores the sender's events for this long (a desync to detect).
@@ -17896,7 +17960,7 @@ index 5fba898..7675ffd 100644
  std::optional<proto::GameEvent> time_sync_tick(uint32_t now_ms);
  // Receiver: the other player's time of day.
 diff --git a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
-index 82b334d..3bf12f8 100644
+index 82b334d..51a829c 100644
 --- a/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/troc_sniffer.cpp
 @@ -27,10 +27,11 @@
@@ -17946,7 +18010,15 @@ index 82b334d..3bf12f8 100644
  void on_post_packet(safetyhook::Context& ctx) {
      capture(Dir::ClientToServer, static_cast<uint32_t>(ctx.r8),
              reinterpret_cast<const uint8_t*>(ctx.r9), ctx.rsp);
-@@ -195,6 +214,7 @@ void on_post_packet(safetyhook::Context& ctx) {
+@@ -188,6 +207,7 @@ void on_post_packet(safetyhook::Context& ctx) {
+         uint16_t len = 0;
+         std::memcpy(&len, head + 3, 2);
+         loot_rewrite_c2s(reinterpret_cast<uint8_t*>(ctx.r9), static_cast<uint16_t>(5 + len));
++        puppet_scrub_c2s(reinterpret_cast<uint8_t*>(ctx.r9), static_cast<uint16_t>(5 + len));  // Co-op+ (T21)
+     }
+     uint8_t channel = 0;
+     uint16_t flags = 0;
+@@ -195,6 +215,7 @@ void on_post_packet(safetyhook::Context& ctx) {
      if (!read_post_args(ctx.rsp, channel, flags) || !guarded_copy(&op, reinterpret_cast<const void*>(ctx.r9), 2)) {
          return;
      }
@@ -17954,7 +18026,7 @@ index 82b334d..3bf12f8 100644
      const uint32_t packed = 0x80000000u | (static_cast<uint32_t>(flags) << 8) | channel;
      if (op < 4096) g_post_args[op].store(packed, std::memory_order_relaxed);
      g_post_args_any.store(packed, std::memory_order_relaxed);
-@@ -339,7 +359,9 @@ void on_recv_packet(safetyhook::Context& ctx) {
+@@ -339,7 +360,9 @@ void on_recv_packet(safetyhook::Context& ctx) {
          // The guest's loot twin (loot_twin.h): its load and messages never
          // show; its loot ones are renamed after the copy in place.
          (loot_filter_s2c(reinterpret_cast<uint8_t*>(ctx.r9), size) ||
@@ -17965,7 +18037,7 @@ index 82b334d..3bf12f8 100644
          ctx.rip = reinterpret_cast<uintptr_t>(g_ret_stub);
      }
  }
-@@ -379,8 +401,6 @@ const std::string& name_for(uint16_t op) {
+@@ -379,8 +402,6 @@ const std::string& name_for(uint16_t op) {
      return it == g_name_by_opcode.end() ? unknown : it->second;
  }
  
@@ -17974,7 +18046,7 @@ index 82b334d..3bf12f8 100644
  // ---------------------------------------------------------------- writer
  
  // cdmp_packets_*.bin: "CDPK" u32 version u32 pe_timestamp, then records:
-@@ -536,8 +556,14 @@ DWORD WINAPI writer_thread(LPVOID p) {
+@@ -536,8 +557,14 @@ DWORD WINAPI writer_thread(LPVOID p) {
          log::info("Sniffer: not recording packets to disk ([sniffer] record=0)");
      }
  
@@ -17990,7 +18062,7 @@ index 82b334d..3bf12f8 100644
          AcquireSRWLockExclusive(&g_lock);
          const uint64_t head = g_ring->head();
          const uint64_t tail = g_ring->tail();  // only this thread moves the tail
-@@ -614,6 +640,11 @@ uint16_t opcode_for(const char* name, uint16_t fallback) {
+@@ -614,6 +641,11 @@ uint16_t opcode_for(const char* name, uint16_t fallback) {
      return found;
  }
  
@@ -18002,7 +18074,7 @@ index 82b334d..3bf12f8 100644
  bool sniffer_world_loading() { return world_loading(); }
  
  bool sniffer_inject_c2s(std::vector<uint8_t> packet) {
-@@ -743,4 +774,6 @@ bool sniffer_install(const std::wstring& dir, HANDLE stop, bool record) {
+@@ -743,4 +775,6 @@ bool sniffer_install(const std::wstring& dir, HANDLE stop, bool record) {
      return true;
  }
  

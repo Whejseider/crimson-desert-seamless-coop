@@ -53,3 +53,24 @@ What would unblock it: the reader of CreateItemFromTrItemValueCheatReq (its stru
 flow that hands the player a chosen item (a quest reward, a shop purchase: BuyItem* requests) to replay with the
 gift's item. Duplication safety would then be: the giver's discard confirmed by its server BEFORE the receiver's
 add is sent, one transaction id, a log of both sides.
+
+## T21 -- the empty arm wrestling table
+Objective check (build/port3479/table_check.sh: turn a full circle pressing R; usable = the client starts the
+arm wrestling interaction, InteractionDoStepReq):
+- no peer: usable (tcn1); peer connected but its copy never loaded ([dev] no_copy=1): usable (tcnc); peer started
+  AFTER we arrived, its copy loaded next to us before the check: usable (tclate3);
+- the copy present while we (and, in the one-PC echo, the copy with us) arrive at the pub: NOT usable (tc1-3, tco6,
+  tcr1, tcu1, tcrs1) -- the game host never offers the game (no InteractionPreemptionStepReq for 0x000F431C).
+Tried (all kept in, none sufficient alone):
+1. Our server is no longer told that a copy entered a gameplay trigger / sequencer trigger volume (the copy entered
+   trigger 0x000F4280 at the table 0.16 s before an NPC changed its AI) -- still unusable.
+2. ... nor that a copy used a gimmick (it bumps the pub's stools and benches as it arrives) -- still unusable.
+3. ... nor that a copy entered a region (RegionInOutReq: the copy's body entering the pub's regions) -- still unusable.
+4. The copy made untargetable for every NPC ([dev] copy_untargetable) -- still unusable.
+5. Workaround: a resync after arriving (copy unloaded and loaded again) -- still unusable for that session.
+So the NPCs' own client-side AI (or the stage of the table) settles differently when a second player-type actor
+arrives with us; once settled, it stays that way.
+Caveat: in the echo the copy teleports in WITH us (the test reaches the pub by teleport hops). A real friend walks
+in on their own; the two-PC playtest (PLAYTEST 6.7) says whether real play has it.
+What would unblock it: the table stage's / game host's offer condition (the interaction's condition check), or a
+way to have the copy loaded as a non-player actor near minigame tables.

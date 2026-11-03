@@ -207,6 +207,7 @@ void on_post_packet(safetyhook::Context& ctx) {
         uint16_t len = 0;
         std::memcpy(&len, head + 3, 2);
         loot_rewrite_c2s(reinterpret_cast<uint8_t*>(ctx.r9), static_cast<uint16_t>(5 + len));
+        puppet_scrub_c2s(reinterpret_cast<uint8_t*>(ctx.r9), static_cast<uint16_t>(5 + len));  // Co-op+ (T21)
     }
     uint8_t channel = 0;
     uint16_t flags = 0;

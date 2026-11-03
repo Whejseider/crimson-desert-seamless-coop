@@ -204,3 +204,15 @@ Plan: the per-world design decides most of it; write the table (kills, bosses, g
 and weather, crimes, scaling) for host and guest, README section, and point at the tests that show each outcome.
 Done: docs/world-state-rules.md + README "WHAT STAYS AFTER A SESSION". Evidence: audit3 (guest's hidden enemies
 back, nothing left), loot1 (the guest's stand-in enemy killed for its drop stays dead), leave3, boss audit. [x]
+- Pushed T20 (c3e3a74).
+- T21 finding: in the empty-table runs (peer from the start) the table mercenary 0xB010035C runs StartAIFunction 0x67ED3753 (and barely moves: 2 actions vs 106); staffed (no peer) it runs 0xC7A77DBA and sits. The AI reacts to the copy. Testing: copy untargetable for everyone.
+- T21 ROOT CAUSE: our client tells its own server when the COPY enters triggers: GamePlayTriggerInfoEnterReq 2849 (01 F0 10 A0 | trigger 0x000F4280 | 01) at 126.944 and the table mercenary's AI switched (StartAIFunction 0x67ED3753, no more sitting) at 127.108; also SequencerTriggerVolumeInOutReq 2620 (copy key at +13). Fix: those messages naming a copy never reach our server.
+- T21: the scrub fires (vs4) but the table was empty again at 10:27; staffed runs with the peer were at 10:33-10:35 (aweye1, pw4); without the peer staffed at 10:27 (tt1). Actor keys are per load (0xB010035C was a gimmick in vs4), so the AI comparison above is not reliable. New suspect: time sync (only with a partner) re-evaluates NPC schedules. Testing time_sync=0.
+- T21: the copy also bumps pub gimmicks on arrival (UpdateGimmickReq 2787 / GimmickExecuteFrameEventReq naming 01 F0 10 A0 as user: 0xB010030C/30D/31A/35B/35C at 127.2 s); seats may count as used. Trying: such gimmick messages get gimmick key 0.
+- T21 objective check (table_check.sh: full circle of R presses, usable = InteractionDoStepReq): with the peer from the start 0/3 (tc1-3, after both scrubs), without 1/1 (tcn1, turn 0). Next: is it the copy standing 2 m from us (interaction focus / blocking)? offset 6 m.
+- T21: tcnc (peer connected, [dev] no_copy=1): TABLE USABLE at turn 0 -> the copy's presence is the cause (not time / weather / relay).
+- T21: tclate3 (copy loaded AFTER arriving at the table): USABLE -> the problem is the copy present while the pub loads around us. Remaining client messages naming a copy (tco6 capture): RegionInOutReq 2539 (copy body 0xB010F001 entering regions 0x1EB29 / 0x127C5 at the pub arrival), CurrentTargetChangeReq (NPCs targeting the copy: kept, aggro needs it). Adding RegionInOutReq to the scrub.
+- T21: tcr1 (region scrub too) and tcu1 (copy untargetable) both still unusable. Next: does a resync (copy unloaded and loaded again after arriving) clear it?
+- T21 [!]: resync after arrival (tcrs1) does not clear it either. Five approaches in BLOCKED.md. The scrubs stay
+  (our server should not hear about copies in its triggers / regions / gimmicks anyway). Real two-PC play may
+  differ (the echo copy teleports in with us).

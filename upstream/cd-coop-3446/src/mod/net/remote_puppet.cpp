@@ -2658,6 +2658,43 @@ bool puppet_install_climb_fix() {
     return ok;
 }
 
+void puppet_scrub_c2s(uint8_t* packet, uint16_t size) {
+    if (size < 5) return;
+    uint16_t op = 0;
+    std::memcpy(&op, packet, 2);
+    size_t at = 0;
+    if (op == 2849 && size >= 5 + 9) at = 5;            // GamePlayTriggerInfoEnterReq: u32 actor | u32 trigger | u8 in
+    else if (op == 2539 && size >= 5 + 8) at = 5;       // RegionInOutReq: u32 actor | u32 region | ... (the pub region)
+    else if (op == 2620 && size >= 5 + 18) at = 5 + 13;  // SequencerTriggerVolumeInOutReq: u64 | u32 | u8 | u32 actor | u8
+    else if ((op == 2787 || op == 2155) && size >= 5 + 28) {
+        // UpdateGimmickReq 2787 / GimmickExecuteFrameEventReq 2155 that a copy caused (it bumped a stool, sat on a bench):
+        // u32 gimmick first, the copy as its user further in. The gimmick key goes to 0: our server ignores it.
+        bool by_copy = false;
+        for (size_t i = 5 + 4; i + 4 <= std::min<size_t>(size, 5 + 64); i += 4) {
+            uint32_t k = 0;
+            std::memcpy(&k, packet + i, 4);
+            if (is_puppet_key(k) || is_enemy_copy_key(k)) by_copy = true;
+        }
+        if (!by_copy) return;
+        static std::atomic<uint32_t> gimmicks{0};
+        uint32_t g = 0;
+        std::memcpy(&g, packet + 5, 4);
+        if (gimmicks.fetch_add(1) < 20) log::info("Puppet: our server is not told that a copy used gimmick 0x{:08X}", g);
+        std::memset(packet + 5, 0, 4);
+        return;
+    } else {
+        return;
+    }
+    uint32_t key = 0;
+    std::memcpy(&key, packet + at, 4);
+    if (!is_puppet_key(key) && !is_enemy_copy_key(key)) return;
+    static std::atomic<uint32_t> logged{0};
+    if (logged.fetch_add(1) < 20) {
+        log::info("Puppet: our server is not told that copy 0x{:08X} entered a trigger (message {})", key, op);
+    }
+    std::memset(packet + at, 0, 4);
+}
+
 void puppet_set_offset(float metres) {
     g_offset_x = metres;
     log::info("Puppet offset set to {:.2f} m", metres);
