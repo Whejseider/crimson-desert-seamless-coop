@@ -84,7 +84,9 @@ PLAYING TOGETHER
     (nobody dies: the loser kneels at 3% health). Leave the ring for 10 seconds and
     you lose the round. After each round both are healed and the next one starts.
   * HUNTING CONTEST: 3 minutes to bring down the most game (bow or blade). Small
-    game scores 1, deer and foxes 2, bears, wolves and boars 3.
+    game scores 1, deer and foxes 2, bears, wolves and boars 3. Each of you hunts
+    the animals of your OWN world (see below): the herds are in the same places for
+    both of you, but an animal your friend chases is theirs, not one you can shoot.
   * Arm / hand wrestling: both of you sit at the table and start a match; your
     friend's character sits across from you in the opponent's chair, and you share
     one strength bar: whoever mashes E (pad: any face button) faster wins on both
@@ -135,6 +137,10 @@ WHAT WORKS / WHAT DOESN'T (YET)
   fighting the boss"): when your partner wins you get up where you fell; if you
   both go down, you both revive at the checkpoint and try again. To turn the
   wait off: boss_death_wait=0 under [coop] in cdmp.ini.
+- Who sees what: ENEMIES near the host are shared (above). Animals and townsfolk are
+  not: each of you sees the animals and people of your own world. They stand in the
+  same places for both (same world), but they are not the same ones: a deer you
+  hunt is only in your world, and your friend's deer is only in theirs.
 - Shared: time of day and weather (the host's). Not shared yet: quests and story
   progress (you get a notice when your friend completes a quest step), civilians.
 - Two players at a time.

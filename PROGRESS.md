@@ -121,3 +121,12 @@ real guest need two PCs (PLAYTEST 3.8b). XP: 3 approaches failed -> BLOCKED.md. 
   pings itself, so rtt does not include its simulated delay (the backlog trigger is the one seen on one PC).
 - Pushed T11 (55f5e00).
 - Installed package 55f5e003 (P0 complete): Defender clean, cdmp.asi hash matches, shipped ini, test save out, SAVES OK.
+
+## T12 -- NPC and wildlife consistency
+Plan: decide the rule (copying animals / townsfolk too would double the relay's load and their AI is not worth
+sharing; each world keeps its own, enemies stay shared), write it in the README, verify the contest's counting.
+Findings: animals near the bandits save start (npcs.py): geese 15 m (0xB010007F/80), partridges, herons, Stefero;
+all in animal_names.inc (hex keys). huntkill2: walking up and swinging hit nothing (birds fly off; a sword cannot
+reach them). huntkill3 (no hunt_test bypass): picker -> hunting contest, KillCheatReq on 6 animals -> the death
+notices name our player as killer -> "Hunt: we brought down Goose (+1), score 1" and "... score 2". The real-blow
+attribution path (guest_hits_we_hit) is the PLAYTEST 6.6 step.
