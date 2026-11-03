@@ -52,6 +52,7 @@ PLAYING TOGETHER
     Ctrl+F8     A / Cross                    your friend's name over their head
     Shift+F8    RB / R1                      resync (if your friend or the enemies look wrong)
     Shift+F7    LB / L1 (hold)               revive your friend when they are down (stand by them)
+    Shift+F4    right stick click            ask your friend to come to you (they accept with Ctrl+F4)
   A quick tap on View still does what it does in the game.
 - Host: press Ctrl+F1 to open the Steam overlay and invite your friend.
 - Friend: accept the invite, or right-click the host in the Steam friends list and
@@ -68,6 +69,9 @@ PLAYING TOGETHER
 - Ctrl+F3: ping your position: your friend gets a message and a pin on their map.
 - Ctrl+F4: go to your friend (you are moved next to them in short hops; works best
   within a few hundred metres; it stops if you are swimming).
+- Shift+F4: ask your friend to come to you. They see "<name> asks you to come to
+  them" and go with their Ctrl+F4 (or let it lapse); once every 30 seconds. When one
+  of you fast travels, the other is offered to follow the same way.
 - Death in co-op: the game's own death screen ("Death has found you."): Q / X
   instant revive (30% health), U / Y revive at the checkpoint. For 30 seconds your
   friend can also get you up where you fell: they stand by you and hold Shift+F7

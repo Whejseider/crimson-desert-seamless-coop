@@ -21,6 +21,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T16: crimes and bounties stay with the player who committed them (the host is never punished for the guest); the other player gets a notice when one becomes wanted. A shared bounty is not possible yet (BLOCKED.md).
 - T17: anti-grief: the guest never reaches the host's townsfolk, items or story objects, and its finishing blows count as the host's kills; new strict mode [coop] guest_finishes=0 (the guest's blows stop at 1 HP); a blow that must not kill now really stops at 1 HP (it could reach 0 before).
 - T18: trading and gifting is blocked: no request was found that the receiver's game accepts for adding a chosen item (BLOCKED.md).
+- T19: summon (Shift+F4 / pad View + right stick): your friend is asked to come and accepts with their go-to; after a fast travel the other is offered to follow; 30 s cooldown.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

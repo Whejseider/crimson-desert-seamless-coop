@@ -187,3 +187,13 @@ Findings: reqsizes.py on the item requests (AddMinusItemReq [u32, 8], DiscardIte
 DeleteItemCheatReq [u16, u8], RemoveItemToInventoryReq [u8, u16, u8], CreateItemFromTrItemValueCheatReq: a
 structure); addminus1: AddMinusItemReq +1 / -1 on item 22007 -> no answer, no inventory change. No way to add a
 chosen item on the receiver -> BLOCKED.md (with what would unblock it).
+- Pushed T18 notes (9a710ed).
+
+## T19 -- Party travel and summon
+Plan: consent-based on top of the existing go-to (Ctrl+F4 hops, beside the other player, not under ground):
+Summon action (Shift+F4 / View + R3, 30 s cooldown) -> Activity 20 -> "<name> asks you to come: {GoToFriend} go"
+for 20 s; our own long trip (> 250 m in 5 s) -> "travelled far away: follow them". Auto catch-up: not added (the
+offers cover it without moving anyone unasked).
+Done: summon1 (echo peer offset 60 m): "You asked ... to come to you", request line on screen, cooldown notice,
+Ctrl+F4 moved Kliff 60 m to "them" (an artificial spot inside a cliff -> he ended on the cliff face; a real friend
+stands on ground). Party-travel offer not exercised on one PC (needs a fast travel). [~] PLAYTEST 2.7b.

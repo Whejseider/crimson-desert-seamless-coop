@@ -140,6 +140,8 @@ float pad_button(ImDrawList* dl, float x, float y, float h, uint16_t bit, bool p
     if (bit == input::kPadStart) return pill(dl, x, y, h, ps ? "OPTIONS" : "MENU", bg);
     if (bit == input::kPadLB) return pill(dl, x, y, h, ps ? "L1" : "LB", bg);
     if (bit == input::kPadRB) return pill(dl, x, y, h, ps ? "R1" : "RB", bg);
+    if (bit == input::kPadR3) return pill(dl, x, y, h, ps ? "R3" : "RS", bg);
+    if (bit == input::kPadL3) return pill(dl, x, y, h, ps ? "L3" : "LS", bg);
     return pill(dl, x, y, h, "?", bg);
 }
 

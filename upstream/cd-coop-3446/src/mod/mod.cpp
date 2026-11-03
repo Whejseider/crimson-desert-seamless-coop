@@ -45,6 +45,7 @@
 #include "mod/net/coop_activity.h"
 #include "mod/net/coop_sync.h"
 #include "mod/net/coop_revive.h"
+#include "mod/net/coop_travel.h"
 #include "mod/net/state_audit.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
@@ -413,6 +414,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     const uint32_t state_interval = 1000 / cfg.send_rate_hz;
     bool reduced_rate = false;  // Co-op+ (T11): poor link, half rate
     std::string revive_line;    // Co-op+ (T15)
+    std::string travel_line;    // Co-op+ (T19)
     uint32_t last_state = 0;
     uint32_t last_report = now_ms();
     uint32_t last_room_attempt = 0;  // host lobby retry, see the loop below
@@ -705,6 +707,16 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     const auto rv = net::revive_partner_tick(connected, s.health, s.health_max, s.position, rr,
                                                              session.peer_name(), game_has_focus(), now);
                     revive_line = rv.line;
+                    // Co-op+ (T19): summon / party travel.
+                    std::optional<proto::Vec3> partner_at;
+                    if (rr) partner_at = rr->pos;
+                    const auto tr = net::travel_tick(connected, s.position, partner_at, session.peer_name(),
+                                                     game_has_focus(), now);
+                    travel_line = tr.line;
+                    if (!tr.toast.empty()) {
+                        toast = tr.toast;
+                        toast_until = now + 5000;
+                    }
                     if (!rv.toast.empty()) {
                         toast = rv.toast;
                         toast_until = now + 6000;
@@ -782,6 +794,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             hud.peer_problem = session.peer_problem();
             hud.partner_in_menu = connected && net::activity_partner_in_menu();
             hud.revive_line = revive_line;
+            hud.travel_line = travel_line;
             hud.revive_prompt = static_cast<uint8_t>(revive_prompt);
             if (cfg.dev_ui_preview == 1) hud.revive_prompt = 1;  // [dev] ui_preview: the death screen
             // In co-op, put the marker on the character actually drawn (it
