@@ -162,6 +162,15 @@ WHAT WORKS / WHAT DOESN'T (YET)
   progress (you get a notice when your friend completes a quest step), civilians.
 - Two players at a time.
 
+WHAT STAYS AFTER A SESSION
+- The host keeps what happened in the host's world: enemies you killed together stay
+  dead there (camps cleared, quest credit, loot), bosses are the host's.
+- The guest keeps only what happened in the guest's own world (its own chests,
+  gathering, quests). The guest's own enemies near the host were only hidden and come
+  back when the session ends. With shared loot on, the one enemy of the guest's that
+  was killed to give the guest its drop stays dead in the guest's world.
+- Time of day, weather and party scaling go back to normal when the session ends.
+
 IMPORTANT: do not save while the other player is in your world. Quit without
 saving, or wait until they leave. Saving during a session is the most likely way to
 damage a save. As a safety net the mod copies your saves to

@@ -197,3 +197,10 @@ offers cover it without moving anyone unasked).
 Done: summon1 (echo peer offset 60 m): "You asked ... to come to you", request line on screen, cooldown notice,
 Ctrl+F4 moved Kliff 60 m to "them" (an artificial spot inside a cliff -> he ended on the cliff face; a real friend
 stands on ground). Party-travel offer not exercised on one PC (needs a fast travel). [~] PLAYTEST 2.7b.
+- Pushed T19 (7b57325).
+
+## T20 -- World-state persistence rules
+Plan: the per-world design decides most of it; write the table (kills, bosses, gathering/chests/doors, quests, time
+and weather, crimes, scaling) for host and guest, README section, and point at the tests that show each outcome.
+Done: docs/world-state-rules.md + README "WHAT STAYS AFTER A SESSION". Evidence: audit3 (guest's hidden enemies
+back, nothing left), loot1 (the guest's stand-in enemy killed for its drop stays dead), leave3, boss audit. [x]
