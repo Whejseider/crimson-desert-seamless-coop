@@ -108,7 +108,7 @@ Steam join/invite/leave and room code, friends-only vs invite-only, join/leave n
 - [x] **T30 — Settings and hotkeys.** Expose all config options in the in-game F8 panel, make hotkeys rebindable, and warn about conflicts with game keybinds.
 - [x] **T31 — First-run onboarding.** Short guided intro and a controls cheat sheet, shown once and reopenable.
 - [x] **T32 — Connection quality indicator.** Ping and packet loss in the F8 panel with an optional small HUD display.
-- [ ] **T33 — Partner audio.** Footsteps, combat sounds and voice lines for the partner with proper distance falloff.
+- [~] **T33 — Partner audio.** Footsteps, combat sounds and voice lines for the partner with proper distance falloff.
 - [ ] **T34 — Per-player colors.** Consistent color coding across map pins, compass markers, nameplates and pings, with a colorblind-safe option.
 - [ ] **T35 — Emotes and resting together.** Synced emotes and sitting or resting at campfires together.
 - [ ] **T36 — Combat feedback sync.** Status effects, stagger, knockback, damage numbers and kill feed visible for the partner's hits, plus per-player lock-on.

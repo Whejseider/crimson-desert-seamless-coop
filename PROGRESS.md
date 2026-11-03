@@ -347,3 +347,16 @@ Finding (netq1): with a stand-in that reconnected, the loss stayed 0: the new pe
 ("seq + 1000 < last" = restart) took 1..800 as late packets. Now anything more than 64 back is a new numbering.
 Done: netq2: clean (25 ms delay) "Co-op 28 ms 0% loss" green; 10 % relay loss: the log's lost count grows ~8-11 per
 5 s (~10 %), panel "loss 6.9%" yellow, readout "33 ms 7% loss" yellow. [x]
+- Pushed T32 (816a660).
+
+## T33 -- Partner audio
+Plan: the partner copy is a game character driven by the game's own Move / StartAction events, so its animation-
+driven sounds (footsteps, swings, horse) should come from the game's audio engine with the game's 3D falloff. Check:
+measure what the PC plays (new tools/audio/loopback_rms.exe, WASAPI loopback, high-passed loudness and onsets) while
+the copy walks next to a still player (relay with a 6 s delay replays our walk after we stop) vs no copy.
+Result (audio_test, build/port3479): A (no copy) median -78.4 / -76.7 / -77.2 dBFS, max -73; B (copy walking 2 m
+away) median -74.6 / -76.8, max -68 / -69. Slightly louder with the copy, but the game's whole output reaches the
+loopback at about -77 dBFS here (near silent: the game or its device is turned down on this PC), so this does not
+prove it. No sound is added by the mod; voice lines of the player character are not expected for the copy.
+Status [~]: PLAYTEST 2.7c (headphones, distances 2 / 20 / 60 m). If the copy is silent there, the next step is to
+find the anim-notify sound path for network-created actors.

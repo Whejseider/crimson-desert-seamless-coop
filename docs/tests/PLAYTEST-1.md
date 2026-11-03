@@ -55,6 +55,7 @@ when, which Ctrl+F12 mark). A step that could not be tried: leave both boxes emp
 | 2.6 | A presses Ctrl+F3. | B: "<A> pinged their position" and a pin. | [ ] | [ ] | |
 | 2.7 | B walks 200 m away, presses Ctrl+F4. Then 800 m. | B lands next to A (short hops, no loading screen); note what happens at 800 m. | [ ] | [ ] | |
 | 2.7b | Summon and party travel: A walks 150 m away and presses Shift+F4 (pad: View + right stick click). Then A fast travels to an Abyss Nexus. | B: "<A> asks you to come to them: Ctrl+F4 go", Ctrl+F4 lands B beside A (on solid ground, not inside rock). After A's fast travel B: "<A> travelled far away: follow them". A pressing Shift+F4 again within 30 s: "You can call B again in N s". | [ ] | [ ] | |
+| 2.7c | Partner audio (T33), headphones on: A stands still; B walks and runs past A at 2 m, then 20 m, then 60 m away; B swings a weapon at the air near A; B rides past. | A hears B's footsteps, swings and horse, louder near and fading with distance (from the right side). Note anything silent (voice lines of B's character are not expected). | [ ] | [ ] | |
 | 2.8 | Time and weather: compare the clock under the minimap and the sky. | B shows A's time of day and A's weather (rain on both or neither). | [ ] | [ ] | |
 
 ## 3. Fighting together (a bandit camp near A)
