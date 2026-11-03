@@ -371,3 +371,15 @@ colour (live through puppet_map_pin_style). Pings use the same pin.
 Done: colours_test: as guest the host's tag + frame gold; F8 > Player colours > colour-blind safe ("Settings: Player
 colours = colour-blind safe") -> orange, live. The host's view (blue, round) and the pin colour need two PCs:
 PLAYTEST 2.7d. [x]
+- Pushed T34 (d255c2a).
+
+## T35 -- Emotes and resting together
+Plan: find the game's emote / sit / rest systems and sync what the copy does not already show.
+Finding (web search 2026-11-03, powerpyx / dexerto / games.gg guides): no emote or gesture system is documented for
+Crimson Desert; resting is Focus (Ctrl / LB) on a campfire or cooking pot > Wait (skips time, with a cooldown), or a
+bed. Sitting on benches / chairs and the rest are interactions that play the player's own actions -- the copy is
+driven by every StartAction we send (the same path as climbing, gliding, the arm wrestling seat), so the friend sees
+them. Wait changes the time of day: the host's Wait moves the guest's clock through time sync (T20 rules); the guest's
+own Wait is overridden by the host's time, which is the defined rule (time follows the host).
+Nothing new to build without an emote system. Not tested on one PC (no campfire near the test saves; the echo copy
+mirrors our own actions anyway). [~] PLAYTEST 2.7e.
