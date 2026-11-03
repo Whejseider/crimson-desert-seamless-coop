@@ -57,9 +57,16 @@ PLAYING TOGETHER
   two players). A shared cutscene is skipped only when EVERYONE in it pressed Esc:
   your Esc says "waiting for <name>" until they press it too.
 - Time of day and weather follow the host (rain, clouds and wind included).
-- Arm wrestling / hand wrestling against your friend: both sit at a table (each in
-  your own world) and start a match at the same time; mash E: whoever pushes
-  faster wins on both screens.
+- CHALLENGE YOUR FRIEND (Shift+F5):
+  * At an arm wrestling (or hand wrestling) table, Shift+F5 challenges your friend
+    to it. Anywhere else, Shift+F5 challenges them to a rock-paper-scissors duel.
+  * Your friend gets "<name> challenges you to ...": Shift+F5 accepts, Shift+F6
+    declines (an invite lapses after a minute).
+  * Arm / hand wrestling: both of you sit at the table and start a match; you share
+    one strength bar: whoever mashes E faster wins on both screens.
+  * Rock, paper, scissors: press U (scissors), F (paper) or E (rock); both hands are
+    shown when both of you have picked; first to 2 wins the match.
+  * A series score is kept ("you 2 - 1 <name>"); Shift+F5 again ends the challenge.
 - Other minigames (contests, card games...): each of you plays in your own world;
   your friend sees "<name> is playing a minigame" and when you finish.
 - Mounts: your friend sees you ride your horse, and sees your flying mount too.

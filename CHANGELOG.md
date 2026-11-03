@@ -15,8 +15,10 @@ Game 1.0.0.3479 (game version 2.04.05; Co-op+ port, tested in the game on one PC
 - Weather follows the host: the game picks random weather stages per load; the guest now runs the host's instead of
   its own ([coop] weather_sync). Time of day follows the host by default ([coop] time_sync=3; it never worked on
   3479 before: wrong address).
-- Versus arm wrestling / hand wrestling: both players in a match at once share one strength gauge; the faster
-  masher wins on both screens.
+- Challenge your friend (Shift+F5): to arm / hand wrestling at a table (both play a match at the same table in their
+  own worlds and share one strength gauge: the faster masher wins on both screens), or anywhere to a rock-paper-
+  scissors duel (U / F / E, both hands shown at once, first to 2). Shift+F5 accepts an invite, Shift+F6 declines;
+  a series score is kept until either player ends the challenge. Versus play happens only inside a challenge.
 - Minigames: "<name> is playing a minigame" / "<name> finished arm wrestling" (each player plays in their own world).
 - Flying mounts: a summoned dragon is sent to your friend like a horse (seen flying on one PC with a test save).
 - Long trips with Ctrl+F4 / checkpoint revive: hops also try higher, shorter and sideways (past cliff walls).

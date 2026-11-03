@@ -55,6 +55,14 @@ void activity_set_skip_test(bool on);
 // this many times a second (0 = off).
 void activity_set_versus_test(int presses_per_s);
 
+// [dev] challenge_test: one-PC test of challenges: 1 = a simulated other player accepts our Shift+F5 invite after
+// 2 s; 2 = also Shift+F6 (with nothing pending) makes them challenge us to a rock-paper-scissors duel.
+void activity_set_challenge_test(int mode);
+
+// [dev] rps_test: one-PC test of the RPS duel: a simulated other player who always shows this hand (0 scissors,
+// 1 paper, 2 rock; -1 = off), 4 s after our pick.
+void activity_set_rps_test(int hand);
+
 // Another Co-op+ module's Activity event (stage_cinema: types 7..9), on the same sequence as ours.
 void activity_send(uint8_t type, const std::vector<uint8_t>& data);
 

@@ -1405,6 +1405,8 @@ DWORD WINAPI worker(LPVOID) {
         net::weather_set_test(cfg.dev_weather_test);
         net::cinema_set_enabled(cfg.coop_stage_cinema);
         net::cinema_set_test(cfg.dev_cinema_test);
+        net::activity_set_rps_test(cfg.dev_rps_test);
+        net::activity_set_challenge_test(cfg.dev_challenge_test);
         if (cfg.dev_boss_hp) {
             net::boss_set_test_threshold(static_cast<int64_t>(cfg.dev_boss_hp) * 1000);
             log::info("Config: [dev] boss_hp={}: enemies with that much health count as bosses", cfg.dev_boss_hp);

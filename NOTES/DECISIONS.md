@@ -263,3 +263,20 @@
   ended with the cutscene; match continued normally. The client sent nothing for the copy (its own instance of the
   same stage was running): a real guest has no instance of the host's boss stage, which is the weather case (that
   one ran). Unverified until a two-PC boss test (FLAGS F3).
+
+## 2026-11-02 D39: Rock, paper, scissors is a duel the mod runs (not the town minigame)
+- The town RPS minigame is a stage: in its pick branch the client sends a transition per (our hand, child's hand)
+  (seen: S-S 1, S-P 2, P-R 3, P-S 4, R-S 7, R-P 8; 9 = leave), but the child's hand comes from the stage's server-side
+  random roll and the server ignores a transition that disagrees with it (rewrites to 6 and 5->3 got no answer). So
+  player-vs-player through the child is impossible without editing the local server. The duel: U/F/E caught by the
+  keyboard hook (kept from the game), Activity kRps carries each hand, reveal when both picked, first to 2.
+
+## 2026-11-02 D40: Challenges (user: "give me the option to challenge a friend in the mini games")
+- Shift+F5 (not Ctrl: Ctrl moves the game's interaction focus off the table host and crouches) at an arm / hand
+  wrestling table invites to that game, elsewhere to an RPS duel; Shift+F5 accepts / withdraws / ends, Shift+F6
+  declines; invites lapse after 60 s. Versus (shared gauge, duel) only inside an accepted challenge; series score.
+  Activity kChallenge: u8 action (1 invite, 2 accept, 3 decline, 4 end) | u32 stage key.
+- Verified on one PC ([dev] challenge_test=1/2, versus_test, rps_test): invite -> accept -> arm wrestling loss then
+  win (series 0-1, 1-1 toasts); RPS duel win/draw/lose/win -> 2-1, series; incoming invite (Shift+F6 test trigger)
+  -> Shift+F5 accept -> duel 2-0 -> Shift+F5 ends "Final series: you 1 - 0". Hand wrestling uses the same gauge path
+  (no table reached). Two-PC test pending (PLAYTEST).

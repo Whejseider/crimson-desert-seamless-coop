@@ -2,6 +2,7 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstring>
@@ -34,7 +35,7 @@ constexpr float kNearM = 100.0f;          // the user's cutscene range
 constexpr uint32_t kMaxMs = 180000;       // a copy never outlives this
 constexpr uint32_t kPickWindowMs = 5000;  // the stage named / changed this long before the cutscene started
 constexpr uint32_t kTestDelayMs = 3000;
-constexpr size_t kPrepKeyAt = 19, kPrepIdAt = 9, kPrepMin = 23, kBindingsFrom = 86;
+constexpr size_t kPrepKeyAt = 19, kPrepIdAt = 9, kPrepMin = 23, kPrepPosAt = 35, kBindingsFrom = 86;
 enum : uint8_t { kStart = 7, kEnd = 8, kBranch = 9 };
 
 using Bytes = std::vector<uint8_t>;
@@ -126,6 +127,31 @@ uint32_t cinema_stage_key(uint64_t id) {
     const auto it = g_stages.find(id);
     return it == g_stages.end() || it->second.prepare.size() < kPrepMin ? 0
                                                                          : rd<uint32_t>(it->second.prepare.data() + kPrepKeyAt);
+}
+
+namespace {
+std::optional<std::array<float, 3>> stage_pos(const Stage& s) {
+    if (s.prepare.size() < kPrepPosAt + 12) return std::nullopt;
+    std::array<float, 3> p{};
+    std::memcpy(p.data(), s.prepare.data() + kPrepPosAt, 12);
+    if (p[0] == 0.0f && p[2] == 0.0f) return std::nullopt;
+    return p;
+}
+float dist_xz(const std::array<float, 3>& a, const std::array<float, 3>& b) { return std::hypot(a[0] - b[0], a[2] - b[2]); }
+}  // namespace
+
+uint32_t cinema_minigame_near(const std::array<float, 3>& pos, float max_m, const uint32_t* keys, size_t n) {
+    std::lock_guard lock(g_mutex);
+    uint32_t best = 0;
+    float best_m = max_m;
+    for (const auto& [id, s] : g_stages) {
+        if (s.prepare.size() < kPrepMin) continue;
+        const uint32_t key = rd<uint32_t>(s.prepare.data() + kPrepKeyAt);
+        if (std::find(keys, keys + n, key) == keys + n) continue;
+        const auto p = stage_pos(s);
+        if (p && dist_xz(*p, pos) <= best_m) best_m = dist_xz(*p, pos), best = key;
+    }
+    return best;
 }
 
 void cinema_set_enabled(bool on) { g_enabled = on; }

@@ -41,6 +41,9 @@ void cinema_tick(bool connected, bool host, bool cut, std::optional<std::array<f
 // The stage key of one of our server's running stages (0 = unknown), e.g. the minigame a match is in.
 uint32_t cinema_stage_key(uint64_t sequencer);
 
+// The minigame stage among `keys` nearest to `pos` within `max_m` (its prepare carries the spot), 0 when none.
+uint32_t cinema_minigame_near(const std::array<float, 3>& pos, float max_m, const uint32_t* keys, size_t n);
+
 // [coop] stage_cinema (default on).
 void cinema_set_enabled(bool on);
 

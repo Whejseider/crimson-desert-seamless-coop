@@ -483,3 +483,13 @@
   are stage branches: in branch 4 the client draws the boy's hand and sends StageBranchStateReq with a transition
   (1..9) for the combination; the server answers with the outcome branch (texts "Rock loses to paper. I lose." ...).
   rps_open.py writes the injection for the current stage id.
+
+## 2026-11-02 20:10-22:10 -- RPS transitions, challenges (D39, D40)
+- RPS edges collected (rps_collect.py, rps_matches.sh; fresh loads reset the child's "once in a while" refusal, a
+  skipped game day does not): S-S 1, S-P 2, P-R 3, P-S 4, R-S 7, R-P 8; 9 = "I better get going" (leave). Forced
+  rewrites: 6 -> no answer; 5 (client's P-P draw) -> 3 -> no answer (client then re-sent its own). The child's
+  actions don't encode the hand; the server checks the outcome against its own random roll -> D39 duel instead.
+- User (mid-task): challenges must be a real option, finished by the next stop -> D40 built and tested (duel_test.sh,
+  duel_in.sh, pub.sh + pubvs.sh with challenge_test). Found: Ctrl+F5 shifted the pub table's interaction focus to a
+  shop item ("Steal/Buy"), so challenge keys are Shift+F5/F6. A leftover rps_matches.sh loop (TaskStop left its
+  children running) restarted the game during one test; killed by PID.
