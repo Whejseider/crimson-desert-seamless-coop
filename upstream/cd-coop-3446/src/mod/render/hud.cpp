@@ -45,7 +45,8 @@ void draw_remote_marker(ImDrawList* dl, const game::ScreenPoint& p, const HudDat
     const float scale = nameplate::text_scale(distance);
     const std::string name = d.peer_name.empty() ? (g_options.english ? "Player 2" : "Jugador 2") : d.peer_name;
     const float frac = d.remote->health_max > 0 ? d.remote->health / d.remote->health_max : -1.0f;
-    ui::nameplate(dl, p.x, p.y, name, frac, std::format("{:.0f} m", distance), alpha, scale);
+    const std::string sub = d.partner_in_menu ? std::format("{:.0f} m  -  in a menu", distance) : std::format("{:.0f} m", distance);
+    ui::nameplate(dl, p.x, p.y, name, frac, sub, alpha, scale);
 }
 
 }  // namespace

@@ -740,6 +740,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             hud.local_status = local.status();
             hud.remote = session.remote_state();
             hud.peer_problem = session.peer_problem();
+            hud.partner_in_menu = connected && net::activity_partner_in_menu();
             hud.revive_prompt = static_cast<uint8_t>(revive_prompt);
             if (cfg.dev_ui_preview == 1) hud.revive_prompt = 1;  // [dev] ui_preview: the death screen
             // In co-op, put the marker on the character actually drawn (it

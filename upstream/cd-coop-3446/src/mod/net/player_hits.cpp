@@ -15,6 +15,7 @@
 #include <string>
 
 #include "mod/game/actor_lookup.h"
+#include "mod/game/ui_state.h"
 #include "mod/log.h"
 #include "mod/net/aggro_test.h"
 #include "mod/net/enemy_relay.h"
@@ -648,6 +649,8 @@ void hits_on_event(const proto::GameEvent& ev) {
     float distance = -1.0f;
     if (hp < 0 || max <= 0) {
         refused = "our HP is not known yet";
+    } else if (game::ui_menu_open()) {
+        refused = "we are in a menu (our world is paused)";  // Co-op+ (T09)
     } else if (!is_valid_enemy_copy_key(copy) || !enemy_copy_loaded(copy)) {
         refused = "its attacker is not a copy of their enemies here";
     } else {

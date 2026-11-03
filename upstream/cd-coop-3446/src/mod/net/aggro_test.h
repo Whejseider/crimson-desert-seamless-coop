@@ -23,6 +23,8 @@ bool aggro_test_install();
 // rejects it only for its "driven by the network" mark; this answers
 // "targetable" instead (never while it is dead or hidden).
 void aggro_set_copy_targetable(bool on);
+// Co-op+ (T09): while the other player is in a menu (their world paused), our enemies do not target their copy.
+void aggro_set_partner_in_menu(bool on);
 // How many of our enemies may attack the other player's copy at once (they
 // mostly wait otherwise: copia-objetivo-sin-ataques.md section 7); 0 = the game.
 void aggro_set_copy_attack_slots(int slots);

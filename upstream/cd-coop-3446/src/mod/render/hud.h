@@ -63,6 +63,7 @@ struct HudData {
     float duel_title_alpha = 0;
     float duel_out_left_s = -1;
     // Co-op+ rock-paper-scissors duel: the hands over the two characters (coop_activity.h RpsView).
+    bool partner_in_menu = false;  // Co-op+ (T09): their name tag says "in a menu"
     bool rps_on = false;
     int rps_ours = -1, rps_theirs = -1;
     bool rps_ours_picked = false, rps_theirs_picked = false;

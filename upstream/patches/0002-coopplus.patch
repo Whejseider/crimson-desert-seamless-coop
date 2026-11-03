@@ -2494,7 +2494,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..7d552b9 100644
+index 79ccd06..0e8ff05 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,9 +1,13 @@
@@ -2960,10 +2960,11 @@ index 79ccd06..7d552b9 100644
              }
              coop->update(pos, rot, now);
          }
-@@ -449,14 +740,19 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -449,14 +740,20 @@ void run_network(const Config& cfg, LocalSource& local) {
              hud.local_status = local.status();
              hud.remote = session.remote_state();
              hud.peer_problem = session.peer_problem();
++            hud.partner_in_menu = connected && net::activity_partner_in_menu();
 +            hud.revive_prompt = static_cast<uint8_t>(revive_prompt);
 +            if (cfg.dev_ui_preview == 1) hud.revive_prompt = 1;  // [dev] ui_preview: the death screen
              // In co-op, put the marker on the character actually drawn (it
@@ -2981,7 +2982,7 @@ index 79ccd06..7d552b9 100644
                  hud.boss_active = true;
                  hud.boss_name = b.name;
                  hud.boss_hp = b.hp;
-@@ -475,6 +771,55 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +772,55 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -3037,7 +3038,7 @@ index 79ccd06..7d552b9 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -491,6 +836,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,6 +837,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                  remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                       rs->pos.z, rs->health);
              }
@@ -3052,7 +3053,7 @@ index 79ccd06..7d552b9 100644
              log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | remote states {} | "
                        "last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
                        state, st.sent, st.received, st.rejected, st.rtt_ms, st.remote_states, remote,
-@@ -498,7 +851,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -498,7 +852,14 @@ void run_network(const Config& cfg, LocalSource& local) {
                        transport->status());
              if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
              log::info("Local: {}", local.describe());
@@ -3067,7 +3068,7 @@ index 79ccd06..7d552b9 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +869,124 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +870,124 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -3193,7 +3194,7 @@ index 79ccd06..7d552b9 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +1088,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +1089,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -3202,7 +3203,7 @@ index 79ccd06..7d552b9 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +1142,7 @@ void combat_test_loop() {
+@@ -669,7 +1143,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -3211,7 +3212,7 @@ index 79ccd06..7d552b9 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +1160,7 @@ void combat_test_loop() {
+@@ -687,7 +1161,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -3220,7 +3221,7 @@ index 79ccd06..7d552b9 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1225,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1226,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -3229,7 +3230,7 @@ index 79ccd06..7d552b9 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1239,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1240,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -3237,7 +3238,7 @@ index 79ccd06..7d552b9 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,12 +1268,24 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,12 +1269,24 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -3264,7 +3265,7 @@ index 79ccd06..7d552b9 100644
          if (!contained) {
              net::puppet_set_horse_enabled(false);
              log::warn("Horse and enemy copies disabled: their crash containment could not be installed");
-@@ -902,22 +1388,79 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,22 +1389,79 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -3344,7 +3345,7 @@ index 79ccd06..7d552b9 100644
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
                    cfg.coop_enabled ? "on" : "off");
-@@ -925,7 +1468,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1469,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -3353,7 +3354,7 @@ index 79ccd06..7d552b9 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -956,6 +1499,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -956,6 +1500,7 @@ DWORD WINAPI worker(LPVOID) {
                    cfg.coop_suppress_lab ? ", suppressed by suppress_lab=1 (the one-PC lab)" : "");
          log::info("Config: time sync {}", cfg.coop_time_sync == 1   ? "send ours"
                                            : cfg.coop_time_sync == 2 ? "take the other player's"
@@ -3361,7 +3362,7 @@ index 79ccd06..7d552b9 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1513,40 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1514,40 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3402,7 +3403,7 @@ index 79ccd06..7d552b9 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1598,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1599,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3436,7 +3437,7 @@ index 79ccd06..7d552b9 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1621,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1622,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3448,7 +3449,7 @@ index 79ccd06..7d552b9 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1646,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1647,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -3460,7 +3461,7 @@ index 79ccd06..7d552b9 100644
          log::error("Unhandled exception in worker: {}", e.what());
      } catch (...) {
 diff --git a/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp b/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
-index 355b8df..be88b8a 100644
+index 355b8df..98d38b4 100644
 --- a/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/aggro_test.cpp
 @@ -23,17 +23,23 @@
@@ -3505,6 +3506,41 @@ index 355b8df..be88b8a 100644
  
  SafetyHookInline g_is_targetable;
  SafetyHookInline g_battle_type;
+@@ -205,9 +211,12 @@ bool __fastcall check_ai_battle_type(uintptr_t cond, uintptr_t obj_ia, uintptr_t
+     return result;
+ }
+ 
++std::atomic<bool> g_partner_menu{false};  // Co-op+ (T09)
++
+ bool __fastcall is_targetable(void* comp, uintptr_t candidate, uint8_t mode) {
+     const bool ok = g_is_targetable.call<bool>(comp, candidate, mode);
+     const uint32_t key = key_of_actor(candidate);
++    if (key == kPuppetPlayer && g_partner_menu.load(std::memory_order_relaxed)) return false;
+     const uint32_t bit = 1u << (mode & 31);
+     if (key == kPuppetPlayer) {
+         g_puppet_candidate.fetch_add(1, std::memory_order_relaxed);
+@@ -496,6 +505,8 @@ bool aggro_request_target_on_copy(uint32_t enemy) {
+     return true;
+ }
+ 
++void aggro_set_partner_in_menu(bool on) { g_partner_menu = on; }
++
+ void aggro_set_copy_targetable(bool on) {
+     g_force = on;
+     log::info("Co-op: the other player's copy {} a valid target for our enemies", on ? "is" : "is not");
+diff --git a/upstream/cd-coop-3446/src/mod/net/aggro_test.h b/upstream/cd-coop-3446/src/mod/net/aggro_test.h
+index 5c1edf2..3533563 100644
+--- a/upstream/cd-coop-3446/src/mod/net/aggro_test.h
++++ b/upstream/cd-coop-3446/src/mod/net/aggro_test.h
+@@ -23,6 +23,8 @@ bool aggro_test_install();
+ // rejects it only for its "driven by the network" mark; this answers
+ // "targetable" instead (never while it is dead or hidden).
+ void aggro_set_copy_targetable(bool on);
++// Co-op+ (T09): while the other player is in a menu (their world paused), our enemies do not target their copy.
++void aggro_set_partner_in_menu(bool on);
+ // How many of our enemies may attack the other player's copy at once (they
+ // mostly wait otherwise: copia-objetivo-sin-ataques.md section 7); 0 = the game.
+ void aggro_set_copy_attack_slots(int slots);
 diff --git a/upstream/cd-coop-3446/src/mod/net/animal_names.inc b/upstream/cd-coop-3446/src/mod/net/animal_names.inc
 new file mode 100644
 index 0000000..68a4a32
@@ -4251,10 +4287,10 @@ index a328bc0..5778775 100644
      // order (a resent ApplyBuff could land after its Unapply), so they carry
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..e8def81
+index 0000000..d7d9153
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,934 @@
+@@ -0,0 +1,968 @@
 +#include "mod/net/coop_activity.h"
 +#include "mod/input/actions.h"
 +#include "mod/input/pad_input.h"
@@ -4276,6 +4312,7 @@ index 0000000..e8def81
 +#include "mod/net/coop_duel.h"
 +#include "mod/net/coop_hunt.h"
 +#include "mod/net/coop_sync.h"
++#include "mod/net/aggro_test.h"
 +#include "mod/net/party_quests.h"
 +#include "mod/net/local_capture.h"
 +#include "mod/net/puppet_visibility.h"
@@ -4293,7 +4330,15 @@ index 0000000..e8def81
 +constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 +constexpr uint32_t kSkipTestDelayMs = 6000;
 +
-+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14 };
++enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16 };
++
++// Co-op+ (T09): a player in a menu (map, inventory, pause...) has their own world paused, while the other player's
++// world goes on with their character standing in it. So: each side tells the other when it opens / closes a menu
++// (kMenu: u8 open, again every kMenuResendMs); the other side's enemies leave that character alone meanwhile
++// (aggro_set_partner_in_menu) and its name tag says "in a menu"; and blows that reach us while we are in a menu
++// are not applied (player_hits.cpp).
++constexpr uint32_t kMenuResendMs = 3000;
++std::atomic<bool> g_partner_menu{false};
 +
 +// Versus arm wrestling (D35): while both players are in a match, the host owns one gauge,
 +// 50 + kPushGain x (host's E presses - guest's E presses), clamped to 0..100, and writes it into its game every tick;
@@ -4550,6 +4595,7 @@ index 0000000..e8def81
 +
 +void activity_set_skip_test(bool on) { g_skip_test = on; }
 +void activity_set_versus_test(int presses_per_s) { g_versus_test_rate = presses_per_s; }
++bool activity_partner_in_menu() { return g_partner_menu.load(); }
 +void activity_set_seat_test(bool on) { g_seat_test = on; }
 +
 +namespace {
@@ -4993,6 +5039,15 @@ index 0000000..e8def81
 +        case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)
 +        case kDuel:              // coop_duel.h, below
 +        case kQuest:             // party_quests.h, below
++        case kMenu:
++            if (p.size() >= 6) {
++                const bool open = p[5] != 0;
++                if (g_partner_menu.exchange(open) != open) {
++                    aggro_set_partner_in_menu(open);
++                    log::info("Activity: the other player {} a menu", open ? "is in" : "left");
++                }
++            }
++            break;
 +        case kHunt:              // coop_hunt.h, below
 +        case 15:                 // coop_sync.h, below
 +            break;
@@ -5047,6 +5102,21 @@ index 0000000..e8def81
 +ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
 +                           std::optional<std::array<float, 3>> partner, const std::string& partner_name,
 +                           uint32_t now) {
++    // Co-op+ (T09): our menu state to the other player; theirs forgotten with the link.
++    {
++        static bool sent_open = false, was_linked = false;
++        static uint32_t sent_at = 0;
++        const bool open = game::ui_menu_open();
++        if (connected && (open != sent_open || !was_linked || now - sent_at >= kMenuResendMs)) {
++            const uint8_t b = open ? 1 : 0;
++            send(kMenu, &b, 1);
++            sent_open = open;
++            sent_at = now;
++        }
++        if (!connected && g_partner_menu.exchange(false)) aggro_set_partner_in_menu(false);
++        was_linked = connected;
++    }
++
 +    ActivityTick out;
 +    const bool cut = game::cutscene_playing().value_or(false);
 +    boss_note_cutscene(cut);
@@ -5191,10 +5261,10 @@ index 0000000..e8def81
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.h b/upstream/cd-coop-3446/src/mod/net/coop_activity.h
 new file mode 100644
-index 0000000..5b4dbb0
+index 0000000..3191e05
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.h
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,88 @@
 +#pragma once
 +// Co-op+: shared activities (cutscenes and minigames), EventKind::Activity.
 +//
@@ -5251,6 +5321,8 @@ index 0000000..5b4dbb0
 +// [dev] versus_test: one-PC test of versus arm wrestling: a simulated other player in every match of ours, pushing
 +// this many times a second (0 = off).
 +void activity_set_versus_test(int presses_per_s);
++// Co-op+ (T09): the other player is in a menu now (their name tag says so).
++bool activity_partner_in_menu();
 +// [dev] seat_test: in any arm / hand wrestling match against the NPC (no versus, no challenge), the other player's
 +// copy takes the NPC's seat and the NPC is hidden (F9 one-PC test: the echo copy plays our own actions there).
 +void activity_set_seat_test(bool on);
@@ -14272,7 +14344,7 @@ index 911d138..6fc7d00 100644
      std::memcpy(pkt.data() + 3, &len, 2);
      std::memcpy(pkt.data() + 5, b.data(), b.size());
 diff --git a/upstream/cd-coop-3446/src/mod/net/player_hits.cpp b/upstream/cd-coop-3446/src/mod/net/player_hits.cpp
-index f6612e6..3517eed 100644
+index f6612e6..8fcb89a 100644
 --- a/upstream/cd-coop-3446/src/mod/net/player_hits.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/player_hits.cpp
 @@ -1,4 +1,5 @@
@@ -14281,7 +14353,15 @@ index f6612e6..3517eed 100644
  
  #include <windows.h>
  
-@@ -27,12 +28,14 @@ namespace {
+@@ -14,6 +15,7 @@
+ #include <string>
+ 
+ #include "mod/game/actor_lookup.h"
++#include "mod/game/ui_state.h"
+ #include "mod/log.h"
+ #include "mod/net/aggro_test.h"
+ #include "mod/net/enemy_relay.h"
+@@ -27,12 +29,14 @@ namespace {
  
  using Bytes = std::vector<uint8_t>;
  
@@ -14302,7 +14382,7 @@ index f6612e6..3517eed 100644
                                                           // +0x18 source | +0x1C holder | +0x29 source pos |
                                                           // +0x39/+0x41 server ms
  constexpr size_t kBatchSize = 77;
-@@ -46,10 +49,10 @@ constexpr size_t kHitBaseSize = 16;
+@@ -46,10 +50,10 @@ constexpr size_t kHitBaseSize = 16;
  constexpr uint8_t kHitHasTemplates = 1, kHitStaggers = 2;
  constexpr uint32_t kStatHP = 0x000F4240;
  constexpr uint32_t kPuppetPlayer = 0xA010F001;
@@ -14316,7 +14396,7 @@ index f6612e6..3517eed 100644
  constexpr uint64_t kLearnWindowMs = 600;  // a blow on us and its HP loss
  constexpr double kDefaultShare = 0.05;    // unknown attack: 5% of max HP
  
-@@ -192,11 +195,91 @@ std::vector<uint32_t> targets_of(const uint8_t* p, size_t n) {
+@@ -192,11 +196,91 @@ std::vector<uint32_t> targets_of(const uint8_t* p, size_t n) {
  
  }  // namespace
  
@@ -14408,7 +14488,7 @@ index f6612e6..3517eed 100644
  void hits_set_react(bool on, bool lethal) {
      g_react = on;
      g_lethal = lethal;
-@@ -515,13 +598,30 @@ bool die_by_collision(uint32_t own) {
+@@ -515,13 +599,30 @@ bool die_by_collision(uint32_t own) {
      std::memcpy(b + 24, dir, sizeof dir);
      std::memcpy(b + 36, &projectile, 4);
      Bytes pkt(5 + sizeof b);
@@ -14440,6 +14520,15 @@ index f6612e6..3517eed 100644
  void hits_on_event(const proto::GameEvent& ev) {
      if (ev.kind != proto::EventKind::PlayerHit || ev.payload.size() < kHitBaseSize) return;
      const uint32_t own = capture_own_player_key();
+@@ -548,6 +649,8 @@ void hits_on_event(const proto::GameEvent& ev) {
+     float distance = -1.0f;
+     if (hp < 0 || max <= 0) {
+         refused = "our HP is not known yet";
++    } else if (game::ui_menu_open()) {
++        refused = "we are in a menu (our world is paused)";  // Co-op+ (T09)
+     } else if (!is_valid_enemy_copy_key(copy) || !enemy_copy_loaded(copy)) {
+         refused = "its attacker is not a copy of their enemies here";
+     } else {
 diff --git a/upstream/cd-coop-3446/src/mod/net/player_hits.h b/upstream/cd-coop-3446/src/mod/net/player_hits.h
 index 439c402..4e93c6c 100644
 --- a/upstream/cd-coop-3446/src/mod/net/player_hits.h
@@ -18477,7 +18566,7 @@ index 0000000..ec7a6f2
 +
 +}  // namespace cdmp::render::ui
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..9df7ee7 100644
+index 14edc91..8880eb1 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 @@ -11,14 +11,20 @@
@@ -18502,7 +18591,7 @@ index 14edc91..9df7ee7 100644
  constexpr ImU32 kAccent = IM_COL32(230, 70, 60, 255);
  constexpr ImU32 kShadow = IM_COL32(0, 0, 0, 200);
  
-@@ -26,34 +32,20 @@ std::mutex g_mutex;
+@@ -26,34 +32,21 @@ std::mutex g_mutex;
  HudData g_data;
  HudOptions g_options;
  
@@ -18542,11 +18631,12 @@ index 14edc91..9df7ee7 100644
 -    const ImVec2 ds = ImGui::CalcTextSize(dist);
 -    text_shadowed(dl, ImVec2(c.x - ds.x / 2, c.y + 10), IM_COL32(220, 220, 220, 255), dist);
 +    const float frac = d.remote->health_max > 0 ? d.remote->health / d.remote->health_max : -1.0f;
-+    ui::nameplate(dl, p.x, p.y, name, frac, std::format("{:.0f} m", distance), alpha, scale);
++    const std::string sub = d.partner_in_menu ? std::format("{:.0f} m  -  in a menu", distance) : std::format("{:.0f} m", distance);
++    ui::nameplate(dl, p.x, p.y, name, frac, sub, alpha, scale);
  }
  
  }  // namespace
-@@ -68,52 +60,33 @@ void hud_update(HudData data) {
+@@ -68,52 +61,33 @@ void hud_update(HudData data) {
      g_data = std::move(data);
  }
  
@@ -18621,7 +18711,7 @@ index 14edc91..9df7ee7 100644
      const bool en = opt.english;
      if (d.connected) {
          ImGui::Text(en ? "Network: connected to '%s' (%.1f ms)" : "Red: conectado a '%s' (%.1f ms)",
-@@ -122,25 +95,7 @@ void hud_draw(float width, float height) {
+@@ -122,25 +96,7 @@ void hud_draw(float width, float height) {
          ImGui::TextColored(ImVec4(1, 0.8f, 0.3f, 1),
                             en ? "Network: looking for the other player..." : "Red: buscando al otro jugador...");
      }
@@ -18648,7 +18738,7 @@ index 14edc91..9df7ee7 100644
      if (!d.peer_problem.empty()) {
          // In English from the session; the essential part is the instruction.
          ImGui::TextColored(ImVec4(1, 0.35f, 0.3f, 1), en ? "Different mod versions: both of you update"
-@@ -153,14 +108,14 @@ void hud_draw(float width, float height) {
+@@ -153,14 +109,14 @@ void hud_draw(float width, float height) {
      } else {
          ImGui::TextDisabled(en ? "You: %s" : "Tú: %s", d.local_status.c_str());
      }
@@ -18666,7 +18756,7 @@ index 14edc91..9df7ee7 100644
  
      // The room code, ALWAYS shown -- with the code when we have one, and an explicit
      // "no code" plus the reason when we do not.
-@@ -189,19 +144,157 @@ void hud_draw(float width, float height) {
+@@ -189,19 +145,157 @@ void hud_draw(float width, float height) {
          // read a file to find out what went wrong.
          ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
      }
@@ -18828,7 +18918,7 @@ index 14edc91..9df7ee7 100644
      if (d.local) {
          const proto::Vec3 chest{d.local->position.x, d.local->position.y + 1.2f,
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.h b/upstream/cd-coop-3446/src/mod/render/hud.h
-index 532564a..3210cf1 100644
+index 532564a..9b5b1b4 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.h
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.h
 @@ -29,6 +29,23 @@ struct HudData {
@@ -18855,7 +18945,7 @@ index 532564a..3210cf1 100644
      // Boss fight (boss_safe.h): the stage boss's health, read from the relayed
      // copy. The guest has no native boss bar -- the stage that draws it exists
      // only in the host's world -- so we draw our own.
-@@ -37,11 +54,28 @@ struct HudData {
+@@ -37,11 +54,29 @@ struct HudData {
      float boss_hp = 0.0f;
      float boss_hp_max = 0.0f;
      bool boss_cutscene = false;
@@ -18868,6 +18958,7 @@ index 532564a..3210cf1 100644
 +    float duel_title_alpha = 0;
 +    float duel_out_left_s = -1;
 +    // Co-op+ rock-paper-scissors duel: the hands over the two characters (coop_activity.h RpsView).
++    bool partner_in_menu = false;  // Co-op+ (T09): their name tag says "in a menu"
 +    bool rps_on = false;
 +    int rps_ours = -1, rps_theirs = -1;
 +    bool rps_ours_picked = false, rps_theirs_picked = false;

@@ -19,6 +19,7 @@
 #include "mod/net/coop_duel.h"
 #include "mod/net/coop_hunt.h"
 #include "mod/net/coop_sync.h"
+#include "mod/net/aggro_test.h"
 #include "mod/net/party_quests.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/puppet_visibility.h"
@@ -36,7 +37,15 @@ constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the N
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16 };
+
+// Co-op+ (T09): a player in a menu (map, inventory, pause...) has their own world paused, while the other player's
+// world goes on with their character standing in it. So: each side tells the other when it opens / closes a menu
+// (kMenu: u8 open, again every kMenuResendMs); the other side's enemies leave that character alone meanwhile
+// (aggro_set_partner_in_menu) and its name tag says "in a menu"; and blows that reach us while we are in a menu
+// are not applied (player_hits.cpp).
+constexpr uint32_t kMenuResendMs = 3000;
+std::atomic<bool> g_partner_menu{false};
 
 // Versus arm wrestling (D35): while both players are in a match, the host owns one gauge,
 // 50 + kPushGain x (host's E presses - guest's E presses), clamped to 0..100, and writes it into its game every tick;
@@ -293,6 +302,7 @@ void activity_send(uint8_t type, const std::vector<uint8_t>& data) { send(static
 
 void activity_set_skip_test(bool on) { g_skip_test = on; }
 void activity_set_versus_test(int presses_per_s) { g_versus_test_rate = presses_per_s; }
+bool activity_partner_in_menu() { return g_partner_menu.load(); }
 void activity_set_seat_test(bool on) { g_seat_test = on; }
 
 namespace {
@@ -736,6 +746,15 @@ void activity_on_event(const std::vector<uint8_t>& p) {
         case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)
         case kDuel:              // coop_duel.h, below
         case kQuest:             // party_quests.h, below
+        case kMenu:
+            if (p.size() >= 6) {
+                const bool open = p[5] != 0;
+                if (g_partner_menu.exchange(open) != open) {
+                    aggro_set_partner_in_menu(open);
+                    log::info("Activity: the other player {} a menu", open ? "is in" : "left");
+                }
+            }
+            break;
         case kHunt:              // coop_hunt.h, below
         case 15:                 // coop_sync.h, below
             break;
@@ -790,6 +809,21 @@ void activity_on_event(const std::vector<uint8_t>& p) {
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
                            std::optional<std::array<float, 3>> partner, const std::string& partner_name,
                            uint32_t now) {
+    // Co-op+ (T09): our menu state to the other player; theirs forgotten with the link.
+    {
+        static bool sent_open = false, was_linked = false;
+        static uint32_t sent_at = 0;
+        const bool open = game::ui_menu_open();
+        if (connected && (open != sent_open || !was_linked || now - sent_at >= kMenuResendMs)) {
+            const uint8_t b = open ? 1 : 0;
+            send(kMenu, &b, 1);
+            sent_open = open;
+            sent_at = now;
+        }
+        if (!connected && g_partner_menu.exchange(false)) aggro_set_partner_in_menu(false);
+        was_linked = connected;
+    }
+
     ActivityTick out;
     const bool cut = game::cutscene_playing().value_or(false);
     boss_note_cutscene(cut);

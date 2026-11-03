@@ -96,6 +96,9 @@ PLAYING TOGETHER
 - Other minigames (contests, card games...): each of you plays in your own world;
   your friend sees "<name> is playing a minigame" and when you finish.
 - Mounts: your friend sees you ride your horse, and sees your flying mount too.
+- Menus: opening the map, inventory or pause menu pauses only YOUR world. Meanwhile
+  your character stands still in your friend's world, their enemies leave it
+  alone, nothing can hurt you, and your name tag on their screen says "in a menu".
 
 Privacy: by default any Steam friend who plays with Co-op+ can "Join Game" into your
 world. To allow only friends you invite, open the game's bin64\cdmp.ini and set

@@ -11,6 +11,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T06: desync detection: enemy-copy digests every 10 s (3 off in a row = automatic resync), the friend's character reloaded if drawn 40+ m from where they are, and Shift+F8 (pad View + RB) resyncs by hand; a rare launch where the crash guards did not install (shared enemies off all session) now retries.
 - T07: leaving (Ctrl+F2) now removes the copies of your friend's enemies, their waypoint pin and their name tag (they stayed before); Ctrl+F2 also works for room-code guests.
 - T08: a state audit checks 30 s after every session that nothing of it is left in your world (log line); fixed what it found: enemy copies sent after a lost link, the host's weather kept after leaving, and co-op switching itself off for the rest of the game when the network could not restart.
+- T09: menus: while you are in the map, inventory or pause menu your friend's enemies leave your character alone, no blow reaches you, and their name tag for you says "in a menu".
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

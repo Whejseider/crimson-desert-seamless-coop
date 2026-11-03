@@ -90,3 +90,14 @@ a minigame without focus; normal play does not pause.
   session: clean (...)" or "LEFT BEHIND: ..."). audit3: A (zone copies + host rain, partner crashes), B (duel running,
   partner crashes), C (plain session, Ctrl+F2): all three clean. The save is never written by Co-op+; savecheck after
   every session confirms the user's saves equal the 2026-11-01 backup.
+- Pushed T08 (a16ff4a).
+
+## T09 -- Menus and pause
+Plan: measure (menus while connected: drops? bursts? stuck?); define: a menu pauses only your own world; the other
+world goes on with your character in it -> tell the partner (Activity 16, resend 3 s), their enemies do not target
+you (IsTargetable hook), no relayed blow is applied to you while in a menu, name tag "in a menu"; test all menus.
+Findings: menu1 (map / inventory / pause 20 s each): no silence removal, no link loss, one spawn, copy fine after each.
+Done: menu2 (map open inside the camp): "the other player is in a menu" .. "left a menu", aggro "copy 0 attacks"
+while in it, first hit 1 s after closing; menu3: all three menus detected (enter + leave). [~]: the partner's view
+needs two PCs (PLAYTEST 3.5b). Note: in menu2 the bandits killed Kliff after the map, so inventory / pause there
+landed on the death screen (re-run out of combat).

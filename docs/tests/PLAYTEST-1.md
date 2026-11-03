@@ -64,6 +64,7 @@ when, which Ctrl+F12 mark). A step that could not be tried: leave both boxes emp
 | 3.3 | B hits a bandit. | Its health drops on A's screen too; B can finish it; it dies on both screens. | [ ] | [ ] | |
 | 3.4 | Let the bandits attack. | They attack either player (usually whoever hit them last); their blows hurt B for real. | [ ] | [ ] | |
 | 3.5 | Party scaling: A notes how many hits a bandit takes with B connected and alone (B leaves for a moment). | Noticeably tougher with B in (about x1.5 health; the bar dips and partly refills after each blow). | [ ] | [ ] | |
+| 3.5b | Menus mid-fight: while both fight bandits, A opens the map for 20 s, then the inventory, then the pause menu. | On B's screen A stands still with "in a menu" under the name; the bandits turn to B and leave A alone; A takes no damage while in a menu; B's game never pauses or stutters; after A closes the menu both carry on. | [ ] | [ ] | |
 | 3.6 | **No friendly fire:** A and B swing at each other outside a duel. | Nobody loses health. | [ ] | [ ] | |
 | 3.7 | **Loot for the guest:** after a kill B helped with, B loots the body. | B gets its own drop. A loots the same body: A gets its own. Note what each got. | [ ] | [ ] | |
 | 3.8 | Kill one bandit only B hits (A does not touch it). B loots it. | B gets a drop; note whether B got experience / skill points as alone. | [ ] | [ ] | |
