@@ -115,7 +115,7 @@ Steam join/invite/leave and room code, friends-only vs invite-only, join/leave n
 - [ ] **T37 — Crash and log reporting.** Extend Diagnose into a one-click "copy report" bundle with personal info redacted.
 - [ ] **T38 — Post-patch playbook.** A doc and script to quickly find which hooks or offsets broke after a game update and verify the fixes.
 - [ ] **T39 — Story spoiler protection.** Optional setting so the guest isn't pushed ahead of or spoiled on the host's story.
-- [ ] **T40 — In-game difficulty controls.** Change party scaling multipliers from the F8 panel instead of only `scaling.toml`.
+- [x] **T40 — In-game difficulty controls.** Change party scaling multipliers from the F8 panel instead of only `scaling.toml`.
 
 ### P3 — Fun and stretch (only after everything above)
 

@@ -319,3 +319,11 @@ uses that key too" (log + notice); F8, Down, Right -> "Settings: Loot of shared 
 loot_mode=host_only; Down x7, Right x2 -> enemy health x1.5 -> x1.7, ini panel_health_2p=1.7; panel screenshot shows
 the block with the gold selection. Shipped ini restored after. README. [x]
 Not done: a full in-game key-capture rebinding UI (keys are rebound in the ini; the panel says where).
+- Pushed T30 (522a3db).
+
+## T40 -- In-game difficulty controls (done with T30)
+Plan: two settings rows for the 2-player multipliers (regular, boss), live through new party_scaling setters
+(scaling_set_enabled, scaling_set_2p), stored as [scaling] panel_health_2p / panel_boss_health_2p, read at start
+after scaling.toml so the panel's value wins; the on/off switch too.
+Done: settings_test: enemy health x1.5 -> x1.7 live ("Settings:   Enemy health with a guest = x1.7"), saved in the
+ini. 3-4 player values stay in scaling.toml (2 players only today). Applied on the host (it is the host's world). [x]
