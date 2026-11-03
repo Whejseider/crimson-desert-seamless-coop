@@ -397,3 +397,18 @@ Done: killfeed_test: KillCheatReq on 6 animals near the start: "Kill feed: we to
 Not done: per-player lock-on (the game's lock-on is local; nothing to sync found), status-effect check, enemy names.
 [~] PLAYTEST 3b.
 - Pushed T36 (9ddd859).
+- Pushed T37 (a069441).
+
+## T37 -- Crash and log reporting
+Plan: Diagnose writes the report as before plus a .zip (report.txt + the last 50 000 lines of cdmp.log) and puts the
+.zip on the clipboard (Set-Clipboard -Path); everything passes a Redact step: Steam names learnt from the log's own
+lines ("playing as", "connected to", "while '...' is in the session", player_name=) -> <player1>/<player2>,
+SteamID64 -> <steamid>, lobby ids, room codes, C:\Users\<name>, %USERNAME% / %COMPUTERNAME%, IPv4 (not 127.x), e-mails.
+-NoRedact keeps everything.
+Findings while testing (tools/test-diagnose-redact.ps1, a fake log full of personal data): (1) Python had turned
+"\b" into backspace characters in my regexes -> SteamID, room code and IP leaked; rewritten from a file. (2) "Room:
+hosting" came out as "Room: <code>" (case-insensitive 7-letter match); codes are upper case, now matched so.
+Done: test: 9/9 secrets gone, game version 1.0.0.3479, coordinates and 127.0.0.1 kept; real install: report + zip
+written, no Windows user / PC name in them. [x]
+(The first T37 commit a069441 missed these notes and the README lines: a Python escape error; added in the next.)
+- Pushed T37 (a069441 code, notes in the next commit).

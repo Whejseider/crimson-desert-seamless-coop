@@ -36,7 +36,9 @@ To remove it: double-click "Uninstall Co-op+.cmd" (game closed). It removes exac
 the files it installed and puts back any *.before-coopplus file.
 To play without it for a while: "Vanilla mode on-off.cmd" switches Co-op+ off and on
 again, keeping your settings.
-Something wrong? "Diagnose Co-op+.cmd" writes a report to your Desktop to send along.
+Something wrong? "Diagnose Co-op+.cmd" writes a report and a .zip (report + log) to
+your Desktop and puts the .zip on the clipboard: paste it (Ctrl+V) into a message.
+Steam names and ids, your Windows user and PC name and IP addresses are taken out.
 
 
 MANUAL INSTALL / VORTEX / MOD ORGANIZER (instead of the installer)

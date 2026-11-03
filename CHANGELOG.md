@@ -39,6 +39,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T34: player colours - host gold with a diamond mark, guest blue with a round mark, on the name tag, partner frame and chat; a colour-blind-safe pair and the friend's map pin colour in the F8 settings.
 - T35: emotes and resting - the game has no emote system to sync (none found); sitting and campfire rest are the game's own actions, which the copy already replays, and the host's Wait moves both clocks (time sync); two-PC step PLAYTEST 2.7e.
 - T36: kill feed on the right of the screen for both players' kills (animal names from the hunting table, "an enemy" otherwise); stagger and knockback come from real hits already; lock-on and status effects left to the two-PC test.
+- T37: Diagnose makes a one-click bundle (report + whole log, zipped, on the clipboard) with Steam names, SteamIDs, lobby ids, room codes, Windows user / PC name, IPs and e-mails taken out; tools/test-diagnose-redact.ps1 checks it.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

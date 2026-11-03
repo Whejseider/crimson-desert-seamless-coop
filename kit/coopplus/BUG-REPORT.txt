@@ -2,7 +2,8 @@ CRIMSON DESERT SEAMLESS CO-OP+ - BUG REPORT
 ===========================================
 Copy this into your report (Nexus "Bugs" tab or a message) and fill it in.
 The fastest way to get the logs: double-click "Diagnose Co-op+.cmd" (game closed).
-It writes a report to your Desktop with cdmp.log and the settings in it.
+It writes a report and a .zip (report + the whole cdmp.log) to your Desktop and puts the
+.zip on the clipboard, with Steam names and ids, your Windows user name and IPs taken out.
 
 1. Co-op+ version (the zip name, or the first line of bin64\cdmp.log):
 
