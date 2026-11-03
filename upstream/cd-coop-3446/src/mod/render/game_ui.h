@@ -51,6 +51,9 @@ void boss_bar(float screen_w, float screen_h, const std::string& name, float fra
 void set_partner(unsigned int colour, bool round_mark);
 unsigned int partner_colour();
 
+// Co-op+ (T36): the kill feed, right-aligned under the top right corner; the friend's lines in their colour.
+void kill_feed(float screen_w, float screen_h, const std::vector<std::string>& lines, const std::vector<bool>& ours);
+
 // Co-op+ (T24): recent chat lines on the left, above the partner frame, in the game's serif with a soft shadow.
 void chat_log(float screen_w, float screen_h, const std::vector<std::string>& lines);
 

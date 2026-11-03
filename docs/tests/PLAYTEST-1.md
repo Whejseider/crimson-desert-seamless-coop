@@ -79,6 +79,14 @@ when, which Ctrl+F12 mark). A step that could not be tried: leave both boxes emp
 | 3.8d | World event: when one starts near A (bounty hunters while A is wanted, reinforcements at a fort, a camp patrol), note it. | B gets "World event near <A>" with the event's name; the event's fighters near A appear for B and can be fought together. | [ ] | [ ] | |
 | 3.9 | Chests: both open "the same" chest. | Both get the contents (each in their own world). | [ ] | [ ] | |
 
+### 3b. Combat feedback (T36)
+
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 3b.1 | B kills a bandit, then an animal, near A. | A sees on the right "<B> defeated an enemy" / "<B> defeated a Deer" in B's colour; B sees "You defeated ...". | [ ] | [ ] | |
+| 3b.2 | B hits an enemy with a heavy attack and a kick while A watches. | The enemy staggers / is knocked back on A's screen as on B's. | [ ] | [ ] | |
+| 3b.3 | B lights an enemy on fire / poisons it (if B has such a skill or arrow). | A sees the effect on the enemy. Note what does not show. | [ ] | [ ] | |
+
 ## 4. Deaths
 
 On one PC the game's own death screen never appears once the other player's character has been loaded; Co-op+ then

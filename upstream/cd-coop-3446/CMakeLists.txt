@@ -131,6 +131,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/coop_travel.cpp
     src/mod/net/coop_chat.cpp
     src/mod/settings_menu.cpp
+    src/mod/net/kill_feed.cpp
     src/mod/net/weather_sync.cpp
     src/mod/net/stage_cinema.cpp
     src/mod/net/dev_watch.cpp

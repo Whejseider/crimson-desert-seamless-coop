@@ -16,7 +16,9 @@ struct HudData {
     std::string peer_name;
     float loss_pct = -1;      // Co-op+ (T32): packet loss over the last seconds (< 0 = not known yet)
     bool net_hud = false;
-    bool we_host = false;     // Co-op+ (T34): the other player is our guest     // Co-op+ (T32): the small ping / loss readout on screen ([overlay] net_hud)
+    bool we_host = false;
+    std::vector<std::string> kill_feed;  // Co-op+ (T36): recent kills, oldest first
+    std::vector<bool> kill_feed_ours;     // Co-op+ (T34): the other player is our guest     // Co-op+ (T32): the small ping / loss readout on screen ([overlay] net_hud)
     float rtt_ms = 0.0f;
     std::optional<game::PlayerSnapshot> local;
     std::string local_status;

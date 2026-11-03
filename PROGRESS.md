@@ -383,3 +383,16 @@ them. Wait changes the time of day: the host's Wait moves the guest's clock thro
 own Wait is overridden by the host's time, which is the defined rule (time follows the host).
 Nothing new to build without an emote system. Not tested on one PC (no campfire near the test saves; the echo copy
 mirrors our own actions anyway). [~] PLAYTEST 2.7e.
+- Pushed T35 (a649bcd).
+
+## T36 -- Combat feedback sync
+Plan: what the partner's hits do to enemies is already real in the host's world (guest_hits sends the game's own
+DoFrameEvent / damage, with stagger, T17), so stagger, knockback and the enemy's reactions are the game's; the game
+shows no damage numbers. Missing: a kill feed. Built: net/kill_feed.cpp: our kill = a death notice naming us as the
+killer, or one of our blows on the victim in the last 3 s (the hunting contest's rule); a line "You defeated a Goose"
+and activity type 23 with the name, so the friend sees "<name> defeated a Goose" in our colour (right side, 6 s, 4
+lines). Names: the hunting table's animals, "an enemy" otherwise (no enemy name table yet).
+Done: killfeed_test: KillCheatReq on 6 animals near the start: "Kill feed: we took down 0xB010007F (Goose)" x4,
+"(an enemy)", "(Scolt)"; the screen shows the echoed lines "cdmp_peer (relay) defeated a Goose ..." in gold.
+Not done: per-player lock-on (the game's lock-on is local; nothing to sync found), status-effect check, enemy names.
+[~] PLAYTEST 3b.

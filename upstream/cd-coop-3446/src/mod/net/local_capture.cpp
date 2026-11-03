@@ -3,6 +3,7 @@
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
 #include "mod/net/coop_hunt.h"
+#include "mod/net/kill_feed.h"
 #include "mod/net/wire_layout.h"
 
 #include <windows.h>
@@ -514,7 +515,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     save_guard_observe_s2c(packet, size);  // Co-op+
     cinema_observe_s2c(packet, size);      // Co-op+
     party_quests_observe_s2c(packet, size);  // Co-op+ party journal
-    hunt_observe_s2c(packet, size);          // Co-op+ hunting contest: our kills
+    hunt_observe_s2c(packet, size);
+    kill_feed_observe_s2c(packet, size);     // Co-op+ (T36): the kill feed          // Co-op+ hunting contest: our kills
     activity_observe_s2c(packet, size);      // Co-op+ (T16): we became wanted
     uint16_t op = 0;
     if (size >= 5) std::memcpy(&op, packet, 2);

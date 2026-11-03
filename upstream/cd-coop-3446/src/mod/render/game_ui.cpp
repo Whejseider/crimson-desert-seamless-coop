@@ -353,6 +353,19 @@ void set_partner(unsigned int colour, bool round_mark) {
 
 unsigned int partner_colour() { return g_partner; }
 
+void kill_feed(float sw, float sh, const std::vector<std::string>& lines, const std::vector<bool>& ours) {
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    const float k = std::max(0.6f, sh / 1080.0f);
+    const float ls = 18 * k;
+    float y = sh * 0.20f;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const float x = sw - 40 * k - text_w(g_serif, ls, lines[i]);
+        text(dl, g_serif, ls, x + 1, y + 1, IM_COL32(0, 0, 0, 200), lines[i]);
+        text(dl, g_serif, ls, x, y, i < ours.size() && ours[i] ? kText : g_partner, lines[i]);
+        y += ls * 1.35f;
+    }
+}
+
 void chat_log(float sw, float sh, const std::vector<std::string>& lines) {
     ImDrawList* dl = ImGui::GetForegroundDrawList();
     const float k = std::max(0.6f, sh / 1080.0f);

@@ -21,6 +21,9 @@ inline constexpr uint32_t kHuntStage = 0xD0E10002;  // the challenge "stage" of 
 // Our server's messages: our kills.
 void hunt_observe_s2c(const uint8_t* packet, size_t size);
 
+// Co-op+ (T36): the game animal's name for a variant ("Deer"), nullptr when it is not one of the contest's animals.
+const char* hunt_animal_name(uint32_t variant);
+
 // Activity type 14 from the other player.
 void hunt_on_event(const uint8_t* data, size_t n);
 

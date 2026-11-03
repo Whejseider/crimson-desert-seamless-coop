@@ -87,6 +87,11 @@ bool hunt_dev_kill() {
     return false;
 }
 
+const char* hunt_animal_name(uint32_t variant) {
+    const Animal* a = animal(variant);
+    return a ? a->name : nullptr;
+}
+
 void hunt_observe_s2c(const uint8_t* packet, size_t size) {
     if (size < 5 + 8) return;
     uint16_t op;

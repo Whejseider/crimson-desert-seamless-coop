@@ -192,6 +192,8 @@ WHAT WORKS / WHAT DOESN'T (YET)
   partly refills after each blow: that is the extra toughness. Off: enabled=0
   under [scaling] in cdmp.ini.
 - No friendly fire: you cannot hurt each other.
+- Kill feed: when either of you takes down an enemy or an animal, a short line on the
+  right says so ("<name> defeated a Deer"), your friend's in their colour.
 - Your friend cannot harm your world: they never touch your townsfolk, items or
   story objects (each of you plays in your own world), and when their blow finishes
   one of your enemies it counts as YOUR kill (your quest, your loot). Bosses are

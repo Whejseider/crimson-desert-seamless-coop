@@ -47,6 +47,7 @@
 #include "mod/net/coop_revive.h"
 #include "mod/net/coop_travel.h"
 #include "mod/net/coop_chat.h"
+#include "mod/net/kill_feed.h"
 #include "mod/net/state_audit.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
@@ -898,6 +899,10 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             hud.chat_input = chat_input;
             hud.chat_quick = chat_quick;
             hud.chat_log = chat_log;
+            for (auto& l : net::kill_feed_tick(connected, session.peer_name(), now)) {  // Co-op+ (T36)
+                hud.kill_feed.push_back(std::move(l.text));
+                hud.kill_feed_ours.push_back(l.ours);
+            }
             hud.revive_prompt = static_cast<uint8_t>(revive_prompt);
             if (cfg.dev_ui_preview == 1) hud.revive_prompt = 1;  // [dev] ui_preview: the death screen
             // In co-op, put the marker on the character actually drawn (it

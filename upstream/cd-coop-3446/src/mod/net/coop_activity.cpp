@@ -23,6 +23,7 @@
 #include "mod/net/coop_revive.h"
 #include "mod/net/coop_travel.h"
 #include "mod/net/coop_chat.h"
+#include "mod/net/kill_feed.h"
 #include "mod/settings_menu.h"
 #include "mod/net/aggro_test.h"
 #include "mod/net/enemy_relay.h"
@@ -44,7 +45,7 @@ constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the N
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22, kKill = 23 };
 
 // Co-op+ (T22): world events (reinforcements, bounty hunters, camp and outpost activity) are stages our server starts
 // (PrepareSequencerAck); their fighters are enemies, which the guest already gets as copies near the host. What the
@@ -852,6 +853,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
                 if (const char* n = event_name(key)) g_toasts.push_back(std::string("World event near {}\n") + n);
             }
             break;
+        case kKill:              // kill_feed.h, below
         case kChat:              // coop_chat.h, below
         case kTravel:            // coop_travel.h, below
         case kReviveYou:         // coop_revive.h, below
@@ -907,6 +909,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
     if (p[4] == kReviveYou) revive_partner_on_event();              // coop_revive.h
     if (p[4] == kTravel) travel_on_event(p.data() + 5, p.size() - 5);  // coop_travel.h
     if (p[4] == kChat) chat_on_event(p.data() + 5, p.size() - 5);      // coop_chat.h
+    if (p[4] == kKill) kill_feed_on_event(p.data() + 5, p.size() - 5); // kill_feed.h
 }
 
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
