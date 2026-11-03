@@ -408,6 +408,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     }
 
     const uint32_t state_interval = 1000 / cfg.send_rate_hz;
+    bool reduced_rate = false;  // Co-op+ (T11): poor link, half rate
     uint32_t last_state = 0;
     uint32_t last_report = now_ms();
     uint32_t last_room_attempt = 0;  // host lobby retry, see the loop below
@@ -728,7 +729,26 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             coop->update(pos, rot, now);
         }
 
-        if (now - last_state >= state_interval) {
+        // Co-op+ (T11): a poor link (rtt over 250 ms or the reliable channel backing up) halves the state rate
+        // before anything else is given up; back to full rate once it is good again (rtt under 150 ms).
+        {
+            static bool reduced = false;
+            static uint32_t reduced_since = 0;  // held at least 5 s (a burst of enemy copies does not flap it)
+            const auto& nst = session.stats();
+            const size_t pending = session.reliable_pending();
+            const bool poor = nst.rtt_ms > 250.0f || pending > 32;
+            const bool good = nst.rtt_ms < 150.0f && pending < 8;
+            if (!reduced && poor) {
+                reduced = true;
+                reduced_since = now;
+                log::info("Net: poor link (rtt {:.0f} ms, {} reliable pending): state updates at half rate", nst.rtt_ms, pending);
+            } else if (reduced && good && now - reduced_since >= 5000) {
+                reduced = false;
+                log::info("Net: link good again (rtt {:.0f} ms): state updates at full rate", nst.rtt_ms);
+            }
+            reduced_rate = reduced;
+        }
+        if (now - last_state >= (reduced_rate ? state_interval * 2 : state_interval)) {
             last_state = now;
             if (auto state = local.sample(now)) session.send_local_state(*state, now);
 
@@ -845,10 +865,17 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     last_bt = std::move(bt);
                 }
             }
-            log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | remote states {} | "
-                      "last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
-                      state, st.sent, st.received, st.rejected, st.rtt_ms, st.remote_states, remote,
-                      session.reliable_pending(), session.reliable_refused(), st.unknown_kinds,
+            // Co-op+ (T11): bandwidth since the last line.
+            static uint64_t last_out = 0, last_in = 0;
+            static uint32_t last_bw_ms = 0;
+            const uint32_t bw_span = std::max<uint32_t>(1, now_ms() - last_bw_ms);
+            const double kbps_out = static_cast<double>(st.bytes_sent - last_out) / bw_span,
+                         kbps_in = static_cast<double>(st.bytes_received - last_in) / bw_span;
+            last_out = st.bytes_sent, last_in = st.bytes_received, last_bw_ms = now_ms();
+            log::info("Net: {} | sent {} recv {} rejected {} | rtt {:.1f} ms | out {:.1f} kB/s in {:.1f} kB/s | "
+                      "remote states {} | last remote {} | reliable pending {} refused {} | unknown kinds {} | {}",
+                      state, st.sent, st.received, st.rejected, st.rtt_ms, kbps_out, kbps_in, st.remote_states,
+                      remote, session.reliable_pending(), session.reliable_refused(), st.unknown_kinds,
                       transport->status());
             if (!session.peer_problem().empty()) log::warn("Net: {}", session.peer_problem());
             log::info("Local: {}", local.describe());

@@ -13,6 +13,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T08: a state audit checks 30 s after every session that nothing of it is left in your world (log line); fixed what it found: enemy copies sent after a lost link, the host's weather kept after leaving, and co-op switching itself off for the rest of the game when the network could not restart.
 - T09: menus: while you are in the map, inventory or pause menu your friend's enemies leave your character alone, no blow reaches you, and their name tag for you says "in a menu".
 - T10: loot rules for kills you share: [coop] loot_mode = per_player (each their own drop, default), host_only, or first_come (the first to loot takes it, the other's body is emptied). Experience for the guest from those kills is not possible yet (BLOCKED.md).
+- T11: network stress tested (up to 300 ms + 15 % loss and 30 % loss, 13 enemy copies): no crash or drop, no FPS cost, 5-10 kB/s; a poor link now halves the update rate first; bandwidth shown in the log (docs/tests/stress-report.md).
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

@@ -106,6 +106,7 @@ bool ClientSession::versions_match(const std::string& name, uint32_t build, cons
 }
 
 void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms) {
+    stats_.bytes_received += bytes.size();
     auto packet = proto::decode(bytes);
     if (!packet) {
         ++stats_.rejected;
@@ -228,7 +229,9 @@ void ClientSession::send(proto::Body body, uint32_t now_ms) {
     packet.seq = next_seq_++;
     packet.send_ms = now_ms;
     packet.body = std::move(body);
-    send_fn_(proto::encode(packet));
+    const std::vector<uint8_t> bytes = proto::encode(packet);
+    stats_.bytes_sent += bytes.size();
+    send_fn_(bytes);
     ++stats_.sent;
 }
 

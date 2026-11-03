@@ -113,3 +113,9 @@ Done: loot_mode (config, loot_twin, enemy_relay, Activity 17 kLooted both ways).
 0.1 s later the guest side emptied copy 0xB01F0017 ("the host looted the original ... first"). Guest-first and the
 real guest need two PCs (PLAYTEST 3.8b). XP: 3 approaches failed -> BLOCKED.md. [~].
 - Pushed T10 (ae487ea).
+- T11 FINDING (stress1): FPS 70 in every phase (no cost), out 4.5-8.6 kB/s, no crash / silence; but enemy copies received in 90 s: good 12, bad (150 ms, 50 jitter, 5% loss) 8, awful (300/100/15%) 0, lossy (100/20/30%) 0. Investigating.
+- T11 correction: the copy count in stress1 was from a rate-limited log line; counted by "copy ... exists" every
+  phase loaded all 12-13 zone copies, 30 % loss included. Not a problem.
+- T11 done: session byte counters + "out/in kB/s" in the Net log line; poor-link half rate (rtt > 250 ms or > 32
+  reliable pending; held 5 s; back under 150 ms / < 8). Report: docs/tests/stress-report.md. Note: the relay answers
+  pings itself, so rtt does not include its simulated delay (the backlog trigger is the one seen on one PC).

@@ -34,6 +34,8 @@ public:
         uint64_t events_received = 0;
         uint64_t reliable_received = 0;
         uint64_t unknown_kinds = 0;  // events / reliable messages of a newer version, dropped
+        uint64_t bytes_sent = 0;      // Co-op+ (T11): datagram bytes, for the bandwidth figures
+        uint64_t bytes_received = 0;
     };
 
     static constexpr uint32_t kHelloRetryMs = 1000;
