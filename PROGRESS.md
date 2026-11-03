@@ -179,3 +179,11 @@ full damage and could still take the enemy to 0 -> now capped at 1 HP. Added [co
 0 = never finish any host enemy) + profile lines (also loot_mode, teammate_revive).
 grief1: no relayed blows landed (Kliff's swings never connected with a copy on one PC), so the clamp itself is for
 the playtest (PLAYTEST 3.5c). [~]
+- Pushed T17 (1a0b9b6).
+
+## T18 -- Trading and gifting  [!] blocked
+Plan: find the giver's remove and the receiver's add requests; transaction with confirmation and a log.
+Findings: reqsizes.py on the item requests (AddMinusItemReq [u32, 8], DiscardItemReq [u16, u16, 8],
+DeleteItemCheatReq [u16, u8], RemoveItemToInventoryReq [u8, u16, u8], CreateItemFromTrItemValueCheatReq: a
+structure); addminus1: AddMinusItemReq +1 / -1 on item 22007 -> no answer, no inventory change. No way to add a
+chosen item on the receiver -> BLOCKED.md (with what would unblock it).

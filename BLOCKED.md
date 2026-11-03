@@ -35,3 +35,21 @@ Shipped instead: each player's bounty stays their own; the other player gets a n
 NORMAL kill with skill XP and loot: VaryStatCheatReq (not VaryStatByAccInputReq) takes the enemy to 1 HP, then
 send_collision() (AttackByCollisionReq of our player) kills it -- guest_hits.cpp "motive 8, skill XP, loot". The same
 two requests on the guest's own hidden native (the loot twin) may give the guest XP; untested.
+
+## T18 -- Trading and gifting
+An item has to leave the giver's save and arrive in the receiver's: two different in-process servers. The giver's
+half is a normal game action (discard); the receiver's half needs a request its server accepts that ADDS a chosen
+item. None found yet.
+Tried:
+1. Field sizes of the item requests, read from their handlers in the exe (build/port3479/reqsizes.py):
+   AddMinusItemReq [u32, 8], DiscardItemReq [u16, u16, 8], DeleteItemCheatReq [u16, u8],
+   RemoveItemToInventoryReq [u8, u16, u8], CreateItemFromTrItemValueCheatReq [] (reads a structure through other
+   calls, not plain fields).
+2. AddMinusItemReq (u32 item | i64 count) +1 and -1 on item 22007 (9 of them in the bandits test save, addminus1):
+   no answer at all, no inventory message, nothing changed.
+3. The loot path that works for shared kills (the receiver's own hidden enemy dies and drops loot) cannot carry a
+   chosen item: the drop is that enemy's own roll.
+What would unblock it: the reader of CreateItemFromTrItemValueCheatReq (its structure), or a capture of any game
+flow that hands the player a chosen item (a quest reward, a shop purchase: BuyItem* requests) to replay with the
+gift's item. Duplication safety would then be: the giver's discard confirmed by its server BEFORE the receiver's
+add is sent, one transaction id, a log of both sides.
