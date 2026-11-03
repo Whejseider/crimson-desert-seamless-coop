@@ -17356,7 +17356,7 @@ index 0000000..ec7a6f2
 +
 +}  // namespace cdmp::render::ui
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..83defa2 100644
+index 14edc91..9df7ee7 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 @@ -11,14 +11,20 @@
@@ -17425,7 +17425,7 @@ index 14edc91..83defa2 100644
  }
  
  }  // namespace
-@@ -68,42 +60,8 @@ void hud_update(HudData data) {
+@@ -68,52 +60,33 @@ void hud_update(HudData data) {
      g_data = std::move(data);
  }
  
@@ -17468,18 +17468,27 @@ index 14edc91..83defa2 100644
 +// The status panel (top left). F8 shows / hides it; the nameplate has its own toggle.
 +void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, const std::string& camera_failure) {
      // ---- status panel
-     ImGui::SetNextWindowPos(ImVec2(20, 20));
-     ImGui::SetNextWindowBgAlpha(0.55f);
-@@ -111,9 +69,19 @@ void hud_draw(float width, float height) {
+-    ImGui::SetNextWindowPos(ImVec2(20, 20));
+-    ImGui::SetNextWindowBgAlpha(0.55f);
++    // Co-op+: the game's panel look (game_ui.h): dark warm backing, gold serif title, a thin light rule.
++    ImGui::SetNextWindowPos(ImVec2(24, 24));
++    ImGui::SetNextWindowBgAlpha(0.72f);
++    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16, 12));
++    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 5));
+     ImGui::Begin("cdmp", nullptr,
                   ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
                       ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
                       ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
 -    ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.25f, 1), "Crimson Desert Multiplayer %s", CDMP_VERSION);
-+    ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.25f, 1), "Crimson Desert Seamless Co-op+ (alpha)");
-     ImGui::SameLine();
-     ImGui::TextDisabled("[F8]");
+-    ImGui::SameLine();
+-    ImGui::TextDisabled("[F8]");
++    ImGui::PopStyleVar(2);
++    if (ui::serif_bold()) ImGui::PushFont(ui::serif_bold(), 24.0f);
++    ImGui::TextColored(ImVec4(0.91f, 0.78f, 0.51f, 1), "Seamless Co-op");
++    if (ui::serif_bold()) ImGui::PopFont();
 +    // GPL credit, always visible with the panel: the co-op engine is theirs.
-+    ImGui::TextDisabled("built on cdmp %s by ByJunter, port by nouzert1", CDMP_VERSION);
++    ImGui::TextDisabled("Co-op+ alpha, built on cdmp %s by ByJunter, port by nouzert1", CDMP_VERSION);
++    ImGui::Separator();
 +    if (!opt.build_problem.empty()) {
 +        // Co-op+: an unsupported game build. Nothing else on the panel matters.
 +        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 30.0f);
@@ -17491,7 +17500,7 @@ index 14edc91..83defa2 100644
      const bool en = opt.english;
      if (d.connected) {
          ImGui::Text(en ? "Network: connected to '%s' (%.1f ms)" : "Red: conectado a '%s' (%.1f ms)",
-@@ -122,25 +90,7 @@ void hud_draw(float width, float height) {
+@@ -122,25 +95,7 @@ void hud_draw(float width, float height) {
          ImGui::TextColored(ImVec4(1, 0.8f, 0.3f, 1),
                             en ? "Network: looking for the other player..." : "Red: buscando al otro jugador...");
      }
@@ -17518,7 +17527,7 @@ index 14edc91..83defa2 100644
      if (!d.peer_problem.empty()) {
          // In English from the session; the essential part is the instruction.
          ImGui::TextColored(ImVec4(1, 0.35f, 0.3f, 1), en ? "Different mod versions: both of you update"
-@@ -153,14 +103,14 @@ void hud_draw(float width, float height) {
+@@ -153,14 +108,14 @@ void hud_draw(float width, float height) {
      } else {
          ImGui::TextDisabled(en ? "You: %s" : "Tú: %s", d.local_status.c_str());
      }
@@ -17536,14 +17545,16 @@ index 14edc91..83defa2 100644
  
      // The room code, ALWAYS shown -- with the code when we have one, and an explicit
      // "no code" plus the reason when we do not.
-@@ -189,19 +139,157 @@ void hud_draw(float width, float height) {
+@@ -189,19 +144,157 @@ void hud_draw(float width, float height) {
          // read a file to find out what went wrong.
          ImGui::TextDisabled(en ? "(no code: %s)" : "(sin codigo: %s)", d.room_status.c_str());
      }
 +    if (!d.coop_hint.empty()) ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.6f, 1), "%s", d.coop_hint.c_str());
      ImGui::End();
 +}
-+
+ 
+-    // ---- world markers
+-    if (!cam || !cam_world) return;
 +void hud_draw(float width, float height) {
 +    static bool panel_visible = false;  // Co-op+: hidden until F8 / chord + X (the game shows no debug boxes)
 +    static bool plates_visible = true;
@@ -17559,9 +17570,7 @@ index 14edc91..83defa2 100644
 +    if (plates_edge(input::action_down(input::Action::Nameplates, focus))) plates_visible = !plates_visible;
 +    else if (panel_edge(input::action_down(input::Action::Panel, focus))) panel_visible = !panel_visible;
 +    (void)f8_was_down;
- 
--    // ---- world markers
--    if (!cam || !cam_world) return;
++
 +    HudData d;
 +    HudOptions opt;
 +    {

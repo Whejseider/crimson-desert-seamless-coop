@@ -63,17 +63,22 @@ void hud_update(HudData data) {
 // The status panel (top left). F8 shows / hides it; the nameplate has its own toggle.
 void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, const std::string& camera_failure) {
     // ---- status panel
-    ImGui::SetNextWindowPos(ImVec2(20, 20));
-    ImGui::SetNextWindowBgAlpha(0.55f);
+    // Co-op+: the game's panel look (game_ui.h): dark warm backing, gold serif title, a thin light rule.
+    ImGui::SetNextWindowPos(ImVec2(24, 24));
+    ImGui::SetNextWindowBgAlpha(0.72f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16, 12));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 5));
     ImGui::Begin("cdmp", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
                      ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
-    ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.25f, 1), "Crimson Desert Seamless Co-op+ (alpha)");
-    ImGui::SameLine();
-    ImGui::TextDisabled("[F8]");
+    ImGui::PopStyleVar(2);
+    if (ui::serif_bold()) ImGui::PushFont(ui::serif_bold(), 24.0f);
+    ImGui::TextColored(ImVec4(0.91f, 0.78f, 0.51f, 1), "Seamless Co-op");
+    if (ui::serif_bold()) ImGui::PopFont();
     // GPL credit, always visible with the panel: the co-op engine is theirs.
-    ImGui::TextDisabled("built on cdmp %s by ByJunter, port by nouzert1", CDMP_VERSION);
+    ImGui::TextDisabled("Co-op+ alpha, built on cdmp %s by ByJunter, port by nouzert1", CDMP_VERSION);
+    ImGui::Separator();
     if (!opt.build_problem.empty()) {
         // Co-op+: an unsupported game build. Nothing else on the panel matters.
         ImGui::PushTextWrapPos(ImGui::GetFontSize() * 30.0f);
