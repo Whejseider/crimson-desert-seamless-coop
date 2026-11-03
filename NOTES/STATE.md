@@ -2,11 +2,14 @@
 
 ## NOW (2026-11-03 01:30) -- read this first
 - Overnight list (memory overnight-list-2026-11-03; user back 2026-11-03 22:00): see LOG "overnight list" entry and
-  D41-D44. Installed: dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+10c0ce8d.zip (Defender clean, hash matches, user
+  D41-D44. Installed: dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+1aea5e6d.zip (Defender clean, hash matches, user
   cdmp.ini kept, test save OUT, SAVES OK). Done + verified on one PC: duel (picker, ring, countdown, hits, yield,
   out-of-bounds, heal, series), RPS hand medallions, party journal notice, hunting contest UI (kills unverified),
   Blackstar ridden (test save dragon-rope) and flown to Wyvern's Cradle (wyvern-egg-dragon). Open: arm wrestling
-  with the friend in the NPC's seat, F8 panel restyle, hatching the egg (pet only in this game version).
+  with the friend in the NPC's seat (FLAGS F9: next = capture SpawnMiniGameCharacterAck + the NPC's transform at
+  the pub at game time ~10:30, override the puppet's transform to the NPC seat, hide the NPC via the copy-visibility
+  flag handler), hatching the egg (pet only in this game version), duel flinch needs one enemy blow taken per
+  session (templates can't be persisted: they name other actors, H5). F8 panel restyled (done).
 
 ## Earlier (2026-11-01 late)
 - FIRST read NOTES/HANDOFF-2026-11-01.md (test kit; its "OPEN BUG" section is now RESOLVED-ish, see its top note).
