@@ -107,7 +107,9 @@ PLAYING TOGETHER
   enemies and bosses get with a guest (x1.0 to x3.0; the host's values count), and
   "Ping and packet loss on screen" (a small readout, top right), "Player colours"
   (the host is gold with a diamond mark, the guest blue with a round mark; or a
-  colour-blind-safe orange / sky blue) and your friend's map pin colour.
+  colour-blind-safe orange / sky blue), your friend's map pin colour, and "My
+  friend's story": hidden = no spoilers (their quest steps you have not reached are
+  not named, and their story scenes are not played in your game).
 - Different keys: in bin64\cdmp.ini add a [keys] section, one line per action, e.g.
     [keys]
     Invite=Ctrl+G

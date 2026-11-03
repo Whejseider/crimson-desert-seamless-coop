@@ -34,4 +34,7 @@ void party_quests_set_test(uint32_t key);
 // The game's name of a mission ("" when unknown).
 std::string party_quests_name(uint32_t key);
 
+// Co-op+ (T39): spoiler guard: the friend's quest notices name only quests we are on or have done.
+void party_quests_set_spoiler_guard(bool on);
+
 }  // namespace cdmp::net

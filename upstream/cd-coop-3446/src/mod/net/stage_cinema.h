@@ -47,6 +47,9 @@ uint32_t cinema_minigame_near(const std::array<float, 3>& pos, float max_m, cons
 // [coop] stage_cinema (default on).
 void cinema_set_enabled(bool on);
 
+// Co-op+ (T39): spoiler guard: the other player's story scenes are not started in our game (their notice still is).
+void cinema_set_spoiler_guard(bool on);
+
 // [dev] cinema_test: one-PC test: 3 s into each of our own stage cutscenes, start a copy of that stage as if the
 // host had sent it (shows whether a second copy at the same branch plays, and that ending it cleans up).
 void cinema_set_test(bool on);

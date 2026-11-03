@@ -15,7 +15,9 @@
 #include "mod/net/guest_hits.h"
 #include "mod/net/loot_twin.h"
 #include "mod/net/party_scaling.h"
+#include "mod/net/party_quests.h"
 #include "mod/net/remote_puppet.h"
+#include "mod/net/stage_cinema.h"
 #include "mod/net/revive_prompt.h"
 #include "mod/net/weather_sync.h"
 
@@ -108,6 +110,17 @@ void init(const std::wstring& ini_path, const Config& cfg, float health_2p, floa
     g_net_hud = GetPrivateProfileIntW(L"overlay", L"net_hud", 0, ini_path.c_str()) != 0;
     g_items.push_back({"Ping and packet loss on screen", L"overlay", L"net_hud", on_off(), one_zero(),
                        g_net_hud ? 0 : 1, true, [](int i) { g_net_hud = i == 0; }});
+    // T39: story spoilers.
+    {
+        const bool guard = GetPrivateProfileIntW(L"coop", L"spoiler_guard", 0, ini_path.c_str()) != 0;
+        net::cinema_set_spoiler_guard(guard);
+        net::party_quests_set_spoiler_guard(guard);
+        g_items.push_back({"My friend's story (scenes, quest names)", L"coop", L"spoiler_guard",
+                           {"shown", "hidden: no spoilers"}, {L"0", L"1"}, guard ? 1 : 0, true, [](int i) {
+                               net::cinema_set_spoiler_guard(i == 1);
+                               net::party_quests_set_spoiler_guard(i == 1);
+                           }});
+    }
     // T34: colours.
     g_colourblind = GetPrivateProfileIntW(L"overlay", L"colourblind", 0, ini_path.c_str()) != 0;
     g_items.push_back({"Player colours", L"overlay", L"colourblind", {"gold host, blue guest", "colour-blind safe"},

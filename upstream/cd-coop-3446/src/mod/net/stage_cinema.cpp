@@ -155,6 +155,9 @@ uint32_t cinema_minigame_near(const std::array<float, 3>& pos, float max_m, cons
 }
 
 void cinema_set_enabled(bool on) { g_enabled = on; }
+
+static std::atomic<bool> g_spoiler_guard{false};  // Co-op+ (T39)
+void cinema_set_spoiler_guard(bool on) { g_spoiler_guard = on; }
 void cinema_set_test(bool on) { g_test = on; }
 
 void cinema_observe_s2c(const uint8_t* packet, size_t size) {
@@ -202,6 +205,10 @@ void cinema_observe_c2s(const uint8_t* packet, size_t size) {
 void cinema_on_event(uint8_t type, const uint8_t* d, size_t size) {
     const uint8_t* end = d + size;
     std::lock_guard lock(g_mutex);
+    if (type == kStart && size >= 4 + 12 && g_spoiler_guard.load()) {
+        log::info("Cinema: the other player's story scene 0x{:08X} not started here (spoiler guard)", rd<uint32_t>(d));
+        return;
+    }
     if (type == kStart && size >= 4 + 12) {
         Copy c;
         c.key = rd<uint32_t>(d);

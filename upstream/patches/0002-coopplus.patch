@@ -4841,10 +4841,10 @@ index a328bc0..5778775 100644
      // order (a resent ApplyBuff could land after its Unapply), so they carry
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..13c0096
+index 0000000..601fa3b
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,1099 @@
+@@ -0,0 +1,1102 @@
 +#include "mod/net/coop_activity.h"
 +#include "mod/input/actions.h"
 +#include "mod/input/pad_input.h"
@@ -5673,6 +5673,9 @@ index 0000000..13c0096
 +        case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)
 +        case kDuel:              // coop_duel.h, below
 +        case kQuest:             // party_quests.h, below
++            break;
++        // Co-op+ (T39 found): kMenu sat right under the list above with no break since T09, so cutscene (7-9), duel
++        // and quest events ran this too and set "the partner is in a menu" from their first data byte.
 +        case kMenu:
 +            if (p.size() >= 6) {
 +                const bool open = p[5] != 0;
@@ -16005,15 +16008,16 @@ index 2146651..5b4f698 100644
  }  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/party_quests.cpp b/upstream/cd-coop-3446/src/mod/net/party_quests.cpp
 new file mode 100644
-index 0000000..a55aa5a
+index 0000000..a3e8bfb
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/party_quests.cpp
-@@ -0,0 +1,140 @@
+@@ -0,0 +1,149 @@
 +#include "mod/net/party_quests.h"
 +
 +#include <windows.h>
 +
 +#include <algorithm>
++#include <atomic>
 +#include <cstring>
 +#include <deque>
 +#include <format>
@@ -16094,6 +16098,9 @@ index 0000000..a55aa5a
 +    }
 +}
 +
++static std::atomic<bool> g_spoiler_guard{false};  // Co-op+ (T39)
++void party_quests_set_spoiler_guard(bool on) { g_spoiler_guard = on; }
++
 +void party_quests_on_event(const uint8_t* d, size_t n) {
 +    if (n < 4) return;
 +    uint32_t key;
@@ -16139,11 +16146,16 @@ index 0000000..a55aa5a
 +    if (!in) return {};
 +    const MissionName* m = find(in);
 +    if (!m) return {};
-+    log::info("Party journal: {} completed {} \"{}\"{}", who, in, m->name, ours_too ? " (ours too)" : "");
++    const bool hide = g_spoiler_guard.load() && !ours_too && !ours_done;  // Co-op+ (T39): not even in the log
++    log::info("Party journal: {} completed {} \"{}\"{}", who, in, hide ? "(hidden)" : m->name,
++              ours_too ? " (ours too)" : "");
 +    const std::string title = m->kind == 'C' ? std::format("{}: Challenge Complete", who)
 +                                             : std::format("{}: Quest Updated", who);
 +    std::string body = m->name;
-+    if (ours_too) body += "   (you are on this quest too: finish it together)";
++    if (hide) {
++        log::info("Party journal: that quest is not one of ours yet: its name is hidden (spoiler guard)");
++        body = "A quest you have not reached yet (name hidden: spoiler guard)";
++    } else if (ours_too) body += "   (you are on this quest too: finish it together)";
 +    else if (ours_done) body += "   (you have done this one)";
 +    return title + "\n" + body;
 +}
@@ -16151,10 +16163,10 @@ index 0000000..a55aa5a
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/party_quests.h b/upstream/cd-coop-3446/src/mod/net/party_quests.h
 new file mode 100644
-index 0000000..cc8ad72
+index 0000000..db3edcd
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/party_quests.h
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,40 @@
 +#pragma once
 +// Co-op+ party journal (user 2026-11-02: "party based shared progression ... quests, missions, story shared across the
 +// party"). D42.
@@ -16190,6 +16202,9 @@ index 0000000..cc8ad72
 +
 +// The game's name of a mission ("" when unknown).
 +std::string party_quests_name(uint32_t key);
++
++// Co-op+ (T39): spoiler guard: the friend's quest notices name only quests we are on or have done.
++void party_quests_set_spoiler_guard(bool on);
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp b/upstream/cd-coop-3446/src/mod/net/party_scaling.cpp
@@ -18488,10 +18503,10 @@ index 0000000..22938ec
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/stage_cinema.cpp b/upstream/cd-coop-3446/src/mod/net/stage_cinema.cpp
 new file mode 100644
-index 0000000..5738885
+index 0000000..70ee1d7
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/stage_cinema.cpp
-@@ -0,0 +1,362 @@
+@@ -0,0 +1,369 @@
 +#include "mod/net/stage_cinema.h"
 +
 +#include <windows.h>
@@ -18649,6 +18664,9 @@ index 0000000..5738885
 +}
 +
 +void cinema_set_enabled(bool on) { g_enabled = on; }
++
++static std::atomic<bool> g_spoiler_guard{false};  // Co-op+ (T39)
++void cinema_set_spoiler_guard(bool on) { g_spoiler_guard = on; }
 +void cinema_set_test(bool on) { g_test = on; }
 +
 +void cinema_observe_s2c(const uint8_t* packet, size_t size) {
@@ -18696,6 +18714,10 @@ index 0000000..5738885
 +void cinema_on_event(uint8_t type, const uint8_t* d, size_t size) {
 +    const uint8_t* end = d + size;
 +    std::lock_guard lock(g_mutex);
++    if (type == kStart && size >= 4 + 12 && g_spoiler_guard.load()) {
++        log::info("Cinema: the other player's story scene 0x{:08X} not started here (spoiler guard)", rd<uint32_t>(d));
++        return;
++    }
 +    if (type == kStart && size >= 4 + 12) {
 +        Copy c;
 +        c.key = rd<uint32_t>(d);
@@ -18856,10 +18878,10 @@ index 0000000..5738885
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/stage_cinema.h b/upstream/cd-coop-3446/src/mod/net/stage_cinema.h
 new file mode 100644
-index 0000000..681da17
+index 0000000..3a741a2
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/stage_cinema.h
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,60 @@
 +#pragma once
 +// Co-op+: the host's stage cinematics play for the guest too (user 2026-11-02: "you HAVE to be able to play boss
 +// fights together (hence needing boss fight cutscenes to play for you)"). D38.
@@ -18908,6 +18930,9 @@ index 0000000..681da17
 +
 +// [coop] stage_cinema (default on).
 +void cinema_set_enabled(bool on);
++
++// Co-op+ (T39): spoiler guard: the other player's story scenes are not started in our game (their notice still is).
++void cinema_set_spoiler_guard(bool on);
 +
 +// [dev] cinema_test: one-PC test: 3 s into each of our own stage cutscenes, start a copy of that stage as if the
 +// host had sent it (shows whether a second copy at the same branch plays, and that ending it cleans up).
@@ -21593,10 +21618,10 @@ index 532564a..07de0a2 100644
  void hud_draw(float width, float height);
 diff --git a/upstream/cd-coop-3446/src/mod/settings_menu.cpp b/upstream/cd-coop-3446/src/mod/settings_menu.cpp
 new file mode 100644
-index 0000000..90a9fa6
+index 0000000..79f43e3
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/settings_menu.cpp
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,178 @@
 +#include "mod/settings_menu.h"
 +
 +#include <windows.h>
@@ -21614,7 +21639,9 @@ index 0000000..90a9fa6
 +#include "mod/net/guest_hits.h"
 +#include "mod/net/loot_twin.h"
 +#include "mod/net/party_scaling.h"
++#include "mod/net/party_quests.h"
 +#include "mod/net/remote_puppet.h"
++#include "mod/net/stage_cinema.h"
 +#include "mod/net/revive_prompt.h"
 +#include "mod/net/weather_sync.h"
 +
@@ -21707,6 +21734,17 @@ index 0000000..90a9fa6
 +    g_net_hud = GetPrivateProfileIntW(L"overlay", L"net_hud", 0, ini_path.c_str()) != 0;
 +    g_items.push_back({"Ping and packet loss on screen", L"overlay", L"net_hud", on_off(), one_zero(),
 +                       g_net_hud ? 0 : 1, true, [](int i) { g_net_hud = i == 0; }});
++    // T39: story spoilers.
++    {
++        const bool guard = GetPrivateProfileIntW(L"coop", L"spoiler_guard", 0, ini_path.c_str()) != 0;
++        net::cinema_set_spoiler_guard(guard);
++        net::party_quests_set_spoiler_guard(guard);
++        g_items.push_back({"My friend's story (scenes, quest names)", L"coop", L"spoiler_guard",
++                           {"shown", "hidden: no spoilers"}, {L"0", L"1"}, guard ? 1 : 0, true, [](int i) {
++                               net::cinema_set_spoiler_guard(i == 1);
++                               net::party_quests_set_spoiler_guard(i == 1);
++                           }});
++    }
 +    // T34: colours.
 +    g_colourblind = GetPrivateProfileIntW(L"overlay", L"colourblind", 0, ini_path.c_str()) != 0;
 +    g_items.push_back({"Player colours", L"overlay", L"colourblind", {"gold host, blue guest", "colour-blind safe"},

@@ -421,3 +421,18 @@ Done: on the installed 1.0.0.3479: "RESULT: ALL OFFLINE CHECKS PASSED", "no hook
 A copy of the exe with 4 bytes changed at kClientPostPacket (exe+0x3A5A30) and kActionLayerAdvance (exe+0x214C070):
 "FAIL kClientPostPacket ... expected 48 89 5C 24 10 4C 89 4C, found CC CC CC CC ...", "FAIL kActionLayerAdvance",
 "RESULT: 2 CHECK(S) FAILED" -- exactly the two, named with the feature each one guards. Copy deleted. [x]
+- Pushed T38 (bca36e4).
+
+## T39 -- Story spoiler protection
+Plan: a per-player setting (F8 settings row "My friend's story": shown / hidden, [coop] spoiler_guard), live:
+(1) party journal: a friend's quest step that is not one of ours (not under way, not done) shows "A quest you have
+not reached yet (name hidden: spoiler guard)" -- not even the log names it; (2) stage cinema: the friend's story /
+boss scene is not started in our game (their "is watching a cutscene" notice stays). Being pushed ahead cannot
+happen: quests are never changed in the other save (D42).
+Finding: in coop_activity's event switch, `case kMenu:` (T09) sat right under `case 7/8/9, kDuel, kQuest:` which
+had ended in `break` -- so cutscene, duel and quest events ran the menu code and set "partner in a menu" (copy
+untargetable, no damage) from their first data byte. No false "in a menu" line found in later logs (those bytes were
+usually 0), but it is fixed (break added).
+Done: spoiler_test: dev quest_test "completes" Reconstructing Pailune (1000230) and the stand-in echoes it: notice
+"cdmp_peer (relay): Quest Updated / A quest you have not reached yet (name hidden: spoiler guard)". The scene part
+needs a host at a story scene: PLAYTEST 2.7f. [x]

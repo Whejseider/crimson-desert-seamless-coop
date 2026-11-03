@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <deque>
 #include <format>
@@ -83,6 +84,9 @@ void party_quests_observe_s2c(const uint8_t* packet, size_t size) {
     }
 }
 
+static std::atomic<bool> g_spoiler_guard{false};  // Co-op+ (T39)
+void party_quests_set_spoiler_guard(bool on) { g_spoiler_guard = on; }
+
 void party_quests_on_event(const uint8_t* d, size_t n) {
     if (n < 4) return;
     uint32_t key;
@@ -128,11 +132,16 @@ std::string party_quests_tick(bool connected, const std::string& who) {
     if (!in) return {};
     const MissionName* m = find(in);
     if (!m) return {};
-    log::info("Party journal: {} completed {} \"{}\"{}", who, in, m->name, ours_too ? " (ours too)" : "");
+    const bool hide = g_spoiler_guard.load() && !ours_too && !ours_done;  // Co-op+ (T39): not even in the log
+    log::info("Party journal: {} completed {} \"{}\"{}", who, in, hide ? "(hidden)" : m->name,
+              ours_too ? " (ours too)" : "");
     const std::string title = m->kind == 'C' ? std::format("{}: Challenge Complete", who)
                                              : std::format("{}: Quest Updated", who);
     std::string body = m->name;
-    if (ours_too) body += "   (you are on this quest too: finish it together)";
+    if (hide) {
+        log::info("Party journal: that quest is not one of ours yet: its name is hidden (spoiler guard)");
+        body = "A quest you have not reached yet (name hidden: spoiler guard)";
+    } else if (ours_too) body += "   (you are on this quest too: finish it together)";
     else if (ours_done) body += "   (you have done this one)";
     return title + "\n" + body;
 }

@@ -826,6 +826,9 @@ void activity_on_event(const std::vector<uint8_t>& p) {
         case 7: case 8: case 9:  // stage_cinema.h (it takes its own lock)
         case kDuel:              // coop_duel.h, below
         case kQuest:             // party_quests.h, below
+            break;
+        // Co-op+ (T39 found): kMenu sat right under the list above with no break since T09, so cutscene (7-9), duel
+        // and quest events ran this too and set "the partner is in a menu" from their first data byte.
         case kMenu:
             if (p.size() >= 6) {
                 const bool open = p[5] != 0;
