@@ -1,3 +1,4 @@
+#include "mod/net/coop_race.h"
 #include "mod/net/coop.h"
 #include "mod/net/coop_activity.h"
 #include "mod/net/weather_sync.h"
@@ -92,6 +93,7 @@ CoopLink::~CoopLink() {
     // forget_partner never ran here: the copies of the other player's enemies and their waypoint pin stayed in our
     // world after leaving. Same clean-up as a lost link.
     if (const uint32_t owner = capture_own_player_key()) puppet_waypoint_pin(owner, std::nullopt);
+    race_set_partner_waypoint(std::nullopt);
     enemy_reset_partner();
     puppet_remove();
 }
@@ -528,6 +530,9 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
                 const bool set = ev.payload[12] != 0;
                 if (ev.payload[12] == 2) ++g_pings;
                 puppet_waypoint_pin(owner, set ? std::optional<proto::Vec3>(p) : std::nullopt);
+                if (ev.payload[12] != 2) {  // Co-op+ (T41): the race finish (not a ping)
+                    race_set_partner_waypoint(set ? std::optional<std::array<float, 3>>({p.x, p.y, p.z}) : std::nullopt);
+                }
                 log::info("Co-op: the other player's waypoint {} ({:.0f}, {:.0f})", set ? "at" : "removed", p.x, p.z);
             }
         }

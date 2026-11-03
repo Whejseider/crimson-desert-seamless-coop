@@ -4,6 +4,7 @@
 #include "mod/net/party_quests.h"
 #include "mod/net/coop_hunt.h"
 #include "mod/net/kill_feed.h"
+#include "mod/net/coop_race.h"
 #include "mod/net/wire_layout.h"
 
 #include <windows.h>
@@ -758,6 +759,9 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
     if (op == kOpCreateOrChangeSelfDestinationReq && size >= 5 + 13) {
         // Co-op+: our own map waypoint (vec3 | u8): the other player sees it as a pin.
         emit(proto::EventKind::Waypoint, Bytes(packet + 5, packet + 5 + 13));
+        std::array<float, 3> wp;  // Co-op+ (T41): the race finish
+        std::memcpy(wp.data(), packet + 5, 12);
+        race_set_own_waypoint(packet[5 + 12] ? std::optional<std::array<float, 3>>(wp) : std::nullopt);
         return;
     }
     proto::EventKind kind;

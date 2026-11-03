@@ -24,6 +24,7 @@
 #include "mod/net/coop_travel.h"
 #include "mod/net/coop_chat.h"
 #include "mod/net/kill_feed.h"
+#include "mod/net/coop_race.h"
 #include "mod/settings_menu.h"
 #include "mod/net/aggro_test.h"
 #include "mod/net/enemy_relay.h"
@@ -45,7 +46,7 @@ constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the N
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22, kKill = 23 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22, kKill = 23, kRace = 24 };
 
 // Co-op+ (T22): world events (reinforcements, bounty hunters, camp and outpost activity) are stages our server starts
 // (PrepareSequencerAck); their fighters are enemies, which the guest already gets as copies near the host. What the
@@ -150,7 +151,7 @@ struct Rps {
 // above making it player against player; the duel runs in the mod. A running series score is kept until either player
 // ends the challenge (Shift+F5 again).
 // Event kChallenge: u8 action | u32 the game's stage key.
-enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3, kGameHunt = 4 };
+enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3, kGameHunt = 4, kGameRace = 5 };
 enum ChallengeAction : uint8_t { kInvite = 1, kAccept = 2, kDecline = 3, kEnd = 4 };
 enum ChallengeState : uint8_t { kChNone, kChPick, kChSent, kChReceived, kChOn };
 constexpr uint32_t kWrestleStages[] = {16005100, 1001987, 1001988, 1003873, 1003875, 1018693};
@@ -190,6 +191,7 @@ std::string how_to_play(uint32_t stage) {
         case kGameRps: return "Pick your hand:  {RpsScissors} scissors  {RpsPaper} paper  {RpsRock} rock  (first to 2)";
         case kGameDuel: return "Bring your opponent to their knees. Stay within the duel ground!";
         case kGameHunt: return "Bring down the most game in 3 minutes: big game counts more!";
+        case kGameRace: return "The host's map waypoint is the finish: first within 12 m wins!";
         default: return "Both sit at the table and start a match, then mash {Mash}!";
     }
 }
@@ -199,6 +201,7 @@ Game game_of(uint32_t stage) {
     if (stage == kRpsNameStage) return kGameRps;
     if (stage == kDuelStage) return kGameDuel;
     if (stage == kHuntStage) return kGameHunt;
+    if (stage == kRaceStage) return kGameRace;
     return kNoGame;
 }
 
@@ -330,6 +333,7 @@ std::string activity_minigame_name(uint32_t stage) {
         case 1001524: case 1018696: return "Five-Card";
         case kDuelStage: return "a duel";
         case kHuntStage: return "a hunting contest";
+        case kRaceStage: return "a race to the waypoint";
         default: return "a minigame";
     }
 }
@@ -642,6 +646,7 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
                     c.options.push_back(kDuelStage);
                     c.options.push_back(kRpsNameStage);
                     c.options.push_back(kHuntStage);
+                    c.options.push_back(kRaceStage);  // Co-op+ (T41)
                     g_menu_step = 0;
                     break;
                 }
@@ -680,6 +685,9 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
             } else if (c.state == kChOn && game_of(c.stage) == kGameHunt) {
                 out.banner = std::format("Hunting contest vs {}   series you {} - {} {}   ({{Challenge}} ends)", who,
                                          c.ours, c.theirs, who);
+            } else if (c.state == kChOn && game_of(c.stage) == kGameRace) {
+                out.banner = std::format("Race vs {}   series you {} - {} {}   ({{Challenge}} ends)", who, c.ours,
+                                         c.theirs, who);
             } else if (c.state == kChOn && game_of(c.stage) == kGameDuel) {
                 out.banner = std::format("Duel vs {}   series you {} - {} {}   ({{Challenge}} ends the duel)", who,
                                          c.ours, c.theirs, who);
@@ -856,6 +864,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
                 if (const char* n = event_name(key)) g_toasts.push_back(std::string("World event near {}\n") + n);
             }
             break;
+        case kRace:              // coop_race.h, below
         case kKill:              // kill_feed.h, below
         case kChat:              // coop_chat.h, below
         case kTravel:            // coop_travel.h, below
@@ -913,6 +922,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
     if (p[4] == kTravel) travel_on_event(p.data() + 5, p.size() - 5);  // coop_travel.h
     if (p[4] == kChat) chat_on_event(p.data() + 5, p.size() - 5);      // coop_chat.h
     if (p[4] == kKill) kill_feed_on_event(p.data() + 5, p.size() - 5); // kill_feed.h
+    if (p[4] == kRace) race_on_event(p.data() + 5, p.size() - 5);      // coop_race.h
 }
 
 ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
@@ -1086,6 +1096,22 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
     }
     if (!h.banner.empty()) out.banner = std::move(h.banner);
     if (!h.toast.empty() && out.toast.empty()) out.toast = std::move(h.toast);
+    // Co-op+ (T41): the race.
+    bool race_on = false;
+    {
+        std::lock_guard lock(g_mutex);
+        race_on = g_ch.state == kChOn && game_of(g_ch.stage) == kGameRace;
+    }
+    RaceTick r = race_tick(race_on, connected, host, who, me, partner);
+    if (r.round_result) {
+        std::lock_guard lock(g_mutex);
+        if (r.round_result == 1) ++g_ch.ours;
+        if (r.round_result == 2) ++g_ch.theirs;
+        out.toast = std::format("Race\n{}   Series: you {} - {} {}",
+                                r.round_result == 1 ? std::string("You win the race.") : who + " wins the race.",
+                                g_ch.ours, g_ch.theirs, who);
+    }
+    if (!r.banner.empty()) out.banner = std::move(r.banner);
     // The party journal (party_quests.h): the other player's completed quests. Held back while another notice shows.
     static uint32_t journal_after = 0;
     if (out.toast.empty() && static_cast<int32_t>(now - journal_after) >= 0) {

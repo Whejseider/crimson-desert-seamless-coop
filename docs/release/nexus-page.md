@@ -39,8 +39,8 @@ world.
 - **Talk:** text chat (Shift+F2) and quick messages (Go here, Danger, Loot here, Follow me...) with map pins.
 - **Travel together:** go to your friend (Ctrl+F4), ask them to come to you (Shift+F4), follow when they fast travel.
   Shared waypoints.
-- **Challenges:** duel (ring, rounds, nobody dies), rock-paper-scissors, a hunting contest, and arm wrestling where
-  your friend sits across the table from you.
+- **Challenges:** duel (ring, rounds, nobody dies), rock-paper-scissors, a hunting contest, a race to the map
+  waypoint, and arm wrestling where your friend sits across the table from you.
 - **Shared time and weather** (the host's).
 - **Notices:** your friend's quest steps, world events near them, when they become wanted, when they're in a menu or
   a cutscene.

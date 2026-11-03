@@ -163,6 +163,9 @@ PLAYING TOGETHER
     friend's character sits across from you in the opponent's chair, and you share
     one strength bar: whoever mashes E (pad: any face button) faster wins on both
     screens.
+  * RACE TO THE WAYPOINT: the host's map waypoint (right-click on the map) is the
+    finish; after 3, 2, 1 the first to get within 12 m wins (ride, glide, run). Set a
+    new waypoint for the next race.
   * Rock, paper, scissors: press U (scissors), F (paper) or E (rock) - pad X, Y,
     B; both hands show over your characters when both of you have picked; first to
     2 wins the match.

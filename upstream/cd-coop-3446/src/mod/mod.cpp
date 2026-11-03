@@ -48,6 +48,7 @@
 #include "mod/net/coop_travel.h"
 #include "mod/net/coop_chat.h"
 #include "mod/net/kill_feed.h"
+#include "mod/net/coop_race.h"
 #include "mod/net/state_audit.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
@@ -972,6 +973,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 hud.duel_subtitle = hh.subtitle;
                 hud.duel_title_color = hh.color;
                 hud.duel_title_alpha = hh.alpha;
+            }
+            if (const net::RaceHud rh = net::race_hud(); !rh.title.empty()) {  // Co-op+ (T41)
+                hud.duel_title = rh.title;
+                hud.duel_subtitle = rh.subtitle;
+                hud.duel_title_color = rh.color;
+                hud.duel_title_alpha = rh.alpha;
             }
             if (const net::DuelHud dh = net::duel_hud(); dh.active) {
                 hud.duel_active = true;

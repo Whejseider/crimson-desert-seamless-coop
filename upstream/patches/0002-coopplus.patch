@@ -1,5 +1,5 @@
 diff --git a/upstream/cd-coop-3446/CMakeLists.txt b/upstream/cd-coop-3446/CMakeLists.txt
-index c83acf3..fc55d54 100644
+index c83acf3..c0aa6cb 100644
 --- a/upstream/cd-coop-3446/CMakeLists.txt
 +++ b/upstream/cd-coop-3446/CMakeLists.txt
 @@ -87,11 +87,14 @@ configure_file(cmake/build_id.h.in ${CMAKE_BINARY_DIR}/generated/build_id.h)
@@ -17,7 +17,7 @@ index c83acf3..fc55d54 100644
      src/mod/game/rtti.cpp
      src/mod/net/troc_sniffer.cpp
      src/mod/net/local_capture.cpp
-@@ -113,15 +116,55 @@ add_library(cdmp_mod SHARED
+@@ -113,15 +116,56 @@ add_library(cdmp_mod SHARED
      src/mod/game/game_clock.cpp
      src/mod/net/steam_transport.cpp
      src/mod/net/room_code.cpp
@@ -37,6 +37,7 @@ index c83acf3..fc55d54 100644
 +    src/mod/net/coop_chat.cpp
 +    src/mod/settings_menu.cpp
 +    src/mod/net/kill_feed.cpp
++    src/mod/net/coop_race.cpp
 +    src/mod/net/weather_sync.cpp
 +    src/mod/net/stage_cinema.cpp
 +    src/mod/net/dev_watch.cpp
@@ -73,7 +74,7 @@ index c83acf3..fc55d54 100644
  # Only the symbol file's name goes into cdmp.asi, not the path of the PC that
  # built it (it named the user's folders).
  target_link_options(cdmp_mod PRIVATE "/PDBALTPATH:cdmp.pdb")
-@@ -156,6 +199,11 @@ if(TARGET Zydis)
+@@ -156,6 +200,11 @@ if(TARGET Zydis)
      endif()
  endif()
  
@@ -2781,7 +2782,7 @@ index 0000000..2d3e989
 +
 +}  // namespace cdmp::input
 diff --git a/upstream/cd-coop-3446/src/mod/mod.cpp b/upstream/cd-coop-3446/src/mod/mod.cpp
-index 79ccd06..8a8fc35 100644
+index 79ccd06..f00fd7d 100644
 --- a/upstream/cd-coop-3446/src/mod/mod.cpp
 +++ b/upstream/cd-coop-3446/src/mod/mod.cpp
 @@ -1,9 +1,13 @@
@@ -2816,7 +2817,7 @@ index 79ccd06..8a8fc35 100644
  #include "mod/net/local_capture.h"
  #include "mod/net/guest_hits.h"
  #include "mod/net/loot_twin.h"
-@@ -31,13 +40,34 @@
+@@ -31,13 +40,35 @@
  #include "mod/net/player_hits.h"
  #include "mod/net/puppet_minimap.h"
  #include "mod/net/remote_puppet.h"
@@ -2828,6 +2829,7 @@ index 79ccd06..8a8fc35 100644
 +#include "mod/net/coop_travel.h"
 +#include "mod/net/coop_chat.h"
 +#include "mod/net/kill_feed.h"
++#include "mod/net/coop_race.h"
 +#include "mod/net/state_audit.h"
 +#include "mod/net/coop_duel.h"
 +#include "mod/net/party_quests.h"
@@ -2851,7 +2853,7 @@ index 79ccd06..8a8fc35 100644
  
  #pragma comment(lib, "version.lib")
  
-@@ -100,6 +130,16 @@ std::string file_version(const std::wstring& path) {
+@@ -100,6 +131,16 @@ std::string file_version(const std::wstring& path) {
  
  // Facts that identify the exact game build. Every offset/signature we find
  // later is only valid for one build, so the log must always say which one.
@@ -2868,7 +2870,7 @@ index 79ccd06..8a8fc35 100644
  bool log_process_info() {
      const std::wstring exe = module_path(nullptr);
      const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-@@ -138,7 +178,7 @@ public:
+@@ -138,7 +179,7 @@ public:
      explicit LocalSource(bool in_game) : in_game_(in_game) {
          if (!in_game_) return;
          if (reader_.init()) {
@@ -2877,7 +2879,7 @@ index 79ccd06..8a8fc35 100644
          } else {
              log::warn("Game reader DISABLED: {}. Only networking will run.",
                        reader_.last_failure());
-@@ -163,6 +203,8 @@ public:
+@@ -163,6 +204,8 @@ public:
          s.rot = last_->rotation;
          s.health = last_->health;
          s.health_max = last_->health_max;
@@ -2886,7 +2888,7 @@ index 79ccd06..8a8fc35 100644
          return s;
      }
  
-@@ -188,10 +230,56 @@ private:
+@@ -188,10 +231,56 @@ private:
      std::string status_;
  };
  
@@ -2945,7 +2947,7 @@ index 79ccd06..8a8fc35 100644
      }
  
      // A guest knows whom to talk to; a host learns it from the first Hello.
-@@ -203,6 +291,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -203,6 +292,8 @@ void run_network(const Config& cfg, LocalSource& local) {
      // needs a moment to join the lobby and see the host field).
      bool room_code_pending = false;
      std::string room_code_text;
@@ -2954,7 +2956,7 @@ index 79ccd06..8a8fc35 100644
      bool room_failed_logged = false;
      // The host's lobby creation is retried in the loop for the same reason: this
      // point in startup is reached BEFORE the save finishes loading (the mod loads
-@@ -216,7 +306,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -216,7 +307,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          if (!local.in_game()) {
              log::error("The Steam transport only works inside the game");
              net::cleanup();
@@ -2963,7 +2965,7 @@ index 79ccd06..8a8fc35 100644
          }
          auto st = std::make_unique<net::SteamTransport>(cfg.steam_channel, host, cfg.steam_peer_id);
          steam = st.get();
-@@ -225,7 +315,14 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -225,7 +316,14 @@ void run_network(const Config& cfg, LocalSource& local) {
          // creates the lobby and reads the code out; the guest resolves the
          // host's SteamID64 from it. If anything fails, the old paths
          // (peer_steamid, then the "only friend playing" scan) still work.
@@ -2979,7 +2981,7 @@ index 79ccd06..8a8fc35 100644
              if (host) {
                  // One attempt now, and the loop retries if it does not take.
                  //
-@@ -256,6 +353,10 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -256,6 +354,10 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!net::room_code_decode(cfg.room_code, lobby)) {
                  log::warn("Room: '{}' is not a valid code ({} characters, letters and digits)",
                            cfg.room_code, net::kRoomCodeLen);
@@ -2990,7 +2992,7 @@ index 79ccd06..8a8fc35 100644
              } else {
                  room_code_pending = true;
                  room_code_text = net::room_code_normalise(cfg.room_code);
-@@ -278,22 +379,23 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -278,22 +380,23 @@ void run_network(const Config& cfg, LocalSource& local) {
              if (!ep->is_loopback()) {
                  log::error("UDP only connects within this PC (tests); to play with someone use transport=steam");
                  net::cleanup();
@@ -3017,7 +3019,7 @@ index 79ccd06..8a8fc35 100644
      log::info("Network: {} as {}; peer {}", transport->status(), host ? "host" : "guest",
                peer ? peer->str() : (host ? "= whoever connects" : "= the only friend playing"));
  
-@@ -304,7 +406,12 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -304,7 +407,12 @@ void run_network(const Config& cfg, LocalSource& local) {
          },
          [](const std::string& text) { log::info("Session: {}", text); },
          host ? ClientSession::Role::Responder : ClientSession::Role::Initiator);
@@ -3030,7 +3032,7 @@ index 79ccd06..8a8fc35 100644
      uint32_t peer_since = 0;  // host: when it locked onto its player
      uint32_t last_friend_scan = 0;
      size_t last_friend_count = SIZE_MAX;
-@@ -318,6 +425,11 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -318,6 +426,11 @@ void run_network(const Config& cfg, LocalSource& local) {
      }
  
      const uint32_t state_interval = 1000 / cfg.send_rate_hz;
@@ -3042,7 +3044,7 @@ index 79ccd06..8a8fc35 100644
      uint32_t last_state = 0;
      uint32_t last_report = now_ms();
      uint32_t last_room_attempt = 0;  // host lobby retry, see the loop below
-@@ -327,10 +439,81 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -327,10 +440,81 @@ void run_network(const Config& cfg, LocalSource& local) {
      bool mark_was_down = false;
      int marks = 0;
      std::vector<uint8_t> buf(proto::kMaxPacketSize);
@@ -3124,7 +3126,7 @@ index 79ccd06..8a8fc35 100644
          // The host's lobby, retried until it takes. Startup runs before the save is
          // loaded, so the first attempt reliably fails on a cold start; without this
          // the host never gets a room code at all and the guest has nothing to type.
-@@ -363,7 +546,8 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -363,7 +547,8 @@ void run_network(const Config& cfg, LocalSource& local) {
              last_friend_scan = now_ms();
              // A room code wins over the friends scan: it names one host exactly.
              if (room_code_pending) {
@@ -3134,7 +3136,7 @@ index 79ccd06..8a8fc35 100644
                  if (host_id) {
                      peer = net::PeerAddr::steam(host_id);
                      steam->set_peer(host_id);
-@@ -403,7 +587,13 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -403,7 +588,13 @@ void run_network(const Config& cfg, LocalSource& local) {
                  // Only a Hello of our protocol: one of another version would
                  // never connect and would keep the place (security review M2).
                  auto packet = proto::decode({buf.data(), *n});
@@ -3149,7 +3151,7 @@ index 79ccd06..8a8fc35 100644
                      std::holds_alternative<proto::Hello>(packet->body)) {
                      peer = from;
                      peer_since = now_ms();
-@@ -417,6 +607,7 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -417,6 +608,7 @@ void run_network(const Config& cfg, LocalSource& local) {
          const uint32_t now = now_ms();
          session.tick(now);
          const bool connected = session.state() == ClientSession::State::Connected;
@@ -3157,7 +3159,7 @@ index 79ccd06..8a8fc35 100644
          if (host && was_connected && !connected && peer) {
              log::info("Network: {} left; waiting for a player", peer->str());
              peer.reset();
-@@ -426,37 +617,305 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -426,37 +618,305 @@ void run_network(const Config& cfg, LocalSource& local) {
              peer.reset();
              if (steam) steam->set_peer(0);
          }
@@ -3465,7 +3467,7 @@ index 79ccd06..8a8fc35 100644
                  hud.boss_active = true;
                  hud.boss_name = b.name;
                  hud.boss_hp = b.hp;
-@@ -475,6 +934,55 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -475,6 +935,61 @@ void run_network(const Config& cfg, LocalSource& local) {
                  hud.room_hosting = true;
              }
              if (hud.room_code.empty()) hud.room_status = net::room_status();
@@ -3508,6 +3510,12 @@ index 79ccd06..8a8fc35 100644
 +                hud.duel_title_color = hh.color;
 +                hud.duel_title_alpha = hh.alpha;
 +            }
++            if (const net::RaceHud rh = net::race_hud(); !rh.title.empty()) {  // Co-op+ (T41)
++                hud.duel_title = rh.title;
++                hud.duel_subtitle = rh.subtitle;
++                hud.duel_title_color = rh.color;
++                hud.duel_title_alpha = rh.alpha;
++            }
 +            if (const net::DuelHud dh = net::duel_hud(); dh.active) {
 +                hud.duel_active = true;
 +                hud.duel_centre = {dh.centre[0], dh.centre[1], dh.centre[2]};
@@ -3521,7 +3529,7 @@ index 79ccd06..8a8fc35 100644
              render::hud_update(std::move(hud));
          }
  
-@@ -491,14 +999,36 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -491,14 +1006,36 @@ void run_network(const Config& cfg, LocalSource& local) {
                  remote = std::format("({:.2f}, {:.2f}, {:.2f}) hp {:.1f}", rs->pos.x, rs->pos.y,
                                       rs->pos.z, rs->health);
              }
@@ -3562,7 +3570,7 @@ index 79ccd06..8a8fc35 100644
              if (cfg.overlay_enabled) {
                  const auto ov = render::status();
                  log::info("Overlay: installed {} disabled {} | presents {} drawn {} | queue {}{}",
-@@ -509,11 +1039,128 @@ void run_network(const Config& cfg, LocalSource& local) {
+@@ -509,11 +1046,128 @@ void run_network(const Config& cfg, LocalSource& local) {
          }
      }
  
@@ -3692,7 +3700,7 @@ index 79ccd06..8a8fc35 100644
  }
  
  // The game's own top-level window, once it is visible and reasonably large.
-@@ -615,7 +1262,7 @@ void minimap_cycle_loop() {
+@@ -615,7 +1269,7 @@ void minimap_cycle_loop() {
          if (down && !was_down) {
              const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
              int at = net::puppet_minimap_offset();
@@ -3701,7 +3709,7 @@ index 79ccd06..8a8fc35 100644
              else at += back ? -2 : 2;
              if (at > 0x16C) at = 0xEA;
              if (at < 0xEA) at = 0x16C;
-@@ -669,7 +1316,7 @@ void combat_test_loop() {
+@@ -669,7 +1323,7 @@ void combat_test_loop() {
                  std::memcpy(b.data(), &npc->key, 4);
                  std::memcpy(b.data() + 4, &hp_stat, 4);
                  std::memcpy(b.data() + 8, &delta, 8);
@@ -3710,7 +3718,7 @@ index 79ccd06..8a8fc35 100644
                  log::info("Combat test T2: VaryStatByAccInputReq(0x{:08X} at {:.1f} m, HP, -5) {}",
                            npc->key, npc->distance, ok ? "queued" : "NOT queued");
              } else {
-@@ -687,7 +1334,7 @@ void combat_test_loop() {
+@@ -687,7 +1341,7 @@ void combat_test_loop() {
                  std::memcpy(b.data() + 12, pos, 12);
                  std::memcpy(b.data() + 24, dir, 12);
                  std::memcpy(b.data() + 36, &hash, 4);
@@ -3719,7 +3727,7 @@ index 79ccd06..8a8fc35 100644
                  log::info("Combat test T3: AttackByCollisionReq(0x{:08X} at {:.1f} m, hash 0x{:08X}) {}",
                            npc->key, npc->distance, hash, ok ? "queued" : "NOT queued");
              }
-@@ -752,7 +1399,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -752,7 +1406,7 @@ DWORD WINAPI late_init(LPVOID param) {
      if (init->in_game) {
          log::info("Late init: waiting for the game to finish starting up");
          const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
@@ -3728,7 +3736,7 @@ index 79ccd06..8a8fc35 100644
          // WorldSystem exists from the title screen on, i.e. after the game
          // created its device and swap chain and started presenting.
          while (!stop_requested(500)) {
-@@ -766,6 +1413,7 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -766,6 +1420,7 @@ DWORD WINAPI late_init(LPVOID param) {
      bool sniffer_ok = false;
      if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
      if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
@@ -3736,7 +3744,7 @@ index 79ccd06..8a8fc35 100644
      if (init->overlay) render::install(render::hud_draw);
      if (init->combat_tests && sniffer_ok) {
          CloseHandle(CreateThread(
-@@ -794,15 +1442,30 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -794,15 +1449,30 @@ DWORD WINAPI late_init(LPVOID param) {
          if (init->coop_damage && init->guest_hits) log::info("Co-op: mirrored damage off ([coop] guest_hits=1)");
          net::capture_set_damage_enabled(init->coop_damage && !init->guest_hits);
          net::puppet_install_climb_fix();
@@ -3769,7 +3777,7 @@ index 79ccd06..8a8fc35 100644
          } else if (!guarded) {
              // This one line is the whole visible trace of the enemy relay being dead. It was
              // printed once at boot, between dozens of status lines, and it went unnoticed for
-@@ -813,6 +1476,9 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -813,6 +1483,9 @@ DWORD WINAPI late_init(LPVOID param) {
              // So it now says what it costs, and it does not leave the reader to infer that
              // enemy copies, shared loot and joint boss damage are ALL off as a result.
              log::warn("Enemy copies disabled: their crash guards could not be installed");
@@ -3779,7 +3787,7 @@ index 79ccd06..8a8fc35 100644
              log::warn("  -> the enemy relay is OFF for this whole session: no copies of the other");
              log::warn("     player's enemies, so no shared loot and no guest hits on them either.");
              log::warn("     Everything else (your own copy, movement, equipment, horses) still works.");
-@@ -902,22 +1568,85 @@ DWORD WINAPI late_init(LPVOID param) {
+@@ -902,22 +1575,85 @@ DWORD WINAPI late_init(LPVOID param) {
      } else if (init->clone_hotkeys) {
          net::puppet_set_offset(init->mirror_offset_m);
          net::puppet_install_climb_fix();
@@ -3865,7 +3873,7 @@ index 79ccd06..8a8fc35 100644
          log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                    cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",
                    cfg.coop_enabled ? "on" : "off");
-@@ -925,7 +1654,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -925,7 +1661,7 @@ DWORD WINAPI worker(LPVOID) {
          // says how their game was set up.
          log::info("Config: net {} {} | coop delay {} ms, offset {:.2f} m, horse {}, equip {}, damage mirror {}, "
                    "map pin {}, minimap icon {:#x}, enemies target copy {}, guest hits {}, stagger {}, player react {} lethal {}",
@@ -3874,7 +3882,7 @@ index 79ccd06..8a8fc35 100644
                    cfg.coop_offset_m, cfg.coop_horse, cfg.coop_equip, cfg.coop_damage, cfg.coop_map_pin,
                    cfg.coop_minimap_icon, cfg.coop_enemies_target_copy, cfg.coop_guest_hits, cfg.coop_guest_hit_stagger,
                    cfg.coop_player_hit_react, cfg.coop_player_hit_lethal);
-@@ -956,6 +1685,7 @@ DWORD WINAPI worker(LPVOID) {
+@@ -956,6 +1692,7 @@ DWORD WINAPI worker(LPVOID) {
                    cfg.coop_suppress_lab ? ", suppressed by suppress_lab=1 (the one-PC lab)" : "");
          log::info("Config: time sync {}", cfg.coop_time_sync == 1   ? "send ours"
                                            : cfg.coop_time_sync == 2 ? "take the other player's"
@@ -3882,7 +3890,7 @@ index 79ccd06..8a8fc35 100644
                                                                      : "off");
          log::info("Config: enemy zone (guest) {} | {:.0f} m on, {:.0f} m off | restore {} state {} | fight wait {} s | "
                    "node events {} | lab {} ({:.0f} m)",
-@@ -969,6 +1699,67 @@ DWORD WINAPI worker(LPVOID) {
+@@ -969,6 +1706,67 @@ DWORD WINAPI worker(LPVOID) {
          // on a stage boss kills it outside the host's script, which leaves the
          // host's quest stuck behind the arena barrier.
          net::boss_set_safe_mode(cfg.coop_boss_safe);
@@ -3950,7 +3958,7 @@ index 79ccd06..8a8fc35 100644
          log::info("Config: boss safety {}", cfg.coop_boss_safe ? "ON (the host lands the killing blow)" : "OFF");
          // Shared loot is the guest's, and only means anything with co-op on.
          //
-@@ -1020,29 +1811,14 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1020,29 +1818,14 @@ DWORD WINAPI worker(LPVOID) {
              net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
              net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
              net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
@@ -3984,7 +3992,7 @@ index 79ccd06..8a8fc35 100644
  
          if (cfg.startup_delay_ms > 0 && stop_requested(cfg.startup_delay_ms)) return 0;
  
-@@ -1058,7 +1834,10 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1058,7 +1841,10 @@ DWORD WINAPI worker(LPVOID) {
          if (in_game && !cfg.overlay_enabled) log::info("Overlay disabled in cdmp.ini");
          if (in_game && !cfg.sniffer_enabled) log::info("Sniffer disabled in cdmp.ini");
          if (overlay || sniffer) {
@@ -3996,7 +4004,7 @@ index 79ccd06..8a8fc35 100644
              g_late_thread = CreateThread(nullptr, 0, late_init,
                                           new LateInit{in_game, overlay, sniffer,
                                                        in_game && cfg.dev_clone_hotkeys,
-@@ -1080,7 +1859,9 @@ DWORD WINAPI worker(LPVOID) {
+@@ -1080,7 +1866,9 @@ DWORD WINAPI worker(LPVOID) {
                                           0, nullptr);
          }
  
@@ -4665,10 +4673,11 @@ index fb35bad..3d19d34 100644
  
  }  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop.cpp b/upstream/cd-coop-3446/src/mod/net/coop.cpp
-index 3bdc2c5..007deb7 100644
+index 3bdc2c5..19edbf9 100644
 --- a/upstream/cd-coop-3446/src/mod/net/coop.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/coop.cpp
-@@ -1,8 +1,11 @@
+@@ -1,8 +1,12 @@
++#include "mod/net/coop_race.h"
  #include "mod/net/coop.h"
 +#include "mod/net/coop_activity.h"
 +#include "mod/net/weather_sync.h"
@@ -4680,7 +4689,7 @@ index 3bdc2c5..007deb7 100644
  #include <cstring>
  #include <format>
  #include <vector>
-@@ -25,6 +28,8 @@ namespace cdmp::net {
+@@ -25,6 +29,8 @@ namespace cdmp::net {
  namespace {
  
  std::atomic<bool> g_ready{false};
@@ -4689,7 +4698,7 @@ index 3bdc2c5..007deb7 100644
  constexpr size_t kMaxOutbox = 4096;            // ~1 s of events; more means the link is stuck
  constexpr uint32_t kRespawnAfterRemoveMs = 1500;  // let the old copy fade out first
  constexpr uint32_t kInWorldGraceMs = 500;        // a missing position read shorter than this is ignored
-@@ -49,7 +54,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
+@@ -49,7 +55,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
      if (ev.payload.size() < 2) return false;
      uint16_t op = 0;
      std::memcpy(&op, ev.payload.data(), 2);
@@ -4698,7 +4707,7 @@ index 3bdc2c5..007deb7 100644
          if (r.op == op) return r.reliable;
      }
      return false;
-@@ -58,6 +63,8 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
+@@ -58,6 +64,8 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
  }  // namespace
  
  void coop_set_ready() { g_ready = true; }
@@ -4707,7 +4716,7 @@ index 3bdc2c5..007deb7 100644
  
  CoopLink::CoopLink(ClientSession& session, uint32_t delay_ms, float offset_m, bool map_pin)
      : session_(session), delay_ms_(delay_ms), offset_m_(offset_m), map_pin_(map_pin) {
-@@ -81,6 +88,11 @@ CoopLink::~CoopLink() {
+@@ -81,6 +89,12 @@ CoopLink::~CoopLink() {
      capture_set_sink({});
      session_.set_game_handlers({}, {});
      if (pin_owner_) puppet_map_pin(pin_owner_, std::nullopt);
@@ -4715,11 +4724,12 @@ index 3bdc2c5..007deb7 100644
 +    // forget_partner never ran here: the copies of the other player's enemies and their waypoint pin stayed in our
 +    // world after leaving. Same clean-up as a lost link.
 +    if (const uint32_t owner = capture_own_player_key()) puppet_waypoint_pin(owner, std::nullopt);
++    race_set_partner_waypoint(std::nullopt);
 +    enemy_reset_partner();
      puppet_remove();
  }
  
-@@ -146,6 +158,9 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
+@@ -146,6 +160,9 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
                  std::memcpy(b.data(), &seq, 4);
                  std::memcpy(b.data() + 4, ev.payload.data(), ev.payload.size());
                  session_.send_reliable(equip ? proto::RelKind::Equip : proto::RelKind::Relay, b, now_ms);
@@ -4729,7 +4739,7 @@ index 3bdc2c5..007deb7 100644
              } else {
                  session_.send_event(std::move(ev), now_ms);
              }
-@@ -241,6 +256,33 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
+@@ -241,6 +258,33 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
          }
      }
  
@@ -4763,7 +4773,7 @@ index 3bdc2c5..007deb7 100644
      // Announce ourselves (again after every new load: equipment may differ).
      const uint32_t gen = capture_template_generation();
      if (gen != seen_generation_) {
-@@ -268,7 +310,8 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
+@@ -268,7 +312,8 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
      }
  
      // Load the other player once we are in the world ourselves.
@@ -4773,7 +4783,7 @@ index 3bdc2c5..007deb7 100644
          if (puppet_spawned()) {
              remove_puppet(now_ms);
              return;
-@@ -474,6 +517,30 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
+@@ -474,6 +519,33 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
          if (local_in_world_) time_sync_on_event(ev);
          return;
      }
@@ -4788,6 +4798,9 @@ index 3bdc2c5..007deb7 100644
 +                const bool set = ev.payload[12] != 0;
 +                if (ev.payload[12] == 2) ++g_pings;
 +                puppet_waypoint_pin(owner, set ? std::optional<proto::Vec3>(p) : std::nullopt);
++                if (ev.payload[12] != 2) {  // Co-op+ (T41): the race finish (not a ping)
++                    race_set_partner_waypoint(set ? std::optional<std::array<float, 3>>({p.x, p.y, p.z}) : std::nullopt);
++                }
 +                log::info("Co-op: the other player's waypoint {} ({:.0f}, {:.0f})", set ? "at" : "removed", p.x, p.z);
 +            }
 +        }
@@ -4804,7 +4817,7 @@ index 3bdc2c5..007deb7 100644
      if (ev.kind == proto::EventKind::GuestHit) {  // about our enemies
          if (local_in_world_) guest_hits_on_event(ev, delay_ms_);
          return;
-@@ -533,6 +600,10 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
+@@ -533,6 +605,10 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
          last_spawn_ = *info;
          remote_spawn_ = std::move(*info);
          remote_silent_ = false;
@@ -4841,10 +4854,10 @@ index a328bc0..5778775 100644
      // order (a resent ApplyBuff could land after its Unapply), so they carry
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..601fa3b
+index 0000000..b66c4ae
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,1102 @@
+@@ -0,0 +1,1128 @@
 +#include "mod/net/coop_activity.h"
 +#include "mod/input/actions.h"
 +#include "mod/input/pad_input.h"
@@ -4871,6 +4884,7 @@ index 0000000..601fa3b
 +#include "mod/net/coop_travel.h"
 +#include "mod/net/coop_chat.h"
 +#include "mod/net/kill_feed.h"
++#include "mod/net/coop_race.h"
 +#include "mod/settings_menu.h"
 +#include "mod/net/aggro_test.h"
 +#include "mod/net/enemy_relay.h"
@@ -4892,7 +4906,7 @@ index 0000000..601fa3b
 +constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 +constexpr uint32_t kSkipTestDelayMs = 6000;
 +
-+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22, kKill = 23 };
++enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22, kKill = 23, kRace = 24 };
 +
 +// Co-op+ (T22): world events (reinforcements, bounty hunters, camp and outpost activity) are stages our server starts
 +// (PrepareSequencerAck); their fighters are enemies, which the guest already gets as copies near the host. What the
@@ -4997,7 +5011,7 @@ index 0000000..601fa3b
 +// above making it player against player; the duel runs in the mod. A running series score is kept until either player
 +// ends the challenge (Shift+F5 again).
 +// Event kChallenge: u8 action | u32 the game's stage key.
-+enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3, kGameHunt = 4 };
++enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3, kGameHunt = 4, kGameRace = 5 };
 +enum ChallengeAction : uint8_t { kInvite = 1, kAccept = 2, kDecline = 3, kEnd = 4 };
 +enum ChallengeState : uint8_t { kChNone, kChPick, kChSent, kChReceived, kChOn };
 +constexpr uint32_t kWrestleStages[] = {16005100, 1001987, 1001988, 1003873, 1003875, 1018693};
@@ -5037,6 +5051,7 @@ index 0000000..601fa3b
 +        case kGameRps: return "Pick your hand:  {RpsScissors} scissors  {RpsPaper} paper  {RpsRock} rock  (first to 2)";
 +        case kGameDuel: return "Bring your opponent to their knees. Stay within the duel ground!";
 +        case kGameHunt: return "Bring down the most game in 3 minutes: big game counts more!";
++        case kGameRace: return "The host's map waypoint is the finish: first within 12 m wins!";
 +        default: return "Both sit at the table and start a match, then mash {Mash}!";
 +    }
 +}
@@ -5046,6 +5061,7 @@ index 0000000..601fa3b
 +    if (stage == kRpsNameStage) return kGameRps;
 +    if (stage == kDuelStage) return kGameDuel;
 +    if (stage == kHuntStage) return kGameHunt;
++    if (stage == kRaceStage) return kGameRace;
 +    return kNoGame;
 +}
 +
@@ -5177,6 +5193,7 @@ index 0000000..601fa3b
 +        case 1001524: case 1018696: return "Five-Card";
 +        case kDuelStage: return "a duel";
 +        case kHuntStage: return "a hunting contest";
++        case kRaceStage: return "a race to the waypoint";
 +        default: return "a minigame";
 +    }
 +}
@@ -5489,6 +5506,7 @@ index 0000000..601fa3b
 +                    c.options.push_back(kDuelStage);
 +                    c.options.push_back(kRpsNameStage);
 +                    c.options.push_back(kHuntStage);
++                    c.options.push_back(kRaceStage);  // Co-op+ (T41)
 +                    g_menu_step = 0;
 +                    break;
 +                }
@@ -5527,6 +5545,9 @@ index 0000000..601fa3b
 +            } else if (c.state == kChOn && game_of(c.stage) == kGameHunt) {
 +                out.banner = std::format("Hunting contest vs {}   series you {} - {} {}   ({{Challenge}} ends)", who,
 +                                         c.ours, c.theirs, who);
++            } else if (c.state == kChOn && game_of(c.stage) == kGameRace) {
++                out.banner = std::format("Race vs {}   series you {} - {} {}   ({{Challenge}} ends)", who, c.ours,
++                                         c.theirs, who);
 +            } else if (c.state == kChOn && game_of(c.stage) == kGameDuel) {
 +                out.banner = std::format("Duel vs {}   series you {} - {} {}   ({{Challenge}} ends the duel)", who,
 +                                         c.ours, c.theirs, who);
@@ -5703,6 +5724,7 @@ index 0000000..601fa3b
 +                if (const char* n = event_name(key)) g_toasts.push_back(std::string("World event near {}\n") + n);
 +            }
 +            break;
++        case kRace:              // coop_race.h, below
 +        case kKill:              // kill_feed.h, below
 +        case kChat:              // coop_chat.h, below
 +        case kTravel:            // coop_travel.h, below
@@ -5760,6 +5782,7 @@ index 0000000..601fa3b
 +    if (p[4] == kTravel) travel_on_event(p.data() + 5, p.size() - 5);  // coop_travel.h
 +    if (p[4] == kChat) chat_on_event(p.data() + 5, p.size() - 5);      // coop_chat.h
 +    if (p[4] == kKill) kill_feed_on_event(p.data() + 5, p.size() - 5); // kill_feed.h
++    if (p[4] == kRace) race_on_event(p.data() + 5, p.size() - 5);      // coop_race.h
 +}
 +
 +ActivityTick activity_tick(bool connected, bool host, bool focused, std::optional<std::array<float, 3>> me,
@@ -5933,6 +5956,22 @@ index 0000000..601fa3b
 +    }
 +    if (!h.banner.empty()) out.banner = std::move(h.banner);
 +    if (!h.toast.empty() && out.toast.empty()) out.toast = std::move(h.toast);
++    // Co-op+ (T41): the race.
++    bool race_on = false;
++    {
++        std::lock_guard lock(g_mutex);
++        race_on = g_ch.state == kChOn && game_of(g_ch.stage) == kGameRace;
++    }
++    RaceTick r = race_tick(race_on, connected, host, who, me, partner);
++    if (r.round_result) {
++        std::lock_guard lock(g_mutex);
++        if (r.round_result == 1) ++g_ch.ours;
++        if (r.round_result == 2) ++g_ch.theirs;
++        out.toast = std::format("Race\n{}   Series: you {} - {} {}",
++                                r.round_result == 1 ? std::string("You win the race.") : who + " wins the race.",
++                                g_ch.ours, g_ch.theirs, who);
++    }
++    if (!r.banner.empty()) out.banner = std::move(r.banner);
 +    // The party journal (party_quests.h): the other player's completed quests. Held back while another notice shows.
 +    static uint32_t journal_after = 0;
 +    if (out.toast.empty() && static_cast<int32_t>(now - journal_after) >= 0) {
@@ -7043,6 +7082,235 @@ index 0000000..9938774
 +
 +// [dev] script step "killgame": KillCheatReq on up to 4 loaded wild animals (false if none is loaded).
 +bool hunt_dev_kill();
++
++}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/coop_race.cpp b/upstream/cd-coop-3446/src/mod/net/coop_race.cpp
+new file mode 100644
+index 0000000..2022df6
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/coop_race.cpp
+@@ -0,0 +1,176 @@
++#include "mod/net/coop_race.h"
++
++#include <windows.h>
++
++#include <algorithm>
++#include <cmath>
++#include <cstring>
++#include <format>
++#include <mutex>
++#include <vector>
++
++#include "mod/log.h"
++#include "mod/net/coop_activity.h"
++
++namespace cdmp::net {
++namespace {
++
++constexpr uint8_t kRaceType = 24;  // Activity event type: u32 round | u32 finish ms
++constexpr uint32_t kCountdownMs = 3000;
++constexpr uint32_t kMaxMs = 600000;      // a round ends after 10 minutes whatever happens
++constexpr uint32_t kWaitLoserMs = 60000;  // after the first finish, the other has this long (then it is a win)
++constexpr uint32_t kOverMs = 8000;
++constexpr float kFinishM = 12.0f;
++constexpr float kNewFinishM = 30.0f;     // a waypoint this far from the last finish starts a new round
++enum Phase : uint8_t { kIdle, kWait, kCountdown, kRace, kOver };
++
++struct State {
++    Phase phase = kIdle;
++    uint32_t round = 0, since = 0;
++    std::array<float, 3> finish{};
++    std::optional<std::array<float, 3>> last_finish;
++    uint32_t ours = 0, theirs = 0;  // finish times (ms from the start; 0 = not yet)
++    uint32_t first_at = 0;          // when the first of us finished
++    int result = 0;
++    bool reported = false, send = false;
++} g;
++std::optional<std::array<float, 3>> g_own_wp, g_partner_wp;
++std::mutex g_mutex;
++
++float flat(const std::array<float, 3>& a, const std::array<float, 3>& b) {
++    return std::hypot(a[0] - b[0], a[2] - b[2]);
++}
++
++std::string race_clock(uint32_t ms) { return std::format("{}:{:02}.{}", ms / 60000, ms / 1000 % 60, ms / 100 % 10); }
++
++}  // namespace
++
++void race_set_own_waypoint(std::optional<std::array<float, 3>> pos) {
++    std::lock_guard lock(g_mutex);
++    g_own_wp = pos;
++}
++
++void race_set_partner_waypoint(std::optional<std::array<float, 3>> pos) {
++    std::lock_guard lock(g_mutex);
++    g_partner_wp = pos;
++}
++
++void race_on_event(const uint8_t* d, size_t n) {
++    if (n < 8) return;
++    uint32_t round, ms;
++    std::memcpy(&round, d, 4);
++    std::memcpy(&ms, d + 4, 4);
++    std::lock_guard lock(g_mutex);
++    if (round != g.round || g.phase != kRace || g.theirs) return;
++    g.theirs = std::max<uint32_t>(ms, 1);
++    if (!g.first_at) g.first_at = GetTickCount();
++    log::info("Race: the other player finished round {} in {}", round, race_clock(g.theirs));
++}
++
++RaceTick race_tick(bool on, bool connected, bool host, const std::string& who, std::optional<std::array<float, 3>> me,
++                   std::optional<std::array<float, 3>> partner) {
++    RaceTick out;
++    const uint32_t now = GetTickCount();
++    std::vector<uint8_t> msg;
++    {
++        std::lock_guard lock(g_mutex);
++        if (!on || !connected) {
++            if (g.phase != kIdle) log::info("Race: over");
++            const auto keep = g.last_finish;
++            g = State{};
++            g.last_finish = keep;
++            return out;
++        }
++        // The finish: the host's waypoint, else the guest's (the same on both sides).
++        const auto& host_wp = host ? g_own_wp : g_partner_wp;
++        const auto& guest_wp = host ? g_partner_wp : g_own_wp;
++        const std::optional<std::array<float, 3>> finish = host_wp ? host_wp : guest_wp;
++        switch (g.phase) {
++            case kIdle:
++                g.phase = kWait, g.since = now;
++                break;
++            case kWait:
++                if (finish && (!g.last_finish || flat(*finish, *g.last_finish) > kNewFinishM)) {
++                    g.phase = kCountdown, g.since = now, g.finish = *finish, ++g.round;
++                    g.ours = g.theirs = g.first_at = 0, g.reported = false, g.result = 0;
++                    log::info("Race: round {} to ({:.0f}, {:.0f})", g.round, g.finish[0], g.finish[2]);
++                }
++                break;
++            case kCountdown:
++                if (now - g.since >= kCountdownMs) g.phase = kRace, g.since = now;
++                break;
++            case kRace: {
++                const uint32_t t = now - g.since;
++                if (!g.ours && me && flat(*me, g.finish) < kFinishM) {
++                    g.ours = std::max<uint32_t>(t, 1);
++                    if (!g.first_at) g.first_at = now;
++                    g.send = true;
++                    log::info("Race: we finished round {} in {}", g.round, race_clock(g.ours));
++                }
++                const bool both = g.ours && g.theirs;
++                const bool lapsed = g.first_at && now - g.first_at > kWaitLoserMs;
++                if (both || lapsed || t > kMaxMs) {
++                    if (g.ours && (!g.theirs || g.ours <= g.theirs)) g.result = 1;
++                    else if (g.theirs) g.result = 2;
++                    else g.result = 3;  // nobody made it
++                    g.phase = kOver, g.since = now, g.last_finish = g.finish;
++                    log::info("Race: round {} ends: us {} them {}", g.round, g.ours ? race_clock(g.ours) : "-",
++                              g.theirs ? race_clock(g.theirs) : "-");
++                }
++                break;
++            }
++            case kOver:
++                if (now - g.since >= kOverMs) g.phase = kWait, g.since = now;
++                break;
++        }
++        if (g.send) {
++            g.send = false;
++            msg.resize(8);
++            std::memcpy(msg.data(), &g.round, 4);
++            std::memcpy(msg.data() + 4, &g.ours, 4);
++        }
++        if (g.phase == kOver && !g.reported) {
++            g.reported = true;
++            out.round_result = g.result == 3 ? 0 : g.result;
++        }
++        if (g.phase == kWait) {
++            out.banner = finish ? std::format("Race vs {}: set a NEW waypoint on the map for the next race   "
++                                              "({{Challenge}} ends)", who)
++                                : std::format("Race vs {}: the host sets a waypoint on the map (right-click): "
++                                              "that is the finish   ({{Challenge}} ends)", who);
++        } else if (g.phase == kRace) {
++            const uint32_t t = now - g.since;
++            const float mine = me ? flat(*me, g.finish) : -1, theirs = partner ? flat(*partner, g.finish) : -1;
++            out.banner = std::format("Race to the waypoint vs {}   {}   you {}   {} {}", who, race_clock(t),
++                                     g.ours ? "finished " + race_clock(g.ours) : std::format("{:.0f} m", mine), who,
++                                     g.theirs ? "finished " + race_clock(g.theirs)
++                                     : theirs >= 0 ? std::format("{:.0f} m", theirs) : std::string("?"));
++        }
++    }
++    if (!msg.empty() && connected) activity_send(kRaceType, msg);
++    return out;
++}
++
++RaceHud race_hud() {
++    RaceHud h;
++    std::lock_guard lock(g_mutex);
++    const uint32_t t = GetTickCount() - g.since;
++    if (g.phase == kCountdown) {
++        h.title = std::to_string(std::max<uint32_t>(1, (kCountdownMs - std::min(kCountdownMs, t) + 999) / 1000));
++        h.subtitle = "Race to the waypoint: first within 12 m wins (horse, glider, anything goes)";
++        h.color = 0xFF82C8E8;
++        h.alpha = 1.0f - static_cast<float>(t % 1000) / 1600.0f;
++    } else if (g.phase == kRace && t < 1200) {
++        h.title = "Go!";
++        h.color = 0xFF82C8E8;
++        h.alpha = 1.0f - static_cast<float>(t) / 1200.0f;
++    } else if (g.phase == kOver) {
++        h.title = g.result == 1 ? "Victory" : g.result == 2 ? "Defeat" : "Nobody Finished";
++        h.subtitle = std::format("You {}   them {}", g.ours ? race_clock(g.ours) : "-", g.theirs ? race_clock(g.theirs) : "-");
++        h.color = g.result == 2 ? 0xFF2830C4 : 0xFF82C8E8;
++        h.alpha = t < kOverMs - 1000 ? 1.0f : std::max(0.0f, (kOverMs - t) / 1000.0f);
++    }
++    return h;
++}
++
++}  // namespace cdmp::net
+diff --git a/upstream/cd-coop-3446/src/mod/net/coop_race.h b/upstream/cd-coop-3446/src/mod/net/coop_race.h
+new file mode 100644
+index 0000000..0358347
+--- /dev/null
++++ b/upstream/cd-coop-3446/src/mod/net/coop_race.h
+@@ -0,0 +1,41 @@
++#pragma once
++// Co-op+ (roadmap T41): a race to the waypoint, a challenge game ("Race to the waypoint" in the picker).
++//
++// The finish is the host's map waypoint (right-click on the map), or the guest's when the host has none: both players
++// know both waypoints (each one is sent as a pin, coop.cpp), so both pick the same point without a message of its
++// own. After 3, 2, 1 the first to come within kFinishM of it (on foot, on a horse, gliding: anything goes) wins; the
++// finish time goes to the other player (Activity type 24: u32 round | u32 ms). A new waypoint starts the next round;
++// with no waypoint the banner asks for one.
++
++#include <array>
++#include <cstdint>
++#include <optional>
++#include <string>
++
++namespace cdmp::net {
++
++inline constexpr uint32_t kRaceStage = 0xD0E10003;  // the challenge "stage" of a race
++
++// Our own map waypoint (local_capture) and the other player's (coop.cpp), as they are set; nullopt = removed.
++void race_set_own_waypoint(std::optional<std::array<float, 3>> pos);
++void race_set_partner_waypoint(std::optional<std::array<float, 3>> pos);
++
++// Activity type 24 from the other player.
++void race_on_event(const uint8_t* data, size_t n);
++
++struct RaceTick {
++    std::string banner;
++    std::string toast;
++    int round_result = 0;  // this tick a round ended: 1 we won, 2 they did
++};
++RaceTick race_tick(bool on, bool connected, bool host, const std::string& who, std::optional<std::array<float, 3>> me,
++                   std::optional<std::array<float, 3>> partner);
++
++struct RaceHud {
++    std::string title, subtitle;
++    unsigned int color = 0;
++    float alpha = 0;
++};
++RaceHud race_hud();
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_revive.cpp b/upstream/cd-coop-3446/src/mod/net/coop_revive.cpp
@@ -9744,21 +10012,22 @@ index 0000000..6b6a821
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-index 22b77f6..3e365a9 100644
+index 22b77f6..02e1de5 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-@@ -1,4 +1,10 @@
+@@ -1,4 +1,11 @@
  #include "mod/net/local_capture.h"
 +#include "mod/net/coop_activity.h"
 +#include "mod/net/coop_duel.h"
 +#include "mod/net/party_quests.h"
 +#include "mod/net/coop_hunt.h"
 +#include "mod/net/kill_feed.h"
++#include "mod/net/coop_race.h"
 +#include "mod/net/wire_layout.h"
  
  #include <windows.h>
  
-@@ -9,6 +15,7 @@
+@@ -9,6 +16,7 @@
  #include <map>
  #include <set>
  #include <mutex>
@@ -9766,7 +10035,7 @@ index 22b77f6..3e365a9 100644
  #include <vector>
  
  #include <safetyhook.hpp>
-@@ -27,15 +34,20 @@
+@@ -27,15 +35,20 @@
  #include "mod/net/guest_hits.h"
  #include "mod/net/loot_twin.h"
  #include "mod/net/native_suppress.h"
@@ -9788,7 +10057,7 @@ index 22b77f6..3e365a9 100644
  using Bytes = std::vector<uint8_t>;
  
  // Keys our own puppet uses (remote_puppet.cpp): never learn templates from those.
-@@ -44,13 +56,13 @@ constexpr uint32_t kPuppetPlayer = 0xA010F001;
+@@ -44,13 +57,13 @@ constexpr uint32_t kPuppetPlayer = 0xA010F001;
  constexpr uint32_t kPuppetBody = 0xB010F001;
  constexpr uint32_t kPuppetHorse = 0xB010F002;
  
@@ -9807,7 +10076,7 @@ index 22b77f6..3e365a9 100644
  constexpr size_t kRotateTs = 0x9C;
  
  uint64_t steady_ms() {
-@@ -96,9 +108,12 @@ std::map<uint32_t, ActorSeen> g_actors;
+@@ -96,9 +109,12 @@ std::map<uint32_t, ActorSeen> g_actors;
  std::atomic<uint32_t> g_last_attack_hash{0};
  std::atomic<uint32_t> g_last_attack_target{0};
  std::set<uint32_t> g_has_hp;  // under g_actors_mutex
@@ -9823,7 +10092,7 @@ index 22b77f6..3e365a9 100644
  constexpr uint32_t kStatHP = 0x000F4240;
  
  // World actors with hit points, from their loads and HP messages.
-@@ -115,9 +130,9 @@ std::map<uint32_t, Enemy> g_enemies;  // under g_actors_mutex
+@@ -115,9 +131,9 @@ std::map<uint32_t, Enemy> g_enemies;  // under g_actors_mutex
  std::atomic<bool> g_damage_enabled{false};
  std::atomic<bool> g_key_alarm{false};
  uint64_t g_damage_sent = 0, g_damage_applied = 0, g_damage_unmatched = 0;
@@ -9836,7 +10105,7 @@ index 22b77f6..3e365a9 100644
  
  // ---------------------------------------------------------------- writer-thread state
  game::PlayerReader g_reader;
-@@ -132,7 +147,7 @@ float g_horse_sent_pos[3] = {NAN, NAN, NAN};
+@@ -132,7 +148,7 @@ float g_horse_sent_pos[3] = {NAN, NAN, NAN};
  uint64_t g_horse_last_synth_ms = 0;
  Bytes g_last_move;                  // last real MoveActorReq payload (template for synth)
  uint64_t g_last_move_ms = 0;        // steady_ms when it was seen
@@ -9845,7 +10114,7 @@ index 22b77f6..3e365a9 100644
  float g_last_sent_pos[3] = {NAN, NAN, NAN};
  uint64_t g_last_synth_ms = 0;
  uint64_t g_synthesized = 0;
-@@ -148,7 +163,7 @@ std::atomic<uint64_t> g_clock_at{0};
+@@ -148,7 +164,7 @@ std::atomic<uint64_t> g_clock_at{0};
  // wall clock, which runs on through a pause (pausa-copia-congelada.md F2).
  // Trusted once it agrees with the timestamps of our first Reqs.
  std::atomic<int> g_clock_reader{0};  // 0 checking, 1 trusted, -1 off
@@ -9854,7 +10123,7 @@ index 22b77f6..3e365a9 100644
  
  constexpr uint64_t kWallUpRepeatMs = 50;  // resend an unchanged path this often
  Bytes g_last_wallup;
-@@ -172,6 +187,7 @@ struct EquipCopy {
+@@ -172,6 +188,7 @@ struct EquipCopy {
  };
  SafetyHookMid g_equip_hook;
  std::atomic<uint32_t> g_equip_key{0};  // our player key, for the hook
@@ -9862,7 +10131,7 @@ index 22b77f6..3e365a9 100644
  SRWLOCK g_equip_lock = SRWLOCK_INIT;
  // Hook -> writer thread. Fixed storage: the hooks run on game server
  // threads and must not allocate.
-@@ -336,7 +352,16 @@ void note_clock(uint64_t ts) {
+@@ -336,7 +353,16 @@ void note_clock(uint64_t ts) {
      g_clock_at.store(steady_ms(), std::memory_order_relaxed);
      if (g_clock_reader.load(std::memory_order_relaxed) != 0) return;
      const auto read = game::client_game_clock_ms();
@@ -9880,7 +10149,7 @@ index 22b77f6..3e365a9 100644
      // Read a little after the Req was stamped (this runs on the capture writer).
      const int64_t diff = static_cast<int64_t>(*read) - static_cast<int64_t>(ts);
      if (diff >= -250 && diff <= 250) ++g_clock_good;
-@@ -430,10 +455,10 @@ void capture_synth(uint64_t now) {
+@@ -430,10 +456,10 @@ void capture_synth(uint64_t now) {
      Bytes req = g_last_move;
      const float pos[3] = {me->position.x, me->position.y, me->position.z};
      const float rot[4] = {me->rotation.x, me->rotation.y, me->rotation.z, me->rotation.w};
@@ -9895,7 +10164,7 @@ index 22b77f6..3e365a9 100644
      // Game clock: the game's own (stops in menus), else advanced from the
      // last real Move by the wall clock.
      uint64_t ts = g_clock_reader.load(std::memory_order_relaxed) == 1 ? capture_game_clock_ms() : 0;
-@@ -464,12 +489,12 @@ void capture_horse_synth(uint64_t now) {
+@@ -464,12 +490,12 @@ void capture_horse_synth(uint64_t now) {
      if (dx * dx + dy * dy + dz * dz < kSynthMinMove * kSynthMinMove) return;
      Bytes req = g_horse_last_move;
      const float p[3] = {pos->x, pos->y, pos->z};
@@ -9912,7 +10181,7 @@ index 22b77f6..3e365a9 100644
      }
      std::memcpy(req.data() + kMoveTs, &clock, 8);
      std::memcpy(g_horse_sent_pos, p, sizeof p);
-@@ -486,17 +511,18 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -486,17 +512,18 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
      guest_hits_observe_s2c(packet, size);
      piece4_observe_s2c(packet, size);
      puppet_observe_s2c(packet, size);
@@ -9940,7 +10209,7 @@ index 22b77f6..3e365a9 100644
      if (op == kOpChangedEquipByQuickSlotAck && size == 5 + 6) {
          // u32 key | u16 weapon set: our player switched weapons from the quick
          // slots (no OtherEquipItemAck; capture 20261006-190309): our attacks change.
-@@ -517,7 +543,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -517,7 +544,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
          std::memcpy(&key, packet + 5, 4);
          std::memcpy(&slot, packet + 9, 2);
          std::memcpy(&serial, packet + 13, 4);
@@ -9950,7 +10219,7 @@ index 22b77f6..3e365a9 100644
          return;
      }
      if (op == kOpAttackTargetAck && size >= 5 + 0x28) {
-@@ -550,6 +577,10 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -550,6 +578,10 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
              // normal monster without needing the game's stage-name tables. The
              // research measured every NPC in 58 captures at <= 220 max HP.
              if (hp_max > 0) boss_note_max_hp(key, hp_max);
@@ -9961,7 +10230,7 @@ index 22b77f6..3e365a9 100644
              std::optional<Bytes> event;
              {
                  std::lock_guard lock(g_actors_mutex);
-@@ -560,6 +591,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -560,6 +592,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
                  e.hp_max = hp_max;
                  // Damage dealt by the local player: mirror it to the other world.
                  const uint32_t own = g_equip_key.load();
@@ -9971,7 +10240,7 @@ index 22b77f6..3e365a9 100644
                  if (own && source == own && hp < before && e.type && g_damage_enabled) {
                      Bytes b(proto::kDamageEventSize);
                      // Where it spawned (same in both worlds); else where it is.
-@@ -692,6 +726,18 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -692,6 +727,18 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
      }
  }
  
@@ -9990,7 +10259,7 @@ index 22b77f6..3e365a9 100644
  void capture_observe_c2s(const uint8_t* packet, size_t size) {
      aggro_observe_c2s(packet, size);
      enemy_observe_c2s(packet, size);
-@@ -701,9 +747,19 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -701,9 +748,22 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      loot_observe_c2s(packet, size);
      piece4_observe_c2s(packet, size);
      attack_probe_observe_c2s(packet, size);
@@ -10005,12 +10274,15 @@ index 22b77f6..3e365a9 100644
 +    if (op == kOpCreateOrChangeSelfDestinationReq && size >= 5 + 13) {
 +        // Co-op+: our own map waypoint (vec3 | u8): the other player sees it as a pin.
 +        emit(proto::EventKind::Waypoint, Bytes(packet + 5, packet + 5 + 13));
++        std::array<float, 3> wp;  // Co-op+ (T41): the race finish
++        std::memcpy(wp.data(), packet + 5, 12);
++        race_set_own_waypoint(packet[5 + 12] ? std::optional<std::array<float, 3>>(wp) : std::nullopt);
 +        return;
 +    }
      proto::EventKind kind;
      size_t expected = 0, ts_off = 0;
      if (op == off::kOpMoveActorReq) {
-@@ -727,7 +783,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -727,7 +787,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (kind == proto::EventKind::Move && keys::is_class(key, keys::kClassWorld) && key != kPuppetBody &&
          key != kPuppetHorse && key != g_own_horse) {
          float p[3];
@@ -10019,7 +10291,7 @@ index 22b77f6..3e365a9 100644
          std::lock_guard lock(g_actors_mutex);
          if (g_actors.size() > 4096) g_actors.clear();
          g_actors[key] = {{p[0], p[1], p[2]}, steady_ms()};
-@@ -736,7 +792,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -736,7 +796,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (g_own_horse && key == g_own_horse) {
          if (kind == proto::EventKind::Move) {
              g_horse_last_move = payload;
@@ -10028,7 +10300,7 @@ index 22b77f6..3e365a9 100644
          }
          emit(kind, std::move(payload));
          return;
-@@ -748,24 +804,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -748,24 +808,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      std::memcpy(&ts, payload.data() + ts_off, 8);
      note_clock(ts);
      if (kind == proto::EventKind::Move && g_own_horse) {
@@ -10153,7 +10425,7 @@ index 22b77f6..3e365a9 100644
  void capture_tick() {
      {
          std::lock_guard lock(g_mutex);
-@@ -777,14 +929,32 @@ void capture_tick() {
+@@ -777,14 +933,32 @@ void capture_tick() {
      if (!g_reader_ready) return;
      const uint64_t now = steady_ms();
      drain_equip();

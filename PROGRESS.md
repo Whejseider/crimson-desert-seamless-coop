@@ -436,3 +436,18 @@ usually 0), but it is fixed (break added).
 Done: spoiler_test: dev quest_test "completes" Reconstructing Pailune (1000230) and the stand-in echoes it: notice
 "cdmp_peer (relay): Quest Updated / A quest you have not reached yet (name hidden: spoiler guard)". The scene part
 needs a host at a story scene: PLAYTEST 2.7f. [x]
+- Pushed T39 (f70661b).
+
+## T41 -- More challenges
+Plan: of the five (horse race, fishing contest, boss rush / arena, hide and seek, scavenger hunt) the race fits the
+existing pieces best: the challenge picker and series, the shared map waypoints, the hunting contest's round state
+machine. net/coop_race.cpp: finish = the host's waypoint, else the guest's (both known on both sides: our own from
+CreateOrChangeSelfDestinationReq in local_capture, theirs from the Waypoint event in coop.cpp; pings ignored), so no
+extra message picks it; 3-2-1, first within 12 m (2D) sends its time (Activity type 24), the other has 60 s, then the
+result; a waypoint 30+ m from the last finish starts the next round; banner with both distances.
+Done: race_test: picker -> Race (option 5), challenge_test accept, dev script sends our waypoint 60 m east
+(c2s 2663): "Race: round 1 to (-10280, -3915)", walked there: "we finished round 1 in 0:27.9", the echo "the other
+player finished ... 0:27.9", "round 1 ends"; screen: banner "Race to the waypoint vs ... 0:03.2 you 54 m ...",
+"Victory / You 0:27.9 them 0:27.9", toast "You win the race. Series: you 1 - 0". [~]
+Not done: fishing contest (no fishing hook found yet), boss rush / arena (bosses are the host's story stages),
+hide and seek, scavenger hunt. PLAYTEST 6.9b for the race.

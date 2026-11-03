@@ -131,6 +131,7 @@ Note which one each of you gets.
 | 6.7 | Hernand pub (game time ~10:27-10:58; the host's time is used): both at the arm wrestling table; A challenges, B accepts; both hold R then E. | Note whether the table is staffed for both (with the one-PC stand-in it was sometimes empty while connected). | [ ] | [ ] | |
 | 6.8 | During the match. | Each sees the OTHER player in the opponent's chair, arms locked (not the game's NPC). | [ ] | [ ] | |
 | 6.9 | Mash E. | The faster one wins on BOTH screens; series toast; after the match the NPC is back and the friend stands up. | [ ] | [ ] | |
+| 6.9b | Race (T41): A (host) sets a map waypoint 300 m away (right-click on the map); A picks "Race to the waypoint", B accepts; both ride there. Then A sets a new waypoint. | 3, 2, 1, Go!; the banner shows both distances; the first within 12 m gets Victory on both screens with both times; a new waypoint starts round 2. | [ ] | [ ] | |
 | 6.10 | Shift+F6 on an invite; Shift+F5 during a challenge. | The invite is declined; the challenge ends with the final series. | [ ] | [ ] | |
 
 ## 6b. Other mods (T28)
