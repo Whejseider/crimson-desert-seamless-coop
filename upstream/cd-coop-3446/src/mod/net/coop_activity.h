@@ -32,6 +32,9 @@ namespace cdmp::net {
 
 // Client requests we watch (minigame start/end).
 void activity_observe_c2s(const uint8_t* packet, size_t size);
+// Co-op+ (T16): our server's messages: we became wanted (ChangeWantedStateAck / IncreaseWantedPriceAck / a new crime
+// record): the other player gets a notice. Crimes and bounties stay with the player who committed them.
+void activity_observe_s2c(const uint8_t* packet, size_t size);
 
 // An Activity event from the other player.
 void activity_on_event(const std::vector<uint8_t>& payload);

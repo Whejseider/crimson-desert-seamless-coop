@@ -156,3 +156,14 @@ Done: revive1 (one PC): Ctrl+Shift+F9 kill -> game's own death screen + "Hold to
 "we revived" -> echoed -> "revived us: up where we fell" -> checkpoint revive steps 1-3 (no move) -> "alive again",
 hp 300/300 at the death spot; notice "You revived ...". Boss fights keep boss_death_wait. [~] (PLAYTEST 4.4b).
 Note: on this run the game's OWN death screen appeared (not Co-op+'s); fine either way.
+- Pushed T15 (80e2881).
+
+## T16 -- Crime, guards and bounty
+Plan: confirm the guest cannot commit crimes in the host's world (only enemy copies take the guest's blows), see
+what a crime sends, notify the partner, and a shared option if the crime can be put into the other server.
+Findings: crime1 (pub, no weapon drawn in town: no crime); the test save already has a wanted record at login
+(WantedRegionDataListAck: player | region 0x000F42C3 | ... | price). Crime opcodes: WantedAddCrimeRecordReq 2836 /
+Ack 2569, ChangeWantedStateAck 2324, IncreaseWantedPriceAck 2249, SetWantedForDevReq 2212.
+Done: activity_observe_s2c -> Activity 19 kWanted (once a minute) -> notice; wanted1: an injected
+ChangeWantedStateAck -> "cdmp_peer (relay) is now wanted by the guards (in their own world)", game fine. Shared
+bounty -> BLOCKED.md. [~] (PLAYTEST 3.8c with a real crime).

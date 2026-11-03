@@ -40,7 +40,7 @@ constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the N
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19 };
 
 // Co-op+ (T09): a player in a menu (map, inventory, pause...) has their own world paused, while the other player's
 // world goes on with their character standing in it. So: each side tells the other when it opens / closes a menu
@@ -672,6 +672,21 @@ RpsView activity_rps_view() {
 }
 void activity_set_rps_test(int hand) { g_rps_test = hand; }
 
+// Co-op+ (T16): ChangeWantedStateAck 2324, IncreaseWantedPriceAck 2249, WantedAddCrimeRecordAck 2569 from our server.
+std::atomic<uint32_t> g_wanted_sent_at{0};
+void activity_observe_s2c(const uint8_t* packet, size_t size) {
+    if (size < 5) return;
+    uint16_t op = 0;
+    std::memcpy(&op, packet, 2);
+    if (op != 2324 && op != 2249 && op != 2569) return;
+    const uint32_t now = GetTickCount();
+    const uint32_t last = g_wanted_sent_at.load();
+    if (last && now - last < 60000) return;  // one notice a minute is plenty
+    g_wanted_sent_at = now ? now : 1;
+    log::info("Activity: we are wanted now (message {}): telling the other player", op);
+    send(kWanted, nullptr, 0);
+}
+
 void activity_observe_c2s(const uint8_t* packet, size_t size) {
     if (size < 5) return;
     uint16_t op = 0;
@@ -765,6 +780,9 @@ void activity_on_event(const std::vector<uint8_t>& p) {
                 if (p[5] == 1) loot_partner_looted(copy);
                 else enemy_partner_looted_copy(copy);
             }
+            break;
+        case kWanted:
+            g_toasts.push_back("{} is now wanted by the guards (in their own world)");
             break;
         case kReviveYou:         // coop_revive.h, below
         case kHunt:              // coop_hunt.h, below

@@ -15,3 +15,18 @@ What would unblock it: the field layout of AddExperienceByGmReq (its TrocTr hand
 way to make the guest's server count a real blow of the guest on its own hidden enemy (a replayed DoFrameEventReq
 naming the hidden native; needs the hidden native's HP brought low first, which (2) could not do).
 Also unknown: what AddSubLevelExperience feeds (weapon / skill sub-levels?) -- worth knowing before spending more.
+
+## T16 (part) -- a shared bounty ("the host pays for the guest's crimes too", as an option)
+Crimes are per player by design: each player commits them in their own world, the guest's blows only ever reach
+copies of the host's ENEMIES (guest_hits.cpp: is_enemy_copy_key), so the host is never punished for the guest.
+A shared option would have to put a crime into the OTHER player's server.
+Tried / considered:
+1. Capture of a crime (crime1, Hernand pub): Kliff did not draw a weapon in town, no crime was recorded; the test save
+   already carries a wanted record (WantedRegionDataListAck at login: region 0x000F42C3 and a price).
+2. Replaying the crime's own request (WantedAddCrimeRecordReq 2836) into the other server: it names witnesses and
+   victims of the OTHER world (actor keys that do not exist there) -- refused or wrong.
+3. The game's dev requests (SetWantedForDevReq 2212, SetWantedPriceForDevAck): field layouts unknown; a wrong cheat
+   request has logged the player out before.
+What would unblock it: one capture of a real crime (theft at a stall or an assault in town, witnessed) to read
+WantedAddCrimeRecordReq / ChangeWantedStateAck, and the layout of SetWantedForDevReq.
+Shipped instead: each player's bounty stays their own; the other player gets a notice when one becomes wanted.

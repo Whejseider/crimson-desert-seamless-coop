@@ -4442,10 +4442,10 @@ index a328bc0..5778775 100644
      // order (a resent ApplyBuff could land after its Unapply), so they carry
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
 new file mode 100644
-index 0000000..8247f0e
+index 0000000..9681387
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.cpp
-@@ -0,0 +1,994 @@
+@@ -0,0 +1,1012 @@
 +#include "mod/net/coop_activity.h"
 +#include "mod/input/actions.h"
 +#include "mod/input/pad_input.h"
@@ -4488,7 +4488,7 @@ index 0000000..8247f0e
 +constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 +constexpr uint32_t kSkipTestDelayMs = 6000;
 +
-+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18 };
++enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19 };
 +
 +// Co-op+ (T09): a player in a menu (map, inventory, pause...) has their own world paused, while the other player's
 +// world goes on with their character standing in it. So: each side tells the other when it opens / closes a menu
@@ -5120,6 +5120,21 @@ index 0000000..8247f0e
 +}
 +void activity_set_rps_test(int hand) { g_rps_test = hand; }
 +
++// Co-op+ (T16): ChangeWantedStateAck 2324, IncreaseWantedPriceAck 2249, WantedAddCrimeRecordAck 2569 from our server.
++std::atomic<uint32_t> g_wanted_sent_at{0};
++void activity_observe_s2c(const uint8_t* packet, size_t size) {
++    if (size < 5) return;
++    uint16_t op = 0;
++    std::memcpy(&op, packet, 2);
++    if (op != 2324 && op != 2249 && op != 2569) return;
++    const uint32_t now = GetTickCount();
++    const uint32_t last = g_wanted_sent_at.load();
++    if (last && now - last < 60000) return;  // one notice a minute is plenty
++    g_wanted_sent_at = now ? now : 1;
++    log::info("Activity: we are wanted now (message {}): telling the other player", op);
++    send(kWanted, nullptr, 0);
++}
++
 +void activity_observe_c2s(const uint8_t* packet, size_t size) {
 +    if (size < 5) return;
 +    uint16_t op = 0;
@@ -5213,6 +5228,9 @@ index 0000000..8247f0e
 +                if (p[5] == 1) loot_partner_looted(copy);
 +                else enemy_partner_looted_copy(copy);
 +            }
++            break;
++        case kWanted:
++            g_toasts.push_back("{} is now wanted by the guards (in their own world)");
 +            break;
 +        case kReviveYou:         // coop_revive.h, below
 +        case kHunt:              // coop_hunt.h, below
@@ -5442,10 +5460,10 @@ index 0000000..8247f0e
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_activity.h b/upstream/cd-coop-3446/src/mod/net/coop_activity.h
 new file mode 100644
-index 0000000..3191e05
+index 0000000..fdf4486
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_activity.h
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,91 @@
 +#pragma once
 +// Co-op+: shared activities (cutscenes and minigames), EventKind::Activity.
 +//
@@ -5480,6 +5498,9 @@ index 0000000..3191e05
 +
 +// Client requests we watch (minigame start/end).
 +void activity_observe_c2s(const uint8_t* packet, size_t size);
++// Co-op+ (T16): our server's messages: we became wanted (ChangeWantedStateAck / IncreaseWantedPriceAck / a new crime
++// record): the other player gets a notice. Crimes and bounties stay with the player who committed them.
++void activity_observe_s2c(const uint8_t* packet, size_t size);
 +
 +// An Activity event from the other player.
 +void activity_on_event(const std::vector<uint8_t>& payload);
@@ -8103,7 +8124,7 @@ index 0000000..6b6a821
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
-index 22b77f6..ef0d994 100644
+index 22b77f6..add0ab0 100644
 --- a/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/local_capture.cpp
 @@ -1,4 +1,9 @@
@@ -8270,7 +8291,7 @@ index 22b77f6..ef0d994 100644
      }
      std::memcpy(req.data() + kMoveTs, &clock, 8);
      std::memcpy(g_horse_sent_pos, p, sizeof p);
-@@ -486,17 +510,16 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -486,17 +510,17 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
      guest_hits_observe_s2c(packet, size);
      piece4_observe_s2c(packet, size);
      puppet_observe_s2c(packet, size);
@@ -8279,6 +8300,7 @@ index 22b77f6..ef0d994 100644
 +    cinema_observe_s2c(packet, size);      // Co-op+
 +    party_quests_observe_s2c(packet, size);  // Co-op+ party journal
 +    hunt_observe_s2c(packet, size);          // Co-op+ hunting contest: our kills
++    activity_observe_s2c(packet, size);      // Co-op+ (T16): we became wanted
      uint16_t op = 0;
      if (size >= 5) std::memcpy(&op, packet, 2);
 -    if (op == kOpSetAvoidByCutSceneAck && size >= 5 + 21) {
@@ -8296,7 +8318,7 @@ index 22b77f6..ef0d994 100644
      if (op == kOpChangedEquipByQuickSlotAck && size == 5 + 6) {
          // u32 key | u16 weapon set: our player switched weapons from the quick
          // slots (no OtherEquipItemAck; capture 20261006-190309): our attacks change.
-@@ -517,7 +540,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -517,7 +541,8 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
          std::memcpy(&key, packet + 5, 4);
          std::memcpy(&slot, packet + 9, 2);
          std::memcpy(&serial, packet + 13, 4);
@@ -8306,7 +8328,7 @@ index 22b77f6..ef0d994 100644
          return;
      }
      if (op == kOpAttackTargetAck && size >= 5 + 0x28) {
-@@ -550,6 +574,10 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -550,6 +575,10 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
              // normal monster without needing the game's stage-name tables. The
              // research measured every NPC in 58 captures at <= 220 max HP.
              if (hp_max > 0) boss_note_max_hp(key, hp_max);
@@ -8317,7 +8339,7 @@ index 22b77f6..ef0d994 100644
              std::optional<Bytes> event;
              {
                  std::lock_guard lock(g_actors_mutex);
-@@ -560,6 +588,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -560,6 +589,9 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
                  e.hp_max = hp_max;
                  // Damage dealt by the local player: mirror it to the other world.
                  const uint32_t own = g_equip_key.load();
@@ -8327,7 +8349,7 @@ index 22b77f6..ef0d994 100644
                  if (own && source == own && hp < before && e.type && g_damage_enabled) {
                      Bytes b(proto::kDamageEventSize);
                      // Where it spawned (same in both worlds); else where it is.
-@@ -692,6 +723,18 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
+@@ -692,6 +724,18 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
      }
  }
  
@@ -8346,7 +8368,7 @@ index 22b77f6..ef0d994 100644
  void capture_observe_c2s(const uint8_t* packet, size_t size) {
      aggro_observe_c2s(packet, size);
      enemy_observe_c2s(packet, size);
-@@ -701,9 +744,19 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -701,9 +745,19 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      loot_observe_c2s(packet, size);
      piece4_observe_c2s(packet, size);
      attack_probe_observe_c2s(packet, size);
@@ -8366,7 +8388,7 @@ index 22b77f6..ef0d994 100644
      proto::EventKind kind;
      size_t expected = 0, ts_off = 0;
      if (op == off::kOpMoveActorReq) {
-@@ -727,7 +780,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -727,7 +781,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (kind == proto::EventKind::Move && keys::is_class(key, keys::kClassWorld) && key != kPuppetBody &&
          key != kPuppetHorse && key != g_own_horse) {
          float p[3];
@@ -8375,7 +8397,7 @@ index 22b77f6..ef0d994 100644
          std::lock_guard lock(g_actors_mutex);
          if (g_actors.size() > 4096) g_actors.clear();
          g_actors[key] = {{p[0], p[1], p[2]}, steady_ms()};
-@@ -736,7 +789,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -736,7 +790,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      if (g_own_horse && key == g_own_horse) {
          if (kind == proto::EventKind::Move) {
              g_horse_last_move = payload;
@@ -8384,7 +8406,7 @@ index 22b77f6..ef0d994 100644
          }
          emit(kind, std::move(payload));
          return;
-@@ -748,24 +801,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
+@@ -748,24 +802,120 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
      std::memcpy(&ts, payload.data() + ts_off, 8);
      note_clock(ts);
      if (kind == proto::EventKind::Move && g_own_horse) {
@@ -8509,7 +8531,7 @@ index 22b77f6..ef0d994 100644
  void capture_tick() {
      {
          std::lock_guard lock(g_mutex);
-@@ -777,14 +926,32 @@ void capture_tick() {
+@@ -777,14 +927,32 @@ void capture_tick() {
      if (!g_reader_ready) return;
      const uint64_t now = steady_ms();
      drain_equip();

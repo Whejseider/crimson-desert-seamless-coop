@@ -18,6 +18,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T13: boss mechanics audit for two players (docs/research/boss-audit.md): killing blow, finishers, staggers, phases, cinematics, barrier, targeting, grabs, deaths, scaling, loot and quests, each with its handling or fallback; first five bosses on the playtest list.
 - T14: partner frame on the left edge in the game's style: name, health, stamina, distance or "in a menu", and a red "Badly hurt" alert under 25 % (protocol 12 carries stamina).
 - T15: teammate revive: for 30 s after you go down your friend can get you up where you fell by holding Shift+F7 (pad View + LB) beside you; progress and credit on both screens; Q / U stay as before.
+- T16: crimes and bounties stay with the player who committed them (the host is never punished for the guest); the other player gets a notice when one becomes wanted. A shared bounty is not possible yet (BLOCKED.md).
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 

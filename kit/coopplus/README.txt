@@ -146,6 +146,9 @@ WHAT WORKS / WHAT DOESN'T (YET)
   not: each of you sees the animals and people of your own world. They stand in the
   same places for both (same world), but they are not the same ones: a deer you
   hunt is only in your world, and your friend's deer is only in theirs.
+- Crimes and bounties are your own: what you steal or whom you hit in your world
+  makes YOU wanted there, never your friend (and the other way round). When one of
+  you becomes wanted, the other gets a notice.
 - Shared: time of day and weather (the host's). Not shared yet: quests and story
   progress (you get a notice when your friend completes a quest step), civilians.
 - Two players at a time.
