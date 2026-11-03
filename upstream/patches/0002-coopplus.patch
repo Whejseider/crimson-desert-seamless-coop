@@ -3995,7 +3995,7 @@ index fb35bad..3d19d34 100644
  
  }  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop.cpp b/upstream/cd-coop-3446/src/mod/net/coop.cpp
-index 3bdc2c5..a028727 100644
+index 3bdc2c5..38a4d88 100644
 --- a/upstream/cd-coop-3446/src/mod/net/coop.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/coop.cpp
 @@ -1,4 +1,6 @@
@@ -4083,6 +4083,17 @@ index 3bdc2c5..a028727 100644
      if (ev.kind == proto::EventKind::GuestHit) {  // about our enemies
          if (local_in_world_) guest_hits_on_event(ev, delay_ms_);
          return;
+@@ -533,6 +567,10 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
+         last_spawn_ = *info;
+         remote_spawn_ = std::move(*info);
+         remote_silent_ = false;
++        // Co-op+ (T05): their character is news from them too. Without this a reconnection more than 8 s after
++        // the link was lost (forget_partner) removed the fresh copy at once and loaded it again; with a menu open
++        // both loads reached the game together and it refused the second (dropin2).
++        last_remote_ms_ = now_ms;
+     } else if (msg.kind == proto::RelKind::Equip || msg.kind == proto::RelKind::Relay) {
+         if (msg.bytes.size() < 4 || msg.bytes.size() > 4 + proto::kMaxEventPayload) return;
+         uint32_t seq = 0;
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop.h b/upstream/cd-coop-3446/src/mod/net/coop.h
 index a328bc0..695a4fb 100644
 --- a/upstream/cd-coop-3446/src/mod/net/coop.h

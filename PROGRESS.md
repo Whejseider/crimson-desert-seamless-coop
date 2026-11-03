@@ -41,3 +41,16 @@ Findings (build/port3479/rejoin_test.sh, alttab_test.sh):
 - The partner's own crash/restart is a new process: clean by construction; Steam / room-code rejoin: PLAYTEST 1.6b-d.
 No code change was needed. Notes: the peer in the earlier late1 run timed out the client while the game was paused in
 a minigame without focus; normal play does not pause.
+- Pushed T01-T04 (ab89c6b..16f0872) to phase-a/local-pc-setup.
+- T05 note: at the title screen (save not loaded) a connecting partner spawns nothing and leaves nothing behind (dropin1, 3 connects).
+- T05 finding (dropin2): every (re)connect logs spawn -> "nothing from the other player for 8 s; removing their
+  character" -> "the other player is back; reloading" -> spawn again, within 2 ms: a silence timer left over from the
+  previous session. With a menu open the game holds injected packets, so both spawns land together and the game
+  refuses the second ("Actor 생성에 실패했습니다" = actor creation failed); the copy is then missing until the
+  "gone from our world; loading it again" check respawns it ~10 s later (self-healing, but a needless double spawn).
+- T05 fix: CoopLink::on_reliable (Spawn) now sets last_remote_ms_ (net/coop.cpp). dropin3: map / inventory / pause /
+  combat drop-ins = 4 connections, 4 spawns, 3 removals (the 3 leaves), no "actor creation failed"; after each menu
+  closes one partner copy stands beside Kliff (screens dropin3-*). In the combat case Kliff was killed by the bandits
+  before the peer joined: it joined during the death screen, spawned once, no crash.
+- T05 status [~]: menus, title screen (dropin1), save loading (every PEER=1 run), cutscene (late2: peer joined during
+  the arm wrestling intro), fight/death verified on one PC; a boss fight needs a boss -> PLAYTEST 1.6e.

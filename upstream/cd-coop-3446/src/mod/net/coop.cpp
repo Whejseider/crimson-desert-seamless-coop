@@ -567,6 +567,10 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
         last_spawn_ = *info;
         remote_spawn_ = std::move(*info);
         remote_silent_ = false;
+        // Co-op+ (T05): their character is news from them too. Without this a reconnection more than 8 s after
+        // the link was lost (forget_partner) removed the fresh copy at once and loaded it again; with a menu open
+        // both loads reached the game together and it refused the second (dropin2).
+        last_remote_ms_ = now_ms;
     } else if (msg.kind == proto::RelKind::Equip || msg.kind == proto::RelKind::Relay) {
         if (msg.bytes.size() < 4 || msg.bytes.size() > 4 + proto::kMaxEventPayload) return;
         uint32_t seq = 0;

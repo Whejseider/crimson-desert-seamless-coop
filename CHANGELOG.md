@@ -7,6 +7,7 @@ Roadmap work (2026-11-03, one line per task; details in PROGRESS.md):
 - T02: anti-cheat guard: if an anti-cheat is ever found at start, Co-op+ installs nothing and says so; findings in docs/research/online-integrity.md.
 - T03: version handshake: players with different Co-op+ builds or game versions are refused with a notice naming both (protocol 11).
 - T04: reconnect / rejoin verified: 5 partner crashes in a row each clean (partner and enemy copies removed, sent again once); a long alt-tab keeps the session.
+- T05: joining while a menu is open (or any rejoin after 8 s) no longer loads the friend's character twice; drop-in during menus, loading and a fight verified.
 Built on cdmp (ByJunter) as ported to game build 1.0.0.3446 by nouzert1 (cd-coop-3446, commit b7ae133), ported by
 Co-op+ to game 1.0.0.3460 and then 1.0.0.3479.
 
