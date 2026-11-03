@@ -476,3 +476,12 @@ Done: scores_test (the race test with a scores file seeded at 2 wins): race won 
 frame "cdmp_peer (relay), the Sparring Partner" (our title echoed back). Test scores file deleted after. [~]
 (co-op bounties not built; the panel is now long with the settings block -- it can cover the partner frame while
 open.)
+- Pushed T43 (3edc116).
+
+## T44 -- Group photo mode
+Finding (web search 2026-11-03, thegameswiki photo-mode page): the game has a photo mode (beta) in the pause menu that
+pauses play and frees the camera. The friend's copy is a real game actor in the scene, so it is in the photo as it
+stands; the pause freezes it too. What co-op needs is the pose: a ninth quick message "Hold still: photo!" (the quick
+list is now sized by its array, not a fixed 8). Our overlay already hides over game menus (ui_menu_open), and now the
+partner frame hides while the F8 panel is open (it overlapped the long panel, T43).
+Not tested on one PC (the photo mode menu entry was not driven by keys here; the echo copy mirrors us). [~] PLAYTEST 2.7g.

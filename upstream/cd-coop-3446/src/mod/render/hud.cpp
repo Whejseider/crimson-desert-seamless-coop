@@ -332,7 +332,7 @@ void hud_draw(float width, float height) {
     }
 
     // Co-op+ (T14): the partner frame, whenever connected (not over a full-screen menu or a cutscene).
-    if (d.connected && d.remote && !game::ui_menu_open() && !game::cutscene_playing().value_or(false) &&
+    if (d.connected && d.remote && !panel_visible && !game::ui_menu_open() && !game::cutscene_playing().value_or(false) &&
         !d.revive_prompt) {
         const float hp = d.remote->health_max > 0 ? d.remote->health / d.remote->health_max : -1.0f;
         const float st = d.remote->stamina_max > 0 ? d.remote->stamina / d.remote->stamina_max : -1.0f;

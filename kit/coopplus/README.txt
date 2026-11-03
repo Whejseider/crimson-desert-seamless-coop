@@ -125,6 +125,9 @@ PLAYING TOGETHER
 - Ctrl+F3 (pad: View + D-pad Left): quick messages -- Go here, Danger here!, Loot
   here, Follow me, Wait for me, Help!, Thanks!, Ready? -- arrows / D-pad Left-Right
   choose, Ctrl+F3 again sends; the three "here" ones also put a pin on your friend's map.
+- Group photos: the game's photo mode (pause menu, beta) shows your friend too. Send
+  the quick message "Hold still: photo!" (Ctrl+F3, last in the list) so they stop and
+  pose; Co-op+'s own labels hide while a game menu is open.
 - Shift+F2: chat. Type a line (the game does not see your keys meanwhile), Enter sends,
   Esc cancels. Messages show as a notice and in a short log on the left.
 - Ctrl+F4: go to your friend (you are moved next to them in short hops; works best

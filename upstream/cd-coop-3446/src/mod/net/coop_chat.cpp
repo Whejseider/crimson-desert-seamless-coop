@@ -20,8 +20,9 @@ constexpr size_t kMaxText = 120;
 constexpr uint32_t kQuickMs = 8000;
 constexpr uint32_t kLogMs = 15000;
 constexpr size_t kLogLines = 4;
-constexpr std::array<const char*, 8> kQuick = {"Go here", "Danger here!", "Loot here", "Follow me",
-                                               "Wait for me",  "Help!",        "Thanks!",   "Ready?"};
+constexpr std::array<const char*, 9> kQuick = {"Go here", "Danger here!", "Loot here", "Follow me",
+                                               "Wait for me",  "Help!",        "Thanks!",   "Ready?",
+                                               "Hold still: photo!"};  // Co-op+ (T44): the game's photo mode
 constexpr int kHereCount = 3;  // the first three drop a map pin
 
 std::mutex g_mutex;
@@ -174,7 +175,8 @@ ChatView chat_tick(bool connected, const std::string& name, bool focused, uint32
         if (g_quick.load()) {
             const int step = g_quick_step.exchange(0);
             if (step) {
-                g_quick_index = (g_quick_index + step % 8 + 8) % 8;
+                const int n = static_cast<int>(kQuick.size());
+                g_quick_index = (g_quick_index + step % n + n) % n;
                 g_quick_since = now;
             }
             if (now - g_quick_since > kQuickMs) {

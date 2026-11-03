@@ -6122,10 +6122,10 @@ index 0000000..24a4da1
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/coop_chat.cpp b/upstream/cd-coop-3446/src/mod/net/coop_chat.cpp
 new file mode 100644
-index 0000000..b1dffba
+index 0000000..6c1c7dd
 --- /dev/null
 +++ b/upstream/cd-coop-3446/src/mod/net/coop_chat.cpp
-@@ -0,0 +1,198 @@
+@@ -0,0 +1,200 @@
 +#include "mod/net/coop_chat.h"
 +
 +#include <windows.h>
@@ -6148,8 +6148,9 @@ index 0000000..b1dffba
 +constexpr uint32_t kQuickMs = 8000;
 +constexpr uint32_t kLogMs = 15000;
 +constexpr size_t kLogLines = 4;
-+constexpr std::array<const char*, 8> kQuick = {"Go here", "Danger here!", "Loot here", "Follow me",
-+                                               "Wait for me",  "Help!",        "Thanks!",   "Ready?"};
++constexpr std::array<const char*, 9> kQuick = {"Go here", "Danger here!", "Loot here", "Follow me",
++                                               "Wait for me",  "Help!",        "Thanks!",   "Ready?",
++                                               "Hold still: photo!"};  // Co-op+ (T44): the game's photo mode
 +constexpr int kHereCount = 3;  // the first three drop a map pin
 +
 +std::mutex g_mutex;
@@ -6302,7 +6303,8 @@ index 0000000..b1dffba
 +        if (g_quick.load()) {
 +            const int step = g_quick_step.exchange(0);
 +            if (step) {
-+                g_quick_index = (g_quick_index + step % 8 + 8) % 8;
++                const int n = static_cast<int>(kQuick.size());
++                g_quick_index = (g_quick_index + step % n + n) % n;
 +                g_quick_since = now;
 +            }
 +            if (now - g_quick_since > kQuickMs) {
@@ -21542,7 +21544,7 @@ index 0000000..1af3b3e
 +
 +}  // namespace cdmp::render::ui
 diff --git a/upstream/cd-coop-3446/src/mod/render/hud.cpp b/upstream/cd-coop-3446/src/mod/render/hud.cpp
-index 14edc91..c688743 100644
+index 14edc91..12fe083 100644
 --- a/upstream/cd-coop-3446/src/mod/render/hud.cpp
 +++ b/upstream/cd-coop-3446/src/mod/render/hud.cpp
 @@ -5,59 +5,67 @@
@@ -21936,7 +21938,7 @@ index 14edc91..c688743 100644
 +    }
 +
 +    // Co-op+ (T14): the partner frame, whenever connected (not over a full-screen menu or a cutscene).
-+    if (d.connected && d.remote && !game::ui_menu_open() && !game::cutscene_playing().value_or(false) &&
++    if (d.connected && d.remote && !panel_visible && !game::ui_menu_open() && !game::cutscene_playing().value_or(false) &&
 +        !d.revive_prompt) {
 +        const float hp = d.remote->health_max > 0 ? d.remote->health / d.remote->health_max : -1.0f;
 +        const float st = d.remote->stamina_max > 0 ? d.remote->stamina / d.remote->stamina_max : -1.0f;
