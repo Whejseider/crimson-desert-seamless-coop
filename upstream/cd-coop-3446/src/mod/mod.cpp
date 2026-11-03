@@ -1,4 +1,6 @@
 #include "mod/mod.h"
+#include "mod/input/actions.h"
+#include "mod/input/pad_input.h"
 
 #include <cmath>
 #include <filesystem>
@@ -422,8 +424,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 }
             }
             const bool focus = game_has_focus();
-            const bool ctrl = key_down(VK_CONTROL);
-            if (invite_key.pressed(focus && ctrl && key_down(VK_F1))) {
+            if (invite_key.pressed(input::action_down(input::Action::Invite, focus))) {
                 if (!host) {
                     say("only the host can invite (you are in a friend's world)");
                 } else if (!net::room_lobby_id()) {
@@ -434,7 +435,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     say("Steam overlay opened: pick a friend to invite");
                 }
             }
-            if (leave_key.pressed(focus && ctrl && key_down(VK_F2))) {
+            if (leave_key.pressed(input::action_down(input::Action::Leave, focus))) {
                 if (!host) {
                     end = {Kind::Leave, 0};
                     break;
@@ -626,8 +627,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 script_was_down = script_down;
                 // Co-op+: Ctrl+F4 takes us to the other player (alive, not in a menu, 1 m beside them).
                 static bool go_was_down = false;
-                const bool go_down = connected && game_has_focus() && (GetAsyncKeyState(VK_CONTROL) & 0x8000) &&
-                                     !(GetAsyncKeyState(VK_SHIFT) & 0x8000) && (GetAsyncKeyState(VK_F4) & 0x8000);
+                const bool go_down = connected && input::action_down(input::Action::GoToFriend, game_has_focus());
                 if (go_down && !go_was_down && s.health > 0.0f) {
                     if (const auto& rs = session.remote_state(); rs && rs->health > 0.0f) {
                         net::revive_teleport_to(rs->pos.x + 1.0f, rs->pos.y + 0.5f, rs->pos.z);
@@ -637,8 +637,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 go_was_down = go_down;
                 // Co-op+: Ctrl+F3 pings our position to the other player (their map + a toast).
                 static bool ping_was_down = false;
-                const bool ping_down = connected && game_has_focus() && (GetAsyncKeyState(VK_CONTROL) & 0x8000) &&
-                                       (GetAsyncKeyState(VK_F3) & 0x8000);
+                const bool ping_down = connected && input::action_down(input::Action::Ping, game_has_focus());
                 if (ping_down && !ping_was_down) {
                     net::capture_emit_ping(s.position.x, s.position.y, s.position.z);
                     log::info("Co-op: pinged our position ({:.0f}, {:.0f}) to the other player", s.position.x,
@@ -1407,6 +1406,8 @@ DWORD WINAPI worker(LPVOID) {
         net::cinema_set_test(cfg.dev_cinema_test);
         net::activity_set_rps_test(cfg.dev_rps_test);
         net::activity_set_challenge_test(cfg.dev_challenge_test);
+        input::input_start();  // Co-op+: pads, input method, button icons (input/pad_input.h)
+        input::set_sim(cfg.dev_pad_sim);
         if (cfg.dev_boss_hp) {
             net::boss_set_test_threshold(static_cast<int64_t>(cfg.dev_boss_hp) * 1000);
             log::info("Config: [dev] boss_hp={}: enemies with that much health count as bosses", cfg.dev_boss_hp);

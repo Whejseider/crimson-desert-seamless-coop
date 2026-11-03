@@ -130,6 +130,9 @@ add_library(cdmp_mod SHARED
     src/mod/net/time_sync.cpp
     src/mod/render/dx12_hook.cpp
     src/mod/render/hud.cpp
+    src/mod/render/game_ui.cpp
+    src/mod/input/pad_input.cpp
+    src/mod/input/actions.cpp
 )
 cdmp_strict(cdmp_mod)
 target_link_libraries(cdmp_mod PRIVATE cdmp_common imgui safetyhook::safetyhook)

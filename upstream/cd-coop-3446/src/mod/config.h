@@ -77,7 +77,8 @@ struct Config {
     int32_t dev_tp_offset_m = 30;  // Co-op+ dev: Ctrl+Shift+F4 teleports this far east ([dev] tp_offset_m)
     uint32_t dev_boss_hp = 0;       // Co-op+ dev: enemies with this many max HP count as bosses ([dev] boss_hp)
     bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
-    int dev_challenge_test = 0;  // Co-op+ dev: a simulated friend accepts our challenges ([dev] challenge_test)
+    int dev_challenge_test = 0;
+    int dev_pad_sim = 0;  // Co-op+ dev: act as an Xbox (1) / PlayStation (2) pad ([dev] pad_sim)  // Co-op+ dev: a simulated friend accepts our challenges ([dev] challenge_test)
     int dev_rps_test = -1;  // Co-op+ dev: simulated RPS opponent's hand 0/1/2 ([dev] rps_test=1..3, 0 = off)
     bool dev_cinema_test = false;  // Co-op+ dev: replay our own stage cutscenes as a guest would ([dev] cinema_test)
     uint32_t dev_weather_test = 0;  // Co-op+ dev: act as a guest whose host has this weather stage ([dev] weather_test)

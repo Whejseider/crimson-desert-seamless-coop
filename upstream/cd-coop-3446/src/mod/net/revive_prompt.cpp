@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "mod/game/actor_lookup.h"
+#include "mod/input/actions.h"
 #include "mod/game/offsets.h"
 #include "mod/game/safe_memory.h"
 #include "mod/game/ui_state.h"
@@ -190,8 +191,9 @@ bool send(uint16_t op, const std::vector<uint8_t>& body) {
     return sniffer_inject_c2s(std::move(pkt));
 }
 
+// The revive choices: Q / U on a keyboard, X / Y (Square / Triangle) on a pad (input/actions.h).
 bool pressed(int vk, bool& was, bool focused) {
-    const bool down = focused && (GetAsyncKeyState(vk) & 0x8000) != 0;
+    const bool down = input::action_down(vk == 'Q' ? input::Action::ReviveNow : input::Action::ReviveCheckpoint, focused);
     const bool edge = down && !was;
     was = down;
     return edge;

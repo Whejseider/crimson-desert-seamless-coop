@@ -16,6 +16,8 @@
 #include "mod/game/ui_state.h"
 #include "mod/log.h"
 #include "mod/render/dx12_hook.h"
+#include "mod/input/actions.h"
+#include "mod/render/game_ui.h"
 
 namespace cdmp::render {
 namespace {
@@ -187,13 +189,12 @@ void hud_draw(float width, float height) {
     static bool camera_init = false;
     static ULONGLONG last_diag = 0;
 
-    // F8: the panel. Ctrl+F8 (Co-op+): the nameplate over the other player.
-    const bool f8_down = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;
-    if (f8_down && !f8_was_down) {
-        if (GetAsyncKeyState(VK_CONTROL) & 0x8000) plates_visible = !plates_visible;
-        else panel_visible = !panel_visible;
-    }
-    f8_was_down = f8_down;
+    // F8: the panel. Ctrl+F8 (Co-op+): the nameplate over the other player. Pads: chord + X / chord + A.
+    static input::Edge panel_edge, plates_edge;
+    const bool focus = GetForegroundWindow() != nullptr;
+    if (plates_edge(input::action_down(input::Action::Nameplates, focus))) plates_visible = !plates_visible;
+    else if (panel_edge(input::action_down(input::Action::Panel, focus))) panel_visible = !panel_visible;
+    (void)f8_was_down;
 
     HudData d;
     HudOptions opt;
@@ -228,43 +229,25 @@ void hud_draw(float width, float height) {
     if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
     if (panel_visible) draw_panel(d, opt, remote_distance, cam ? std::string() : camera.last_failure());
     if (!d.toast.empty()) {
-        // Co-op+: arrivals and departures, top centre, whatever F8 says.
-        ImGui::SetNextWindowPos(ImVec2(width * 0.5f, height * 0.08f), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
-        ImGui::SetNextWindowBgAlpha(0.6f);
-        ImGui::Begin("cdmp_toast", nullptr,
-                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize |
-                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
-        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.5f, 1.0f), "%s", d.toast.c_str());
-        ImGui::End();
+        // Co-op+: notices, top centre, whatever F8 says; the game's dialog look (game_ui.h). A first line
+        // ending in a line break becomes the notice's gold title.
+        const auto nl = d.toast.find('\n');
+        ui::band(width, height * 0.07f, nl == std::string::npos ? std::string() : d.toast.substr(0, nl),
+                 nl == std::string::npos ? d.toast : d.toast.substr(nl + 1));
     }
 
     if (!d.activity.empty()) {
-        // Co-op+: the other player's cutscene, under the toasts.
-        ImGui::SetNextWindowPos(ImVec2(width * 0.5f, height * 0.14f), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
-        ImGui::SetNextWindowBgAlpha(0.5f);
-        ImGui::Begin("cdmp_activity", nullptr,
-                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize |
-                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
-        ImGui::TextColored(ImVec4(0.75f, 0.85f, 1.0f, 1.0f), "%s", d.activity.c_str());
-        ImGui::End();
+        // Co-op+: the other player's cutscene, a running challenge..., under the notices.
+        ui::strip(width, height * 0.175f, d.activity);
     }
 
     if (d.revive_prompt) {
-        // Co-op+: the game's death screen, in the overlay (revive_prompt.h), centre of the screen.
-        ImGui::SetNextWindowPos(ImVec2(width * 0.5f, height * 0.45f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowBgAlpha(0.7f);
-        ImGui::Begin("cdmp_revive", nullptr,
-                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize |
-                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
-        ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.6f);
-        ImGui::TextColored(ImVec4(0.85f, 0.25f, 0.2f, 1.0f), "Death has found you.");
-        ImGui::Spacing();
-        const char* line = d.revive_prompt == 2 ? "Your partner is still fighting the boss. Hold on..."
-                           : d.revive_prompt == 3 ? "Everyone is down.      [U] Revive at Checkpoint"
-                                                  : "[Q] Instant Revive      [U] Revive at Checkpoint";
-        ImGui::TextColored(ImVec4(0.95f, 0.95f, 0.95f, 1.0f), "%s", line);
-        ImGui::PopFont();
-        ImGui::End();
+        // Co-op+: the game's own death screen, redrawn (revive_prompt.h): same words, same buttons.
+        const char* choices = d.revive_prompt == 2 ? "Your partner is still fighting the boss. Hold on..."
+                              : d.revive_prompt == 3 ? "Everyone is down.      {ReviveCheckpoint} Revive at Checkpoint"
+                                                     : "{ReviveNow} Instant Revive (30% Health)        "
+                                                       "{ReviveCheckpoint} Revive at Checkpoint";
+        ui::death_screen(width, height, "Death has found you.", "Return to your path?", choices);
     }
 
     // ---- world markers (not over a full-screen menu: they showed on top of the map)

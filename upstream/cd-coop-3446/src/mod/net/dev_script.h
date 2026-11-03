@@ -11,6 +11,7 @@
 //   time <hh:mm>                   (set our time of day, time_sync.h)
 //   day <+N>                       (N days later, same hour)
 //   watch <hex addr> [len] [hits]  (hardware write breakpoint, dev_watch.h; logs who writes it)
+//   pad <hex buttons> <ms>         (a simulated pad press, input/pad_input.h; e.g. pad 0021 300 = View + D-pad Up)
 // Placeholders in the payload: {P} = our player key (u32), {POS} = our position (3 x f32), {U} = our user key (u32).
 // Spaces inside the hex are ignored. Opcodes are decimal.
 

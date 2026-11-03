@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "mod/log.h"
+#include "mod/render/game_ui.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -266,6 +267,7 @@ bool init_renderer(IDXGISwapChain* sc, const DXGI_SWAP_CHAIN_DESC& desc) {
         io.IniFilename = nullptr;  // never write imgui.ini into the game folder
         io.LogFilename = nullptr;
         ImGui::StyleColorsDark();
+        ui::load_fonts();  // Co-op+: the game's look (game_ui.h)
     }
 
     ImGui_ImplDX12_InitInfo info;

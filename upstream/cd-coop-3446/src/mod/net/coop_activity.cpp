@@ -1,4 +1,6 @@
 #include "mod/net/coop_activity.h"
+#include "mod/input/actions.h"
+#include "mod/input/pad_input.h"
 
 #include <windows.h>
 
@@ -106,10 +108,20 @@ std::atomic<int> g_challenge_test{0};
 
 Game game_of(uint32_t stage);
 
+// A text that goes through std::vformat later (g_toasts): its literal braces (button tokens) doubled.
+std::string escape_braces(const std::string& t) {
+    std::string r;
+    for (char ch : t) {
+        r += ch;
+        if (ch == '{' || ch == '}') r += ch;
+    }
+    return r;
+}
+
 // What to do once a challenge is on.
 std::string how_to_play(uint32_t stage) {
-    return game_of(stage) == kGameRps ? "Pick your hand: U scissors, F paper, E rock (first to 2)"
-                                      : "Both sit at the table and start a match: mash E!";
+    return game_of(stage) == kGameRps ? "Pick your hand:  {RpsScissors} scissors  {RpsPaper} paper  {RpsRock} rock  (first to 2)"
+                                      : "Both sit at the table and start a match, then mash {Mash}!";
 }
 
 Game game_of(uint32_t stage) {
@@ -317,7 +329,23 @@ void versus_tick(ActivityTick& out, bool connected, bool host, bool cut, const s
     v.last_ours = ours;
     std::string title = game;
     if (!title.empty()) title[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(title[0])));
-    out.banner = std::format("{} vs {}: mash E!   You {:.0f} - {:.0f} {}", title, who, ours, 100.0f - ours, who);
+    out.banner = std::format("{} vs {}: mash {{Mash}}!   You {:.0f} - {:.0f} {}", title, who, ours, 100.0f - ours, who);
+}
+
+// The pad's side of what the keyboard hook catches (input/actions.h): mash presses, RPS hands, the cutscene skip.
+// XInput pads' buttons are kept from the game while a Co-op+ box wants them.
+void pad_tick() {
+    static input::Edge mash, scissors, paper, rock, skip;
+    if (mash(input::action_down(input::Action::Mash, false)) && g_match_on.load()) g_e_presses.fetch_add(1);
+    const bool rps = g_rps_hold.load() && GetTickCount64() - g_hold_seen.load() < 500;
+    if (rps) input::mask_from_game(input::kPadX | input::kPadY | input::kPadB, 150);
+    const bool s = scissors(input::action_down(input::Action::RpsScissors, false));
+    const bool p = paper(input::action_down(input::Action::RpsPaper, false));
+    const bool r = rock(input::action_down(input::Action::RpsRock, false));
+    if (rps && (s || p || r)) g_rps_pressed = s ? 0 : p ? 1 : 2;
+    const bool hold = g_hold_esc.load() && GetTickCount64() - g_hold_seen.load() < 500;
+    if (hold) input::mask_from_game(input::kPadStart | input::kPadB, 150);
+    if (skip(input::action_down(input::Action::Skip, false)) && hold) g_esc_held = true;
 }
 
 // The rock-paper-scissors duel (see Rps): every tick of the network loop.
@@ -373,7 +401,7 @@ void rps_tick(ActivityTick& out, bool connected, const std::string& who) {
         if (!picking) {
             out.banner = r.reveal + "   (" + score + ")";
         } else if (r.ours < 0) {
-            out.banner = std::format("Rock, paper, scissors vs {} ({}, first to 2): U scissors, F paper, E rock{}", who,
+            out.banner = std::format("Rock, paper, scissors vs {} ({}, first to 2):   {{RpsScissors}} scissors   {{RpsPaper}} paper   {{RpsRock}} rock{}", who,
                                      score, r.theirs >= 0 ? std::format("   ({} has picked)", who) : "");
         } else {
             out.banner = std::format("Rock, paper, scissors: you picked {}; waiting for {}   ({})", kHands[r.ours], who, score);
@@ -390,15 +418,10 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
                     const std::string& who) {
     const uint32_t now = GetTickCount();
     // Shift, not Ctrl: Ctrl is a game key (it moves the interaction focus off the table host, and crouches).
-    const bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
-    const bool shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
-    const bool f5 = focused && shift && !ctrl && (GetAsyncKeyState(VK_F5) & 0x8000) != 0;
-    const bool f6 = focused && shift && !ctrl && (GetAsyncKeyState(VK_F6) & 0x8000) != 0;
-    static bool f5_was = false, f6_was = false;
-    const bool pressed = f5 && !f5_was;
-    bool declined = f6 && !f6_was;
-    f5_was = f5;
-    f6_was = f6;
+    // Shift+F5 / Shift+F6, or on a pad the co-op chord + D-pad Up / Down (input/actions.h).
+    static input::Edge challenge_edge, decline_edge;
+    const bool pressed = challenge_edge(input::action_down(input::Action::Challenge, focused));
+    bool declined = decline_edge(input::action_down(input::Action::Decline, focused));
     const int test_mode = g_challenge_test.load();
     const bool test = test_mode != 0;
     std::optional<std::pair<uint8_t, uint32_t>> send_it;
@@ -418,7 +441,7 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
             c.state = kChReceived;
             c.stage = kRpsNameStage;
             c.since = now;
-            toast = std::format("{} challenges you to rock, paper, scissors! Shift+F5 to accept", who);
+            toast = std::format("{} challenges you to rock, paper, scissors! {{Challenge}} to accept", who);
             log::info("Activity: [dev] challenge_test: the other player challenges us");
             declined = false;  // that press was the trigger
         }
@@ -455,7 +478,7 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
                                         : 0;
                     if (!found) found = kRpsNameStage;
                     if (!connected && !test) {
-                        toast = "No one to challenge: invite a friend first (Ctrl+F1)";
+                        toast = "No one to challenge: invite a friend first ({Invite})";
                     } else {
                         c = Challenge{};
                         c.state = kChSent;
@@ -471,12 +494,12 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
         if (out.banner.empty()) {
             const std::string game = activity_minigame_name(c.stage);
             if (c.state == kChReceived) {
-                out.banner = std::format("{} challenges you to {}!   Shift+F5 accept, Shift+F6 decline", who, game);
+                out.banner = std::format("{} challenges you to {}!   {{Challenge}} accept   {{Decline}} decline", who, game);
             } else if (c.state == kChSent) {
-                out.banner = std::format("Challenge sent: {} vs {}. Waiting for an answer (Shift+F5 withdraws)", game, who);
+                out.banner = std::format("Challenge sent: {} vs {}. Waiting for an answer ({{Challenge}} withdraws)", game, who);
             } else if (c.state == kChOn) {
                 out.banner = std::format("Challenge: {} vs {}   series you {} - {} {}   (start a match at the table; "
-                                         "Shift+F5 ends)", game, who, c.ours, c.theirs, who);
+                                         "{{Challenge}} ends)", game, who, c.ours, c.theirs, who);
             }
         }
     }
@@ -562,12 +585,12 @@ void activity_on_event(const std::vector<uint8_t>& p) {
                         g_ch.state = kChReceived;
                         g_ch.stage = stage;
                         g_ch.since = GetTickCount();
-                        g_toasts.push_back("{} challenges you to " + game + "! Shift+F5 to accept");
+                        g_toasts.push_back("{} challenges you to " + game + "! {{Challenge}} to accept");
                         break;
                     case kAccept:
                         if (g_ch.state == kChSent) {
                             g_ch.state = kChOn;
-                            g_toasts.push_back("{} accepted: " + game + "! " + how_to_play(stage));
+                            g_toasts.push_back("{} accepted: " + game + "! " + escape_braces(how_to_play(stage)));
                         }
                         break;
                     case kDecline:
@@ -625,6 +648,7 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
             else send(kCutsceneOff, nullptr, 0);
         }
     }
+    pad_tick();
     cinema_tick(connected, host, cut, me, partner, now);  // the host's stage cinematics for the guest (D38)
     const std::string who = partner_name.empty() ? std::string("Your friend") : partner_name;
     start_hook();
@@ -670,11 +694,11 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
         if (g_partner_cutscene && is_near && !cut) {
             out.banner = std::format("{} is watching a cutscene", who);
         } else if (shared && g_our_skip && !g_partner_skip) {
-            out.banner = std::format("Skip: waiting for {} to press Esc", who);
+            out.banner = std::format("Skip: waiting for {}", who);
         } else if (shared && g_partner_skip && !g_our_skip) {
-            out.banner = std::format("{} wants to skip: press Esc to skip together", who);
+            out.banner = std::format("{} wants to skip: {{Skip}} to skip together", who);
         } else if (shared && !g_released) {
-            out.banner = std::format("{} is in this cutscene too: it skips when you both press Esc", who);
+            out.banner = std::format("{} is in this cutscene too: it skips when you both press {{Skip}}", who);
         }
     }
     if (send_skip) {
