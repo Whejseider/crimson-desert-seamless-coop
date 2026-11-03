@@ -39,6 +39,13 @@
   Flags: F3 (boss cutscene needs a 2-PC boss test), F7 (wyvern: egg test save ready, how does it hatch?).
   Open (mine): RPS versus (boy busy at 10:35-10:45; design in LOG), other contests' scores.
 
+- 2026-11-02 (night): CHALLENGES (D40): Shift+F5 challenges the friend to arm/hand wrestling at a table or to a
+  rock-paper-scissors duel anywhere (D39: the town RPS child cannot be made PvP); Shift+F5 accept/end, Shift+F6
+  decline; series score. Verified on one PC with [dev] challenge_test / versus_test / rps_test. Installed
+  dist/...-0.1.0-alpha+afd35141.zip (Defender clean, DLL hash matches, ini kept). Test save OUT, ini restored,
+  SAVES OK. Wyvern still F7 (needs a save that reached Delesyia). Test-save tools: move_save.py, knowledge_swap.py,
+  make_egg_save.py; variants rps, windridge, wyvern-egg, wyvern-k(-main).
+
 ## Where the project lives now
 - `C:\Users\asher\CrimsonDesert-SeamlessCoop` (D15; short path because MSVC breaks on deep folders).
 - Work branch: `phase-a/local-pc-setup` (pushed after each milestone). `main` = Phase A from session 1.
