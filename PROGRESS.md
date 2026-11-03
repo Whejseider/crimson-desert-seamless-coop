@@ -244,3 +244,15 @@ the hook had swallowed half of the F2 press so F2 stayed "held". Now the opening
 swallowed; typed keys are swallowed down and up together; the line opens from the hook's own Shift+F2 event.
 Done: chat7: typing line, "cdmp_peer (relay): hello friend" notice + log, quick list (gold choice), "Danger here!"
 sent + pin. Pad: same actions (View + D-pad Left opens, D-pad Left/Right choose), not driven by a pad here.
+- Pushed T24 (2edf0f4).
+
+## T25 -- Mount edge cases
+Plan: echo horse runs (horse_test.sh, AGAIN=1 for a second summon / mount / dismount); flying mount checked earlier
+(D43, dragon tests). Death / swapping need two horses / a fight: playtest.
+Finding (mount1, mount2): after a dismount the rider reloads "the horse stays", but the horse copy no longer existed,
+so a new copy was prepared from the old spawn data -- at the spot where the horse was first called (-10340, -3928)
+while the real horse stood at (-10290, -3990). Fix: the sender's horse position is tracked from its Move /
+StartAction (horse_event) and a new horse copy is placed there; forgotten when the horse copy is removed. Also the
+kept copy is reused whenever it exists (the key check was not the failing part, kept for safety).
+mount3: reload placed the horse copy at (-10265.8, -4017.6), real horse at (-10267.4, -4017.4) (+2 m echo offset).
+The second summon in mount1 never reached the horse (Kliff stuck between rocks). [~] PLAYTEST 2.3b.

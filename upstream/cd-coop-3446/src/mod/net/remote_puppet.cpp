@@ -245,6 +245,8 @@ std::atomic<uint32_t> g_src_player_key{0};  // the sender's own player key
 std::atomic<uint32_t> g_src_horse_key{0};   // the sender's horse key (0 = no horse)
 std::atomic<uint32_t> g_src_user_key{0};    // the sender's user key
 std::atomic<uint32_t> g_sender_horse{0};    // the sender's horse key, even when not loaded here
+float g_horse_last_pos[3] = {};            // Co-op+ (T25): the sender's horse, latest Move / StartAction (g_mutex)
+bool g_horse_last_valid = false;
 bool g_horse_spawned = false;   // a horse copy belongs to this puppet (pending or loaded)
 // The horse's load waits for the sender horse's first StartAction: a copy
 // with no action running crashed the game (caballo-coop.md §9.2). Both are
@@ -1055,7 +1057,15 @@ bool spawn_horse(const proto::SpawnInfo& info, uint64_t now) {
     }
     uint8_t old_pos[12];
     std::memcpy(old_pos, horse.data() + marker - 28, sizeof old_pos);
-    const float pos[3] = {info.horse_pos.x + g_offset_x, info.horse_pos.y, info.horse_pos.z};
+    // Co-op+ (T25): where the horse is NOW when we know it (a rider reload re-uses the spawn data, whose horse
+    // position is where the horse was first called: mount1 put the second copy there).
+    float pos[3] = {info.horse_pos.x + g_offset_x, info.horse_pos.y, info.horse_pos.z};
+    {
+        std::lock_guard lock(g_mutex);
+        if (g_horse_last_valid) {
+            pos[0] = g_horse_last_pos[0] + g_offset_x, pos[1] = g_horse_last_pos[1], pos[2] = g_horse_last_pos[2];
+        }
+    }
     int copies = 0;
     for (size_t i = 0; i + 12 <= horse.size(); ++i) {
         if (std::memcmp(horse.data() + i, old_pos, 12) == 0) {
@@ -1192,7 +1202,15 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
     bool reuse = false;
     {
         std::lock_guard lock(g_mutex);
-        reuse = g_horse_kept && info.horse_key == g_sender_horse && game::find_actor(kPuppetHorse);
+        // Co-op+ (T25): the kept horse copy is reused whenever it still exists. The key check alone failed after a
+        // dismount (mount1: "the horse copy stays", then a second horse copy prepared from the old spawn data at
+        // the spot where the horse was first called).
+        const bool exists = game::find_actor(kPuppetHorse).has_value();
+        reuse = g_horse_kept && exists;
+        if (g_horse_kept && exists && info.horse_key != g_sender_horse) {
+            log::info("Puppet: the kept horse copy is reused (sender horse 0x{:08X}, recorded 0x{:08X})", info.horse_key,
+                      static_cast<uint32_t>(g_sender_horse));
+        }
         g_horse_kept = false;
         if (reuse) {
             g_horse_spawned = true;
@@ -1275,6 +1293,10 @@ bool puppet_remove() {
     }
     if (kept) log::info("Puppet: the horse copy stays while its rider reloads");
     if (horse) {
+        {
+            std::lock_guard lock(g_mutex);
+            g_horse_last_valid = false;  // T25: a next partner's horse starts from its own spawn data
+        }
         Bytes payload = {0x04, 0x00, 0x00, 0x00, 0x00, 0x15, 0, 0, 0, 0};
         std::memcpy(payload.data() + 6, &kPuppetHorse, 4);
         enqueue_at(make_packet(off::kOpRemoveActorAck, payload), steady_ms(), /*movement=*/false);
@@ -1297,6 +1319,7 @@ void puppet_forget() {
         g_horse_spawned = false;
         g_horse_pending.clear();
         g_horse_kept = g_keep_horse = false;
+        g_horse_last_valid = false;
     }
     purge_movement();
     g_gap_ref_stale = true;
@@ -1568,6 +1591,21 @@ void ride_horse(const Bytes& rider_req, uint64_t now, uint64_t delay_ms) {
 
 // The horse's own messages (unridden moves, actions, turns).
 void horse_event(proto::EventKind kind, const Bytes& payload, uint64_t now, uint64_t delay_ms) {
+    // Co-op+ (T25): where the sender's horse is now (unshifted), for a horse copy loaded again later.
+    {
+        size_t at = 0;
+        if (kind == proto::EventKind::Move && payload.size() == wire::kMoveReqSize) at = wire::kMovePos;
+        else if (kind == proto::EventKind::StartAction && payload.size() == wire::kActionReqSize) at = wire::kActionPos;
+        float p[3];
+        if (at) {
+            std::memcpy(p, payload.data() + at, sizeof p);
+            if (std::isfinite(p[0]) && std::isfinite(p[1]) && std::isfinite(p[2])) {
+                std::lock_guard lock(g_mutex);
+                std::memcpy(g_horse_last_pos, p, sizeof p);
+                g_horse_last_valid = true;
+            }
+        }
+    }
     if (!g_horse_spawned) return;
     Bytes load;
     uint64_t load_at = 0;

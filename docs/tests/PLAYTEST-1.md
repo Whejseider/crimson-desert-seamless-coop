@@ -49,6 +49,7 @@ when, which Ctrl+F12 mark). A step that could not be tried: leave both boxes emp
 | 2.1 | B glides, climbs a wall, swims, pulls up a ledge, attacks the air. | A sees each move without freezing or snapping. | [ ] | [ ] | |
 | 2.2 | B changes helmet, then weapon. Then A does. | The other sees the change within a couple of seconds. | [ ] | [ ] | |
 | 2.3 | Both call a horse (H) and ride (E; R dismounts). Ride 300 m together. | Each sees the other ride their own horse beside them; no snapping or vanishing. | [ ] | [ ] | |
+| 2.3b | Mount edge cases: B rides 200 m, dismounts, walks 30 m away and calls the horse again (H), rides, dismounts. Then B switches to another horse (if B owns two) and rides it. If a horse dies in a fight, note it. | On A's screen B's horse is always where B's horse really is (never a second horse back where B first called it), B rides the new horse after a switch, a dead horse disappears. | [ ] | [ ] | |
 | 2.4 | (If one has Blackstar) summon the dragon from the F1 wheel and fly a little. | The other sees the dragon flying with the rider. | [ ] | [ ] | |
 | 2.5 | A sets a map waypoint (right-click). | B sees a second pin there. | [ ] | [ ] | |
 | 2.6 | A presses Ctrl+F3. | B: "<A> pinged their position" and a pin. | [ ] | [ ] | |

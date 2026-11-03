@@ -16379,7 +16379,7 @@ index 0000000..2fa592c
 +
 +}  // namespace cdmp::net
 diff --git a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
-index 1754b2d..516b48f 100644
+index 1754b2d..7409cf3 100644
 --- a/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 +++ b/upstream/cd-coop-3446/src/mod/net/remote_puppet.cpp
 @@ -1,4 +1,5 @@
@@ -16452,7 +16452,16 @@ index 1754b2d..516b48f 100644
  uint64_t steady_ms() {
      return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                       std::chrono::steady_clock::now().time_since_epoch())
-@@ -419,53 +463,55 @@ void rebase_timestamp(Bytes& ack, size_t off) {
+@@ -201,6 +245,8 @@ std::atomic<uint32_t> g_src_player_key{0};  // the sender's own player key
+ std::atomic<uint32_t> g_src_horse_key{0};   // the sender's horse key (0 = no horse)
+ std::atomic<uint32_t> g_src_user_key{0};    // the sender's user key
+ std::atomic<uint32_t> g_sender_horse{0};    // the sender's horse key, even when not loaded here
++float g_horse_last_pos[3] = {};            // Co-op+ (T25): the sender's horse, latest Move / StartAction (g_mutex)
++bool g_horse_last_valid = false;
+ bool g_horse_spawned = false;   // a horse copy belongs to this puppet (pending or loaded)
+ // The horse's load waits for the sender horse's first StartAction: a copy
+ // with no action running crashed the game (caballo-coop.md §9.2). Both are
+@@ -419,53 +465,55 @@ void rebase_timestamp(Bytes& ack, size_t off) {
      std::memcpy(ack.data() + off, &ts, 8);
  }
  
@@ -16545,7 +16554,7 @@ index 1754b2d..516b48f 100644
      return ack;
  }
  
-@@ -591,7 +637,9 @@ std::atomic<float> g_end_gap_copy{-1.0f}, g_end_gap_ours{-1.0f};  // |B - target
+@@ -591,7 +639,9 @@ std::atomic<float> g_end_gap_copy{-1.0f}, g_end_gap_ours{-1.0f};  // |B - target
  bool g_rope_lookup_faulted = false;
  // ReleaseRemoteCatchResultAck: u32 catcher | u8 slot | u8 reason (reader
  // 0xB5BD60 -> 0x5A7A10; the game's own releases use reason 2).
@@ -16556,7 +16565,7 @@ index 1754b2d..516b48f 100644
  constexpr uint8_t kReleaseReason = 2;
  
  std::string scene_text(const SceneId& id) {
-@@ -719,13 +767,13 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
+@@ -719,13 +769,13 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
      if (g_gap_ref_stale.exchange(false)) return;  // reloaded since that Move (5 Oct: 1-7 m jumps)
      if (g_last_move.empty()) return;
      uint64_t ts_next = 0;
@@ -16573,7 +16582,7 @@ index 1754b2d..516b48f 100644
      const float dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
      const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
      if (dist < kGapMinJump || dist > kGapMaxJump) return;
-@@ -762,17 +810,17 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
+@@ -762,17 +812,17 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
      AcquireSRWLockExclusive(&g_queue_lock);
      for (Pending& item : g_queue) {
          Bytes& pk = item.packet;
@@ -16594,7 +16603,7 @@ index 1754b2d..516b48f 100644
              float v[3];
              std::memcpy(v, pk.data() + 5 + at, sizeof v);
              const float ex = v[0] - (a[0] + g_offset_x), ey = v[1] - a[1], ez = v[2] - a[2];
-@@ -794,10 +842,10 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
+@@ -794,10 +844,10 @@ void fill_gap_before(const Bytes& next, uint64_t delay) {
          float p[3];
          path_at(f, p);
          Bytes req = g_last_move;
@@ -16608,7 +16617,41 @@ index 1754b2d..516b48f 100644
          auto ack = move_ack(req);
          if (!ack) return;
          // Due when the original sample would have been: received at the time
-@@ -1158,6 +1206,7 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
+@@ -1007,7 +1057,15 @@ bool spawn_horse(const proto::SpawnInfo& info, uint64_t now) {
+     }
+     uint8_t old_pos[12];
+     std::memcpy(old_pos, horse.data() + marker - 28, sizeof old_pos);
+-    const float pos[3] = {info.horse_pos.x + g_offset_x, info.horse_pos.y, info.horse_pos.z};
++    // Co-op+ (T25): where the horse is NOW when we know it (a rider reload re-uses the spawn data, whose horse
++    // position is where the horse was first called: mount1 put the second copy there).
++    float pos[3] = {info.horse_pos.x + g_offset_x, info.horse_pos.y, info.horse_pos.z};
++    {
++        std::lock_guard lock(g_mutex);
++        if (g_horse_last_valid) {
++            pos[0] = g_horse_last_pos[0] + g_offset_x, pos[1] = g_horse_last_pos[1], pos[2] = g_horse_last_pos[2];
++        }
++    }
+     int copies = 0;
+     for (size_t i = 0; i + 12 <= horse.size(); ++i) {
+         if (std::memcmp(horse.data() + i, old_pos, 12) == 0) {
+@@ -1144,7 +1202,15 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
+     bool reuse = false;
+     {
+         std::lock_guard lock(g_mutex);
+-        reuse = g_horse_kept && info.horse_key == g_sender_horse && game::find_actor(kPuppetHorse);
++        // Co-op+ (T25): the kept horse copy is reused whenever it still exists. The key check alone failed after a
++        // dismount (mount1: "the horse copy stays", then a second horse copy prepared from the old spawn data at
++        // the spot where the horse was first called).
++        const bool exists = game::find_actor(kPuppetHorse).has_value();
++        reuse = g_horse_kept && exists;
++        if (g_horse_kept && exists && info.horse_key != g_sender_horse) {
++            log::info("Puppet: the kept horse copy is reused (sender horse 0x{:08X}, recorded 0x{:08X})", info.horse_key,
++                      static_cast<uint32_t>(g_sender_horse));
++        }
+         g_horse_kept = false;
+         if (reuse) {
+             g_horse_spawned = true;
+@@ -1158,6 +1224,7 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
          g_horse_spawned = true;
          g_src_horse_key = info.horse_key;
      }
@@ -16616,7 +16659,7 @@ index 1754b2d..516b48f 100644
      log::info("Puppet: spawn queued at ({:.1f}, {:.1f}, {:.1f}) (2 packets, {} + {} bytes, "
                "sender player 0x{:08X}, generation {})",
                pos[0], pos[1], pos[2], user.size(), body.size(), info.player_key, info.generation);
-@@ -1192,6 +1241,8 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
+@@ -1192,6 +1259,8 @@ bool puppet_spawn(const proto::SpawnInfo& info) {
      return true;
  }
  
@@ -16625,7 +16668,26 @@ index 1754b2d..516b48f 100644
  bool puppet_remove() {
      {
          std::lock_guard lock(g_mutex);
-@@ -1296,10 +1347,12 @@ bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vecto
+@@ -1224,6 +1293,10 @@ bool puppet_remove() {
+     }
+     if (kept) log::info("Puppet: the horse copy stays while its rider reloads");
+     if (horse) {
++        {
++            std::lock_guard lock(g_mutex);
++            g_horse_last_valid = false;  // T25: a next partner's horse starts from its own spawn data
++        }
+         Bytes payload = {0x04, 0x00, 0x00, 0x00, 0x00, 0x15, 0, 0, 0, 0};
+         std::memcpy(payload.data() + 6, &kPuppetHorse, 4);
+         enqueue_at(make_packet(off::kOpRemoveActorAck, payload), steady_ms(), /*movement=*/false);
+@@ -1246,6 +1319,7 @@ void puppet_forget() {
+         g_horse_spawned = false;
+         g_horse_pending.clear();
+         g_horse_kept = g_keep_horse = false;
++        g_horse_last_valid = false;
+     }
+     purge_movement();
+     g_gap_ref_stale = true;
+@@ -1296,10 +1370,12 @@ bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vecto
          if (const uint64_t est = capture_game_clock_ms()) game_now = est;  // the estimate (clock read off)
      }
      int with_action = 0;
@@ -16641,7 +16703,7 @@ index 1754b2d..516b48f 100644
              enqueue_at(make_packet(off::kOpStartActionAck, *ack), now, /*movement=*/false);
              ++with_action;
          }
-@@ -1308,18 +1361,18 @@ bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vecto
+@@ -1308,18 +1384,18 @@ bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vecto
      // without one the first copies loaded but never showed (live test). One
      // still sample where it stands, built on the other player's last Move.
      bool with_move = false;
@@ -16669,7 +16731,7 @@ index 1754b2d..516b48f 100644
          float ref[3];
          std::memcpy(ref, g_ref_pos, sizeof ref);  // the sender's reference stays
          auto ack = move_ack(m);
-@@ -1342,21 +1395,21 @@ std::map<uint32_t, std::array<float, 3>> g_enemy_pos;
+@@ -1342,21 +1418,21 @@ std::map<uint32_t, std::array<float, 3>> g_enemy_pos;
  
  void puppet_enemy_move(uint32_t copy_key, uint64_t ts, const proto::Vec3& pos, const proto::Quat& rot,
                         int64_t ts_shift_ms, uint64_t delay_ms) {
@@ -16701,7 +16763,7 @@ index 1754b2d..516b48f 100644
      g_enemy_pos[copy_key] = {p[0], p[1], p[2]};
      float ref[3];
      std::memcpy(ref, g_ref_pos, sizeof ref);
-@@ -1454,6 +1507,27 @@ void puppet_map_pin(uint32_t owner, const std::optional<proto::Vec3>& pos, bool
+@@ -1454,6 +1530,27 @@ void puppet_map_pin(uint32_t owner, const std::optional<proto::Vec3>& pos, bool
      enqueue_at(make_packet(off::kOpCreateOrChangePinMarkerAck, c), now, /*movement=*/false);
  }
  
@@ -16729,7 +16791,7 @@ index 1754b2d..516b48f 100644
  std::optional<proto::Vec3> puppet_position() {
      if (!puppet_spawned()) return std::nullopt;
      return game::actor_world_position(kPuppetPlayer);
-@@ -1471,17 +1545,17 @@ void ride_horse(const Bytes& rider_req, uint64_t now, uint64_t delay_ms) {
+@@ -1471,17 +1568,17 @@ void ride_horse(const Bytes& rider_req, uint64_t now, uint64_t delay_ms) {
      if (!g_horse_spawned) return;
      Bytes h = rider_req;
      std::memcpy(h.data() + 0x00, &kPuppetHorse, 4);
@@ -16756,7 +16818,29 @@ index 1754b2d..516b48f 100644
      if (!std::isfinite(hp[0]) || (hp[0] == 0.0f && hp[2] == 0.0f)) return;
      float ref[3];
      std::memcpy(ref, g_ref_pos, sizeof ref);  // keep the rider's reference position
-@@ -1551,8 +1625,12 @@ void horse_event(proto::EventKind kind, const Bytes& payload, uint64_t now, uint
+@@ -1494,6 +1591,21 @@ void ride_horse(const Bytes& rider_req, uint64_t now, uint64_t delay_ms) {
+ 
+ // The horse's own messages (unridden moves, actions, turns).
+ void horse_event(proto::EventKind kind, const Bytes& payload, uint64_t now, uint64_t delay_ms) {
++    // Co-op+ (T25): where the sender's horse is now (unshifted), for a horse copy loaded again later.
++    {
++        size_t at = 0;
++        if (kind == proto::EventKind::Move && payload.size() == wire::kMoveReqSize) at = wire::kMovePos;
++        else if (kind == proto::EventKind::StartAction && payload.size() == wire::kActionReqSize) at = wire::kActionPos;
++        float p[3];
++        if (at) {
++            std::memcpy(p, payload.data() + at, sizeof p);
++            if (std::isfinite(p[0]) && std::isfinite(p[1]) && std::isfinite(p[2])) {
++                std::lock_guard lock(g_mutex);
++                std::memcpy(g_horse_last_pos, p, sizeof p);
++                g_horse_last_valid = true;
++            }
++        }
++    }
+     if (!g_horse_spawned) return;
+     Bytes load;
+     uint64_t load_at = 0;
+@@ -1551,8 +1663,12 @@ void horse_event(proto::EventKind kind, const Bytes& payload, uint64_t now, uint
      if (ack) enqueue_at(make_packet(op, *ack), movement_due(now + delay_ms), /*movement=*/true);
  }
  
@@ -16769,7 +16853,7 @@ index 1754b2d..516b48f 100644
      if (g_copy_hooked && steady_ms() - g_rope_seen_ms > kRopeWatchdogMs) {
          enqueue_at(rope_release(), steady_ms() + delay_ms, /*movement=*/true);
          g_copy_hooked = false;
-@@ -1561,7 +1639,7 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1561,7 +1677,7 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
      const uint32_t src = g_src_player_key;
      Bytes payload = ev.payload;
      // Moves arrive without their unused trailing history (local_capture emit).
@@ -16778,7 +16862,7 @@ index 1754b2d..516b48f 100644
      // The actor key leads every payload, after a fragment marker byte in
      // OtherEquipItemAck.
      const size_t key_at = ev.kind == proto::EventKind::Equip   ? 1
-@@ -1597,26 +1675,27 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1597,26 +1713,27 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
          horse_event(ev.kind, payload, now, move_hold);
          return;
      }
@@ -16811,7 +16895,7 @@ index 1754b2d..516b48f 100644
                  const uint32_t horse = g_sender_horse;
                  const bool riding = horse && (parent == kPuppetHorse || parent == horse);
                  if (riding) {
-@@ -1642,9 +1721,9 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1642,9 +1759,9 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
          case proto::EventKind::StartAction:
              // A StartAction right after a filled climb-up that still carries the
              // frozen start position: move it to where the sender ended up.
@@ -16823,7 +16907,7 @@ index 1754b2d..516b48f 100644
                          float v[3];
                          std::memcpy(v, payload.data() + at, sizeof v);
                          const float ex = v[0] - g_recent_gap.start[0], ey = v[1] - g_recent_gap.start[1],
-@@ -1773,14 +1852,16 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
+@@ -1773,14 +1890,16 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
          }
      }
      if (!ack) {
@@ -16842,7 +16926,7 @@ index 1754b2d..516b48f 100644
          const uint64_t due = action_due(now + g_action_hold);
          if (ev.kind == proto::EventKind::StartAction && !is_horse && g_copy_hooked && payload.size() >= 12) {
              const uint32_t next = u32_at(payload, 8);
-@@ -2045,8 +2126,8 @@ void puppet_tick() {
+@@ -2045,8 +2164,8 @@ void puppet_tick() {
  bool movement_ts(const Bytes& pk, size_t& at, InjectClock::Buffer& buffer) {
      if (pk.size() < 5 + 4) return false;
      const uint16_t op = static_cast<uint16_t>(pk[0] | (pk[1] << 8));
@@ -16853,7 +16937,7 @@ index 1754b2d..516b48f 100644
      else if (op == off::kOpRotateActorAck) at = 5 + 0x9C, buffer = InjectClock::Buffer::Rotation;
      else return false;
      return pk.size() >= at + 8;
-@@ -2469,12 +2550,13 @@ bool puppet_take_injection(std::vector<uint8_t>& out) {
+@@ -2469,12 +2588,13 @@ bool puppet_take_injection(std::vector<uint8_t>& out) {
          break;
      }
      if (has) {
@@ -16870,7 +16954,7 @@ index 1754b2d..516b48f 100644
                  g_told_x.store(g_told_pos[0], std::memory_order_relaxed);
                  g_told_z.store(g_told_pos[2], std::memory_order_relaxed);
                  g_told_ms = now;
-@@ -2493,8 +2575,10 @@ bool puppet_install_layer_guards() {
+@@ -2493,8 +2613,10 @@ bool puppet_install_layer_guards() {
          uint8_t h[sizeof off::kActionLayerAdvanceHead];
          if (game::safe_read(base + off::kActionLayerAdvance, h, sizeof h) &&
              std::memcmp(h, off::kActionLayerAdvanceHead, sizeof h) == 0) {
@@ -16883,7 +16967,7 @@ index 1754b2d..516b48f 100644
              if (g_ret_stub) {
                  g_ret_stub[0] = 0xC3;
                  DWORD old = 0;
-@@ -2502,16 +2586,31 @@ bool puppet_install_layer_guards() {
+@@ -2502,16 +2624,31 @@ bool puppet_install_layer_guards() {
                  FlushInstructionCache(GetCurrentProcess(), g_ret_stub, 16);
                  auto hook = safetyhook::MidHook::create(reinterpret_cast<void*>(base + off::kActionLayerAdvance),
                                                          action_layer_advance);
@@ -16917,7 +17001,7 @@ index 1754b2d..516b48f 100644
          if (!g_layer_guard_hook || !g_layers_skip_hook) {
              g_layer_guard_hook = {};
              g_layers_skip_hook = {};
-@@ -2559,6 +2658,43 @@ bool puppet_install_climb_fix() {
+@@ -2559,6 +2696,43 @@ bool puppet_install_climb_fix() {
      return ok;
  }
  
@@ -16961,7 +17045,7 @@ index 1754b2d..516b48f 100644
  void puppet_set_offset(float metres) {
      g_offset_x = metres;
      log::info("Puppet offset set to {:.2f} m", metres);
-@@ -2566,6 +2702,32 @@ void puppet_set_offset(float metres) {
+@@ -2566,6 +2740,32 @@ void puppet_set_offset(float metres) {
  
  float puppet_offset_m() { return g_offset_x.load(); }
  
