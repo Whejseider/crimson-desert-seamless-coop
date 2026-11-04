@@ -157,6 +157,8 @@ struct Config {
     std::wstring dev_story_slot;
     // Co-op+ dev: log the game's save file calls (save_io.h).
     bool dev_save_io_log = false;
+    // Co-op+ dev: a co-op world active from the start (save_io.h; tests of the save separation).
+    std::wstring dev_coop_world;
     // Co-op+: the host's stage cinematics (boss intros...) play for the guest (stage_cinema.h).
     bool coop_stage_cinema = true;
     // Host: copies of our enemies that fight go to the guest on their own

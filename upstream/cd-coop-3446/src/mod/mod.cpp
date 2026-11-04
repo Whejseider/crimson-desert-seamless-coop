@@ -1674,7 +1674,11 @@ DWORD WINAPI worker(LPVOID) {
             }
         }
         // Co-op+ story sync: a story taken from a host goes into the save now, before the game loads one.
-        if (in_game && cfg.dev_save_io_log) save_io::install_log();  // Co-op+ research
+        // Co-op+ co-op worlds (save_io.h): the game's saves, separated per co-op world. Dev-only until finished.
+        if (in_game && build_ok && (cfg.dev_save_io_log || !cfg.dev_coop_world.empty())) {
+            save_io::install(cfg.dev_save_io_log);
+            if (!cfg.dev_coop_world.empty()) save_io::set_world(cfg.dev_coop_world, nullptr);
+        }
         if (in_game && build_ok && cfg.coop_enabled) {
             net::story_configure(cfg.coop_share_story, cfg.dev_story_slot);
             net::story_startup();

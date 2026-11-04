@@ -668,3 +668,16 @@ Done in the user's Chrome (signed in as Asher):
 - 2026-11-04 ~01:55 hotfix 2bd32050 RELEASED: package (tests, install test, Defender clean), installed in the game
   (smoke start OK, SAVES OK), GitHub release v0.1.0-alpha-2bd32050 (Latest), Discord updated
   (docs/release/discord-server-posts.md).
+- 2026-11-04 02:17 CO-OP WORLDS, SAVE SEPARATION WORKS (save_io.cpp, [dev] coop_world=<name>): kernelbase hooks
+  (CreateFile2/W, MoveFileExW, ReplaceFileW, DeleteFileW, Create/RemoveDirectoryW, GetFileAttributes(Ex)W,
+  FindFirstFile(Ex)W, CopyFileW/ExW/2, SetFileAttributesW) send every path under save\<account>\ to
+  Documents\CrimsonDesert-CoopPlus\Worlds\<world>\<account>\; a new world = a copy of the player's slots (made under
+  .making, renamed when complete). Test (world_test.sh, in-game save into SAVE 4): the save went into the world
+  (world slot103 new hash 9ccf2ad4..), the REAL slot103 byte-identical (4255263760097ad4, same mtime), all real saves
+  = backup. First try failed safely: the game also COPIES files during a save ("CopyFileW Error, Error Code : 3",
+  then "Commit Save 실패 [slot103]" and its own rollback); copy calls are hooked now.
+- In-game Load path (3527): Esc > Others > Load > slot > Space > hold Space; Continue at the title calls
+  exe+0x19B09D0(manager=[[exe+0x71BE3F8]+0x48], out, slot number, ..) via exe+0x2EBB220; the in-game Load goes
+  through exe+0x2EE1D90 -> 0x19B09D0. Each load sends GameLoadingStartReq (the sniffer sees it).
+- Live quest research: CompleteQuestByCheatReq's Troc handler (vtable 0x5EE9578 slot 2 = exe+0x2CD4180) only parses
+  and queues (the generic [this+0x21] check is in every handler); the gate is further in: needs live tracing.
