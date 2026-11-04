@@ -824,3 +824,8 @@ Done in the user's Chrome (signed in as Asher):
   CORRECTION: the 16:25:53 game exit (first thought a crash from the user's lock-on press) and the 16:37:00 one were
   my own test scripts: stopping a background test (TaskStop) left its inner bash alive, which closed the game on its
   schedule (taskkill by name). Fixed in the kit: each test script closes only the game PID it started.
+- 2026-11-04 17:14-17:38 Focus during a fight, one PC: NOT achieved. As host the game cannot open its UDP port next
+  to the relay peer; a guest recording with [dev] zone_copy_test (the guest sends its zone enemies) replayed as the
+  host gave copies 63 s out of step that loaded and were removed within ~30 s (plus character-load errors), and the
+  user's character never moved (no fight). A faithful test needs two worlds = two PCs: added as PLAYTEST-1 §6d
+  (guest Focus mid-fight, host Focus, far apart and back). Game state after: release asi, player ini, SAVES OK.

@@ -156,6 +156,16 @@ B should be behind A in the story (or use any two different saves). Both: note y
 | 6c.5 | B and A play the same quest step together. | It advances for both. | [ ] | [ ] | |
 | 6c.6 | Undo (optional): game closed, B copies the backup's slot folder back. | B's old story is back. | [ ] | [ ] | |
 
+## 6d. Focus (slow motion) and distance (Reddit questions, 2026-11-04)
+
+Focus = both sticks in (L3 + R3). A = host, B = guest. One PC could not test these with a real second world.
+
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 6d.1 | Near A, B fights one of A's enemies and uses Focus for ~5 s, keeps hitting, then lets it end. | Only B's game slows; A's does not. B's hits during Focus take health off the enemy on A's screen too. Note how the enemy and A look on B's screen during and right after Focus (out of step? a jump when it ends?). No "resync" notice. | [ ] | [ ] | |
+| 6d.2 | Same, but A uses Focus while B fights. | Only A's game slows. On B's screen A's enemies may move slower (A's world is slower); B keeps full speed. | [ ] | [ ] | |
+| 6d.3 | B rides or travels to another region (600 m+ from A), then back. | On each screen the other player's character disappears when far (the frame shows the distance) and comes back near; your own character never disappears. | [ ] | [ ] | |
+
 ## 7. Ending
 
 | # | Do | Expected | Pass | Fail | Notes |
