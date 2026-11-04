@@ -11,6 +11,7 @@
 #include "mod/log.h"
 #include "mod/net/coop_worlds.h"
 #include "mod/net/party_quests.h"
+#include "mod/net/quest_advance.h"
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::net {
@@ -20,7 +21,10 @@ constexpr uint16_t kOpMissionTrigger = 2899;    // MissionTriggerInOutReq: u32 m
 constexpr uint16_t kOpDialogEnd = 2223;         // QuestDialogEndReq: u32 NPC actor, u32 dialog, ... (30 bytes)
 constexpr uint16_t kOpMissionList = 2360;       // UpdateMissionListAck: the user key at offset 6, then missions
 constexpr uint16_t kOpDialogList = 3086;        // SetQuestDialogAck: u8, u32 user, u32 NPC, [u32 n, n x u32 dialog]
-constexpr size_t kTriggerSize = 9, kDialogEndSize = 30;
+// A step of ours finished (u32 mission key). Sent with the list's opcode; the partner's game finishes the same step
+// through its quest server (quest_advance.h) if that step is under way there.
+constexpr uint16_t kOpStepDone = kOpMissionList;
+constexpr size_t kTriggerSize = 9, kDialogEndSize = 30, kStepDoneSize = 4;
 constexpr uint8_t kVersion = 1, kFlagInWorld = 1;
 constexpr uint8_t kUnderWay = 2, kDone = 5;
 constexpr uint64_t kWaitForNpcMs = 60000;       // a dialog waits this long for our NPC that offers it
@@ -45,7 +49,8 @@ struct Npc {
 
 std::mutex g_m;
 bool g_enabled = false, g_any_world = false;
-bool g_connected = false;
+bool g_connected = false, g_loading = false;
+uint64_t g_loaded_at = 0;                             // when the last world load ended
 std::string g_partner;
 uint32_t g_user = 0;                                  // our user key, from our server's lists
 std::unordered_map<uint32_t, Npc> g_npc_for_dialog;   // dialog -> our NPC offering it
@@ -108,13 +113,24 @@ void watch_mission_list(const uint8_t* packet, size_t size) {
         const uint8_t s = packet[i + 4];
         const auto old = g_state.find(key);
         if (old != g_state.end() && old->second == kUnderWay && s == kDone) {
+            bool from_partner = false;
             for (const auto& inj : g_injected) {
                 if (g_now - inj.at > kResultMs || (inj.mission && inj.mission != key)) continue;
+                from_partner = true;
                 ++g_steps_together;
                 log::info("Live quests: {} finished here too (from {})", mission_label(key), g_partner);
                 g_toast = "Co-op+\nQuest step done together with " + (g_partner.empty() ? "your friend" : g_partner) +
                           ": " + mission_label(key);
                 break;
+            }
+            // Not while a save loads (its list is not steps finishing now).
+            const bool settled = !g_loading && g_now - g_loaded_at > 10000;
+            if (!from_partner && settled && g_connected && in_world() && g_out.size() < 64) {
+                std::vector<uint8_t> m{kVersion, kFlagInWorld, static_cast<uint8_t>(kOpStepDone),
+                                       static_cast<uint8_t>(kOpStepDone >> 8)};
+                m.insert(m.end(), packet + i, packet + i + 4);
+                g_out.push_back(std::move(m));
+                log::info("Live quests: sending our finished step {}", mission_label(key));
             }
         }
         g_state[key] = s;
@@ -167,6 +183,7 @@ void quest_live_observe_c2s(const uint8_t* packet, size_t size) {
     while (g_sent.size() > 32) g_sent.pop_front();
     uint32_t key;
     std::memcpy(&key, p, 4);
+    if (op == kOpMissionTrigger && key == 0) return;  // quest_advance's wake-up, not a step
     log::info("Live quests: sending our {} {}", op == kOpMissionTrigger ? "trigger for" : "dialog end, dialog",
               op == kOpMissionTrigger ? mission_label(key) : std::format("{:08X}", *reinterpret_cast<const uint32_t*>(p + 4)));
     if (g_out.size() < 64) g_out.push_back(std::move(m));
@@ -197,11 +214,34 @@ void quest_live_tick(bool connected, const std::string& partner_name, uint64_t n
         return;
     }
     std::erase_if(g_injected, [&](const Injected& i) { return now_ms - i.at > kResultMs + kOursMs; });
+    const bool loading = sniffer_world_loading();
+    if (g_loading && !loading) g_loaded_at = now_ms;
+    g_loading = loading;
     std::erase_if(g_npc_for_dialog, [&](const auto& kv) { return now_ms - kv.second.seen > 10 * 60000; });
     g_hud = g_steps_together ? std::format("Quest steps done together: {}", g_steps_together) : std::string();
     if (sniffer_world_loading() || !in_world()) return;
     for (auto it = g_in.begin(); it != g_in.end();) {
         uint32_t mission = 0;
+        if (it->op == kOpStepDone) {
+            // Only a step under way here: the routine would also start and finish one not started.
+            std::memcpy(&mission, it->payload.data(), 4);
+            const auto st = g_state.find(mission);
+            if (st != g_state.end() && st->second == kDone) {
+                it = g_in.erase(it);
+            } else if (st != g_state.end() && st->second == kUnderWay && quest_advance_ready()) {
+                quest_advance_request(mission);
+                log::info("Live quests: {} finished {}; finishing it here", g_partner, mission_label(mission));
+                g_injected.push_back(Injected{it->op, it->payload, mission, now_ms});
+                it = g_in.erase(it);
+            } else if (now_ms > it->until) {
+                log::info("Live quests: {}'s finished step {} dropped: not under way here", g_partner,
+                          mission_label(mission));
+                it = g_in.erase(it);
+            } else {
+                ++it;  // maybe it starts here soon (the step before it is following too)
+            }
+            continue;
+        }
         if (!make_ours(*it, &mission)) {
             if (now_ms > it->until) {
                 uint32_t dialog;
@@ -232,7 +272,10 @@ void quest_live_on_message(const std::vector<uint8_t>& bytes) {
     if (bytes.size() < 4 || bytes[0] != kVersion) return;
     const uint16_t op = static_cast<uint16_t>(bytes[2] | (bytes[3] << 8));
     const size_t n = bytes.size() - 4;
-    if (!((op == kOpMissionTrigger && n == kTriggerSize) || (op == kOpDialogEnd && n == kDialogEndSize))) return;
+    if (!((op == kOpMissionTrigger && n == kTriggerSize) || (op == kOpDialogEnd && n == kDialogEndSize) ||
+          (op == kOpStepDone && n == kStepDoneSize))) {
+        return;
+    }
     std::lock_guard lock(g_m);
     if (!g_enabled) return;
     if (!(bytes[1] & kFlagInWorld) || !in_world()) {
@@ -241,6 +284,11 @@ void quest_live_on_message(const std::vector<uint8_t>& bytes) {
     }
     if (g_in.size() >= 64) return;
     g_in.push_back(Pending{op, std::vector<uint8_t>(bytes.begin() + 4, bytes.end()), g_now + kWaitForNpcMs});
+}
+
+bool quest_live_enabled() {
+    std::lock_guard lock(g_m);
+    return g_enabled;
 }
 
 std::vector<std::vector<uint8_t>> quest_live_take_outgoing() {

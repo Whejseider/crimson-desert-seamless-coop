@@ -54,7 +54,12 @@ Quests advance in each game's own in-process server, and only through requests f
   +0x2C) upserted by exe+0x1C37B10. The quest advancement routine exe+0x2B95BE0(manager, u32* result, u16* mission
   index, u64* time, u8) queues "this step 5, next step 2" through exe+0x1C3F0F0 and commits them. Calling it on the
   server thread for the partner's finished step is the general route for every step kind (defeat, interact, read):
-  it runs the game's own consequences, unlike writing the state byte. Next test: log it during a finished step.
-- Still open: defeat steps, interact / read / cutscene steps
-  (StageBranchStateReq, UpdateStageChartEventReq... carry per-world stage ids), and a catch-up for anything missed
-  (the guest's world gets the host's story at every join already).
+  it runs the game's own consequences, unlike writing the state byte.
+- Step-done relay (built and proven on one PC, `quest_advance.*`): when one of our steps goes 2 -> 5, the partner
+  gets "step finished" (u32 key); their mod finds the step's index (mission table exe+0x71C1940, key at info +0x08)
+  and calls the routine inside the next MissionTriggerInOutReq its server handles (a mission-0 trigger wakes it).
+  Proven: defeat steps (quest gauge, the camp's spawns removed, experience), talk steps, a done step refused. The
+  routine also starts AND finishes a step not started, so the receiver only advances a step under way there.
+- Still open: the two-PC test; the game-clock time argument (0 is passed and accepted); interact / read /
+  cutscene steps are expected to follow the same way (untested); a catch-up for anything missed (the guest's world
+  gets the host's story at every join already).

@@ -28,6 +28,7 @@
 #include "mod/net/attack_probe.h"
 #include "mod/net/load_trace.h"
 #include "mod/net/quest_events.h"
+#include "mod/net/quest_advance.h"
 #include "mod/net/puppet_visibility.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/horse_diag.h"
@@ -1474,6 +1475,8 @@ DWORD WINAPI late_init(LPVOID param) {
     if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
     if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
     net::load_trace_install();  // Co-op+ dev diagnostic, no-op unless [dev] load_trace=1
+    // Co-op+ live quests: finished steps follow through the game's own quest server (quest_advance.h).
+    if (sniffer_ok && init->coop && net::quest_live_enabled()) net::quest_advance_install();
     net::quest_events_install();  // Co-op+ dev diagnostic, no-op unless [dev] quest_events_log=1
     if (init->overlay) render::install(render::hud_draw);
     if (init->combat_tests && sniffer_ok) {

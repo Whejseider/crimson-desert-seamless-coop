@@ -1,4 +1,6 @@
 #pragma once
+
+#include <cstdint>
 // Co-op+ dev diagnostic ([dev] quest_events_log=1): logs the game events the quest system is fed.
 //
 // MissionTriggerInOutReq's handler (exe+0x2EEE800) does not finish a step itself: it builds a
@@ -12,5 +14,8 @@ namespace cdmp::net {
 void quest_events_enable(bool on);
 // Late init; no-op unless enabled.
 void quest_events_install();
+// Dev experiment: ask the quest server to advance the mission with this key (exe+0x2B95BE0, as when the game sees a
+// step's condition met), through quest_advance.h WITHOUT its "under way here" check. Needs the live quest hooks.
+void quest_events_request_advance(uint32_t mission_key);
 
 }  // namespace cdmp::net

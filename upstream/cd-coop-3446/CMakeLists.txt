@@ -124,6 +124,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/story_sync.cpp
     src/mod/net/quest_live.cpp
     src/mod/net/quest_events.cpp
+    src/mod/net/quest_advance.cpp
     src/mod/net/dev_memscan.cpp
     src/mod/net/coop_worlds.cpp
     src/mod/net/revive_prompt.cpp

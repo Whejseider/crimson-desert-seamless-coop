@@ -17,6 +17,7 @@
 #include "mod/net/time_sync.h"
 #include "mod/net/dev_watch.h"
 #include "mod/net/dev_memscan.h"
+#include "mod/net/quest_events.h"
 #include "mod/net/coop_hunt.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/troc_sniffer.h"
@@ -25,7 +26,7 @@ namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -127,6 +128,14 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "advance") {  // advance <hex mission key>: the quest server advances it (quest_events.h)
+            std::string k;
+            in >> k;
+            st.kind = Step::Advance;
+            st.addr = static_cast<uintptr_t>(std::stoul(k, nullptr, 16));
+            steps.push_back(st);
+            continue;
+        }
         if (kind == "memdiff") {  // memdiff: which bytes around the memscan matches changed since
             st.kind = Step::MemDiff;
             steps.push_back(st);
@@ -221,6 +230,9 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
                 Sleep(st.wait_ms ? st.wait_ms : 150);
             } else if (st.kind == Step::MemScan) {
                 dev_memscan(st.payload);
+            } else if (st.kind == Step::Advance) {
+                quest_events_request_advance(static_cast<uint32_t>(st.addr));
+                log::info("Dev script: advance {:08X}", st.addr);
             } else if (st.kind == Step::MemDiff) {
                 dev_memdiff();
             } else if (st.kind == Step::MemWatch) {

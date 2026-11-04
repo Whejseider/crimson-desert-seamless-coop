@@ -768,3 +768,24 @@ Done in the user's Chrome (signed in as Asher):
   (googleapis "failed to issue"), and Steam now sits at "Synchronizing cloud" and launches nothing. Fixed in the
   kit: events/mission/live/talk_test.sh run with [dev] coop_world=devtest; events_test.sh builds that world itself
   (copies of the slots + the test save as slot103) so a test never writes the real save folder. Flag F15.
+- 2026-11-04 13:36 Steam restarted (user OK): the hung upload cleared and Steam uploaded the REAL local slot2
+  (989842 bytes, not the 987757-byte test autosave), so the cloud copy is right again. Since then no test has
+  uploaded a slot (tests run in the scratch world devtest; cloud_log shows no "Need to upload"). F15 resolved.
+- 2026-11-04 13:48-14:12 the quest advancement routine, called by the mod (dev script `advance <key>`; runs inside
+  MissionTriggerInOutReq's handler on the quest server's thread, woken by a mission-0 trigger):
+  - adv1/2: the proven trigger -> ADVANCE mission index 6597 from exe+0x2B95764, thread = the quest server's.
+    The mission table (exe+0x71C1940: +8 count, +0x58 info* per index) has the key at info +0x08.
+  - adv4: "Defeat the Helms at Batihar" and "Defeat the enemies around Deepwoods Beacon" 2 -> 5 from far away, with
+    the consequences: UpdateQuestGaugeAck, DeleteFactionSpawnStageAck (the camp counts as cleared), experience
+    (AddSubLevelExperienceAck).
+  - adv5 (time 0): talk steps "Talk to the injured Blue Fang", "Talk to the chief of Tinkerton" 2 -> 5; a step
+    already done is refused (error result, no change); a step NOT STARTED ("Visit all Greymane Shrines") goes
+    0 -> 2 -> 5, so callers must only advance steps under way.
+  - Built into live quests: src/mod/net/quest_advance.* (hooks: state setter for the manager, trigger handler to run
+    requests; site bytes checked; installed in late init when [coop] live_quests is on). quest_live sends "step
+    finished" (opcode 2360 + u32 key) when one of our steps goes 2 -> 5 (not while a save loads, not the partner's own
+    step coming back); the receiver advances it only if it is under way there (waits 60 s for it to start).
+  - lstep2 (peer simulator): ours -> partner `01 01 38 09 d6f4ffff`; partner's "Defeat the Helms at Batihar" ->
+    advanced here 1.6 s later -> "finished here too" toast. lstep3: a partner's step not started here is dropped
+    ("not under way here"), no change. Two-PC test still to come. Game state after: release asi a51453d2, shipped
+    ini, SAVES OK.

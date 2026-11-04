@@ -34,6 +34,8 @@ void quest_live_observe_s2c(const uint8_t* packet, size_t size);
 // Network loop.
 void quest_live_tick(bool connected, const std::string& partner_name, uint64_t now_ms);
 void quest_live_on_message(const std::vector<uint8_t>& bytes);
+// [coop] live_quests (set by quest_live_configure).
+bool quest_live_enabled();
 std::vector<std::vector<uint8_t>> quest_live_take_outgoing();
 
 std::string quest_live_take_toast();  // "" = none
