@@ -687,3 +687,11 @@ Done in the user's Chrome (signed in as Asher):
   was ignored (title not ready): now E is pressed until the sniffer sees GameLoadingStartReq (every 12 s, 8 tries).
   Partner gone 45 s -> back to own saves the same way. Guest: story_auto_request() on connect keeps the host's story
   in memory; at the title it goes into the WORLD's newest slot only (story_put_into_world). docs/design/coop-worlds.md.
+- 2026-11-04 ~03:05 worlds tests 2-3: INTO the world works end to end (title, world made, the host's story put into the
+  WORLD copy only "492 missions done", Play, loaded). OUT failed: a tutorial popup ("149. Lightning", from the host's
+  story's new skills) blocks Esc; quick Space taps do not close it (the test now holds Space as a player would).
+  Fixes: retry with a 30 s backoff, 5 tries then a message with the manual way; at the title (out of the world 10 s,
+  not loading) the saves switch at once (manual fallback / a game started while a world is wanted); the journal
+  starts a new baseline at every load (it had reported the host's 240 completions as ours; now 0). Worlds moved to
+  %LOCALAPPDATA%\CrimsonDesert-CoopPlus\Worlds (Documents is OneDrive-synced here; a sync lock mid-swap could fail a
+  save). Old test worlds moved out of Documents to build/test-saves/old-test-worlds.

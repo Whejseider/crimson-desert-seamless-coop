@@ -10,7 +10,7 @@ it only through kernelbase file calls (logged with `[dev] save_io_log=1`): it li
 CreateFile2, and saves as a folder swap (CreateDirectoryW / CopyFileW / CreateFileW into `slotN_new`, MoveFileExW
 `slotN` -> `slotN_backup`, `slotN_new` -> `slotN`, the backup to `..._delete`, DeleteFileW / RemoveDirectoryW).
 While a co-op world is active every one of those paths under `save\<account>\` goes to
-`Documents\CrimsonDesert-CoopPlus\Worlds\<world>\<account>\`. A new world starts as a copy of the player's slots
+`%LOCALAPPDATA%\CrimsonDesert-CoopPlus\Worlds\<world>\<account>\`. A new world starts as a copy of the player's slots
 (made under `<world>.making`, renamed when complete). Files directly in `save\` (graphics, input) are shared.
 
 Verified: an in-game save with a world active lands in the world; the player's own slot is byte-identical; every

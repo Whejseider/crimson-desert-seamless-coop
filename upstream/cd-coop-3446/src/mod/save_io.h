@@ -9,7 +9,7 @@
 // 2026-11-04). Every one of those calls goes through kernelbase, where this module hooks them.
 //
 // While a co-op world is active, every path under save\<account>\ is sent to
-// Documents\CrimsonDesert-CoopPlus\Worlds\<world>\<account>\ instead: the game sees, loads and saves only the
+// %LOCALAPPDATA%\CrimsonDesert-CoopPlus\Worlds\<world>\<account>\ instead: the game sees, loads and saves only the
 // world's slots. A new world starts as a COPY of the player's own slots (read, never moved or changed). With no
 // world active nothing is redirected and the game uses the player's own saves exactly as without the mod. Files
 // directly in save\ (graphics and input options) are never redirected.

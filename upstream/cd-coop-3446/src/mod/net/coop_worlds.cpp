@@ -33,6 +33,8 @@ std::string g_partner_key, g_partner_name;  // the last partner seen (kept while
 std::wstring g_want;                        // the world we should be in
 uint64_t g_countdown_until = 0;
 std::atomic<bool> g_switching{false};
+std::atomic<int> g_failures{0};
+uint64_t g_retry_after = 0, g_out_of_world_since = 0;
 std::string g_status, g_toast;
 
 std::string narrow(const std::wstring& w) {
@@ -108,8 +110,15 @@ void run_switch(std::wstring target, std::string partner_name) {
     const std::string label = into ? "your co-op world with " + partner_name : "your own saves";
     const auto fail = [&](const std::string& why) {
         log::warn("Co-op worlds: switch to {} stopped: {}", narrow(target.empty() ? L"own saves" : target), why);
-        set_status("Could not switch to " + label + ": " + why);
+        const int n = ++g_failures;
+        set_status("Could not switch to " + label + ": " + why +
+                   (n < 5 ? ". Trying again in 30 s." : ". Or do it yourself: Esc > Others > Title Screen, then Play: "
+                                                        "Co-op+ switches the saves at the title."));
         toast("Could not switch to " + label + ": " + why);
+        {
+            std::lock_guard lock(g_m);
+            g_retry_after = GetTickCount64() + 30000;
+        }
         g_switching = false;
     };
     log::info("Co-op worlds: switching to {} ({})", narrow(target.empty() ? L"own saves" : target), label);
@@ -118,7 +127,9 @@ void run_switch(std::wstring target, std::string partner_name) {
     key(VK_ESCAPE, 40);
     if (!wait_for([] { return g_menu_open.load(); }, 4000)) {
         key(VK_ESCAPE, 40);
-        if (!wait_for([] { return g_menu_open.load(); }, 4000)) return fail("the menu did not open");
+        if (!wait_for([] { return g_menu_open.load(); }, 4000)) {
+            return fail("the menu did not open (close any open window, like a tutorial)");
+        }
     }
     Sleep(800);
     if (!click(kOthersX, kOthersY)) return fail("the game window lost focus");
@@ -155,7 +166,26 @@ void run_switch(std::wstring target, std::string partner_name) {
     set_status(save_io::world().empty() ? std::string() : "You are in " + label + ". Your own saves are untouched.");
     toast(save_io::world().empty() ? "Back in your own world (your own saves)."
                                    : "You are in " + label + ". Your own saves are untouched.");
+    g_failures = 0;
     g_switching = false;
+}
+
+// At the title screen (out of the world, not loading): the saves can change right away, no keys needed. Covers a
+// player who goes to the title by hand, and a game started while a co-op world is wanted.
+void switch_at_title(const std::wstring& target, bool host) {
+    std::string why;
+    if (!save_io::set_world(target, &why)) {
+        g_status = "Could not open the saves at the title: " + why;
+        return;
+    }
+    if (!target.empty() && !host && !story_put_into_world(save_io::world_folder(target), &why)) {
+        log::warn("Co-op worlds: the host's story was not put into the world: {}", why);
+    }
+    g_failures = 0;
+    g_status.clear();
+    g_toast = target.empty() ? "Co-op+\nYour own saves are back: press Play (E)."
+                             : "Co-op+\nYour co-op world with " + g_partner_name + " is ready: press Play (E).";
+    log::info("Co-op worlds: saves switched at the title to {}", narrow(target.empty() ? L"own saves" : target));
 }
 
 }  // namespace
@@ -190,12 +220,23 @@ void worlds_tick(const WorldsInput& in_raw) {
         if (!g_gone_since) g_gone_since = in.now_ms ? in.now_ms : 1;
         if (in.now_ms - g_gone_since >= kLeaveStableMs) g_want.clear();
     }
+    if (in.in_world || sniffer_world_loading()) {
+        g_out_of_world_since = 0;
+    } else if (!g_out_of_world_since) {
+        g_out_of_world_since = in.now_ms ? in.now_ms : 1;
+    }
     if (g_switching) return;
     const std::wstring active = save_io::world();
     if (g_want == active) {
         g_countdown_until = 0;
+        g_failures = 0;
         return;
     }
+    if (g_out_of_world_since && in.now_ms - g_out_of_world_since > 10000) {  // sitting at the title
+        switch_at_title(g_want, in.host);
+        return;
+    }
+    if (g_failures >= 5 || in.now_ms < g_retry_after) return;
     // Only from the world itself (not a menu, not a loading screen), after a countdown the player sees.
     if (!in.in_world || in.menu_open) return;
     const std::string label = g_want.empty() ? "your own saves" : "your co-op world with " + g_partner_name;

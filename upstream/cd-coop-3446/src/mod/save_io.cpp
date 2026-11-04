@@ -223,7 +223,9 @@ void install(bool log) {
     g_log = log;
     const fs::path game = known_folder(FOLDERID_LocalAppData) / L"Pearl Abyss" / L"CD" / L"save";
     g_game_root = lower_slashes((game.wstring() + L"\\").c_str());
-    g_worlds_root = (known_folder(FOLDERID_Documents) / L"CrimsonDesert-CoopPlus" / L"Worlds").wstring() + L"\\";
+    // Local, not Documents: Documents is often synced (OneDrive), and a sync holding a file in the middle of the
+    // game's folder swap could fail a save. Outside Steam Cloud too (the game's own folder is synced).
+    g_worlds_root = (known_folder(FOLDERID_LocalAppData) / L"CrimsonDesert-CoopPlus" / L"Worlds").wstring() + L"\\";
     bool ok = true;
     ok &= hook(g_create, "CreateFileW", on_create);
     ok &= hook(g_create2, "CreateFile2", on_create2);

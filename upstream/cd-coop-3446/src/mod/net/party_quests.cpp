@@ -10,6 +10,8 @@
 #include <iterator>
 #include <mutex>
 #include <unordered_map>
+
+#include "mod/net/troc_sniffer.h"
 #include <vector>
 
 #include "mod/log.h"
@@ -100,7 +102,16 @@ std::string party_quests_tick(bool connected, const std::string& who) {
         // Co-op+ (quest sync): the mission list's totals once it settles after a load (how far this save's story is).
         static size_t logged = 0, last_size = 0;
         static uint64_t changed_at = 0;
+        static bool was_loading = false;
         std::lock_guard lock(g_mutex);
+        // A load (another save, a co-op world) starts a new baseline: its mission list is not "completions".
+        const bool loading = sniffer_world_loading();
+        if (loading && !was_loading) {
+            g_state.clear();
+            g_out.clear();
+            logged = 0;
+        }
+        was_loading = loading;
         const uint64_t now = GetTickCount64();
         if (g_state.size() != last_size) last_size = g_state.size(), changed_at = now;
         if (last_size && last_size != logged && now - changed_at > 5000) {
