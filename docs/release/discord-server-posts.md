@@ -51,3 +51,11 @@ friends, then the host presses Ctrl+F1 to invite.
 - #features: message 1 (game version) and message 3 (World: NEW Story sync; known issues) edited to
   docs/release/discord-features.txt.
 - #how-to-install: game version 1.0.0.3527 and a Story sync line; #find-a-co-op-partner: 1.0.0.3527 + story sync hint.
+
+## 2026-11-04 hotfix 0.1.0-alpha+2bd32050 (story sync off: saves are never changed)
+- #download-here: new post with both zips, pinned; the a9c2f5d5 post edited to "(Replaced by the hotfix below ...)"
+  and unpinned.
+- #announcements: "Hotfix 0.1.0-alpha+2bd32050: your saves are never changed" (+ what is coming: per-friend co-op
+  saves for host and guest, solo saves untouched, live quest progress).
+- #features message 3, #how-to-install, #find-a-co-op-partner: story sync lines replaced ("Coming next" / "never
+  changes them").

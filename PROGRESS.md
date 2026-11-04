@@ -665,3 +665,6 @@ Done in the user's Chrome (signed in as Asher):
   README section "CO-OP SAVES AND SHARED STORY (coming next)", FEATURES/discord-features "Coming next", CHANGELOG.
   User clarifications: the HOST also gets a save per friend (solo run untouched); quest log/progress must update in
   real time for all players (no relog).
+- 2026-11-04 ~01:55 hotfix 2bd32050 RELEASED: package (tests, install test, Defender clean), installed in the game
+  (smoke start OK, SAVES OK), GitHub release v0.1.0-alpha-2bd32050 (Latest), Discord updated
+  (docs/release/discord-server-posts.md).
