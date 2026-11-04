@@ -18,33 +18,33 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3479;
+namespace off = game::build_3527;
 
 // The state steps on 3460 (each: cmp word [rcx+0x5E], from / jnz / mov word [rcx+0x5E], to / ret).
 struct Step {
     uintptr_t rva;
     uint16_t from, to;
 };
-constexpr Step kSteps[] = {{0x1618AF0, 2, 4}, {0x1618B00, 4, 8}, {0x1618B10, 8, 0x10}};  // 3479 (3460: -0x50)
+constexpr Step kSteps[] = {{0x161A000, 2, 4}, {0x161A010, 4, 8}, {0x161A020, 8, 0x10}};  // 3527 (3479: -0x1510)
 
 // Finishes an actor tree: collects the root and its children, then runs the 8 -> 0x10 step
 // (vf 0x78) and vf 0x140 on each (exe+0x5B1AA6).
-constexpr uintptr_t kFinishTree = 0x5B1920;
+constexpr uintptr_t kFinishTree = 0x5B2240;  // 3479: 0x5B1920
 constexpr uint8_t kFinishTreeHead[] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x55, 0x56, 0x57, 0x41, 0x54, 0x41, 0x55};
 
 // In the "prepare" step (exe+0x5B0CD0), right after `call [rax+0x80]` on each component of each
 // actor of the tree: al != 0 means "this component is still loading", which keeps the actor
 // out of the finish step. rdi = the component entry ([rdi] = component), r14 = tree entry
 // ([r14+8] = actor).
-constexpr uintptr_t kComponentBusy = 0x5B0EBF;
+constexpr uintptr_t kComponentBusy = 0x5B17DF;  // 3479: 0x5B0EBF
 constexpr uint8_t kComponentBusyHead[] = {0x84, 0xC0, 0x75, 0x43};  // test al,al / jnz
 
 // ClientCharacterControlActorComponent vtable slots 18 (resource load complete: sets the hide
 // bits on 2976) and 24 (end of login: clears them), entry; rcx = component, [rcx+8] = actor.
-constexpr uintptr_t kCcSlot18 = 0x942B20, kCcSlot24 = 0x942E70;  // 3479 (3460: +0x30)
+constexpr uintptr_t kCcSlot18 = 0x943910, kCcSlot24 = 0x943C60;  // 3527, vtable slots (3479: 0x942B20, 0x942E70)
 // ICharacterMovementMethod vf2 (slot 2 of Normal/AnimationAll/...): the per-frame step that,
 // for a remote actor, interpolates its network samples. rcx = method, [rcx+0x20] = actor.
-constexpr uintptr_t kMethodStep = 0xBBC570;  // 3479 (3460: 0xBBC5A0)
+constexpr uintptr_t kMethodStep = 0xBBD5F0;  // 3527 (3479: 0xBBC570)
 SafetyHookMid g_step_hook;
 std::atomic<uint64_t> g_step_own{0}, g_step_copy{0};
 SafetyHookMid g_cc18_hook, g_cc24_hook;
@@ -56,7 +56,7 @@ SafetyHookMid g_finish_hook;
 SafetyHookMid g_busy_hook;
 // Co-op+ (3479): who runs a DriverMovementMethod, and which actor it resolves as the one it drives.
 // Enemy copies crashed in it (exe+0x780ED0 -> 0x976590 -> 0x976921, a driven actor's null action).
-constexpr uintptr_t kDriverStep = 0x780F59;  // mov r10,[rax+0xC8]; rax = the driven actor's CC
+constexpr uintptr_t kDriverStep = 0x7819A9;  // 3479: 0x780F59  // mov r10,[rax+0xC8]; rax = the driven actor's CC
 SafetyHookMid g_driver_hook;
 std::atomic<int> g_driver_lines{0};
 void on_driver_step(safetyhook::Context& ctx) {

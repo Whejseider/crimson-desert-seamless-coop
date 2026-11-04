@@ -5,7 +5,7 @@ is on hold (tools/publish-playtest.ps1 still works if you decide to use it later
 
 ## #announcements
 **Seamless Co-op+ playtest is open!**
-Two-player co-op for Crimson Desert (Steam, game version 1.0.0.3479). Each of you keeps your own save, and your
+Two-player co-op for Crimson Desert (Steam, game version 1.0.0.3527). Each of you keeps your own save, and your
 friend joins your world as their own character: shared enemies, revives, chat, duels, races, arm wrestling and more.
 
 How to join in:
@@ -23,7 +23,7 @@ Build: **0.1.0-alpha+7a880b02**. New builds will be announced here; both players
 **Download: Seamless Co-op+ 0.1.0-alpha+7a880b02**
 - `CrimsonDesert-SeamlessCoop-...zip`: this is the one you want. Install steps are in #how-to-install.
 - `...-mod-manager.zip`: only for manual / Vortex / MO2 installs.
-You and your co-op partner need the **same** zip. Game version 1.0.0.3479 (Steam).
+You and your co-op partner need the **same** zip. Game version 1.0.0.3527 (Steam).
 Windows Defender scan: no threats. GPL-3.0; the source is inside the zip (source.zip).
 
 ## #features
@@ -41,5 +41,5 @@ Windows Defender scan: no threats. GPL-3.0; the source is inside the zip (source
 
 ## #find-a-co-op-partner
 Looking for someone to test with? Post your time zone, when you can play, and how far into the story you are. Both of
-you need Crimson Desert on Steam (1.0.0.3479) and the same Co-op+ zip from #download-here. Add each other as Steam
+you need Crimson Desert on Steam (1.0.0.3527) and the same Co-op+ zip from #download-here. Add each other as Steam
 friends, then the host presses Ctrl+F1 to invite.

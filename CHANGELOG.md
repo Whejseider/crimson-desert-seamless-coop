@@ -2,6 +2,8 @@
 
 ## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 
+Game 1.0.0.3527 (2026-11-04): Steam updated the game during this release. Every address re-found in the new exe (docs/research/port-3527.md): offline checks all pass, co-op and story sync verified live on one PC.
+
 Story sync (2026-11-04, asked for by a playtester; D47):
 - The guest can copy the host's story (quests, missions, main story) into their own save: F8 settings, "Copy my friend's story into my save"; the host's mod sends it, and it goes in at the guest's next game start after a backup (Documents/CrimsonDesert-CoopPlus-SaveBackups/before-story-sync-<date>). Everything else stays the guest's. Hosts can say no ([coop] share_story=0). Same game version required; the guest is warned if the host is behind.
 - Save tools: found why changed saves crashed the game at load (pointers in the faction spawn data); cdmp_savetool for support.

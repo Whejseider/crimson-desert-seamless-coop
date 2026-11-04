@@ -34,7 +34,7 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3479;
+namespace off = game::build_3527;
 using Bytes = std::vector<uint8_t>;
 
 // Fresh keys for the puppet. Real serials seen so far are below 0x1000, so

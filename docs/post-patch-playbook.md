@@ -15,6 +15,12 @@ far easier than finding things from scratch.
 - `upstream/cd-coop-3446/scripts/verify-port.ps1 -Exe "<path to the new exe>"`: checks every recorded code head and
   address offline. Each FAILED line is one value to re-find.
 
+## 1b. Fastest: map with both exes (3527 port, 2026-11-04)
+With the old exe archived, `build/port3527/portmap.py` maps everything at once: `map_all.py` (code by masked
+instructions, globals and vtables through the code that addresses them; prints hits / votes), then `gen_offsets.py`,
+`retarget.py`, `retarget_verify.py` (edit the old -> new tables). Check every line with more than one hit: template
+copies (the action layers) need mapping through their caller, the nearest hit was wrong. docs/research/port-3527.md.
+
 ## 2. Re-find what moved (build/port3479 tools; copy them to build/port<new>)
 | What | Tool | How |
 |---|---|---|

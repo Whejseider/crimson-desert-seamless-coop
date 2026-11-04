@@ -628,3 +628,10 @@ Done in the user's Chrome (signed in as Asher):
   Defender clean, e2e passed on the same binary before the update) is for 3479 only, so it is NOT published: players'
   Steam installs 3527 and the mod would just switch itself off. Next: port to 3527 (docs/post-patch-playbook.md;
   the 3479 exe is in build/exe-archive), then package, publish and update Discord.
+- 2026-11-04 ~00:55 PORT TO 1.0.0.3527 (docs/research/port-3527.md). build/port3527/portmap.py maps every address with
+  both exes (masked code patterns; globals/vtables through their code references; vtables = RTTI). 40/43 code sites
+  one hit; the two action-layer template copies were mapped through their caller (+0x33B0; nearest hit +0x40 was
+  wrong). offsets_3527.h generated, 21 files retargeted, horse_diag / load_trace / aggro sites moved, installer and docs
+  say 1.0.0.3527; verify-port.ps1 retargeted: ALL OFFLINE CHECKS PASSED. Live: game reader on, 1175 opcodes
+  resolved, crash guards installed first try, copy visible, story sync e2e green on 3527 (2486/456 after restart).
+  Zone test (bandits save, zone_copy_test): enemy copies loading, suppress decisions correct, no crash after 15 min.

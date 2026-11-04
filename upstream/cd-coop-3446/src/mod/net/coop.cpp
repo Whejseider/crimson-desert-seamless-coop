@@ -56,7 +56,7 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
     if (ev.payload.size() < 2) return false;
     uint16_t op = 0;
     std::memcpy(&op, ev.payload.data(), 2);
-    for (const auto& r : game::build_3479::kRelayedAcks) {
+    for (const auto& r : game::build_3527::kRelayedAcks) {
         if (r.op == op) return r.reliable;
     }
     return false;

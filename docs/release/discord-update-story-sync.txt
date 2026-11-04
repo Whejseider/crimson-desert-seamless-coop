@@ -1,0 +1,23 @@
+===== #announcements (new message) =====
+**Update: Story sync + the new game patch (1.0.0.3527)**
+New build **0.1.0-alpha+@SHA@** is in #download-here. Both players install it (same zip for both).
+
+**NEW: Story sync**, the most-asked-for feature. The guest can copy the host's story (quests, missions, main story) into their own save, so you stand at the same point of the story and can play the same quests together.
+1. Join your friend as usual, press **F8**, go Down to **"Copy my friend's story into my save (guest)"** and press Right: **yes**.
+2. The panel says "Story from <name> received", with how far each of you is.
+3. Quit to the desktop, start the game again and press **Continue**. Your save is backed up first (Documents\CrimsonDesert-CoopPlus-SaveBackups\before-story-sync-...), then gets the host's story.
+Your character, level, items, money, map and position stay yours. Changed your mind before restarting? Pick "no". Hosts can switch sharing off in F8.
+
+**Game patch:** Steam updated Crimson Desert today to 1.0.0.3527. The old zip switches itself off on it (the game runs normally); this build works with the new patch.
+
+Story sync is new: please tell us how it goes in #play-testing-feedback (who was ahead, did the quest journal match, anything odd in the world).
+
+===== #download-here (new message, attach both zips, pin it; unpin the old one) =====
+**Download: Seamless Co-op+ 0.1.0-alpha+@SHA@** (game 1.0.0.3527, with Story sync)
+- `CrimsonDesert-SeamlessCoop-0.1.0-alpha+@SHA@.zip`: this is the one you want. Install steps are in #how-to-install.
+- `...-mod-manager.zip`: only for manual / Vortex / MO2 installs.
+You and your co-op partner need the **same** zip. Game version 1.0.0.3527 (Steam).
+Windows Defender scan: no threats. GPL-3.0; the source is inside the zip (source.zip).
+
+===== edit the old #download-here post: first line becomes =====
+**(Old build, game 1.0.0.3479: use the newest download below.)** Download: Seamless Co-op+ 0.1.0-alpha+7a880b02

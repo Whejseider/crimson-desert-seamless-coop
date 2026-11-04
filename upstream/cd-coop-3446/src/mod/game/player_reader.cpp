@@ -9,7 +9,7 @@
 #include "mod/game/safe_memory.h"
 
 namespace cdmp::game {
-namespace off = build_3479;
+namespace off = build_3527;
 
 namespace {
 

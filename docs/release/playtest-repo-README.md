@@ -13,7 +13,7 @@ Get the newest build from **[Releases > Latest](../../releases/latest)**. Downlo
 **Both players need the same zip.**
 
 ## Requirements
-- Crimson Desert on Steam, game version **1.0.0.3479** (2.04.05). On another version the mod switches itself off.
+- Crimson Desert on Steam, game version **1.0.0.3527**. On another version the mod switches itself off.
 - You and your friend are Steam friends, with the Steam overlay on.
 
 ## Install

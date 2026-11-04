@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $payload = Join-Path $here 'mod'
 . (Join-Path $here 'coopplus-common.ps1')
-$expectedExeVersion = '1.0.0.3479'
+$expectedExeVersion = '1.0.0.3527'
 $files = @('winmm.dll', 'cdmp.asi', 'cdmp.ini', 'cdcoop\config\scaling.toml')
 # Files players edit: an update keeps theirs and puts the new defaults next to them.
 $settingsFiles = @('cdmp.ini', 'cdcoop\config\scaling.toml')
