@@ -550,3 +550,23 @@ Done in the user's Chrome (signed in as Asher):
   steps, FEATURES.md) and release v0.1.0-alpha-7a880b02 with the player zip and the mod-manager zip (never the
   symbols zip). The project repo stays private.
 - Checked: /releases/latest -> the tag (HTTP 200); both files downloaded anonymously are byte-identical to dist\.
+
+## Showcase video and feature PDF (user request 2026-11-03 ~19:00)
+- Video: dist/showcase/SeamlessCoopPlus-showcase.mp4 (31.3 s, 76 MB, git-ignored). Recorded with Windows Game Bar
+  (Win+Alt+R) in one scripted take (build/port3479/showcase.sh + port3460/showcase_timeline.ps1), cut with Windows'
+  own editing API (port3460/cutvideo.ps1, Windows.Media.Editing: trim + join + frame grabs; no ffmpeg here).
+  Content: controls card, duel challenge + 3-2-1, Wanderer standing apart, the sprint to Rudbel Fishing Dock, the
+  fight in the bandit camp. Raw take kept: dist/showcase/take13-raw.mp4.
+- "Lively" teammate (user: not a mirror of us): cdmp_peer gained --name, --record FILE (saves what the game sends,
+  with timing) and --mode replay --replay FILE (plays it back as the other player from the game's first state).
+  The teammate's part is a separate recorded session (showcase_teammate.sh + teammate_timeline.ps1); both timelines
+  start from "the other player is in our world (spawn 1)". Test tool only; the mod is unchanged.
+- Findings on the way (12 takes): per-key powershell launches cost ~1-2 s each (one-process timeline instead);
+  Game Bar starts recording ~4 s after the hotkey; test saves always load at the bandits start whatever the stored
+  position (move_save has no effect on this save); walking routes are unreliable except start -> dock; standing at
+  the dock camp >20 s gets you killed.
+- The game folder has the released 7a880b02 cdmp.asi again (sha256 076cae39...), shipped ini, saves OK, test save out.
+- PDF: docs/release/SeamlessCoopPlus-Features.pdf (2 pages, from docs/release/features-pdf/features.html via Edge
+  headless print-to-pdf; images are frames of the showcase video).
+- Quest sync (asked in Discord): not implemented: quests stay per save (D42 / NOTES/FLAGS.md F8); the party journal
+  notices exist. Possible later: an opt-in offline copy of the host's story progress into the guest's save.

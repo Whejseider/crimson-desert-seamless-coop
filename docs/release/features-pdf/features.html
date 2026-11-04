@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Seamless Co-op+ features</title>
+<style>
+  @page { size: Letter; margin: 0; }
+  :root {
+    --bg: #14110f; --panel: #1d1916; --gold: #e8c882; --gold-dim: #b89a5e; --crimson: #9e2a22;
+    --text: #ece6dc; --muted: #b9b0a3; --rule: rgba(232, 200, 130, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 8.5in; height: 11in; position: relative; overflow: hidden; background: var(--bg); page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+
+  /* Header */
+  .hero { position: relative; height: 3.55in; background: url("hero.jpg") center 38% / cover no-repeat; }
+  .hero::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(20,17,15,0.15) 0%, rgba(20,17,15,0.35) 45%, rgba(20,17,15,1) 100%); }
+  .hero .title { position: absolute; left: 0.6in; right: 0.6in; bottom: 0.25in; z-index: 1; }
+  .kicker { font: 600 10pt/1 "Segoe UI", sans-serif; letter-spacing: 0.32em; text-transform: uppercase; color: var(--gold-dim); }
+  h1 { font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif; font-weight: 700; font-size: 38pt; line-height: 1.02;
+    margin: 0.08in 0 0.06in; color: var(--gold); text-shadow: 0 2px 12px rgba(0,0,0,0.8); }
+  .tagline { font-size: 12.5pt; color: var(--text); text-shadow: 0 1px 6px rgba(0,0,0,0.9); max-width: 6.2in; }
+
+  .content { padding: 0.18in 0.6in 0 0.6in; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.2in 0.28in; }
+  .card { background: var(--panel); border-top: 2px solid var(--crimson); border-radius: 3px; padding: 0.15in 0.18in 0.12in; }
+  .card h2 { display: flex; align-items: center; gap: 0.1in; margin: 0 0 0.07in;
+    font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif; font-size: 14.5pt; color: var(--gold); font-weight: 700; }
+  .card h2 .mark { width: 0.13in; height: 0.13in; background: var(--gold); transform: rotate(45deg); flex: none; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { position: relative; padding-left: 0.17in; margin: 0 0 0.055in; font-size: 9.6pt; line-height: 1.32; color: var(--text); }
+  li::before { content: ""; position: absolute; left: 0.02in; top: 0.075in; width: 0.055in; height: 0.055in;
+    background: var(--gold-dim); transform: rotate(45deg); }
+  li b { color: #f4e3bd; font-weight: 600; }
+  .wide { grid-column: 1 / -1; }
+
+  .duo { display: grid; grid-template-columns: 3.1in 1fr; gap: 0.28in; align-items: center; margin: 0.2in 0 0.18in; }
+  .duo img { width: 100%; border-radius: 3px; border: 1px solid var(--rule); display: block; }
+  .duo .quote { font-family: "Palatino Linotype", Georgia, serif; font-size: 15pt; line-height: 1.35; color: var(--gold); }
+  .duo .quote small { display: block; margin-top: 0.08in; font-family: "Segoe UI", sans-serif; font-size: 9.5pt; color: var(--muted); }
+
+  .footer { position: absolute; left: 0.6in; right: 0.6in; bottom: 0.38in; border-top: 1px solid var(--rule); padding-top: 0.12in;
+    display: flex; justify-content: space-between; gap: 0.3in; font-size: 8.4pt; color: var(--muted); line-height: 1.4; }
+  .footer .get { color: var(--gold); font-weight: 600; font-size: 9.4pt; }
+  .page2-top { padding: 0.5in 0.6in 0; }
+  .page2-top .kicker { margin-bottom: 0.05in; }
+  .page2-top h3 { font-family: "Palatino Linotype", Georgia, serif; color: var(--gold); font-size: 22pt; margin: 0 0 0.04in; }
+  .page2-top p { margin: 0; color: var(--muted); font-size: 10pt; }
+</style>
+</head>
+<body>
+
+<!-- Page 1 -->
+<section class="page">
+  <div class="hero">
+    <div class="title">
+      <div class="kicker">Crimson Desert &middot; two-player co-op mod</div>
+      <h1>Seamless Co-op+</h1>
+      <div class="tagline">Bring a friend into Pywel. Explore, fight, race and duel together, and each of you keeps your own save and story.</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="grid">
+      <div class="card">
+        <h2><span class="mark"></span>Play together</h2>
+        <ul>
+          <li><b>Invite a Steam friend</b> with one key, or let them use <b>Join Game</b> from your Steam profile</li>
+          <li>Room codes as a backup way to connect</li>
+          <li>Friends-only or invite-only: you choose who can join</li>
+          <li><b>Drop in any time</b>, even mid-fight, in a menu or during a loading screen</li>
+          <li>Automatic reconnect after a crash or dropped connection</li>
+          <li>Leave whenever you like and land back in your own world, cleanly</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="mark"></span>Your friend, in your world</h2>
+        <ul>
+          <li>A <b>fully animated character</b>: running, climbing, gliding, swimming and fighting in their own gear</li>
+          <li>Gear changes show up live</li>
+          <li>Name tag over their head, plus their position on your minimap and map</li>
+          <li><b>Partner frame</b> with their health and stamina, and a warning when they're badly hurt</li>
+          <li>Ride horses side by side, and fly together on Blackstar</li>
+          <li>Shared map waypoints</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="mark"></span>Fight side by side</h2>
+        <ul>
+          <li><b>Shared enemies</b>: you both see and fight the same bandits and beasts</li>
+          <li>Enemies get tougher with a partner, and you can tune how much</li>
+          <li><b>Bosses together</b>; the host lands the final blow, so the story stays on track</li>
+          <li>Shared boss and story cutscenes; a skip only happens when everyone agrees</li>
+          <li><b>Revive each other</b> where you fall, or respawn right back beside your friend</li>
+          <li>Kill feed for both players' takedowns</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="mark"></span>Challenge each other</h2>
+        <ul>
+          <li><b>Duels</b> in a ring with a 3-2-1 countdown, rounds and a series score (nobody dies)</li>
+          <li><b>Race to the waypoint</b>: first to the marker on the map wins</li>
+          <li><b>Hunting contest</b>: three minutes, and the most game wins</li>
+          <li><b>Arm wrestling</b> with your friend in the opponent's seat</li>
+          <li>Rock, paper, scissors</li>
+          <li>A lasting scoreboard and titles you earn, like <i>the Duelist</i></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div><span class="get">Free download &middot; github.com/ashersheets-jpg/crimson-desert-coop-playtest</span><br>
+      Alpha build &middot; Crimson Desert on Steam &middot; both players use the same version</div>
+    <div style="text-align:right">Page 1 of 2</div>
+  </div>
+</section>
+
+<!-- Page 2 -->
+<section class="page">
+  <div class="page2-top">
+    <div class="kicker">And there's more</div>
+    <h3>Built for playing together</h3>
+    <p>The little things that make a co-op session feel smooth.</p>
+  </div>
+
+  <div class="content">
+    <div class="duo">
+      <img src="duo.jpg" alt="Two players side by side in Crimson Desert">
+      <div class="quote">"Two characters, one world, and no loading screen between you."
+        <small>Each player keeps their own save, quests and items. Nothing leaks into the other's game.</small></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2><span class="mark"></span>Talk and travel</h2>
+        <ul>
+          <li><b>Text chat</b> right in the game</li>
+          <li><b>Quick messages</b> with map pins: Go here, Danger, Loot here, Follow me, and more</li>
+          <li><b>Go to your friend</b> in one press, or ask them to come to you</li>
+          <li>Fast travel together: your friend is offered to follow</li>
+          <li>Notices when your friend finishes a quest step, runs into a world event or gets a bounty</li>
+          <li><b>Spoiler guard</b>: hide a friend's story if you're behind</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="mark"></span>A shared world</h2>
+        <ul>
+          <li>Time of day and weather follow the host</li>
+          <li>Rest at a campfire together</li>
+          <li>Loot your way: each your own, host only, or first come</li>
+          <li>Your friend can't harm your quest NPCs or townsfolk</li>
+          <li>Player colours with a colour-blind-safe option</li>
+          <li>Your partner can't be hit while they're in a menu</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="mark"></span>Easy to set up</h2>
+        <ul>
+          <li><b>One-click install</b> and uninstall, plus a vanilla on/off switch</li>
+          <li><b>Automatic save backups</b> every time a session starts</li>
+          <li>A <b>controls card</b> on first launch, any time after, and with controller buttons when a pad is plugged in</li>
+          <li>Full <b>Xbox and PlayStation controller</b> support</li>
+          <li>In-game settings panel and rebindable hotkeys</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="mark"></span>Peace of mind</h2>
+        <ul>
+          <li>Version check, so both players are always on the same build</li>
+          <li>Connection readout with ping and packet loss</li>
+          <li>Clear messages that tell you what to do when something goes wrong</li>
+          <li>Warnings about other mods that might clash</li>
+          <li>One-click bug report with personal info removed</li>
+          <li>Switches itself off safely after a game update</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>Unofficial fan mod. Built on <i>Crimson Desert Multiplayer</i> by ByJunter and its port by nouzert1. GPL-3.0.<br>
+      Not affiliated with or endorsed by Pearl Abyss. Crimson Desert is a trademark of Pearl Abyss Corp.</div>
+    <div style="text-align:right">Page 2 of 2</div>
+  </div>
+</section>
+
+</body>
+</html>

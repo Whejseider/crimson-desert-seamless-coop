@@ -22645,3 +22645,172 @@ index 0000000..0705ba8
 +    std::printf("%zu person loads\n", n);
 +    return 0;
 +}
+diff --git a/upstream/cd-coop-3446/tools/peer_sim/main.cpp b/upstream/cd-coop-3446/tools/peer_sim/main.cpp
+index 52bdd5f..c5ef115 100644
+--- a/upstream/cd-coop-3446/tools/peer_sim/main.cpp
++++ b/upstream/cd-coop-3446/tools/peer_sim/main.cpp
+@@ -12,6 +12,12 @@
+ // ghost: echoes only your PlayerState, shifted by --offset (overlay test).
+ // bot:   ignores your movement and walks a 3 m circle around your last
+ //        known position (overlay test).
++// replay: plays a recording (--replay FILE) to the connected game as the other
++//        player, in its original timing from the game's first player state, and
++//        ignores what the game sends (Co-op+: a lively teammate for showcase
++//        videos instead of an echo of your own moves).
++// --record FILE (relay): saves what the first player's game sends (state, game
++//        events, reliable data) with its timing, for --mode replay.
+ // --loss / --jitter simulate a bad connection (percent / ms) on everything
+ // this tool sends. --public listens on all interfaces (for a friend).
+ 
+@@ -21,6 +27,7 @@
+ #include <cstdio>
+ #include <cstdlib>
+ #include <deque>
++#include <fstream>
+ #include <optional>
+ #include <random>
+ #include <string>
+@@ -44,12 +51,15 @@ struct Options {
+     bool public_bind = false;
+     bool quiet = false;
+     int seconds = 0;  // 0 = run until Ctrl+C
++    std::string record_path;  // Co-op+: --record FILE
++    std::string replay_path;  // Co-op+: --replay FILE (mode replay)
++    std::string name;  // Co-op+: the name a lone client sees ("" = "cdmp_peer (<mode>)"), e.g. for showcase videos
+ };
+ 
+ void usage() {
+     std::printf(
+         "Usage: cdmp_peer [--port N] [--mode relay|ghost|bot] [--delay MS] [--offset M]\n"
+-        "                 [--loss PCT] [--jitter MS] [--public] [--quiet] [--seconds N]\n");
++        "                 [--loss PCT] [--jitter MS] [--public] [--quiet] [--seconds N] [--name NAME]\n");
+ }
+ 
+ std::optional<Options> parse(int argc, char** argv) {
+@@ -67,12 +77,15 @@ std::optional<Options> parse(int argc, char** argv) {
+         else if ((a == "--loss") && (v = next())) o.loss_pct = std::atoi(v);
+         else if ((a == "--jitter") && (v = next())) o.jitter_ms = std::atoi(v);
+         else if ((a == "--seconds") && (v = next())) o.seconds = std::atoi(v);
++        else if ((a == "--name") && (v = next())) o.name = v;
++        else if ((a == "--record") && (v = next())) o.record_path = v;
++        else if ((a == "--replay") && (v = next())) o.replay_path = v;
+         else {
+             usage();
+             return std::nullopt;
+         }
+     }
+-    if (o.mode != "relay" && o.mode != "ghost" && o.mode != "bot") {
++    if (o.mode != "relay" && o.mode != "ghost" && o.mode != "bot" && !(o.mode == "replay" && !o.replay_path.empty())) {
+         usage();
+         return std::nullopt;
+     }
+@@ -94,6 +107,14 @@ public:
+     explicit Peer(const Options& opt) : opt_(opt), rng_(std::random_device{}()) {}
+ 
+     bool open() {
++        if (!opt_.replay_path.empty() && !load_replay()) return false;
++        if (!opt_.record_path.empty()) {
++            record_.open(opt_.record_path, std::ios::binary | std::ios::trunc);
++            if (!record_) {
++                std::printf("Cannot write %s\n", opt_.record_path.c_str());
++                return false;
++            }
++        }
+         if (!sock_.open(opt_.port, !opt_.public_bind)) {
+             std::printf("Cannot bind UDP port %u: %s\n", opt_.port,
+                         net::UdpSocket::last_error().c_str());
+@@ -119,6 +140,7 @@ public:
+             const uint32_t now = now_ms();
+             flush_outbox(now);
+ 
++            if (opt_.mode == "replay" && !clients_.empty()) replay_due(now);
+             if (opt_.mode == "bot" && !clients_.empty() && now - last_bot >= 50) {
+                 last_bot = now;
+                 send_bot_state(clients_.front());
+@@ -203,6 +225,27 @@ private:
+         c->last_recv_ms = now_ms();
+         ++c->received;
+ 
++        if (record_ && c == &clients_.front() &&
++            (std::holds_alternative<proto::PlayerState>(packet->body) ||
++             std::holds_alternative<proto::GameEvent>(packet->body) ||
++             std::holds_alternative<proto::RelData>(packet->body))) {
++            const uint32_t now = now_ms();
++            if (!record_start_) record_start_ = now ? now : 1;
++            const uint32_t t = now - record_start_;
++            const auto n = static_cast<uint32_t>(bytes.size());
++            record_.write(reinterpret_cast<const char*>(&t), 4);
++            record_.write(reinterpret_cast<const char*>(&n), 4);
++            record_.write(reinterpret_cast<const char*>(bytes.data()), n);
++            ++recorded_;
++        }
++        if (opt_.mode == "replay" && !replay_start_ && std::holds_alternative<proto::PlayerState>(packet->body)) {
++            replay_start_ = now_ms() ? now_ms() : 1;  // the game is in the world: the recording starts the same way
++            std::printf("Replay: started\n");
++        }
++        if (opt_.mode == "replay" && !std::holds_alternative<proto::Ping>(packet->body) &&
++            !std::holds_alternative<proto::Bye>(packet->body)) {
++            return;
++        }
+         if (auto* ping = std::get_if<proto::Ping>(&packet->body)) {
+             send(from, proto::Pong{ping->origin_ms});
+         } else if (std::holds_alternative<proto::Bye>(packet->body)) {
+@@ -224,6 +267,36 @@ private:
+         }
+     }
+ 
++    struct Recorded {
++        uint32_t t;
++        std::vector<uint8_t> bytes;
++    };
++
++    bool load_replay() {
++        std::ifstream in(opt_.replay_path, std::ios::binary);
++        if (!in) {
++            std::printf("Cannot read %s\n", opt_.replay_path.c_str());
++            return false;
++        }
++        uint32_t t = 0, n = 0;
++        while (in.read(reinterpret_cast<char*>(&t), 4) && in.read(reinterpret_cast<char*>(&n), 4)) {
++            Recorded r{t, std::vector<uint8_t>(n)};
++            if (!in.read(reinterpret_cast<char*>(r.bytes.data()), n)) break;
++            replay_.push_back(std::move(r));
++        }
++        std::printf("Replay: %zu packets, %.1f s\n", replay_.size(), replay_.empty() ? 0.0 : replay_.back().t / 1000.0);
++        return !replay_.empty();
++    }
++
++    // From the moment the game connected: every recorded packet that is due, re-numbered by send().
++    void replay_due(uint32_t now) {
++        if (!replay_start_) return;
++        while (replay_next_ < replay_.size() && now - replay_start_ >= replay_[replay_next_].t) {
++            if (auto pkt = proto::decode(replay_[replay_next_].bytes)) send(clients_.front().ep, std::move(pkt->body));
++            ++replay_next_;
++        }
++    }
++
+     // Welcome every client with the name of whoever is on the other side
+     // (the other player in a relay, this tool otherwise). Sent again when
+     // that changes; ClientSession picks up the new name.
+@@ -231,7 +304,7 @@ private:
+         for (const auto& c : clients_) {
+             const Client& other = partner_of(c);
+             const bool alone = opt_.mode != "relay" || other.ep == c.ep;
+-            send(c.ep, proto::Welcome{alone ? "cdmp_peer (" + opt_.mode + ")" : other.name});
++            send(c.ep, proto::Welcome{alone ? (opt_.name.empty() ? "cdmp_peer (" + opt_.mode + ")" : opt_.name) : other.name});
+         }
+     }
+ 
+@@ -306,6 +379,12 @@ private:
+     std::deque<Pending> outbox_;
+     uint32_t next_seq_ = 1;
+     uint64_t received_ = 0, rejected_ = 0, sent_ = 0, dropped_ = 0;
++    std::ofstream record_;
++    uint32_t record_start_ = 0;
++    uint64_t recorded_ = 0;
++    std::vector<Recorded> replay_;
++    size_t replay_next_ = 0;
++    uint32_t replay_start_ = 0;
+ };
+ 
+ }  // namespace
