@@ -1,6 +1,7 @@
 #include "mod/net/coop_race.h"
 #include "mod/net/coop.h"
 #include "mod/net/story_sync.h"
+#include "mod/net/quest_live.h"
 #include "mod/net/coop_activity.h"
 #include "mod/net/weather_sync.h"
 
@@ -177,6 +178,10 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     // Co-op+ story sync: one message at a time, while the reliable channel has room.
     for (auto& m : story_take_outgoing(session_.reliable_pending())) {
         if (!session_.send_reliable(proto::RelKind::Story, m, now_ms)) log::warn("Story sync: a message did not fit");
+    }
+    // Co-op+ live quests: the requests that finished our quest steps, for the partner's game.
+    for (auto& m : quest_live_take_outgoing()) {
+        if (!session_.send_reliable(proto::RelKind::Quest, m, now_ms)) log::warn("Live quests: a message did not fit");
     }
     enemy_tick();
     loot_tick();
@@ -649,6 +654,8 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
         on_enemy_zone(msg.bytes, now_ms);
     } else if (msg.kind == proto::RelKind::Story) {
         story_on_message(msg.bytes);  // Co-op+: either role (ask / parts / no), story_sync.cpp checks
+    } else if (msg.kind == proto::RelKind::Quest) {
+        quest_live_on_message(msg.bytes);  // Co-op+ live quests: either role
     } else if (msg.kind == proto::RelKind::Despawn && msg.bytes.size() >= 4) {
         uint32_t gen = 0;
         std::memcpy(&gen, msg.bytes.data(), 4);

@@ -717,3 +717,18 @@ Done in the user's Chrome (signed in as Asher):
   (our {U} placeholder gave 90100000) nothing. The user key is in every 2360 at offset 6. The mission finishing made
   the server AUTOSAVE into slot2 (known, savecheck restored it from the backup; in a co-op world it goes to the
   world). Next: does 2899 finish steps of other kinds (talk / defeat / interact / read)?
+- 2026-11-04 09:00 2899 for steps of other kinds (talk "Blue Fang", defeat "White Bearclaw", interact "bell in
+  Varnia", read "Ursula's journal") and for the NEXT step (not started) did nothing: the server checks the step's
+  kind and order. The quest cheat is dead for good: its parser (exe+0x2CD4180; u8 x3 + 14-byte entries u64/u32/u16)
+  calls no handler at all on retail (8 more layouts with the user key: nothing). build/port3527/troc_fields.py reads
+  any request's field sizes from its parser: QuestDialogEndReq = 30 bytes (u32 NPC, u32 dialog, u32 x3, u8 x2, u32 x2).
+- 2026-11-04 09:13 LIVE QUESTS END TO END (one PC): new src/mod/net/quest_live.* (RelKind::Quest = 10, [coop]
+  live_quests=1, only while both players are in a co-op world; [dev] live_quests_any_world for tests). Test A
+  (live_test.sh, peer --quest): the partner's 2899 for "Head to Hernand" with a FOREIGN user key arrived, the mod
+  wrote ours (A0100001), injected it: "Head to Hernand" 2 -> 5 + "Quest step done together" notice; not echoed back.
+  Dialog ends are relayed with an NPC mapping from SetQuestDialogAck 3086 (unproven: no talk-step sample yet).
+- 2026-11-04 09:21 live quests SENDING side green (qliveC): our client's 2899 for "Head to Hernand" -> "Live quests:
+  sending our trigger" -> the peer received 01 01 53 0b d6f4ffff 010010a0 00. Both directions now shown on one PC
+  (A: receive + inject + step done; C: observe + send). A plain teleport to the Hernand RPS table did not make 3527's
+  client send the trigger (qliveB: no 2899 at all; the zone or a condition differs), so C sent it by dev script
+  (the mod sees it exactly as the game's own). Next: a real dialog sample (talk_test.sh: greet the Hernand boy).

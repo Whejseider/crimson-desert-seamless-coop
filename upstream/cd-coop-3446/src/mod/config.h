@@ -162,6 +162,9 @@ struct Config {
     // Co-op+: a co-op world (separate saves) per friend, switched to when a session starts (coop_worlds.h).
     bool coop_coop_worlds = false;
     std::string dev_coop_world_partner;  // Co-op+ dev: partner key for one-PC tests (the echo peer has no Steam id)
+    // Co-op+: quest steps follow between the players live, while both are in a co-op world (quest_live.h).
+    bool coop_live_quests = true;
+    bool dev_live_quests_any_world = false;  // Co-op+ dev: also outside co-op worlds (one-PC tests)
     // Co-op+: the host's stage cinematics (boss intros...) play for the guest (stage_cinema.h).
     bool coop_stage_cinema = true;
     // Host: copies of our enemies that fight go to the guest on their own

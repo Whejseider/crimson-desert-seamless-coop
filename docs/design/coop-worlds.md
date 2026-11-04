@@ -31,10 +31,22 @@ When the guest's world with a host is created, and at every join, the guest's WO
 QuestSaveData (story sync's transplant, `common/game_save`), written at the title screen between the folder switch
 and Play. Never the guest's own saves.
 
-## 4. Live quest progress (research)
-Quests advance in each game's own in-process server. Routes, in order of preference:
-- Mirror the host's mission changes (UpdateMissionListAck, observed by the host's mod) to the guest's server with
-  `CompleteQuestByCheatReq` (3041, 17 bytes: u8, u8, u8, u64, u32, u16). Other cheat requests (KillCheatReq) are
-  honoured on retail; this one was thought ignored (D42) but its layout was never known. Live test next.
-- Mirror the client requests that drive quests (MissionTriggerInOutReq [u32, u32, u8], QuestDialogEndReq ...).
-- Both directions (a guest's step counts for the host too), only for quests both have under way, never out of order.
+## 4. Live quest progress (`src/mod/net/quest_live.*`, built 2026-11-04)
+Quests advance in each game's own in-process server, and only through requests from that game's own client.
+- The quest cheat is dead on retail: `CompleteQuestByCheatReq`'s parser (exe+0x2CD4180: u8 x3, then 14-byte
+  entries u64/u32/u16 to the end) reads the packet and calls no handler (KillCheatReq's and MissionTriggerInOutReq's
+  parsers call theirs). 20 layouts sent, never an answer.
+- Mirroring the client requests works: `MissionTriggerInOutReq` (2899: u32 mission, u32 user key, u8 in/out) sent
+  into a fresh load (nobody moving) finished "Head to Hernand" and the server moved the quest on (UpdateTraceMissionAck
+  2459). The server checks it like its own player's: with a wrong user key, for a step not started yet, or for a
+  step of another kind (talk / defeat / interact / read) nothing happens. So mirroring cannot skip ahead.
+- quest_live: each mod sends the partner every MissionTriggerInOutReq and QuestDialogEndReq its own client sends;
+  the receiver writes its own user key (2360 offset 6) / its own NPC that offers the same dialog (SetQuestDialogAck
+  3086 lists each nearby NPC's dialogs) and injects it. Both directions. Only while both players are in a co-op
+  world. A step that finishes right after is announced ("Quest step done together with ...").
+- Dialogs (talk steps): QuestDialogEndReq = 30 bytes (u32 NPC actor, u32 dialog, u32 x3, u8 x2, u32 x2; handler
+  exe+0x2B70290 looks the dialog up in the game data, checks the line index against it, then the NPC). Mapping is
+  built; no recording of a real talk step yet, so unproven.
+- Still open: defeat steps (KillCheatReq on the receiver's own copy of the boss), interact / read / cutscene steps
+  (StageBranchStateReq, UpdateStageChartEventReq... carry per-world stage ids), and a catch-up for anything missed
+  (the guest's world gets the host's story at every join already).

@@ -20,6 +20,9 @@
 //        events, reliable data) with its timing, for --mode replay.
 // --story FILE (relay, one player): Co-op+ story sync test. The tool ends the game's reliable stream itself
 //        (echoing what it delivers) and answers a story ask with FILE (cdmp_savetool extract), as a host would.
+// --quest HEX[@SEC] (relay, one player): Co-op+ live quests test. Like --story, and SEC seconds (default 90) after the
+//        game's first reliable message sends it one RelKind::Quest message (HEX = its bytes, mod/net/quest_live.h),
+//        as the partner's finished step; the game's own Quest messages are printed, not echoed.
 // --loss / --jitter simulate a bad connection (percent / ms) on everything
 // this tool sends. --public listens on all interfaces (for a friend).
 
@@ -58,6 +61,7 @@ struct Options {
     std::string record_path;  // Co-op+: --record FILE
     std::string replay_path;  // Co-op+: --replay FILE (mode replay)
     std::string story_path;   // Co-op+: --story FILE (relay): answers story asks
+    std::string quest_hex;    // Co-op+: --quest HEX[@SEC] (relay): one live quest message to the game
     std::string name;  // Co-op+: the name a lone client sees ("" = "cdmp_peer (<mode>)"), e.g. for showcase videos
 };
 
@@ -86,6 +90,7 @@ std::optional<Options> parse(int argc, char** argv) {
         else if ((a == "--record") && (v = next())) o.record_path = v;
         else if ((a == "--replay") && (v = next())) o.replay_path = v;
         else if ((a == "--story") && (v = next())) o.story_path = v;
+        else if ((a == "--quest") && (v = next())) o.quest_hex = v;
         else {
             usage();
             return std::nullopt;
@@ -124,6 +129,18 @@ public:
             }
             std::printf("Story: %zu bytes, %u missions, %u done\n", story_.size(), c->missions, c->done);
         }
+        if (!opt_.quest_hex.empty()) {
+            std::string h = opt_.quest_hex;
+            if (const auto at = h.find('@'); at != std::string::npos) {
+                quest_after_ms_ = static_cast<uint32_t>(std::atoi(h.c_str() + at + 1)) * 1000;
+                h.resize(at);
+            }
+            for (size_t i = 0; i + 1 < h.size(); i += 2) {
+                quest_msg_.push_back(static_cast<uint8_t>(std::strtoul(h.substr(i, 2).c_str(), nullptr, 16)));
+            }
+            std::printf("Quest: %zu bytes, sent %u s after the game's first reliable message\n", quest_msg_.size(),
+                        quest_after_ms_ / 1000);
+        }
         if (!opt_.record_path.empty()) {
             record_.open(opt_.record_path, std::ios::binary | std::ios::trunc);
             if (!record_) {
@@ -158,6 +175,11 @@ public:
 
             if (opt_.mode == "replay" && !clients_.empty()) replay_due(now);
             if (chan_) chan_->tick(now);
+            if (chan_ && !quest_msg_.empty() && !quest_sent_ && quest_due_ms_ && now >= quest_due_ms_) {
+                quest_sent_ = true;
+                const bool ok = chan_->send(proto::RelKind::Quest, quest_msg_, now);
+                std::printf("Quest: sent the partner's step%s\n", ok ? "" : " (refused)");
+            }
             if (opt_.mode == "bot" && !clients_.empty() && now - last_bot >= 50) {
                 last_bot = now;
                 send_bot_state(clients_.front());
@@ -195,6 +217,9 @@ private:
     };
 
     std::vector<uint8_t> story_;
+    std::vector<uint8_t> quest_msg_;
+    uint32_t quest_after_ms_ = 90000, quest_due_ms_ = 0;
+    bool quest_sent_ = false;
     std::optional<ReliableChannel> chan_;
     net::Endpoint chan_ep_;
 
@@ -280,7 +305,7 @@ private:
             proto::PlayerState out = *state;
             if (to.ep == c->ep) out.pos.x += opt_.offset_m;  // echo: keep the marker visible
             send(to.ep, out, opt_.delay_ms);
-        } else if (opt_.mode == "relay" && !story_.empty() && clients_.size() == 1 &&
+        } else if (opt_.mode == "relay" && (!story_.empty() || !quest_msg_.empty()) && clients_.size() == 1 &&
                    (std::holds_alternative<proto::RelData>(packet->body) ||
                     std::holds_alternative<proto::RelAck>(packet->body))) {
             story_link(*c, packet->body);
@@ -298,13 +323,18 @@ private:
         if (!chan_ || !(chan_ep_ == c.ep)) {
             chan_ep_ = c.ep;
             chan_.emplace([this](proto::Body b) { send(chan_ep_, std::move(b), opt_.delay_ms); });
+            quest_due_ms_ = now_ms() + quest_after_ms_;
         }
         if (auto* ack = std::get_if<proto::RelAck>(&body)) {
             chan_->on_ack(*ack);
             return;
         }
         for (auto& m : chan_->on_data(std::get<proto::RelData>(body))) {
-            if (m.kind == proto::RelKind::Story && m.bytes.size() >= 5 && m.bytes[0] == 1) {
+            if (m.kind == proto::RelKind::Quest) {
+                std::printf("Quest: the game sent");
+                for (const uint8_t b : m.bytes) std::printf(" %02x", b);
+                std::printf("\n");
+            } else if (m.kind == proto::RelKind::Story && m.bytes.size() >= 5 && m.bytes[0] == 1) {
                 const auto comp = save::lz4_compress(story_.data(), story_.size());
                 const size_t part = 200 * 1024, count = (comp.size() + part - 1) / part;
                 for (size_t i = 0; i < count; ++i) {
@@ -448,6 +478,7 @@ private:
 }  // namespace
 
 int main(int argc, char** argv) {
+    std::setvbuf(stdout, nullptr, _IONBF, 0);  // Co-op+: output reaches a redirected file even if the tool is stopped
     auto opt = parse(argc, argv);
     if (!opt) return 2;
     if (!net::startup()) {

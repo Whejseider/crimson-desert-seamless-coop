@@ -2,6 +2,7 @@
 #include "mod/net/coop_activity.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/party_quests.h"
+#include "mod/net/quest_live.h"
 #include "mod/net/coop_hunt.h"
 #include "mod/net/kill_feed.h"
 #include "mod/net/coop_race.h"
@@ -516,6 +517,7 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     save_guard_observe_s2c(packet, size);  // Co-op+
     cinema_observe_s2c(packet, size);      // Co-op+
     party_quests_observe_s2c(packet, size);  // Co-op+ party journal
+    quest_live_observe_s2c(packet, size);    // Co-op+ live quests
     hunt_observe_s2c(packet, size);
     kill_feed_observe_s2c(packet, size);     // Co-op+ (T36): the kill feed          // Co-op+ hunting contest: our kills
     activity_observe_s2c(packet, size);      // Co-op+ (T16): we became wanted
@@ -740,6 +742,7 @@ void capture_emit_activity(std::vector<uint8_t> payload) { emit(proto::EventKind
 void capture_emit_weather(std::vector<uint8_t> payload) { emit(proto::EventKind::Weather, std::move(payload)); }
 
 void capture_observe_c2s(const uint8_t* packet, size_t size) {
+    quest_live_observe_c2s(packet, size);  // Co-op+ live quests
     aggro_observe_c2s(packet, size);
     enemy_observe_c2s(packet, size);
     suppress_observe_c2s(packet, size);

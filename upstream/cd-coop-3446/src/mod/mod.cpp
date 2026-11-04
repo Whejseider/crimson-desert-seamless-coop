@@ -59,6 +59,7 @@
 #include "mod/net/party_scaling.h"
 #include "mod/net/save_guard.h"
 #include "mod/net/story_sync.h"
+#include "mod/net/quest_live.h"
 #include "mod/save_io.h"
 #include "mod/net/coop_worlds.h"
 #include "mod/game/ui_state.h"
@@ -685,6 +686,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 toast = std::move(t);
                 toast_until = now + 25000;  // a few sentences, sometimes right after a loading screen
             }
+            // Co-op+ live quests: the partner's finished quest steps go into our game (quest_live.h).
+            net::quest_live_tick(connected, session.peer_name(), now);
+            if (std::string t = local.snapshot() ? net::quest_live_take_toast() : std::string(); !t.empty()) {
+                toast = std::move(t);
+                toast_until = now + 8000;
+            }
             // Co-op+ co-op worlds: a save per friend; switched to when a session starts (coop_worlds.h).
             {
                 net::WorldsInput wi;
@@ -953,6 +960,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     hud.save_notice += (hud.save_notice.empty() ? "" : "\n") + s;
                 }
                 if (std::string s = net::story_hud_text(); !s.empty()) {
+                    hud.save_notice += (hud.save_notice.empty() ? "" : "\n") + s;
+                }
+                if (std::string s = net::quest_live_hud_text(); !s.empty()) {
                     hud.save_notice += (hud.save_notice.empty() ? "" : "\n") + s;
                 }
             }
@@ -1706,6 +1716,7 @@ DWORD WINAPI worker(LPVOID) {
         if (in_game && build_ok && cfg.coop_enabled) {
             net::story_configure(cfg.coop_share_story, cfg.dev_story_slot);
             net::story_startup();
+            net::quest_live_configure(cfg.coop_live_quests, cfg.dev_live_quests_any_world);
         }
         log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                   cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",

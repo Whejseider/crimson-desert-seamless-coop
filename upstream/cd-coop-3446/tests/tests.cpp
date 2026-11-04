@@ -1198,7 +1198,7 @@ void test_enemy_zone_message() {
     CHECK(!proto::decode_enemy_zone(many));
     CHECK(!proto::decode_enemy_zone({}));
     // The session hands kinds up to 9 (Co-op+ story sync) to the game; a newer kind is dropped.
-    static_assert(proto::kMaxRelKind == static_cast<uint8_t>(proto::RelKind::Story));
+    static_assert(proto::kMaxRelKind == static_cast<uint8_t>(proto::RelKind::Quest));
 }
 
 void test_enemy_zone_machine() {
