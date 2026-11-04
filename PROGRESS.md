@@ -700,3 +700,11 @@ Done in the user's Chrome (signed in as Asher):
   copied) + the host's story put into the WORLD copy -> Play -> "Party journal: 2486 missions known, 456 done" (the
   host's) -> partner gone 45 s -> first try blocked by a tutorial popup (retry 30 s) -> second try: title -> own saves
   -> Play -> 2274/214 (own story). Journal: 0 false completions. Real slot103 byte-identical (c3fb54d4), SAVES OK.
+- 2026-11-04 03:25 live quest research: CompleteQuestByCheatReq (3041) sent 12 times (dev script, echo session, recorded:
+  the 17-byte packets reach the server) with mission key 0xF42BC and quest keys 0xF42DF / 0xF456C in 4 layouts each:
+  no CompleteQuestByCheatAck, no mission/quest list change. Ignored on retail (KillCheatReq still works: the quest
+  cheat has its own gate, behind the queued dispatch). Next route: the client DRIVES much of the quest/stage system
+  (one session: StageBranchStateReq 9, SetQuestDialogReq 188, GamePlayTriggerInOutReq 195, UpdateStageChartEventReq
+  32, SequencerTriggerVolumeInOutReq 4, UpdateSequencerGamePlayDataEventReq 23); mirroring the host's to the guest's
+  server (both worlds start from the same QuestSaveData now) is the live-sync candidate. Proof needs a recording of a
+  real quest step: record, then replay only those requests on a fresh load and see the step complete.
