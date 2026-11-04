@@ -35,6 +35,9 @@ constexpr size_t kSendWhenPendingBelow = 32;        // reliable fragments in fli
 constexpr uint64_t kAnswerTimeoutMs = 90000;
 constexpr uint64_t kAskEveryMs = 20000;             // a host answers one ask per 20 s
 constexpr uint32_t kPendingMagic = 0x50534443;      // "CDSP"
+// User 2026-11-04: a player's own save must never be rewritten, not even with a backup. Off until story sync
+// writes only separate co-op saves (save_io).
+constexpr bool kWritesPlayerSaves = false;
 
 enum class Guest { Idle, Asking, Receiving, Checking, Ready, Failed };
 
@@ -299,6 +302,15 @@ void story_startup() {
     const fs::path pending = pending_path();
     std::error_code ec;
     if (!fs::exists(pending, ec)) return;
+    if (!kWritesPlayerSaves) {
+        // A story kept by the previous build is discarded, never put into the player's own save.
+        fs::remove(pending, ec);
+        log::info("Story sync: a kept story from an earlier build was discarded (player saves are never written)");
+        std::lock_guard lock(g_m);
+        g_toast = "Co-op+\nStory sync now waits for separate co-op saves: the story you asked for was NOT copied, and "
+                  "your save is exactly as it was.";
+        return;
+    }
     const auto file = read_file(pending);
     std::string peer, why;
     std::optional<Bytes> story;
@@ -420,6 +432,11 @@ std::vector<std::vector<uint8_t>> story_take_outgoing(size_t reliable_pending) {
 void story_set_wanted(bool yes) {
     std::lock_guard lock(g_m);
     std::error_code ec;
+    if (yes && !kWritesPlayerSaves) {
+        g_status = "Story sync is coming back with separate co-op saves (your own saves are never changed). Not "
+                   "available in this build.";
+        return;
+    }
     if (!yes) {
         if (g_state != Guest::Idle && g_state != Guest::Failed) {
             fs::remove(pending_path(), ec);

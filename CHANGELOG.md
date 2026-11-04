@@ -2,6 +2,8 @@
 
 ## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 
+Hotfix (2026-11-04): story sync switched off. It rewrote the quest progress inside the guest's own save (after a backup); a player's own save must never be changed. A story the previous build was still holding is discarded, not copied. It returns with separate co-op saves (one per friend, host and guest) and live quest progress.
+
 Game 1.0.0.3527 (2026-11-04): Steam updated the game during this release. Every address re-found in the new exe (docs/research/port-3527.md): offline checks all pass, co-op and story sync verified live on one PC.
 
 Story sync (2026-11-04, asked for by a playtester; D47):

@@ -195,34 +195,14 @@ Fallback: the panel shows a 7-letter ROOM CODE for the host. A friend can type i
 into cdmp.ini under [room] code=  and restart the game.
 
 
-STORY SYNC: TAKE YOUR HOST'S STORY INTO YOUR SAVE (guest, opt-in, new)
----------------------------------------------------------------------
-Quests can't follow live (each of you plays in your own world), but the guest can
-copy the host's story progress into their own save, so you both stand at the same
-point of the story and can play the same quests together.
-1. Join your friend as usual. Press F8, go Down to "Copy my friend's story into my
-   save (guest)" and press Right: "yes".
-2. Your friend's mod sends the story of THEIR LAST SAVE (the game autosaves often;
-   host: if you just finished something big, save before your friend joins). The
-   panel says "Story from <name> received", with how far each of you is.
-3. Quit to the desktop, start the game again and press Continue. At start Co-op+
-   copies that save first (Documents\CrimsonDesert-CoopPlus-SaveBackups\
-   before-story-sync-<date>), then puts the host's story into it. A notice confirms it.
-- What changes: quests, missions and the main story (the quest journal).
-  What stays yours: your character, level, skills, items, money, mounts, map and
-  where you stand.
-- Cancel before restarting: pick "no" again. Nothing has been changed yet.
-- Undo: game closed, copy the slot folder from that backup back into
-  %LOCALAPPDATA%\Pearl Abyss\CD\save\<number>\ (replace the files).
-- The panel warns you when your friend is BEHIND you: your save would go back to
-  their story.
-- Both games must be the same version. Right after a game update, load your save
-  and save once, then try again.
-- Hosts: sharing is on by default. To say no: F8, "Let my guest copy my story
-  (host)": off (or share_story=0 under [coop] in cdmp.ini).
-- New in this build: tried on our own saves (a guest with 214 missions done took the
-  host's 456 and loaded fine). People and places that the story moves in your
-  world may take a moment to catch up; please report what you see.
+CO-OP SAVES AND SHARED STORY (coming next)
+------------------------------------------
+Your saves are never changed by Co-op+. The story sync of the previous build (which
+copied the host's quests into the guest's own save) is switched off in this build: a
+story it was still holding is discarded, not copied. It comes back the right way:
+co-op play will use separate co-op saves (one per friend, for the host and the guest),
+your solo saves stay untouched, and quest progress is shared live. Until then, each
+of you keeps your own quests.
 
 
 WHAT WORKS / WHAT DOESN'T (YET)
@@ -270,10 +250,9 @@ WHAT WORKS / WHAT DOESN'T (YET)
 - Crimes and bounties are your own: what you steal or whom you hit in your world
   makes YOU wanted there, never your friend (and the other way round). When one of
   you becomes wanted, the other gets a notice.
-- Shared: time of day and weather (the host's). Story progress: the guest can copy
-  the host's into their save (STORY SYNC above); live, each of you keeps your own
-  quests (you get a notice when your friend completes a quest step). Not shared:
-  civilians.
+- Shared: time of day and weather (the host's). Not shared yet: quests and story
+  progress (you get a notice when your friend completes a quest step; shared story
+  with co-op saves is coming next), civilians.
 - Two players at a time.
 
 WHAT STAYS AFTER A SESSION
@@ -291,8 +270,8 @@ KNOWN ISSUES (alpha)
   the table can be empty for them. Leave and come back after your friend is in.
 - No trading or gifting items between players, and no death penalty options.
 - Doors, levers and thrown or broken objects are each player's own (not synced).
-- Quests are not shared live: each of you keeps your own while playing. The guest
-  can copy the host's story between sessions (STORY SYNC; new, please report).
+- Quests and story progress are not shared yet; each of you keeps your own (co-op
+  saves with shared story are coming next).
 - Bosses: the host always lands the final blow.
 - Not yet tried by two real players: shared boss cutscenes, world event notices,
   teammate revive, summoning, the guest's loot from shared kills. Please report
@@ -315,8 +294,7 @@ IS IT SAFE? (ANTI-CHEAT, ACCOUNTS, CROSS-SAVE)
 - Should an update ever add an anti-cheat, Co-op+ notices at start, installs nothing
   at all and tells you in a small window; the game runs normally.
 - Co-op+ never touches your account, the store, cross-save or Steam Cloud, and sends
-  nothing anywhere except to the friend you play with. It changes a save only when you
-  ask for STORY SYNC, after copying it; Steam Cloud then uploads that save as usual.
+  nothing anywhere except to the friend you play with. It never changes your saves.
 - Cross-save / Steam Cloud upload your save when the game saves: that is one more
   reason not to save while your friend is connected.
 

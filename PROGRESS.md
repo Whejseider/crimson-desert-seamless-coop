@@ -659,3 +659,9 @@ Done in the user's Chrome (signed in as Asher):
 - Live quest progress idea: quests advance on client requests the in-process server accepts (MissionTriggerInOutReq,
   QuestDialogEndReq, QuestDialogInterrogationAnswerCompleteReq, StartDiscoverLevelSceneObjectReq ...), not the
   cheat ones it ignores: mirror the host's to the guest.
+- 2026-11-04 01:45 HOTFIX (user approved): story sync never writes a player's save (story_sync.cpp kWritesPlayerSaves =
+  false): asking says it returns with co-op saves; a story the previous build kept is discarded at start, with a notice.
+  Verified (story_e2e + a planted pending file): "kept story ... discarded", st1 still 3242/227, folder empty. Docs:
+  README section "CO-OP SAVES AND SHARED STORY (coming next)", FEATURES/discord-features "Coming next", CHANGELOG.
+  User clarifications: the HOST also gets a save per friend (solo run untouched); quest log/progress must update in
+  real time for all players (no relog).
