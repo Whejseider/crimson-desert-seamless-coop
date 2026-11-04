@@ -789,3 +789,14 @@ Done in the user's Chrome (signed in as Asher):
     advanced here 1.6 s later -> "finished here too" toast. lstep3: a partner's step not started here is dropped
     ("not under way here"), no change. Two-PC test still to come. Game state after: release asi a51453d2, shipped
     ini, SAVES OK.
+- 2026-11-04 14:30-15:00 RELEASED 0.1.0-alpha+16df564d, co-op saves + live quests as an EXPERIMENTAL OPT-IN (user:
+  "make the option to opt in very obvious and easy to turn on ... when they first launch the game"). src/mod/optin.*:
+  a card on the title screen at the first launch of this build (also for players updating: [general]
+  experimental_asked), Shift+F5 / View+D-pad Up = turn on (applies at once: save hooks, co-op worlds, quest server
+  hooks), Shift+F6 / View+D-pad Down = not now; F8 > Settings first item switches it ([coop] coop_worlds, off by
+  default; off = none of those hooks). Tested in game: card at the title and in the world (screenshots optin1_card,
+  smoke16), turn on (log "turned ON", ini coop_worlds=1, hooks installed), not now (stays off, no hooks). Package
+  (unit tests, install test all PASS, Defender clean both zips), installed into the game (asi aadcb83c..., player's
+  ini kept; build/port3460/cdmp.ini.orig = it; old one kept as cdmp.ini.orig-2bd32050), smoke start OK, SAVES OK.
+  GitHub release v0.1.0-alpha-16df564d (Latest, README/FEATURES refreshed). Discord: docs/release/discord-server-posts.md.
+  Test scripts in build/port3527 now restore this release's asi.

@@ -59,3 +59,11 @@ friends, then the host presses Ctrl+F1 to invite.
   saves for host and guest, solo saves untouched, live quest progress).
 - #features message 3, #how-to-install, #find-a-co-op-partner: story sync lines replaced ("Coming next" / "never
   changes them").
+
+## 2026-11-04 opt-in build 0.1.0-alpha+16df564d (co-op saves + live quests, experimental)
+- #download-here: new post with both zips (the opt-in explained, Shift+F5 / Shift+F6, F8 > Settings), pinned; the
+  2bd32050 post got a first line "(Older build: use the newest pinned download below, 0.1.0-alpha+16df564d ...)" and
+  was unpinned (not deleted).
+- #announcements: "Update: co-op saves + live quests (experimental, you choose), build 0.1.0-alpha+16df564d".
+- #features message 3 (World / Comfort / Known issues) edited to docs/release/discord-features.txt.
+- #how-to-install: "Shared story ... is coming next" replaced by the opt-in sentence. #find-a-co-op-partner unchanged.
