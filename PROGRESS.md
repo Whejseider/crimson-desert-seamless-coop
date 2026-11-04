@@ -639,3 +639,6 @@ Done in the user's Chrome (signed in as Asher):
   suppress decisions right, 0 crashes, 0 hook failures; the game's autosave into slot2 restored by savecheck. Running
   duel / revive / rejoin / audit next. User asked for the GitHub link (Reddit): public playtest repo given; the dev
   repo stays private (their call).
+- 2026-11-04 01:15 regressions on 3527 (build/port3527/regress.sh, bandits save): duel (rounds, ring-out, scoreboard),
+  revive (both ways, up where we fell), rejoin (4 kill/reconnect cycles, spawn per cycle), audit (3 session types,
+  each "State audit 30 s after the session: clean"); 0 crashes, 0 hook failures; SAVES OK. Port done.
