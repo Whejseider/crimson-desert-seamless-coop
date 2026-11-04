@@ -635,3 +635,7 @@ Done in the user's Chrome (signed in as Asher):
   say 1.0.0.3527; verify-port.ps1 retargeted: ALL OFFLINE CHECKS PASSED. Live: game reader on, 1175 opcodes
   resolved, crash guards installed first try, copy visible, story sync e2e green on 3527 (2486/456 after restart).
   Zone test (bandits save, zone_copy_test): enemy copies loading, suppress decisions correct, no crash after 15 min.
+- 2026-11-04 00:54 zone test on 3527 done (build/port3527/regress.sh zone): bandit copies loaded (47 copy lines),
+  suppress decisions right, 0 crashes, 0 hook failures; the game's autosave into slot2 restored by savecheck. Running
+  duel / revive / rejoin / audit next. User asked for the GitHub link (Reddit): public playtest repo given; the dev
+  repo stays private (their call).
