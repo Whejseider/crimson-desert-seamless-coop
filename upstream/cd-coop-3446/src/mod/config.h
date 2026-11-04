@@ -159,6 +159,9 @@ struct Config {
     bool dev_save_io_log = false;
     // Co-op+ dev: a co-op world active from the start (save_io.h; tests of the save separation).
     std::wstring dev_coop_world;
+    // Co-op+: a co-op world (separate saves) per friend, switched to when a session starts (coop_worlds.h).
+    bool coop_coop_worlds = false;
+    std::string dev_coop_world_partner;  // Co-op+ dev: partner key for one-PC tests (the echo peer has no Steam id)
     // Co-op+: the host's stage cinematics (boss intros...) play for the guest (stage_cinema.h).
     bool coop_stage_cinema = true;
     // Host: copies of our enemies that fight go to the guest on their own

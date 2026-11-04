@@ -41,6 +41,11 @@ std::vector<std::vector<uint8_t>> story_take_outgoing(size_t reliable_pending);
 void story_set_wanted(bool yes);
 int story_wanted_index();  // 0 no, 1 yes (asked / received / waiting for the restart)
 
+// Co-op worlds (coop_worlds.h): the guest asks for the host's story at every join; it is kept in memory and put only
+// into the guest's CO-OP WORLD copy (never the guest's own saves), at the title screen right before Play.
+void story_auto_request();
+bool story_put_into_world(const std::wstring& world_root, std::string* why);
+
 std::string story_hud_text();   // panel line ("" = nothing to say)
 std::string story_take_toast(); // a one-off notice ("" = none); taken once the player is in the world
 

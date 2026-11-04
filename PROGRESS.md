@@ -681,3 +681,9 @@ Done in the user's Chrome (signed in as Asher):
   through exe+0x2EE1D90 -> 0x19B09D0. Each load sends GameLoadingStartReq (the sniffer sees it).
 - Live quest research: CompleteQuestByCheatReq's Troc handler (vtable 0x5EE9578 slot 2 = exe+0x2CD4180) only parses
   and queues (the generic [this+0x21] check is in every handler); the gate is further in: needs live tracing.
+- 2026-11-04 ~02:45 coop_worlds.cpp ([coop] coop_worlds=1, off by default): world per partner (with-steam-<id64>,
+  host and guest); session up 8 s -> 10 s notice -> Esc > Others (804,50) > Title Screen (466,724) > hold Space ->
+  at the title set_world -> Play (E). First live run: menu -> title -> world made (7 slots copied) OK, but E at +8 s
+  was ignored (title not ready): now E is pressed until the sniffer sees GameLoadingStartReq (every 12 s, 8 tries).
+  Partner gone 45 s -> back to own saves the same way. Guest: story_auto_request() on connect keeps the host's story
+  in memory; at the title it goes into the WORLD's newest slot only (story_put_into_world). docs/design/coop-worlds.md.

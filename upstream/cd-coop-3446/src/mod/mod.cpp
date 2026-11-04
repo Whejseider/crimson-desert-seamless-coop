@@ -60,6 +60,8 @@
 #include "mod/net/save_guard.h"
 #include "mod/net/story_sync.h"
 #include "mod/save_io.h"
+#include "mod/net/coop_worlds.h"
+#include "mod/game/ui_state.h"
 #include "mod/net/boss_safe.h"
 #include "mod/net/steam_transport.h"
 #include "mod/net/room_code.h"
@@ -683,6 +685,24 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 toast = std::move(t);
                 toast_until = now + 25000;  // a few sentences, sometimes right after a loading screen
             }
+            // Co-op+ co-op worlds: a save per friend; switched to when a session starts (coop_worlds.h).
+            {
+                net::WorldsInput wi;
+                wi.now_ms = now;
+                wi.connected = connected;
+                if (connected && peer && peer->kind == net::PeerAddr::Kind::Steam) {
+                    wi.partner_key = "steam-" + std::to_string(peer->value);
+                }
+                wi.partner_name = session.peer_name();
+                wi.in_world = local.snapshot().has_value();
+                wi.menu_open = game::ui_menu_open();
+                wi.host = session.role() == ClientSession::Role::Responder;
+                net::worlds_tick(wi);
+                if (std::string t = net::worlds_take_toast(); !t.empty()) {
+                    toast = std::move(t);
+                    toast_until = now + 15000;
+                }
+            }
         }
         if (coop) {
             std::optional<proto::Vec3> pos;
@@ -929,6 +949,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             if (coop) hud.scaling = net::scaling_hud_text();
             if (coop) {
                 hud.save_notice = net::save_guard_hud_text();
+                if (std::string s = net::worlds_hud_text(); !s.empty()) {
+                    hud.save_notice += (hud.save_notice.empty() ? "" : "\n") + s;
+                }
                 if (std::string s = net::story_hud_text(); !s.empty()) {
                     hud.save_notice += (hud.save_notice.empty() ? "" : "\n") + s;
                 }
@@ -1675,7 +1698,8 @@ DWORD WINAPI worker(LPVOID) {
         }
         // Co-op+ story sync: a story taken from a host goes into the save now, before the game loads one.
         // Co-op+ co-op worlds (save_io.h): the game's saves, separated per co-op world. Dev-only until finished.
-        if (in_game && build_ok && (cfg.dev_save_io_log || !cfg.dev_coop_world.empty())) {
+        if (in_game && build_ok && cfg.coop_enabled && cfg.coop_coop_worlds) net::worlds_configure(true, cfg.dev_coop_world_partner);
+        if (in_game && build_ok && (cfg.dev_save_io_log || !cfg.dev_coop_world.empty() || (cfg.coop_enabled && cfg.coop_coop_worlds))) {
             save_io::install(cfg.dev_save_io_log);
             if (!cfg.dev_coop_world.empty()) save_io::set_world(cfg.dev_coop_world, nullptr);
         }

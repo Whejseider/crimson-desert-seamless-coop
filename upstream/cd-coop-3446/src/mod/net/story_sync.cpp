@@ -203,12 +203,33 @@ void guest_fail(const std::string& why) {
     log::warn("Story sync: {}", why);
 }
 
+// Co-op worlds (coop_worlds.h): the host's story kept in memory for the guest's co-op world; nothing is written.
+bool g_auto = false;
+Bytes g_ready;
+std::string g_ready_peer;
+
 // All parts in: unpack, dry-run the copy on our newest save, keep it for the next start.
 void guest_check(Bytes comp, uint32_t size, std::string peer) {
     std::thread([comp = std::move(comp), size, peer] {
         std::string why, fit;
         std::optional<save::StoryCount> theirs, ours;
         const auto story = save::lz4_decompress(comp.data(), comp.size(), size);
+        {
+            std::lock_guard lock(g_m);
+            if (g_auto) {  // for the co-op world: kept in memory, checked against the world when it is used
+                g_auto = false;
+                g_state = Guest::Idle;
+                if (story && save::story_count(*story)) {
+                    g_ready = *story;
+                    g_ready_peer = peer;
+                    g_status.clear();
+                    log::info("Story sync: {}'s story ready for our co-op world ({} bytes)", peer, story->size());
+                } else {
+                    log::warn("Story sync: {}'s story for our co-op world arrived damaged", peer);
+                }
+                return;
+            }
+        }
         bool ok = false;
         if (!story) {
             why = "the story data arrived damaged; try again";
@@ -427,6 +448,79 @@ std::vector<std::vector<uint8_t>> story_take_outgoing(size_t reliable_pending) {
         }
     }
     return out;
+}
+
+void story_auto_request() {
+    std::lock_guard lock(g_m);
+    if (!g_connected || g_host || g_state == Guest::Asking || g_state == Guest::Receiving ||
+        g_state == Guest::Checking) {
+        return;
+    }
+    std::random_device rd;
+    g_id = rd() | 1;
+    g_auto = true;
+    g_ready.clear();
+    g_state = Guest::Asking;
+    g_asked_ms = g_now;
+    g_out.push_back(header(kAsk, g_id));
+    log::info("Story sync: asked {} for their story (for our co-op world)", g_peer);
+}
+
+bool story_put_into_world(const std::wstring& world_root, std::string* why) {
+    Bytes story;
+    std::string peer;
+    {
+        std::lock_guard lock(g_m);
+        if (g_ready.empty()) {
+            if (why) *why = "the host's story has not arrived";
+            return false;
+        }
+        story = g_ready;
+        peer = g_ready_peer;
+    }
+    // The world's newest slot (what Play loads), its files only.
+    std::error_code ec;
+    fs::path best;
+    fs::file_time_type best_t{};
+    for (const auto& acct : fs::directory_iterator(world_root, ec)) {
+        for (const auto& slot : fs::directory_iterator(acct.path(), ec)) {
+            const fs::path s = slot.path() / L"save.save";
+            const std::wstring sn = slot.path().filename().wstring();
+            if (sn.rfind(L"slot", 0) != 0 || sn.find(L'_') != std::wstring::npos || !fs::is_regular_file(s, ec)) continue;
+            const auto t = fs::last_write_time(s, ec);
+            if (!ec && (best.empty() || t > best_t)) {
+                best = slot.path();
+                best_t = t;
+            }
+        }
+    }
+    std::string w;
+    const auto d = load_save(best, w);
+    if (!d) {
+        if (why) *why = w;
+        return false;
+    }
+    const auto out = save::story_apply(d->blob, story, &w);
+    if (!out) {
+        if (why) *why = w;
+        return false;
+    }
+    std::random_device rd;
+    uint8_t nonce[16];
+    for (auto& b : nonce) b = static_cast<uint8_t>(rd());
+    const Bytes enc = save::encode(*out, d->header, nonce);
+    const auto back = save::decode(enc, &w);
+    if (!back || back->blob != *out) {
+        if (why) *why = "the new world save did not read back the same";
+        return false;
+    }
+    if (!write_file(best / L"save.save", enc)) {
+        if (why) *why = "the world save could not be written";
+        return false;
+    }
+    const auto c = save::save_story_count(*out);
+    log::info("Story sync: {}'s story put into our co-op world ({}, {})", peer, utf8(best), counts_text(c));
+    return true;
 }
 
 void story_set_wanted(bool yes) {
