@@ -695,3 +695,8 @@ Done in the user's Chrome (signed in as Asher):
   starts a new baseline at every load (it had reported the host's 240 completions as ours; now 0). Worlds moved to
   %LOCALAPPDATA%\CrimsonDesert-CoopPlus\Worlds (Documents is OneDrive-synced here; a sync lock mid-swap could fail a
   save). Old test worlds moved out of Documents to build/test-saves/old-test-worlds.
+- 2026-11-04 03:10 CO-OP WORLDS FULL CYCLE GREEN (worlds_test.sh run 4, one PC, echo partner with --story m0):
+  own world (st1 = m101, journal 2242/214) -> partner connects -> 10 s -> title -> world with-test-echo made (7 slots
+  copied) + the host's story put into the WORLD copy -> Play -> "Party journal: 2486 missions known, 456 done" (the
+  host's) -> partner gone 45 s -> first try blocked by a tutorial popup (retry 30 s) -> second try: title -> own saves
+  -> Play -> 2274/214 (own story). Journal: 0 false completions. Real slot103 byte-identical (c3fb54d4), SAVES OK.
