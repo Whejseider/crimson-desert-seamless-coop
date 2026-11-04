@@ -96,6 +96,9 @@ $lines = $lines | ForEach-Object {
             'respawn_at=checkpoint'
             '; Co-op+: 1 = a guest may copy your story (quests) into their save (F8: "Let my guest copy my story").'
             'share_story=1'
+            '; Co-op+ EXPERIMENTAL (asked once on the first launch; F8 > Settings too): 1 = a separate save for each friend'
+            ';   (host and guest; your own saves untouched) and quest steps shared live. Both players need it on.'
+            'coop_worlds=0'
             break
         }
         default { $_ }

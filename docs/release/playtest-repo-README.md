@@ -32,7 +32,10 @@ Get the newest build from **[Releases > Latest](../../releases/latest)**. Downlo
 - **Host:** press **Ctrl+F1** (pad: hold View + Y) and invite your friend in the Steam overlay.
 - **Friend:** accept the invite, or right-click the host in your Steam friends list > **Join Game**.
 - **F8** (pad: View + X) opens the co-op panel: connection, settings, your record.
-- **Your saves are never changed by Co-op+.** Shared story with separate co-op saves (one per friend) is coming next.
+- **Your saves are never changed by Co-op+.**
+- **NEW, experimental (you choose):** a separate save for each friend you play with, and quest steps shared live.
+  The first launch asks: **Shift+F5** (pad: View + D-pad Up) turns it on, **Shift+F6** is "not now"; change it any
+  time in F8 > Settings. Both players need it on. Tell us in the Discord how it goes.
 
 ## Uninstall / turn off
 - `Uninstall Co-op+.cmd` removes exactly what was installed.

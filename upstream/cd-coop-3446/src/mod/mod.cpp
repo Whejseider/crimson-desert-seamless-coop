@@ -29,6 +29,7 @@
 #include "mod/net/load_trace.h"
 #include "mod/net/quest_events.h"
 #include "mod/net/quest_advance.h"
+#include "mod/optin.h"
 #include "mod/net/puppet_visibility.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/horse_diag.h"
@@ -1475,8 +1476,10 @@ DWORD WINAPI late_init(LPVOID param) {
     if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
     if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
     net::load_trace_install();  // Co-op+ dev diagnostic, no-op unless [dev] load_trace=1
-    // Co-op+ live quests: finished steps follow through the game's own quest server (quest_advance.h).
-    if (sniffer_ok && init->coop && net::quest_live_enabled()) net::quest_advance_install();
+    // Co-op+ live quests: finished steps follow through the game's own quest server (quest_advance.h), when the
+    // player opted in (optin.h; now or later from the first-launch card).
+    optin::set_sniffer_ready(sniffer_ok && init->coop);
+    if (sniffer_ok && init->coop && net::quest_live_dev_any_world()) net::quest_advance_install();
     net::quest_events_install();  // Co-op+ dev diagnostic, no-op unless [dev] quest_events_log=1
     if (init->overlay) render::install(render::hud_draw);
     if (init->combat_tests && sniffer_ok) {
@@ -1712,9 +1715,11 @@ DWORD WINAPI worker(LPVOID) {
             }
         }
         // Co-op+ story sync: a story taken from a host goes into the save now, before the game loads one.
-        // Co-op+ co-op worlds (save_io.h): the game's saves, separated per co-op world. Dev-only until finished.
-        if (in_game && build_ok && cfg.coop_enabled && cfg.coop_coop_worlds) net::worlds_configure(true, cfg.dev_coop_world_partner);
-        if (in_game && build_ok && (cfg.dev_save_io_log || !cfg.dev_coop_world.empty() || (cfg.coop_enabled && cfg.coop_coop_worlds))) {
+        // Co-op+ co-op worlds (save_io.h) + live quests: the experimental opt-in (optin.h), asked on the first launch.
+        optin::init(dir + L"cdmp.ini", in_game && build_ok && cfg.coop_enabled, cfg.coop_coop_worlds,
+                    GetPrivateProfileIntW(L"general", L"experimental_asked", 0, (dir + L"cdmp.ini").c_str()) != 0);
+        if (optin::enabled() && !cfg.dev_coop_world_partner.empty()) net::worlds_configure(true, cfg.dev_coop_world_partner);
+        if (in_game && build_ok && (cfg.dev_save_io_log || !cfg.dev_coop_world.empty())) {
             save_io::install(cfg.dev_save_io_log);
             if (!cfg.dev_coop_world.empty()) save_io::set_world(cfg.dev_coop_world, nullptr);
         }

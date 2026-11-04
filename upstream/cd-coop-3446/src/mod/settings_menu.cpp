@@ -21,6 +21,7 @@
 #include "mod/net/story_sync.h"
 #include "mod/net/revive_prompt.h"
 #include "mod/net/weather_sync.h"
+#include "mod/optin.h"
 
 namespace cdmp::settings {
 namespace {
@@ -83,6 +84,12 @@ void init(const std::wstring& ini_path, const Config& cfg, float health_2p, floa
     g_boss = boss_health_2p;
     g_respawn_partner = cfg.coop_respawn_at_partner;
     g_items.clear();
+    {
+        Item x{"EXPERIMENTAL: co-op saves + live quests", nullptr, nullptr, {"on", "off (on = a save per friend)"}, {},
+               1, true, [](int i) { optin::answer(i == 0); }};
+        x.current = [] { return optin::panel_index(); };
+        g_items.push_back(std::move(x));
+    }
     g_items.push_back({"Who can join", L"net", L"join", {"any Steam friend", "only friends I invite"},
                        {L"friends", L"invite"}, cfg.net_join_invite_only ? 1 : 0, false, nullptr});
     g_items.push_back({"Loot of shared kills", L"coop", L"loot_mode", {"each their own", "host only", "first come"},

@@ -286,6 +286,11 @@ void quest_live_on_message(const std::vector<uint8_t>& bytes) {
     g_in.push_back(Pending{op, std::vector<uint8_t>(bytes.begin() + 4, bytes.end()), g_now + kWaitForNpcMs});
 }
 
+bool quest_live_dev_any_world() {
+    std::lock_guard lock(g_m);
+    return g_enabled && g_any_world;
+}
+
 bool quest_live_enabled() {
     std::lock_guard lock(g_m);
     return g_enabled;

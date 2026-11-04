@@ -36,6 +36,8 @@ void quest_live_tick(bool connected, const std::string& partner_name, uint64_t n
 void quest_live_on_message(const std::vector<uint8_t>& bytes);
 // [coop] live_quests (set by quest_live_configure).
 bool quest_live_enabled();
+// [dev] live_quests_any_world (one-PC tests: no co-op world, no opt-in).
+bool quest_live_dev_any_world();
 std::vector<std::vector<uint8_t>> quest_live_take_outgoing();
 
 std::string quest_live_take_toast();  // "" = none

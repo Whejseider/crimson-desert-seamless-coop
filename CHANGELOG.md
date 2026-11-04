@@ -2,6 +2,11 @@
 
 ## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 
+Co-op saves + live quests, EXPERIMENTAL and opt-in (2026-11-04):
+- A card on the first launch asks whether to turn them on (Shift+F5 on, Shift+F6 not now; pad View + D-pad Up / Down); F8 > Settings switches them too ([coop] coop_worlds). Off = the mod is as before (none of their hooks installed).
+- Co-op saves: each friend gets a separate save, for the host and the guest; the game goes to the title screen and loads it when a session starts, and back to your own saves when it ends. Your own saves are never changed. Saves live in %LOCALAPPDATA%\CrimsonDesert-CoopPlus\Worlds (outside Steam Cloud).
+- Live quests: when your friend finishes a quest step you also have under way, your game finishes it too, through the game's own quest routine (rewards, cleared camps and the next step included). Proven on one PC for go-to, defeat and talk steps; steps you have not started are left alone.
+
 Hotfix (2026-11-04): story sync switched off. It rewrote the quest progress inside the guest's own save (after a backup); a player's own save must never be changed. A story the previous build was still holding is discarded, not copied. It returns with separate co-op saves (one per friend, host and guest) and live quest progress.
 
 Game 1.0.0.3527 (2026-11-04): Steam updated the game during this release. Every address re-found in the new exe (docs/research/port-3527.md): offline checks all pass, co-op and story sync verified live on one PC.

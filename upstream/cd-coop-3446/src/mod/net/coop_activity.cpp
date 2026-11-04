@@ -1,5 +1,6 @@
 #include "mod/net/coop_activity.h"
 #include "mod/input/actions.h"
+#include "mod/optin.h"
 #include "mod/input/pad_input.h"
 
 #include <windows.h>
@@ -565,8 +566,9 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
     // Shift, not Ctrl: Ctrl is a game key (it moves the interaction focus off the table host, and crouches).
     // Shift+F5 / Shift+F6, or on a pad the co-op chord + D-pad Up / Down (input/actions.h).
     static input::Edge challenge_edge, decline_edge;
-    const bool pressed = challenge_edge(input::action_down(input::Action::Challenge, focused));
+    bool pressed = challenge_edge(input::action_down(input::Action::Challenge, focused));
     bool declined = decline_edge(input::action_down(input::Action::Decline, focused));
+    if (optin::card_visible()) pressed = declined = false;  // the first-launch card's answer (render/hud.cpp)
     const int test_mode = g_challenge_test.load();
     const bool test = test_mode != 0;
     std::optional<std::pair<uint8_t, uint32_t>> send_it;

@@ -104,6 +104,7 @@ void on_trigger(safetyhook::Context&) {
 }  // namespace
 
 bool quest_advance_install() {
+    if (g_trigger_hook) return true;
     g_base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
     if (g_base != off::kImageBase || !head_is(kSetMissionState, kSetMissionStateHead, sizeof kSetMissionStateHead) ||
         !head_is(kAdvance, kAdvanceHead, sizeof kAdvanceHead) ||

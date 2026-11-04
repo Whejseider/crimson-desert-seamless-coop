@@ -220,7 +220,10 @@ bool hook(SafetyHookInline& h, const char* fn, F detour) {
 }  // namespace
 
 void install(bool log) {
-    g_log = log;
+    g_log = g_log || log;
+    static bool done = false;
+    if (done) return;
+    done = true;
     const fs::path game = known_folder(FOLDERID_LocalAppData) / L"Pearl Abyss" / L"CD" / L"save";
     g_game_root = lower_slashes((game.wstring() + L"\\").c_str());
     // Local, not Documents: Documents is often synced (OneDrive), and a sync holding a file in the middle of the

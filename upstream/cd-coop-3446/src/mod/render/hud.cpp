@@ -21,6 +21,7 @@
 #include "mod/input/pad_input.h"
 #include "mod/render/game_ui.h"
 #include "mod/settings_menu.h"
+#include "mod/optin.h"
 
 namespace cdmp::render {
 namespace {
@@ -269,12 +270,35 @@ void hud_draw(float width, float height) {
         dl->AddText(f, fs, ImVec2(x + 1, y + 1), IM_COL32(0, 0, 0, 200), t.c_str());
         dl->AddText(f, fs, ImVec2(x, y), col, t.c_str());
     }
+    // Co-op+: the experimental opt-in, once, on the first launch of this build (optin.h). It waits for an answer;
+    // the controls card waits behind it.
+    static input::Edge optin_yes, optin_no;
+    const bool optin_up = optin::card_visible() && opt.build_problem.empty();
+    if (optin_up) {
+        if (optin_yes(input::action_down(input::Action::Challenge, focus))) {
+            optin::answer(true);
+        } else if (optin_no(input::action_down(input::Action::Decline, focus))) {
+            optin::answer(false);
+        } else {
+            ui::guide_card(width, height, "NEW: co-op saves + live quests  (experimental)",
+                           {"Play with a friend and get a SEPARATE SAVE for each friend, like Elden Ring Seamless Co-op.",
+                            "Your own saves are never touched: leave the session and you are back in your own world.",
+                            "Quest steps your friend finishes (go to, defeat, talk) finish for you too, live.",
+                            "",
+                            "{Challenge}   TURN IT ON",
+                            "{Decline}   Not now",
+                            "",
+                            "Change it any time: {Panel} > Settings > \"EXPERIMENTAL: co-op saves + live quests\"."},
+                           "Experimental: tell us how it goes in the Discord (#bug-reports).");
+        }
+        if (g_guide_since.load()) g_guide_since = GetTickCount64();  // the controls card comes after
+    }
     // Co-op+ (T31): the controls card.
     static input::Edge help_edge;
     if (help_edge(input::action_down(input::Action::Help, focus)) && opt.build_problem.empty()) {
         g_guide_since = g_guide_since.load() ? 0 : GetTickCount64();
     }
-    if (const ULONGLONG since = g_guide_since.load()) {
+    if (const ULONGLONG since = optin_up ? 0 : g_guide_since.load()) {
         const ULONGLONG age = GetTickCount64() - since;
         if (age > 60000 || game::ui_menu_open()) {
             g_guide_since = 0;

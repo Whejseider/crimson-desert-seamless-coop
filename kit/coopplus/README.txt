@@ -195,14 +195,28 @@ Fallback: the panel shows a 7-letter ROOM CODE for the host. A friend can type i
 into cdmp.ini under [room] code=  and restart the game.
 
 
-CO-OP SAVES AND SHARED STORY (coming next)
-------------------------------------------
-Your saves are never changed by Co-op+. The story sync of the previous build (which
-copied the host's quests into the guest's own save) is switched off in this build: a
-story it was still holding is discarded, not copied. It comes back the right way:
-co-op play will use separate co-op saves (one per friend, for the host and the guest),
-your solo saves stay untouched, and quest progress is shared live. Until then, each
-of you keeps your own quests.
+CO-OP SAVES + LIVE QUESTS (EXPERIMENTAL - you choose)
+-----------------------------------------------------
+The first time you start the game with this version, a card asks whether to turn this
+on. Shift+F5 (pad: hold View + D-pad Up) turns it on, Shift+F6 (View + D-pad Down) is
+"not now". Change it any time: F8 > Settings > "EXPERIMENTAL: co-op saves + live
+quests". BOTH players need it on.
+
+When it is on:
+- Co-op play gets its own save for each friend, for the host and the guest, like Elden
+  Ring Seamless Co-op. When a session starts, the game goes back to the title screen
+  and loads your save with that friend (one loading screen; the first time it starts
+  as a copy of your own progress). When the session ends it goes back to your own
+  saves the same way. Your own saves are never changed.
+- Quest steps follow between you live: when your friend finishes a step that you also
+  have under way (go somewhere, defeat enemies, talk to someone), it finishes for you
+  too, with its rewards, and you get a notice. Steps you have not started are left
+  alone.
+- The co-op saves are in %LOCALAPPDATA%\CrimsonDesert-CoopPlus\Worlds (outside Steam
+  Cloud).
+It is new and has only been tested on one PC: please tell us in the Discord how it goes.
+When it is off, Co-op+ works exactly as before: each of you plays in your own save
+and keeps your own quests. Co-op+ never changes your own saves either way.
 
 
 WHAT WORKS / WHAT DOESN'T (YET)
@@ -250,9 +264,9 @@ WHAT WORKS / WHAT DOESN'T (YET)
 - Crimes and bounties are your own: what you steal or whom you hit in your world
   makes YOU wanted there, never your friend (and the other way round). When one of
   you becomes wanted, the other gets a notice.
-- Shared: time of day and weather (the host's). Not shared yet: quests and story
-  progress (you get a notice when your friend completes a quest step; shared story
-  with co-op saves is coming next), civilians.
+- Shared: time of day and weather (the host's). Quest steps: shared live with the
+  experimental co-op saves on (see above); otherwise each keeps their own quests and
+  you get a notice when your friend completes a quest step. Not shared: civilians.
 - Two players at a time.
 
 WHAT STAYS AFTER A SESSION
@@ -270,8 +284,8 @@ KNOWN ISSUES (alpha)
   the table can be empty for them. Leave and come back after your friend is in.
 - No trading or gifting items between players, and no death penalty options.
 - Doors, levers and thrown or broken objects are each player's own (not synced).
-- Quests and story progress are not shared yet; each of you keeps your own (co-op
-  saves with shared story are coming next).
+- Quest sharing needs the experimental co-op saves (see above), still untested between
+  two PCs. Steps of other kinds (using an object, reading, cutscenes) are untested.
 - Bosses: the host always lands the final blow.
 - Not yet tried by two real players: shared boss cutscenes, world event notices,
   teammate revive, summoning, the guest's loot from shared kills. Please report
