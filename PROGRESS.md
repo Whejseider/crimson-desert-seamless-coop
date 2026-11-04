@@ -732,3 +732,7 @@ Done in the user's Chrome (signed in as Asher):
   (A: receive + inject + step done; C: observe + send). A plain teleport to the Hernand RPS table did not make 3527's
   client send the trigger (qliveB: no 2899 at all; the zone or a condition differs), so C sent it by dev script
   (the mod sees it exactly as the game's own). Next: a real dialog sample (talk_test.sh: greet the Hernand boy).
+- 2026-11-04 09:25 talk sample attempt (talk_test.sh, Hernand boy): Greet = ambient small talk, only
+  SetQuestDialogReq/Ack (the boy's dialog key went 0C0B -> 0C0A after the greet), no QuestDialogEndReq. Other NPCs
+  near there are townsfolk (farmer, fishermen). No quest NPC reachable by script in the test saves -> F14 narrowed
+  to one talk step + one defeat step. Game state after: release asi a51453d2, shipped ini, SAVES OK, test save out.
