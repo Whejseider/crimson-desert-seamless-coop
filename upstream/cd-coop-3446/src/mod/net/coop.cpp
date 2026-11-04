@@ -268,14 +268,37 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
         }
     }
 
+    // Co-op+: the other player far away (another region). The game has not loaded the ground there and cannot draw
+    // them on it: their character stood frozen next to us instead (2026-11-04, a partner 15 km away; the frame said
+    // "2 m"). So it is taken away beyond kFarM and loaded again where they are once they are within kNearM (the gap
+    // keeps it from flickering at the edge). The frame then shows the real distance.
+    constexpr float kNearM = 400.0f, kFarM = 600.0f;
+    const auto& reported = session_.remote_state();
+    if (reported && local_pos) {
+        const float fx = reported->pos.x - local_pos->x, fz = reported->pos.z - local_pos->z;
+        const float d2 = fx * fx + fz * fz;
+        if (!far_ && d2 > kFarM * kFarM) {
+            far_ = true;
+            log::info("Co-op: the other player is {:.0f} m away; their character is drawn again within {:.0f} m",
+                      std::sqrt(d2), kNearM);
+            if (puppet_spawned()) remove_puppet(now_ms);
+        } else if (far_ && d2 < kNearM * kNearM) {
+            far_ = false;
+            log::info("Co-op: the other player is near again ({:.0f} m); loading their character", std::sqrt(d2));
+            if (!puppet_spawned() && last_spawn_ && !remote_spawn_) {
+                remote_spawn_ = last_spawn_;
+                remote_spawn_->pos = reported->pos;
+            }
+        }
+    }
+
     // Co-op+ (T06): the copy drawn far from where the other player says they are (events lost or ignored):
     // load it again where they are. Not while it sits in a wrestling seat (it is drawn elsewhere on purpose).
     constexpr float kDriftM = 40.0f;
     constexpr uint32_t kDriftMs = 6000;
     std::optional<proto::Vec3> drawn;
     if (puppet_spawned() && !loading && !puppet_seated()) drawn = puppet_position();
-    const auto& reported = session_.remote_state();
-    if (drawn && reported && last_spawn_ && !remote_spawn_ && now_ms - spawned_at_ms_ > kSpawnGraceMs) {
+    if (drawn && reported && !far_ && last_spawn_ && !remote_spawn_ && now_ms - spawned_at_ms_ > kSpawnGraceMs) {
         const float dx = drawn->x - puppet_offset_m() - reported->pos.x, dz = drawn->z - reported->pos.z;
         if (dx * dx + dz * dz < kDriftM * kDriftM) {
             drift_since_ms_ = 0;
@@ -322,7 +345,7 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     }
 
     // Load the other player once we are in the world ourselves.
-    if (remote_spawn_ && local_pos && !loading && !g_no_copy &&
+    if (remote_spawn_ && local_pos && !loading && !g_no_copy && !far_ &&
         static_cast<int32_t>(now_ms - spawn_not_before_ms_) >= 0) {
         if (puppet_spawned()) {
             remove_puppet(now_ms);

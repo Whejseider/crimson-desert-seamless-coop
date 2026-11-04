@@ -62,6 +62,10 @@ struct Options {
     std::string replay_path;  // Co-op+: --replay FILE (mode replay)
     std::string story_path;   // Co-op+: --story FILE (relay): answers story asks
     std::string quest_hex;    // Co-op+: --quest HEX[@SEC] (relay): one live quest message to the game
+    // Co-op+: --far START,END,M (echo): between START and END seconds after the first client, the echoed player is M
+    // metres away instead of --offset (the partner in another region, then back).
+    int far_start_s = -1, far_end_s = -1;
+    float far_m = 0.0f;
     std::string name;  // Co-op+: the name a lone client sees ("" = "cdmp_peer (<mode>)"), e.g. for showcase videos
 };
 
@@ -91,6 +95,7 @@ std::optional<Options> parse(int argc, char** argv) {
         else if ((a == "--replay") && (v = next())) o.replay_path = v;
         else if ((a == "--story") && (v = next())) o.story_path = v;
         else if ((a == "--quest") && (v = next())) o.quest_hex = v;
+        else if ((a == "--far") && (v = next())) std::sscanf(v, "%d,%d,%f", &o.far_start_s, &o.far_end_s, &o.far_m);
         else {
             usage();
             return std::nullopt;
@@ -303,7 +308,16 @@ private:
             if (opt_.mode == "bot") return;
             const Client& to = opt_.mode == "relay" ? partner_of(*c) : *c;
             proto::PlayerState out = *state;
-            if (to.ep == c->ep) out.pos.x += opt_.offset_m;  // echo: keep the marker visible
+            if (to.ep == c->ep) {  // echo: keep the marker visible
+                if (!first_client_ms_) first_client_ms_ = now_ms();
+                const int t = static_cast<int>((now_ms() - first_client_ms_) / 1000);
+                const bool away = opt_.far_start_s >= 0 && t >= opt_.far_start_s && t < opt_.far_end_s;
+                if (away != far_now_) {
+                    far_now_ = away;
+                    std::printf("Far: the echoed player is now %.0f m away (%d s)\n", away ? opt_.far_m : opt_.offset_m, t);
+                }
+                out.pos.x += away ? opt_.far_m : opt_.offset_m;
+            }
             send(to.ep, out, opt_.delay_ms);
         } else if (opt_.mode == "relay" && (!story_.empty() || !quest_msg_.empty()) && clients_.size() == 1 &&
                    (std::holds_alternative<proto::RelData>(packet->body) ||
@@ -395,6 +409,9 @@ private:
             send(c.ep, proto::Welcome{alone ? (opt_.name.empty() ? "cdmp_peer (" + opt_.mode + ")" : opt_.name) : other.name});
         }
     }
+
+    uint64_t first_client_ms_ = 0;  // Co-op+ --far
+    bool far_now_ = false;
 
     void send_bot_state(const Client& c) {
         const proto::Vec3 center = c.state ? c.state->pos : proto::Vec3{};

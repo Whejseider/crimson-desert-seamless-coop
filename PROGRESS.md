@@ -800,3 +800,13 @@ Done in the user's Chrome (signed in as Asher):
   ini kept; build/port3460/cdmp.ini.orig = it; old one kept as cdmp.ini.orig-2bd32050), smoke start OK, SAVES OK.
   GitHub release v0.1.0-alpha-16df564d (Latest, README/FEATURES refreshed). Discord: docs/release/discord-server-posts.md.
   Test scripts in build/port3527 now restore this release's asi.
+- 2026-11-04 15:10-15:50 Reddit questions tested on one PC (build/port3527/session_test.sh, focus_test.sh):
+  - Far apart: peer --offset 15000 (new peer option --far START,END,M moves the echoed partner away and back). BUG
+    found: a partner 15 km away was drawn frozen next to us (frame "2 m": the game cannot place an actor on ground it
+    has not loaded) and the T06 drift resync reloaded it every 15-20 s. FIX (coop.cpp): beyond 600 m the partner's
+    character is removed, within 400 m it is loaded again where they are; the drift resync only runs while near.
+    far5: "15000 m away" -> character hidden, frame shows 15000 m, our own character untouched (shot far5_a); back at
+    2 m -> loaded again (far5). Connection steady (~20 ms, no loss), 1 harmless warning. Not released yet.
+  - Focus (spirit slow motion; pad L3+R3, PC C+RMB per guides): could not trigger it by automation. C+RMB swung the
+    weapon (an attack on this setup), X did nothing, a dev pad press does not reach the game without a real pad
+    (that experiment reverted). The mod does not sync game speed, so Focus is local to the player who uses it.

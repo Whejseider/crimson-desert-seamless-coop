@@ -2,6 +2,8 @@
 
 ## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 
+Fix (2026-11-04, from a Reddit question): when your friend is far away (another region), their character is no longer left frozen next to you and reloaded every 15-20 s. It is hidden beyond 600 m (the partner frame shows the real distance) and comes back once they are within 400 m. Your own character is never affected; there is no distance limit.
+
 Co-op saves + live quests, EXPERIMENTAL and opt-in (2026-11-04):
 - A card on the first launch asks whether to turn them on (Shift+F5 on, Shift+F6 not now; pad View + D-pad Up / Down); F8 > Settings switches them too ([coop] coop_worlds). Off = the mod is as before (none of their hooks installed).
 - Co-op saves: each friend gets a separate save, for the host and the guest; the game goes to the title screen and loads it when a session starts, and back to your own saves when it ends. Your own saves are never changed. Saves live in %LOCALAPPDATA%\CrimsonDesert-CoopPlus\Worlds (outside Steam Cloud).
