@@ -372,3 +372,24 @@
   the match began): the copy sits in the opponent's chair gripping hands, the Hernandian Guard is gone for the match
   and back after. With the echo peer present from the start the pub table stayed unstaffed in 7 runs today (staffed at
   every hour without it, and with it on 11-03 01:20): noted, not chased (echo-only setup; check on two PCs).
+
+## 2026-11-04 D47: Story sync = the host's QuestSaveData copied into the guest's save at the guest's next start
+- Asked for by a Discord player (user priority 2026-11-03). Live stays impossible (D42), so it goes through the save:
+  the guest opts in (F8 settings), the host's mod reads the host's newest save and sends its QuestSaveData (1.9 MB,
+  ~500 KB LZ4, RelKind::Story 9, 200 KB parts), the guest's mod dry-runs the whole copy on its own newest save and keeps
+  the story in Documents/CrimsonDesert-CoopPlus-SaveBackups/story-sync/pending-story.bin; at the next start (worker
+  thread, before any save is read) it backs up the slot folder and writes the save. Next start rather than live: the
+  game holds the save in memory and would write its own back.
+- Only QuestSaveData moves: character, items, knowledge, map, position stay the guest's. World objects that follow the
+  story (FieldSaveData, NPC schedules, factions) are not moved: the qs7 / e2e loads were clean; two-PC check in
+  PLAYTEST 6c.4.
+- Safety: same game build required (every type both saves know has the same fields), types the guest lacks are
+  appended, every self pointer / the object table / the blob size are moved, and the result is checked (other objects
+  byte-identical apart from moved pointers, the quest object element-for-element the host's, read back after
+  encoding). The cause of every earlier load crash: FactionSpawnStageManagerSaveData's elements have an index instead
+  of FF x 8 before their self pointer, so they were not moved (PROGRESS 2026-11-03 ~23:10).
+- Host consent: [coop] share_story (default 1, F8 setting). The guest is warned when the host is behind.
+- Code: common/game_save (pure, unit tests + cdmp_savetool, same bytes as tools/save/quest_sync.py), mod/net/story_sync,
+  cdmp_peer --story (stand-in host). Verified end to end on one PC (build/port3479/story_e2e.sh): ask -> received ->
+  restart -> "Party journal: 2486 missions known, 456 done" (host's totals) at the guest's own position; cancel works.
+

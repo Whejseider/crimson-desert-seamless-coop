@@ -678,9 +678,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             net::save_guard_set_connected(connected, session.peer_name());
             // Co-op+ story sync: who we are linked to, and its notices.
             net::story_set_link(connected, session.role() == ClientSession::Role::Responder, session.peer_name(), now);
-            if (std::string t = net::story_take_toast(); !t.empty()) {
+            if (std::string t = local.snapshot() ? net::story_take_toast() : std::string(); !t.empty()) {
                 toast = std::move(t);
-                toast_until = now + 15000;
+                toast_until = now + 25000;  // a few sentences, sometimes right after a loading screen
             }
         }
         if (coop) {

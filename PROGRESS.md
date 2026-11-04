@@ -610,3 +610,15 @@ Done in the user's Chrome (signed in as Asher):
 - The earlier "different game versions" verdict was partly this bug: the 40-byte CharacterStatusSaveData move and
   slot101 + slot0 crashed for this reason. Field lists do differ between builds (the bandit save's types have more
   fields), so the tool still refuses saves whose shared types have different fields.
+- 2026-11-04 ~00:15 STORY SYNC BUILT AND VERIFIED (D47). common/game_save (C++: decode/encode, schema, object table,
+  self pointers, story extract/apply + checks; unit tests: SHA-256/HMAC/ChaCha20 vectors, LZ4, garbage) gives the
+  same blob as quest_sync.py for qs7. cdmp_savetool (count/extract/apply/roundtrip/blob) refuses old-format saves
+  both ways, damaged files, cut story data, overwriting inputs. Mod: net/story_sync (F8 item "Copy my friend's story
+  into my save (guest)", host item "Let my guest copy my story", [coop] share_story, [dev] story_slot), RelKind::Story
+  9. cdmp_peer --story ends the game's reliable stream and answers asks. build/port3479/story_e2e.sh (slot103 only):
+  ask -> "story ... kept for the next start (492 done; ours 227)" in ~1 s -> restart -> applied in 0.1 s at start,
+  backup made -> "Party journal: 2486 missions known, 456 done" at the guest's own spot; ask again + "no" removes the
+  pending file. Panel text wraps; the notice waits until the player is in the world (25 s). savecheck OK every run;
+  the mod's test backups of slot103 moved to build/test-saves.
+- Docs: README STORY SYNC section + Steam Cloud line, FEATURES.md / discord-features.txt (World: Story sync, Works),
+  CHANGELOG, PLAYTEST 6c, D47, FLAGS F8 done.

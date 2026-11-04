@@ -143,6 +143,19 @@ Note which one each of you gets.
 | 6b.1 | Each player installs the mods they normally use (docs/compatibility.md), starts the game, loads in. | A notice "Other mods next to the game: ..." names them (or no notice with none); `cdmp.log` has a "Compatibility:" line. | [ ] | [ ] | |
 | 6b.2 | Play 10 minutes of co-op with one fight and some loot. | Same as without the mods. If not: take the named files out, retry, note which mod. | [ ] | [ ] | |
 
+## 6c. Story sync (new)
+
+B should be behind A in the story (or use any two different saves). Both: note your quest journal's main quest first.
+
+| # | Do | Expected | Pass | Fail | Notes |
+|---|---|---|---|---|---|
+| 6c.1 | B (guest, connected): F8, Down to "Copy my friend's story into my save (guest)", Right. | Within a few seconds B's panel: "Story from <A> received (N missions done; yours: M)". A's panel: "Your story went to <B>". | [ ] | [ ] | |
+| 6c.2 | B picks "no", then "yes" again. | "Story copy cancelled", then received again. | [ ] | [ ] | |
+| 6c.3 | B quits to the desktop, starts the game, presses Continue. | A notice "Your save now follows <A>'s story"; a folder before-story-sync-<date> in Documents/CrimsonDesert-CoopPlus-SaveBackups. | [ ] | [ ] | |
+| 6c.4 | B opens the quest journal and the map. | B's main quest is A's; B's character, level, items, money and position are B's own. Note anything odd in the world (people or places that did not follow). | [ ] | [ ] | |
+| 6c.5 | B and A play the same quest step together. | It advances for both. | [ ] | [ ] | |
+| 6c.6 | Undo (optional): game closed, B copies the backup's slot folder back. | B's old story is back. | [ ] | [ ] | |
+
 ## 7. Ending
 
 | # | Do | Expected | Pass | Fail | Notes |

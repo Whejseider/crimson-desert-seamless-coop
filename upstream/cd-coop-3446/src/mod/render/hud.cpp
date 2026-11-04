@@ -145,7 +145,13 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
     }
     if (!d.enemy_zone.empty()) ImGui::TextColored(ImVec4(0.75f, 0.85f, 1, 1), "%s", d.enemy_zone.c_str());
     if (!d.scaling.empty()) ImGui::TextColored(ImVec4(0.75f, 0.85f, 1, 1), "%s", d.scaling.c_str());
-    if (!d.save_notice.empty()) ImGui::TextColored(ImVec4(1, 0.8f, 0.3f, 1), "%s", d.save_notice.c_str());
+    if (!d.save_notice.empty()) {  // Co-op+: wrapped (story sync notices are a few sentences)
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetFontSize() * 44.0f);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.8f, 0.3f, 1));
+        ImGui::TextWrapped("%s", d.save_notice.c_str());
+        ImGui::PopStyleColor();
+        ImGui::PopTextWrapPos();
+    }
     if (!camera_failure.empty()) ImGui::TextDisabled(en ? "Camera: %s" : "Cámara: %s", camera_failure.c_str());
 
     // The room code, ALWAYS shown -- with the code when we have one, and an explicit

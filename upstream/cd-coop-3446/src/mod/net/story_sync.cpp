@@ -239,12 +239,12 @@ void guest_check(Bytes comp, uint32_t size, std::string peer) {
         g_state = Guest::Ready;
         std::string behind;
         if (ours && theirs && theirs->done < ours->done) {
-            behind = std::format(" Careful: {} is behind you ({} vs your {}): your save would go back to their story.",
+            behind = std::format("\nCareful: {} is behind you ({} vs your {}): your save would go back to their story.",
                                  peer, theirs->done, ours->done);
         }
         g_status = std::format(
-            "Story from {} received ({}; yours: {}). It goes into your save at your next game start: quit to the "
-            "desktop, start the game again and press Continue. Your save is backed up first. Set this to \"no\" to "
+            "Story from {} received ({}; yours: {}).\nIt goes into your save at your next game start: quit to the "
+            "desktop, start the game again and press Continue. Your save is backed up first. Pick \"no\" to "
             "cancel.{}",
             peer, counts_text(theirs), counts_text(ours), behind);
         g_toast = "Co-op+\nStory from " + peer + " received: it goes into your save when you next start the game.";
@@ -349,13 +349,14 @@ void story_startup() {
     if (done) {
         log::info("Story sync: {}'s story is now in {} ({}); the old save is in {}", peer, utf8(slot),
                   counts_text(count), utf8(backup));
-        g_toast = std::format("Co-op+\nYour save now follows {}'s story ({}). Your old save is in Documents\\"
-                              "CrimsonDesert-CoopPlus-SaveBackups\\{}.",
-                              peer, counts_text(count), utf8(backup.parent_path().parent_path().filename()));
+        g_status = std::format("Your save now follows {}'s story ({}).\nYour old save: Documents\\"
+                               "CrimsonDesert-CoopPlus-SaveBackups\\{}",
+                               peer, counts_text(count), utf8(backup.parent_path().parent_path().filename()));
     } else {
         log::warn("Story sync: the story from {} was not put into {}: {}", peer, utf8(slot), why);
-        g_toast = "Co-op+\nThe story copy was not done: " + why + ". Your save is unchanged.";
+        g_status = "The story copy was not done: " + why + ". Your save is unchanged.";
     }
+    g_toast = "Co-op+\n" + g_status;
 }
 
 void story_set_link(bool connected, bool host, const std::string& peer_name, uint64_t now_ms) {
@@ -465,6 +466,7 @@ std::string story_take_toast() {
     std::lock_guard lock(g_m);
     std::string t;
     t.swap(g_toast);
+    if (!t.empty()) log::info("Story sync: notice shown");
     return t;
 }
 

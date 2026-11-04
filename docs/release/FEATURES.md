@@ -82,7 +82,8 @@ ByJunter and its port by nouzert1.
 |---|---|
 | Time of day and weather follow the host | Works |
 | Resting at a campfire together (the host's Wait moves both clocks) | Needs testing |
-| Each player keeps their own story, quests and items; nothing leaks into the other save | Works |
+| Story sync (new): the guest copies the host's story (quests, main story) into their own save, from the F8 settings; their save is backed up first | Works |
+| Each player keeps their own character and items, and their own quests while playing; nothing leaks into the other save | Works |
 | Item trading or a shared stash | Not yet |
 | Doors, levers and breakable objects in sync | Not yet |
 
@@ -102,6 +103,6 @@ ByJunter and its port by nouzert1.
 | Diagnose: a one-click bug report with personal info removed | Works |
 | Turns itself off safely after a game update, or if an anti-cheat ever appears | Works |
 
-**Known issues:** two players only. Quests aren't shared. The arm wrestling table can be empty for a guest who
+**Known issues:** two players only. Quests aren't shared live (story sync copies them between sessions). The arm wrestling table can be empty for a guest who
 arrives already connected; leave the pub and come back. Don't save while your friend is in your world (backups
 are made for you).

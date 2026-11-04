@@ -42,6 +42,6 @@ void story_set_wanted(bool yes);
 int story_wanted_index();  // 0 no, 1 yes (asked / received / waiting for the restart)
 
 std::string story_hud_text();   // panel line ("" = nothing to say)
-std::string story_take_toast(); // a one-off notice ("" = none)
+std::string story_take_toast(); // a one-off notice ("" = none); taken once the player is in the world
 
 }  // namespace cdmp::net
