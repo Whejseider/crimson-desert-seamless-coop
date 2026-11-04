@@ -58,6 +58,7 @@
 #include "mod/net/weather_sync.h"
 #include "mod/net/party_scaling.h"
 #include "mod/net/save_guard.h"
+#include "mod/net/story_sync.h"
 #include "mod/net/boss_safe.h"
 #include "mod/net/steam_transport.h"
 #include "mod/net/room_code.h"
@@ -675,6 +676,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             net::scaling_tick();
             // Co-op+ save safety: a backup when a session starts, a warning on saves during it.
             net::save_guard_set_connected(connected, session.peer_name());
+            // Co-op+ story sync: who we are linked to, and its notices.
+            net::story_set_link(connected, session.role() == ClientSession::Role::Responder, session.peer_name(), now);
+            if (std::string t = net::story_take_toast(); !t.empty()) {
+                toast = std::move(t);
+                toast_until = now + 15000;
+            }
         }
         if (coop) {
             std::optional<proto::Vec3> pos;
@@ -919,7 +926,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             }
             if (coop) hud.enemy_zone = net::suppress_hud_text();
             if (coop) hud.scaling = net::scaling_hud_text();
-            if (coop) hud.save_notice = net::save_guard_hud_text();
+            if (coop) {
+                hud.save_notice = net::save_guard_hud_text();
+                if (std::string s = net::story_hud_text(); !s.empty()) {
+                    hud.save_notice += (hud.save_notice.empty() ? "" : "\n") + s;
+                }
+            }
             // Boss bar (boss_safe.h): the guest has no native one.
             // Co-op+: guest only (now that the boss's health reaches boss_safe, the host would get two bars).
             if (const net::BossHud b = net::boss_hud(); b.active && !host) {
@@ -1659,6 +1671,11 @@ DWORD WINAPI worker(LPVOID) {
                 log::warn("Online guard: nothing installed (no overlay, no packet hooks, no co-op)");
                 return 0;
             }
+        }
+        // Co-op+ story sync: a story taken from a host goes into the save now, before the game loads one.
+        if (in_game && build_ok && cfg.coop_enabled) {
+            net::story_configure(cfg.coop_share_story, cfg.dev_story_slot);
+            net::story_startup();
         }
         log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                   cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",

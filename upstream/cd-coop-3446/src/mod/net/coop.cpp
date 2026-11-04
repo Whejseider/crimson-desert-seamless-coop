@@ -1,5 +1,6 @@
 #include "mod/net/coop_race.h"
 #include "mod/net/coop.h"
+#include "mod/net/story_sync.h"
 #include "mod/net/coop_activity.h"
 #include "mod/net/weather_sync.h"
 
@@ -173,6 +174,10 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     enemy_set_linked(connected && g_ready);
     update_enemy_zone(connected && g_ready, local_pos, now_ms);
     if (!connected || !g_ready) return;
+    // Co-op+ story sync: one message at a time, while the reliable channel has room.
+    for (auto& m : story_take_outgoing(session_.reliable_pending())) {
+        if (!session_.send_reliable(proto::RelKind::Story, m, now_ms)) log::warn("Story sync: a message did not fit");
+    }
     enemy_tick();
     loot_tick();
     // Enemy messages wait in the relay while the reliable channel is backed up
@@ -642,6 +647,8 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
         enemy_on_state(msg.bytes, delay_ms_);
     } else if (msg.kind == proto::RelKind::EnemyZone) {
         on_enemy_zone(msg.bytes, now_ms);
+    } else if (msg.kind == proto::RelKind::Story) {
+        story_on_message(msg.bytes);  // Co-op+: either role (ask / parts / no), story_sync.cpp checks
     } else if (msg.kind == proto::RelKind::Despawn && msg.bytes.size() >= 4) {
         uint32_t gen = 0;
         std::memcpy(&gen, msg.bytes.data(), 4);

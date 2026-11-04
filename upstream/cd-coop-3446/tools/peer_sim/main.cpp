@@ -18,6 +18,8 @@
 //        videos instead of an echo of your own moves).
 // --record FILE (relay): saves what the first player's game sends (state, game
 //        events, reliable data) with its timing, for --mode replay.
+// --story FILE (relay, one player): Co-op+ story sync test. The tool ends the game's reliable stream itself
+//        (echoing what it delivers) and answers a story ask with FILE (cdmp_savetool extract), as a host would.
 // --loss / --jitter simulate a bad connection (percent / ms) on everything
 // this tool sends. --public listens on all interfaces (for a friend).
 
@@ -34,7 +36,9 @@
 #include <vector>
 
 #include "common/clock.h"
+#include "common/game_save.h"
 #include "common/protocol.h"
+#include "common/reliable.h"
 #include "common/udp.h"
 
 using namespace cdmp;
@@ -53,6 +57,7 @@ struct Options {
     int seconds = 0;  // 0 = run until Ctrl+C
     std::string record_path;  // Co-op+: --record FILE
     std::string replay_path;  // Co-op+: --replay FILE (mode replay)
+    std::string story_path;   // Co-op+: --story FILE (relay): answers story asks
     std::string name;  // Co-op+: the name a lone client sees ("" = "cdmp_peer (<mode>)"), e.g. for showcase videos
 };
 
@@ -80,6 +85,7 @@ std::optional<Options> parse(int argc, char** argv) {
         else if ((a == "--name") && (v = next())) o.name = v;
         else if ((a == "--record") && (v = next())) o.record_path = v;
         else if ((a == "--replay") && (v = next())) o.replay_path = v;
+        else if ((a == "--story") && (v = next())) o.story_path = v;
         else {
             usage();
             return std::nullopt;
@@ -108,6 +114,16 @@ public:
 
     bool open() {
         if (!opt_.replay_path.empty() && !load_replay()) return false;
+        if (!opt_.story_path.empty()) {
+            std::ifstream in(opt_.story_path, std::ios::binary);
+            story_.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+            const auto c = save::story_count(story_);
+            if (!c) {
+                std::printf("Cannot use %s as story data\n", opt_.story_path.c_str());
+                return false;
+            }
+            std::printf("Story: %zu bytes, %u missions, %u done\n", story_.size(), c->missions, c->done);
+        }
         if (!opt_.record_path.empty()) {
             record_.open(opt_.record_path, std::ios::binary | std::ios::trunc);
             if (!record_) {
@@ -141,6 +157,7 @@ public:
             flush_outbox(now);
 
             if (opt_.mode == "replay" && !clients_.empty()) replay_due(now);
+            if (chan_) chan_->tick(now);
             if (opt_.mode == "bot" && !clients_.empty() && now - last_bot >= 50) {
                 last_bot = now;
                 send_bot_state(clients_.front());
@@ -176,6 +193,10 @@ private:
         net::Endpoint to;
         std::vector<uint8_t> bytes;
     };
+
+    std::vector<uint8_t> story_;
+    std::optional<ReliableChannel> chan_;
+    net::Endpoint chan_ep_;
 
     Client* find(const net::Endpoint& ep) {
         for (auto& c : clients_) {
@@ -259,11 +280,48 @@ private:
             proto::PlayerState out = *state;
             if (to.ep == c->ep) out.pos.x += opt_.offset_m;  // echo: keep the marker visible
             send(to.ep, out, opt_.delay_ms);
+        } else if (opt_.mode == "relay" && !story_.empty() && clients_.size() == 1 &&
+                   (std::holds_alternative<proto::RelData>(packet->body) ||
+                    std::holds_alternative<proto::RelAck>(packet->body))) {
+            story_link(*c, packet->body);
         } else if (opt_.mode == "relay") {
             // Game events and reliable fragments/acks: forwarded unchanged.
             if (std::holds_alternative<proto::GameEvent>(packet->body)) ++c->events;
             if (std::holds_alternative<proto::RelData>(packet->body)) ++c->reliable;
             send(partner_of(*c).ep, std::move(packet->body), opt_.delay_ms);
+        }
+    }
+
+    // --story: the game's reliable messages end here and go back on our own stream (as the echo would), except a
+    // story ask, which gets the story in parts (the format of mod/net/story_sync.cpp).
+    void story_link(const Client& c, const proto::Body& body) {
+        if (!chan_ || !(chan_ep_ == c.ep)) {
+            chan_ep_ = c.ep;
+            chan_.emplace([this](proto::Body b) { send(chan_ep_, std::move(b), opt_.delay_ms); });
+        }
+        if (auto* ack = std::get_if<proto::RelAck>(&body)) {
+            chan_->on_ack(*ack);
+            return;
+        }
+        for (auto& m : chan_->on_data(std::get<proto::RelData>(body))) {
+            if (m.kind == proto::RelKind::Story && m.bytes.size() >= 5 && m.bytes[0] == 1) {
+                const auto comp = save::lz4_compress(story_.data(), story_.size());
+                const size_t part = 200 * 1024, count = (comp.size() + part - 1) / part;
+                for (size_t i = 0; i < count; ++i) {
+                    std::vector<uint8_t> b(m.bytes.begin(), m.bytes.begin() + 5);
+                    b[0] = 2;
+                    const auto u16 = [&](size_t v) { b.push_back(static_cast<uint8_t>(v)); b.push_back(static_cast<uint8_t>(v >> 8)); };
+                    u16(i);
+                    u16(count);
+                    const auto n = static_cast<uint32_t>(story_.size());
+                    for (int k = 0; k < 4; ++k) b.push_back(static_cast<uint8_t>(n >> (k * 8)));
+                    b.insert(b.end(), comp.begin() + i * part, comp.begin() + std::min(comp.size(), (i + 1) * part));
+                    if (!chan_->send(proto::RelKind::Story, b, now_ms())) std::printf("Story: part %zu refused\n", i);
+                }
+                std::printf("Story: asked; sent %zu KB in %zu parts\n", comp.size() / 1024, count);
+            } else {
+                chan_->send(m.kind, m.bytes, now_ms());
+            }
         }
     }
 

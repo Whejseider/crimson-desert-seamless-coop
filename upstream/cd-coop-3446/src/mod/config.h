@@ -151,6 +151,10 @@ struct Config {
     int coop_time_sync = 3;
     // Co-op+: the guest's weather follows the host's (weather_sync.h).
     bool coop_weather_sync = true;
+    // Co-op+: a guest may copy this host's story into their save (story_sync.h).
+    bool coop_share_story = true;
+    // Co-op+ dev: the slot folder story sync uses instead of the newest one (tests).
+    std::wstring dev_story_slot;
     // Co-op+: the host's stage cinematics (boss intros...) play for the guest (stage_cinema.h).
     bool coop_stage_cinema = true;
     // Host: copies of our enemies that fight go to the guest on their own

@@ -1,7 +1,8 @@
 """Replace a byte range of a decoded save blob and repair what the change moves (test saves only).
 
 Rules (from NattKh's CrimsonSaveEditor parc_inserter3.py, checked on our saves):
-- every inline object has 8 x FF then a u32 self pointer = (absolute position of the FF run) + 12;
+- every inline object has 8 x FF (or, in FactionSpawnStageManagerSaveData, its u64 index) then a u32 self pointer
+  = (absolute position of that 8-byte run) + 12;
 - an inline object ends with a u32 "tail" = its length - (21 + mask length); objects that contain the change grow;
 - the TOC (parc.parse_toc) holds each top-level object's offset and size, preceded by u32 0 | count | stream size.
 
@@ -16,18 +17,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import parc  # noqa: E402
 
-FF8 = b"\xff" * 8
 
 
-def self_pointers(raw, lo=0):
-    """Absolute positions of FF runs whose following u32 points at itself + 12."""
+def self_pointers(raw, lo=0, base=0):
+    """Positions of the 8-byte runs before a u32 self pointer (= base + run position + 12; base: where `raw` sits in
+    the blob). Most runs are FF x 8; the elements of FactionSpawnStageManagerSaveData carry their index there instead
+    (0, 1, 2, ...). Missing those left their pointers stale whenever the blob grew, and the game crashed at load
+    (quest sync tests, 2026-11-03)."""
     out = []
-    at = raw.find(FF8, lo)
-    while at >= 0:
-        if at + 12 <= len(raw) and struct.unpack_from("<I", raw, at + 8)[0] == at + 12:
-            out.append(at)
-        at = raw.find(FF8, at + 1)
-    return out
+    for a in range(4):
+        n = (len(raw) - a) // 4
+        for i, (v,) in enumerate(struct.iter_unpack("<I", raw[a:a + n * 4])):
+            q = a + i * 4
+            if v == base + q + 4 and q - 8 >= lo:
+                out.append(q - 8)
+    return sorted(out)
 
 
 def element_end(raw, start, mask_len):

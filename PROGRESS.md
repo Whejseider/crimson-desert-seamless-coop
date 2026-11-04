@@ -595,3 +595,18 @@ Done in the user's Chrome (signed in as Asher):
   Also open: whether quests alone are enough or the world objects that follow the story (FieldSaveData,
   NPCScheduleStageManagerSaveData, FactionSaveData, KnowledgeSaveData, FogSaveData...) must come along.
 - "Continue" picks the slot by the time in its lobby.save: test variants need the bandit save's lobby.save.
+- 2026-11-03 ~23:10 FOUND the load crash (exe+0x1563971 -> call 0x0): not the game version. Self pointers come after an
+  8-byte run that is FF x 8 everywhere EXCEPT in FactionSpawnStageManagerSaveData, whose elements carry their index
+  there (0, 1, 2, ...; 158 in slot101, 170 in slot0). Our tools only knew FF runs, so any change that moved those
+  elements (a size change before them: a type added to the schema, a resized object) left their pointers stale, and
+  the faction-spawn loader read garbage. Proof chain (all slot103 test copies): one unused type appended -> crash;
+  same with a different type, either save -> crash; two types swapped and renumbered (no size change) -> loads;
+  header float at 0x08 zeroed -> still crash; plain re-encode -> loads. splice.self_pointers now finds every u32 equal
+  to its own position + 4, whatever the 8 bytes before it (slower, ~4 s a save). Also fixed: the blob size stored at
+  schema end + 8 was not grown when types were appended.
+- RESULT qs7 = slot101 (guest: character at its own spot) + slot0's QuestSaveData (host), QuestGaugeStateData_Stage
+  appended: loads, "2486 missions known, 456 done" = exactly the host's totals; position the guest's own. qs6 (type
+  appended only) loads with the guest's 2242 / 214. So a story gap of 242 completed missions transfers.
+- The earlier "different game versions" verdict was partly this bug: the 40-byte CharacterStatusSaveData move and
+  slot101 + slot0 crashed for this reason. Field lists do differ between builds (the bandit save's types have more
+  fields), so the tool still refuses saves whose shared types have different fields.

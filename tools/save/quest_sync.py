@@ -8,7 +8,7 @@ How (the save layout notes are in cdsave.py / parc.py / splice.py):
 1. Each save carries its own schema (only the types it uses) and objects refer to types by their index in it. Types
    the host's quest object uses that the guest's schema lacks (e.g. QuestGaugeStateData_Stage, which appears later
    in the story) are appended to the guest's schema; everything after the schema moves by that many bytes (TOC
-   offsets and every self pointer).
+   offsets, every self pointer and the blob size stored after the schema).
 2. In a copy of the host's QuestSaveData, every element's type index is renumbered to the guest's schema and every
    self pointer made relative; splice.splice() then puts it in place of the guest's and repairs the rest.
 3. The result is decoded again and checked: same objects in the same order, the guest's other objects byte-identical
@@ -24,7 +24,6 @@ import cdsave  # noqa: E402
 import parc  # noqa: E402
 import splice  # noqa: E402
 
-FF8 = b"\xff" * 8
 QUEST = "QuestSaveData"
 
 
@@ -59,14 +58,8 @@ def object_of(raw, name):
 
 
 def elements_in(block, base):
-    """(position in block, type index) of every inline element (FF run with its self pointer = base + pos + 12)."""
-    out = []
-    at = block.find(FF8)
-    while at >= 0:
-        if at >= 3 and at + 12 <= len(block) and struct.unpack_from("<I", block, at + 8)[0] == base + at + 12:
-            out.append((at, struct.unpack_from("<H", block, at - 3)[0]))
-        at = block.find(FF8, at + 1)
-    return out
+    """(position in block, type index) of every inline element (8-byte run, then its self pointer = base + pos + 12)."""
+    return [(at, struct.unpack_from("<H", block, at - 3)[0]) for at in splice.self_pointers(block, 3, base)]
 
 
 def add_types(guest, host, needed):
@@ -88,6 +81,8 @@ def add_types(guest, host, needed):
         struct.pack_into("<I", out, toc_base + i * 20 + 12, off + d)
     for p in splice.self_pointers(guest, gend):
         struct.pack_into("<I", out, p + d + 8, p + d + 12)
+    # The blob size after the schema (schema end + 8). Left stale, the game crashed at load (tests qs1, qs6).
+    struct.pack_into("<I", out, end + 8, struct.unpack_from("<I", out, end + 8)[0] + d)
     return bytes(out)
 
 
@@ -121,12 +116,13 @@ def check(guest, host, result):
     gt, ge = parc.parse_schema(guest)
     rt, re_ = parc.parse_schema(result)
     gnames, rnames = [t[0] for t in gt], [t[0] for t in rt]
-    assert rnames[:len(gnames)] == gnames, "the guest's types changed order"
+    assert set(gnames) <= set(rnames), "a guest type is missing"
     gtoc, rtoc = parc.parse_toc(guest, ge)[0], parc.parse_toc(result, re_)[0]
     assert [gnames[c[0]] for c in gtoc] == [rnames[c[0]] for c in rtoc], "objects differ"
     hoff, hsize = object_of(host, QUEST)
     roff, rsize = object_of(result, QUEST)
     assert rsize == hsize, "quest object size"
+    assert struct.unpack_from("<I", result, re_ + 8)[0] == len(result), "blob size field"
     hn = [t[0] for t in parc.parse_schema(host)[0]]
     he = [(p, hn[t]) for p, t in elements_in(host[hoff:hoff + hsize], hoff)]
     rel = [(p, rnames[t]) for p, t in elements_in(result[roff:roff + rsize], roff)]

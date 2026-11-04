@@ -18,6 +18,7 @@
 #include "mod/net/party_quests.h"
 #include "mod/net/remote_puppet.h"
 #include "mod/net/stage_cinema.h"
+#include "mod/net/story_sync.h"
 #include "mod/net/revive_prompt.h"
 #include "mod/net/weather_sync.h"
 
@@ -33,6 +34,7 @@ struct Item {
     int index = 0;
     bool live = true;                  // applied now (else at the next start)
     std::function<void(int)> apply;
+    std::function<int()> current;      // Co-op+: the value lives elsewhere (no ini key: section nullptr)
 };
 
 std::mutex g_mutex;
@@ -65,8 +67,9 @@ void change(int delta) {
     if (g_items.empty()) return;
     Item& it = g_items[g_sel];
     const int n = static_cast<int>(it.shown.size());
+    if (it.current) it.index = it.current();
     it.index = (it.index + delta % n + n) % n;
-    WritePrivateProfileStringW(it.section, it.key, it.stored[it.index].c_str(), g_ini.c_str());
+    if (it.section) WritePrivateProfileStringW(it.section, it.key, it.stored[it.index].c_str(), g_ini.c_str());
     if (it.live && it.apply) it.apply(it.index);
     log::info("Settings: {} = {}{}", it.label, it.shown[it.index], it.live ? "" : " (next start)");
 }
@@ -136,6 +139,15 @@ void init(const std::wstring& ini_path, const Config& cfg, float health_2p, floa
     }
     // T34: colours.
     g_colourblind = GetPrivateProfileIntW(L"overlay", L"colourblind", 0, ini_path.c_str()) != 0;
+    // Co-op+ story sync (story_sync.h): the guest asks; the host decides whether it shares.
+    {
+        Item copy{"Copy my friend's story into my save (guest)", nullptr, nullptr, {"no", "yes"}, {}, 0, true,
+                  [](int i) { net::story_set_wanted(i == 1); }};
+        copy.current = [] { return net::story_wanted_index(); };
+        g_items.push_back(std::move(copy));
+    }
+    g_items.push_back({"Let my guest copy my story (host)", L"coop", L"share_story", on_off(), one_zero(),
+                       cfg.coop_share_story ? 0 : 1, true, [](int i) { net::story_set_share(i == 0); }});
     g_items.push_back({"Player colours", L"overlay", L"colourblind", {"gold host, blue guest", "colour-blind safe"},
                        {L"0", L"1"}, g_colourblind ? 1 : 0, true, [](int i) { g_colourblind = i == 1; }});
     {
@@ -176,7 +188,8 @@ std::vector<Line> lines() {
     out.push_back({"Settings: Up/Down choose, Left/Right change (pad: D-pad)", false});
     for (int i = 0; i < static_cast<int>(g_items.size()); ++i) {
         const Item& it = g_items[i];
-        out.push_back({std::format("{}{}: {}{}", i == g_sel ? "> " : "  ", it.label, it.shown[it.index],
+        const int idx = it.current ? it.current() : it.index;
+        out.push_back({std::format("{}{}: {}{}", i == g_sel ? "> " : "  ", it.label, it.shown[idx],
                                    it.live ? "" : "  (next start)"),
                        i == g_sel});
     }

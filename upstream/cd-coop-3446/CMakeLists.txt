@@ -59,6 +59,7 @@ add_library(cdmp_common STATIC
     src/common/client_session.cpp
     src/common/reliable.cpp
     src/common/enemy_load.cpp
+    src/common/game_save.cpp
 )
 cdmp_strict(cdmp_common)
 target_include_directories(cdmp_common PUBLIC src)
@@ -119,6 +120,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/steam_join.cpp
     src/mod/net/party_scaling.cpp
     src/mod/net/save_guard.cpp
+    src/mod/net/story_sync.cpp
     src/mod/net/revive_prompt.cpp
     src/mod/net/dev_script.cpp
     src/mod/net/coop_activity.cpp
@@ -202,6 +204,10 @@ if(TARGET Zydis)
 endif()
 
 # Co-op+ dev tool: the enemy-zone verdict of every load in a packet capture.
+add_executable(cdmp_savetool tools/savetool/main.cpp)
+cdmp_strict(cdmp_savetool)
+target_link_libraries(cdmp_savetool PRIVATE cdmp_common)
+
 add_executable(cdmp_loadcheck tools/loadcheck/main.cpp)
 cdmp_strict(cdmp_loadcheck)
 target_link_libraries(cdmp_loadcheck PRIVATE cdmp_common)

@@ -6,6 +6,7 @@
 #include <cstring>
 #include <utility>
 #include <limits>
+#include <string>
 #include <vector>
 
 #include "common/byte_ring.h"
@@ -15,6 +16,7 @@
 #include "common/enemy_zone.h"
 #include "common/equip_state.h"
 #include "common/field_time.h"
+#include "common/game_save.h"
 #include "common/inject_clock.h"
 #include "common/learnt_file.h"
 #include "common/math3d.h"
@@ -1195,8 +1197,8 @@ void test_enemy_zone_message() {
     for (uint16_t i = 0; i < n; ++i) many.insert(many.end(), {1, 0, 0, 0});
     CHECK(!proto::decode_enemy_zone(many));
     CHECK(!proto::decode_enemy_zone({}));
-    // The session hands kind 8 to the game; a newer kind is dropped.
-    static_assert(proto::kMaxRelKind == static_cast<uint8_t>(proto::RelKind::EnemyZone));
+    // The session hands kinds up to 9 (Co-op+ story sync) to the game; a newer kind is dropped.
+    static_assert(proto::kMaxRelKind == static_cast<uint8_t>(proto::RelKind::Story));
 }
 
 void test_enemy_zone_machine() {
@@ -1638,6 +1640,88 @@ void test_join_args() {
     CHECK(find_connect_lobby(std::string_view("+connect_lobby 5 +connect_lobby 109775242893225821")) == kLobby);
 }
 
+// Co-op+ story sync (common/game_save.h): the building blocks against published test vectors, the codec round trip,
+// and garbage refused without crashing. Real saves are checked with tools/savetool (same result as quest_sync.py).
+std::string hex(const uint8_t* p, size_t n) {
+    std::string s;
+    char b[3];
+    for (size_t i = 0; i < n; ++i) {
+        std::snprintf(b, sizeof b, "%02x", p[i]);
+        s += b;
+    }
+    return s;
+}
+
+void test_game_save() {
+    using namespace cdmp::save;
+    const std::string abc = "abc";
+    const auto h = sha256(reinterpret_cast<const uint8_t*>(abc.data()), abc.size());
+    CHECK(hex(h.data(), 32) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    const std::string million(1000000, 'a');
+    const auto hm = sha256(reinterpret_cast<const uint8_t*>(million.data()), million.size());
+    CHECK(hex(hm.data(), 32) == "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
+    // RFC 4231 test case 2.
+    const std::string jefe = "Jefe", what = "what do ya want for nothing?";
+    const auto mac = hmac_sha256(reinterpret_cast<const uint8_t*>(jefe.data()), jefe.size(),
+                                 reinterpret_cast<const uint8_t*>(what.data()), what.size());
+    CHECK(hex(mac.data(), 32) == "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843");
+    // RFC 8439 2.4.2 (counter 1 first, then the 12-byte nonce).
+    uint8_t key[32];
+    for (int i = 0; i < 32; ++i) key[i] = static_cast<uint8_t>(i);
+    const uint8_t nonce[16] = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x4a, 0, 0, 0, 0};
+    std::string text = "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, "
+                       "sunscreen would be it.";
+    std::vector<uint8_t> buf(text.begin(), text.end());
+    chacha20(buf.data(), buf.size(), key, nonce);
+    CHECK(hex(buf.data(), 16) == "6e2e359a2568f98041ba0728dd0d6981");
+    CHECK(hex(buf.data() + buf.size() - 2, 2) == "874d");
+    chacha20(buf.data(), buf.size(), key, nonce);
+    CHECK(std::string(buf.begin(), buf.end()) == text);
+
+    // LZ4: compressible, random and tiny inputs come back the same.
+    std::vector<std::vector<uint8_t>> inputs = {{}, {7}, std::vector<uint8_t>(13, 9), std::vector<uint8_t>(100000, 0)};
+    std::vector<uint8_t> mixed;
+    uint32_t r = 12345;
+    for (int i = 0; i < 300000; ++i) {
+        r = r * 1103515245 + 12345;
+        mixed.push_back(i % 1000 < 600 ? static_cast<uint8_t>(i % 37) : static_cast<uint8_t>(r >> 16));
+    }
+    inputs.push_back(mixed);
+    for (const auto& in : inputs) {
+        const auto c = lz4_compress(in.data(), in.size());
+        const auto back = lz4_decompress(c.data(), c.size(), in.size());
+        CHECK(back && *back == in);
+    }
+    CHECK(lz4_compress(inputs[3].data(), inputs[3].size()).size() < 1000);
+
+    // A save-shaped file: encode then decode gives the blob back; one flipped byte is refused (HMAC).
+    Header header{};
+    std::memcpy(header.data(), "SAVE", 4);
+    header[4] = 2;
+    header[6] = 0x80;
+    const auto file = encode(mixed, header, nonce);
+    std::string why;
+    const auto d = decode(file, &why);
+    CHECK(d && d->blob == mixed);
+    auto bad = file;
+    bad[0x100] ^= 1;
+    CHECK(!decode(bad, &why) && !why.empty());
+    CHECK(!decode(std::vector<uint8_t>(10, 0), &why));
+
+    // Garbage as a save or as story data: refused, no crash.
+    for (int n = 0; n < 200; ++n) {
+        std::vector<uint8_t> g(static_cast<size_t>(n * 37 % 5000));
+        for (auto& b : g) {
+            r = r * 1103515245 + 12345;
+            b = static_cast<uint8_t>(r >> 16);
+        }
+        if (g.size() >= 8) std::memcpy(g.data(), "CDST\x01\0\0\0", 8);
+        CHECK(!story_apply(mixed, g, &why));
+        CHECK(!story_count(g) || g.size() >= 8);
+        CHECK(!story_extract(g, &why));
+    }
+}
+
 }  // namespace
 
 int main() {    test_pattern();
@@ -1668,6 +1752,7 @@ int main() {    test_pattern();
     test_join_args();
     test_party_scaling();
     test_nameplate();
+    test_game_save();
     if (g_failures == 0) std::printf("All tests passed\n");
     return g_failures == 0 ? 0 : 1;
 }
