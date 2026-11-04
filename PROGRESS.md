@@ -810,3 +810,8 @@ Done in the user's Chrome (signed in as Asher):
   - Focus (spirit slow motion; pad L3+R3, PC C+RMB per guides): could not trigger it by automation. C+RMB swung the
     weapon (an attack on this setup), X did nothing, a dev pad press does not reach the game without a real pad
     (that experiment reverted). The mod does not sync game speed, so Focus is local to the player who uses it.
+- 2026-11-04 16:19 Focus tested by hand (user's PlayStation pad; the game was on monitor 2, captured from x 1920):
+  focusman session (relay partner beside us), Focus on from ~16:19:20 for 35+ s (green tint, particles, "Cancel").
+  During it: ~60 fps steady (overlay frames ~300 per 5 s), link rtt 12-16 ms, ~1.9 kB/s, clock offset steady, the
+  partner's character drawn and never reloaded, no warnings. A dev pad press does not reach the game (Steam Input
+  pad), so automated Focus tests are not possible here. Two-PC view (the other player's screen) still untested.
