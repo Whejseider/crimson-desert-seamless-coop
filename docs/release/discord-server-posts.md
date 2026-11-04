@@ -67,3 +67,8 @@ friends, then the host presses Ctrl+F1 to invite.
 - #announcements: "Update: co-op saves + live quests (experimental, you choose), build 0.1.0-alpha+16df564d".
 - #features message 3 (World / Comfort / Known issues) edited to docs/release/discord-features.txt.
 - #how-to-install: "Shared story ... is coming next" replaced by the opt-in sentence. #find-a-co-op-partner unchanged.
+
+## 2026-11-04 hotfix 0.1.0-alpha+cea405cf (far-away friend)
+- #download-here: new post with both zips, pinned; the 16df564d post got a first line "(Older build: use the newest
+  pinned download below, 0.1.0-alpha+cea405cf ...)" and was unpinned (not deleted).
+- #announcements: "Hotfix 0.1.0-alpha+cea405cf: far-away friend".

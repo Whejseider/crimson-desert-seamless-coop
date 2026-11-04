@@ -829,3 +829,7 @@ Done in the user's Chrome (signed in as Asher):
   host gave copies 63 s out of step that loaded and were removed within ~30 s (plus character-load errors), and the
   user's character never moved (no fight). A faithful test needs two worlds = two PCs: added as PLAYTEST-1 §6d
   (guest Focus mid-fight, host Focus, far apart and back). Game state after: release asi, player ini, SAVES OK.
+- 2026-11-04 18:05-18:20 RELEASED hotfix 0.1.0-alpha+cea405cf (far-away friend hidden beyond 600 m, back within
+  400 m; user approved): package (unit tests, install test all PASS, Defender clean both zips), installed in the
+  game (asi b4d50b37..., player's ini kept), smoke start (build CEA405CF, no errors, SAVES OK), GitHub release
+  v0.1.0-alpha-cea405cf (Latest), Discord (docs/release/discord-server-posts.md). Test kit restores this asi now.
