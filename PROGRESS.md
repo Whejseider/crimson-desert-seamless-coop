@@ -570,3 +570,4 @@ Done in the user's Chrome (signed in as Asher):
   headless print-to-pdf; images are frames of the showcase video).
 - Quest sync (asked in Discord): not implemented: quests stay per save (D42 / NOTES/FLAGS.md F8); the party journal
   notices exist. Possible later: an opt-in offline copy of the host's story progress into the guest's save.
+- 2026-11-03: showcase uploaded to the user's Google Drive (My Drive): SeamlessCoopPlus-showcase-1080p.mp4 (80 MB, the original; sent in 9 MB pieces through the Drive page and rejoined there, SHA-256 matched) and SeamlessCoopPlus-showcase-720p.mp4 (9 MB). build/port3460/cutvideo.ps1 got -Kbps (720p re-encode).
