@@ -94,6 +94,8 @@ $lines = $lines | ForEach-Object {
             'teammate_revive=1'
             '; Co-op+: where a checkpoint revive leaves you: checkpoint (as in the game) or partner (back to your friend).'
             'respawn_at=checkpoint'
+            '; Co-op+: 1 = a guest may copy your story (quests) into their save (F8: "Let my guest copy my story").'
+            'share_story=1'
             break
         }
         default { $_ }
