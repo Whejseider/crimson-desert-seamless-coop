@@ -708,3 +708,12 @@ Done in the user's Chrome (signed in as Asher):
   32, SequencerTriggerVolumeInOutReq 4, UpdateSequencerGamePlayDataEventReq 23); mirroring the host's to the guest's
   server (both worlds start from the same QuestSaveData now) is the live-sync candidate. Proof needs a recording of a
   real quest step: record, then replay only those requests on a fresh load and see the step complete.
+- 2026-11-04 08:55 LIVE QUEST: MIRRORING WORKS (first proof). build/port3527/live/transitions.py scans recordings for
+  mission state changes (UpdateMissionListAck 2360, walked like party_quests.cpp) with the client requests before
+  each: the 3479 archive has "Head to Hernand" (FFFFF4D6) 2 -> 5 right after ONE MissionTriggerInOutReq
+  (2899: u32 mission, u32 user key, u8; recorded 2899 d6f4ffff 010010a0 00, answered by UpdateTraceMissionAck 2459
+  pointing at the next step FFFFF4D5). Replayed on 3527 (mission_test.sh, coop-test-bandits, nobody moves): with
+  the real user key A0100001 the server answered 2459 and moved "Head to Hernand" 2 -> 5. With a wrong user key
+  (our {U} placeholder gave 90100000) nothing. The user key is in every 2360 at offset 6. The mission finishing made
+  the server AUTOSAVE into slot2 (known, savecheck restored it from the backup; in a co-op world it goes to the
+  world). Next: does 2899 finish steps of other kinds (talk / defeat / interact / read)?
