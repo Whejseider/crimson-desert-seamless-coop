@@ -43,3 +43,11 @@ Windows Defender scan: no threats. GPL-3.0; the source is inside the zip (source
 Looking for someone to test with? Post your time zone, when you can play, and how far into the story you are. Both of
 you need Crimson Desert on Steam (1.0.0.3527) and the same Co-op+ zip from #download-here. Add each other as Steam
 friends, then the host presses Ctrl+F1 to invite.
+
+## 2026-11-04 update (story sync + game 1.0.0.3527), build 0.1.0-alpha+a9c2f5d5
+- #download-here: new post with both zips and the GitHub "latest" link, pinned; the 7a880b02 post edited to start
+  "(Old build for game 1.0.0.3479. Use the newest download, pinned below.)" and unpinned (not deleted).
+- #announcements: "Update: Story sync + the new game patch (1.0.0.3527)" (docs/release/discord-update-story-sync.txt).
+- #features: message 1 (game version) and message 3 (World: NEW Story sync; known issues) edited to
+  docs/release/discord-features.txt.
+- #how-to-install: game version 1.0.0.3527 and a Story sync line; #find-a-co-op-partner: 1.0.0.3527 + story sync hint.
