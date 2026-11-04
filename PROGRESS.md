@@ -736,3 +736,10 @@ Done in the user's Chrome (signed in as Asher):
   SetQuestDialogReq/Ack (the boy's dialog key went 0C0B -> 0C0A after the greet), no QuestDialogEndReq. Other NPCs
   near there are townsfolk (farmer, fishermen). No quest NPC reachable by script in the test saves -> F14 narrowed
   to one talk step + one defeat step. Game state after: release asi a51453d2, shipped ini, SAVES OK, test save out.
+- 2026-11-04 09:57 defeat steps, one PC: new dev script command `killall` (KillCheatReq on every loaded actor but
+  wild animals). defeat1: teleport to Riverward Outpost (4 "Defeat the enemies around ... Posthouse" steps under way),
+  74 kills (deaths confirmed, NotifyHandleDeadAck): no mission change (the actors there were mostly Hernand soldiers
+  and townsfolk). defeat2: the bandit camp near the start (~10 bandits, -10310 -3675), 77 kills: no mission, quest or
+  faction message at all (only an autosave request, restored). Either cheat kills do not count for quests (as for
+  challenges, BLOCKED T10) or these camps are not the steps' camps. build/port3527/live/defeat_targets.py maps under-way
+  defeat steps to places (all_world_locations.json). Defeat steps stay unproven; a real recording (F14) settles it.

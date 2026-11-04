@@ -47,6 +47,8 @@ Quests advance in each game's own in-process server, and only through requests f
 - Dialogs (talk steps): QuestDialogEndReq = 30 bytes (u32 NPC actor, u32 dialog, u32 x3, u8 x2, u32 x2; handler
   exe+0x2B70290 looks the dialog up in the game data, checks the line index against it, then the NPC). Mapping is
   built; no recording of a real talk step yet, so unproven.
-- Still open: defeat steps (KillCheatReq on the receiver's own copy of the boss), interact / read / cutscene steps
+- Defeat steps: KillCheatReq kills work but did not finish anything in two camps (74 + 77 kills, no mission change);
+  cheat kills may not count for quests (they do not for challenges). Unproven: needs a real recording.
+- Still open: defeat steps, interact / read / cutscene steps
   (StageBranchStateReq, UpdateStageChartEventReq... carry per-world stage ids), and a catch-up for anything missed
   (the guest's world gets the host's story at every join already).

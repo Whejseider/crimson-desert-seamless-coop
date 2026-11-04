@@ -17,13 +17,14 @@
 #include "mod/net/time_sync.h"
 #include "mod/net/dev_watch.h"
 #include "mod/net/coop_hunt.h"
+#include "mod/net/enemy_relay.h"
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -117,6 +118,11 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "killall") {  // killall: KillCheatReq on every loaded actor but animals (live quest research)
+            st.kind = Step::KillAll;
+            steps.push_back(st);
+            continue;
+        }
         if (kind == "day") {
             st.kind = Step::Day;
             in >> st.to[0];
@@ -188,6 +194,17 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
                 Sleep(st.wait_ms ? st.wait_ms : 150);
             } else if (st.kind == Step::KillGame) {
                 hunt_dev_kill();
+            } else if (st.kind == Step::KillAll) {
+                int sent = 0;
+                for (const auto& [key, variant] : enemy_loaded_variants()) {
+                    if (hunt_animal_name(variant) || (key & 0xFF000000) != 0xB0000000 || sent >= 40) continue;
+                    std::vector<uint8_t> pay(8, 0);  // KillCheatReq: u32 key | u32 option (0 = at once)
+                    std::memcpy(pay.data(), &key, 4);
+                    sent += sniffer_inject_c2s(make_c2s(2210, pay)) ? 1 : 0;
+                    log::info("Dev script: KillCheatReq on 0x{:08X} (variant {})", key, variant);
+                    Sleep(150);
+                }
+                log::info("Dev script: killall sent {}", sent);
             } else if (st.kind == Step::Day) {
                 time_sync_dev_add_days(static_cast<int>(st.to[0]));
             } else if (st.kind == Step::Time) {
