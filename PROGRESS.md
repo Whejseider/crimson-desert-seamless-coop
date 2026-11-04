@@ -815,3 +815,12 @@ Done in the user's Chrome (signed in as Asher):
   During it: ~60 fps steady (overlay frames ~300 per 5 s), link rtt 12-16 ms, ~1.9 kB/s, clock offset steady, the
   partner's character drawn and never reloaded, no warnings. A dev pad press does not reach the game (Steam Input
   pad), so automated Focus tests are not possible here. Two-PC view (the other player's screen) still untested.
+- 2026-11-04 16:25-16:48 Focus, the other way round (user's question: does the FRIEND's Focus slow my world?):
+  recorded a session with the user using Focus (peer --record), replayed it as the stand-in (peer --mode replay;
+  the stand-in arrives only after the recording's title minutes). Stand-in in our world 16:40:45 -> 16:48, Focus
+  included: our screen never showed the Focus tint (269 frames every 1.5 s, build/port3460/capture_game.ps1), link
+  steady, no resync. Limits: the stand-in was off camera (its animation not seen) and the game's time scale was
+  not measured. So far: Focus is local to the player who uses it (it sends nothing to the game's server either).
+  CORRECTION: the 16:25:53 game exit (first thought a crash from the user's lock-on press) and the 16:37:00 one were
+  my own test scripts: stopping a background test (TaskStop) left its inner bash alive, which closed the game on its
+  schedule (taskkill by name). Fixed in the kit: each test script closes only the game PID it started.
