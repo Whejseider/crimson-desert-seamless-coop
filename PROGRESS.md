@@ -622,3 +622,9 @@ Done in the user's Chrome (signed in as Asher):
   the mod's test backups of slot103 moved to build/test-saves.
 - Docs: README STORY SYNC section + Steam Cloud line, FEATURES.md / discord-features.txt (World: Story sync, Works),
   CHANGELOG, PLAYTEST 6c, D47, FLAGS F8 done.
+- 2026-11-04 00:15 GAME UPDATED by Steam to 1.0.0.3527 (CrimsonDesert.exe written 00:15:35, PE timestamp 0x6AEA07A6,
+  image size 0x13EB2000) in the middle of the final e2e run: phase 1 could not launch, phase 2's mod said "made for
+  1.0.0.3479" and stayed off (as designed). The release-candidate zip dd69dd80 (story sync; built, install test 13/13,
+  Defender clean, e2e passed on the same binary before the update) is for 3479 only, so it is NOT published: players'
+  Steam installs 3527 and the mod would just switch itself off. Next: port to 3527 (docs/post-patch-playbook.md;
+  the 3479 exe is in build/exe-archive), then package, publish and update Discord.
