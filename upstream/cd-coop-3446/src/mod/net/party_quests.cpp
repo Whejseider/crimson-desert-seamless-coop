@@ -96,6 +96,20 @@ void party_quests_on_event(const uint8_t* d, size_t n) {
 }
 
 std::string party_quests_tick(bool connected, const std::string& who) {
+    {
+        // Co-op+ (quest sync): the mission list's totals once it settles after a load (how far this save's story is).
+        static size_t logged = 0, last_size = 0;
+        static uint64_t changed_at = 0;
+        std::lock_guard lock(g_mutex);
+        const uint64_t now = GetTickCount64();
+        if (g_state.size() != last_size) last_size = g_state.size(), changed_at = now;
+        if (last_size && last_size != logged && now - changed_at > 5000) {
+            size_t done = 0;
+            for (const auto& [k, st] : g_state) done += st == kDone;
+            log::info("Party journal: {} missions known, {} done", last_size, done);
+            logged = last_size;
+        }
+    }
     std::vector<uint32_t> out;
     uint32_t in = 0;
     bool ours_too = false, ours_done = false;

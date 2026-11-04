@@ -571,3 +571,27 @@ Done in the user's Chrome (signed in as Asher):
 - Quest sync (asked in Discord): not implemented: quests stay per save (D42 / NOTES/FLAGS.md F8); the party journal
   notices exist. Possible later: an opt-in offline copy of the host's story progress into the guest's save.
 - 2026-11-03: showcase uploaded to the user's Google Drive (My Drive): SeamlessCoopPlus-showcase-1080p.mp4 (80 MB, the original; sent in 9 MB pieces through the Drive page and rejoined there, SHA-256 matched) and SeamlessCoopPlus-showcase-720p.mp4 (9 MB). build/port3460/cutvideo.ps1 got -Kbps (720p re-encode).
+
+## Quest sync (user priority 2026-11-03 ~21:30, asked for by a Discord player)
+- Live sync stays impossible: each player's in-process server ignores outside quest requests (D42).
+- Offline route investigated: quest progress is one save object, QuestSaveData (stage / mission / quest / quest-gauge
+  state lists, last completed main quest; ~1.8 MB, ~50 000 elements). Missions appear in the list as the story
+  unlocks them (slot101: 3201 entries / 221 done; slot0: 3475 / 477), so it cannot be an in-place byte patch.
+- tools/save/quest_sync.py: transplant(base, donor, object): copies an object between saves, renumbers its elements'
+  type indices to the target schema (each save carries its own schema; missing types appended), rebases self
+  pointers, splices it in (splice.py) and checks the result (all other objects byte-identical, the moved object
+  element-for-element the donor's, encode round trip).
+- In game (build/port3479/qsync_test.sh; "Party journal: N missions known, M done" logged at login; test copies of the
+  user's saves in slot103 only, removed after; savecheck OK every round):
+  * slot0 + slot2's quests (same schema): loads, 2485 known / 456 done. Mechanism works.
+  * slot101 + slot0's quests, slot0 + bandit save's quests, bandit save + slot0's character objects, and even the
+    40-byte CharacterStatusSaveData alone: all crash at load (exe+0x1563971 -> call 0x0). Identity re-encodes load.
+  * Cause: the saves were written by different game versions: the user's slots are the 2026-11-01 backups (older
+    build; the game migrates them at load), the bandit save was written by 1.0.0.3479 and its types have more fields
+    (FieldNPCSaveData _affinityList, ItemSaveData _averagePrice, QuestSaveData, QuestGaugeStateData...). A block
+    written under one field list is unreadable under another.
+- Status: works for two saves of the same game version (what co-op partners have); NOT verified for a big story gap,
+  because no two same-version saves at different story points exist here and making one needs an in-game save.
+  Also open: whether quests alone are enough or the world objects that follow the story (FieldSaveData,
+  NPCScheduleStageManagerSaveData, FactionSaveData, KnowledgeSaveData, FogSaveData...) must come along.
+- "Continue" picks the slot by the time in its lobby.save: test variants need the bandit save's lobby.save.
