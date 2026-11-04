@@ -59,6 +59,7 @@
 #include "mod/net/party_scaling.h"
 #include "mod/net/save_guard.h"
 #include "mod/net/story_sync.h"
+#include "mod/save_io.h"
 #include "mod/net/boss_safe.h"
 #include "mod/net/steam_transport.h"
 #include "mod/net/room_code.h"
@@ -1673,6 +1674,7 @@ DWORD WINAPI worker(LPVOID) {
             }
         }
         // Co-op+ story sync: a story taken from a host goes into the save now, before the game loads one.
+        if (in_game && cfg.dev_save_io_log) save_io::install_log();  // Co-op+ research
         if (in_game && build_ok && cfg.coop_enabled) {
             net::story_configure(cfg.coop_share_story, cfg.dev_story_slot);
             net::story_startup();

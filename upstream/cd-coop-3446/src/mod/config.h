@@ -155,6 +155,8 @@ struct Config {
     bool coop_share_story = true;
     // Co-op+ dev: the slot folder story sync uses instead of the newest one (tests).
     std::wstring dev_story_slot;
+    // Co-op+ dev: log the game's save file calls (save_io.h).
+    bool dev_save_io_log = false;
     // Co-op+: the host's stage cinematics (boss intros...) play for the guest (stage_cinema.h).
     bool coop_stage_cinema = true;
     // Host: copies of our enemies that fight go to the guest on their own

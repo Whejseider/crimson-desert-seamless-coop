@@ -268,6 +268,7 @@ Config load_config(const std::wstring& ini_path) {
     c.coop_weather_sync = read_uint(ini_path, L"coop", L"weather_sync", 1) != 0;
     c.coop_share_story = read_uint(ini_path, L"coop", L"share_story", 1) != 0;
     c.dev_story_slot = read_string(ini_path, L"dev", L"story_slot", "");
+    c.dev_save_io_log = read_uint(ini_path, L"dev", L"save_io_log", 0) != 0;
     c.dev_time_sync_key = read_uint(ini_path, L"dev", L"time_sync_key", 0) != 0;
     c.coop_enemy_auto = read_uint(ini_path, L"coop", L"enemy_auto", 1) != 0;
     c.coop_finish_arrow = read_uint(ini_path, L"coop", L"finish_arrow", 1) != 0;

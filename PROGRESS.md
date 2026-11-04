@@ -646,3 +646,16 @@ Done in the user's Chrome (signed in as Asher):
   Defender clean), installed into the game (hash 4DF5FA7A..., smoke start: build A9C2F5D5, reader on, 1175 opcodes,
   no crash, SAVES OK, test save out, shipped ini), GitHub release v0.1.0-alpha-a9c2f5d5 (Latest, public README with
   story sync), Discord updated (docs/release/discord-server-posts.md).
+
+## Co-op saves + live progression (user 2026-11-04 ~01:30: "necessities"; ERSC-style; never overwrite a player's save)
+- User: story sync rewriting a player's real save (even with a backup) is unacceptable. Wants: a solo save, a save per
+  friend that loads by who you join, back to the solo world on leaving, live quest progress, every save protected.
+- FOUND (save_io.cpp, [dev] save_io_log, test save io in slot103): the game READS every slot with CreateFile2
+  (save\<id>\slotN\lobby.save + save.save, all slots at the title, again before Continue; caller chain exe+0x15077C6
+  <- 0x15064DF <- 0x1506466) and WRITES a slot as a folder swap: MoveFileExW slotN -> slotN_backup, CreateFileW
+  slotN_new\<file> (exe+0x1497DF2 <- 0x254B9E8 <- 0x254A93E), MoveFileExW slotN_new -> slotN, slotN_backup ->
+  slotN_backup_<n>_delete, DeleteFileW its files (once per file: lobby.save then save.save). All through kernelbase:
+  a path redirect at that layer can give co-op play its own save folder (ERSC .co2 style) and keep solo saves untouched.
+- Live quest progress idea: quests advance on client requests the in-process server accepts (MissionTriggerInOutReq,
+  QuestDialogEndReq, QuestDialogInterrogationAnswerCompleteReq, StartDiscoverLevelSceneObjectReq ...), not the
+  cheat ones it ignores: mirror the host's to the guest.
