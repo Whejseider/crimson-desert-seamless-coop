@@ -47,8 +47,14 @@ Quests advance in each game's own in-process server, and only through requests f
 - Dialogs (talk steps): QuestDialogEndReq = 30 bytes (u32 NPC actor, u32 dialog, u32 x3, u8 x2, u32 x2; handler
   exe+0x2B70290 looks the dialog up in the game data, checks the line index against it, then the NPC). Mapping is
   built; no recording of a real talk step yet, so unproven.
-- Defeat steps: KillCheatReq kills work but did not finish anything in two camps (74 + 77 kills, no mission change);
-  cheat kills may not count for quests (they do not for challenges). Unproven: needs a real recording.
+- Defeat steps: KillCheatReq kills work but did not finish anything in two camps (74 + 77 kills, no mission change).
+  Why: a cheat kill posts no game event to the quest system at all ([dev] quest_events_log=1, `quest_events.*`), and
+  real hits and deaths are worked out by the in-process server, so no client request fakes a real kill.
+- Where progress lives (memory diff + hardware watch, 2026-11-04): each mission is a record (u32 key +0x28, u8 state
+  +0x2C) upserted by exe+0x1C37B10. The quest advancement routine exe+0x2B95BE0(manager, u32* result, u16* mission
+  index, u64* time, u8) queues "this step 5, next step 2" through exe+0x1C3F0F0 and commits them. Calling it on the
+  server thread for the partner's finished step is the general route for every step kind (defeat, interact, read):
+  it runs the game's own consequences, unlike writing the state byte. Next test: log it during a finished step.
 - Still open: defeat steps, interact / read / cutscene steps
   (StageBranchStateReq, UpdateStageChartEventReq... carry per-world stage ids), and a catch-up for anything missed
   (the guest's world gets the host's story at every join already).

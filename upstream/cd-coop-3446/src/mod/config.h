@@ -102,6 +102,7 @@ struct Config {
     bool dev_skip_test = false;  // Co-op+ dev: act as if the other player skipped 3 s into our cutscenes ([dev] skip_test)
     bool dev_partner_alive = false;  // Co-op+ dev: the revive prompt sees the other player alive ([dev] partner_alive)
     bool dev_loot_test_original = false;  // Co-op+ dev: loot_twin uses the copy's original (one-PC test)
+    bool dev_quest_events_log = false;  // Co-op+ dev: log the game events the quest system is fed (quest_events.h)
     int dev_load_trace = 0;  // Co-op+: 1 = log actor load-state steps, 2 = + unhide experiment (load_trace.h)
 
     // Co-op over the network ([coop]): the other player (or, through

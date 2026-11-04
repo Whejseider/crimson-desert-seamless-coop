@@ -246,6 +246,7 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_versus_test = read_uint(ini_path, L"dev", L"versus_test", 0);
     c.dev_seat_test = read_uint(ini_path, L"dev", L"seat_test", 0) != 0;
     c.dev_scaling_as_host = read_uint(ini_path, L"dev", L"scaling_as_host", 0) != 0;
+    c.dev_quest_events_log = read_uint(ini_path, L"dev", L"quest_events_log", 0) != 0;
     c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
     c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
     c.coop_delay_ms = std::clamp(read_uint(ini_path, L"coop", L"delay_ms", c.coop_delay_ms), 50u, 5000u);

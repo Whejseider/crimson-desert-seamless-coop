@@ -27,6 +27,7 @@
 #include "mod/net/aggro_test.h"
 #include "mod/net/attack_probe.h"
 #include "mod/net/load_trace.h"
+#include "mod/net/quest_events.h"
 #include "mod/net/puppet_visibility.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/horse_diag.h"
@@ -1473,6 +1474,7 @@ DWORD WINAPI late_init(LPVOID param) {
     if (init->sniffer && init->in_game) sniffer_ok = net::sniffer_install(init->dir, g_stop, init->record);
     if (sniffer_ok) game::game_errors_install();  // drained by the sniffer's writer thread
     net::load_trace_install();  // Co-op+ dev diagnostic, no-op unless [dev] load_trace=1
+    net::quest_events_install();  // Co-op+ dev diagnostic, no-op unless [dev] quest_events_log=1
     if (init->overlay) render::install(render::hud_draw);
     if (init->combat_tests && sniffer_ok) {
         CloseHandle(CreateThread(
@@ -1798,6 +1800,7 @@ DWORD WINAPI worker(LPVOID) {
         net::save_guard_configure(cfg.coop_save_guard);
         net::room_set_invite_only(cfg.net_join_invite_only);
         net::load_trace_set_mode(cfg.dev_load_trace);
+        net::quest_events_enable(cfg.dev_quest_events_log);
         net::enemy_set_copies_allowed(cfg.dev_enemy_copies);
         net::enemy_set_keep_origin(cfg.dev_enemy_keep_origin);
         net::loot_set_test_original(cfg.dev_loot_test_original);

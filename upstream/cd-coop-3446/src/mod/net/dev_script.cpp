@@ -16,6 +16,7 @@
 #include "mod/net/revive_prompt.h"
 #include "mod/net/time_sync.h"
 #include "mod/net/dev_watch.h"
+#include "mod/net/dev_memscan.h"
 #include "mod/net/coop_hunt.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/troc_sniffer.h"
@@ -24,7 +25,7 @@ namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -118,6 +119,32 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "memscan") {  // memscan <hex pattern>: find it in read/write memory (dev_memscan.h)
+            std::string h;
+            in >> h;
+            st.kind = Step::MemScan;
+            if (!parse_hex(h, st.payload)) continue;
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "memdiff") {  // memdiff: which bytes around the memscan matches changed since
+            st.kind = Step::MemDiff;
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "memwatch") {  // memwatch <rel> <hex value> <len> <hits> [nth]: hardware watch on a match
+            std::string v;
+            int rel = 0, len = 1, hits = 4, nth = 0;
+            in >> rel >> v >> len >> hits >> nth;
+            if (!parse_hex(v, st.payload)) continue;
+            st.kind = Step::MemWatch;
+            st.to[0] = static_cast<float>(rel);
+            st.to[1] = static_cast<float>(len);
+            st.to[2] = static_cast<float>(hits);
+            st.wait_ms = static_cast<uint32_t>(nth);
+            steps.push_back(st);
+            continue;
+        }
         if (kind == "killall") {  // killall: KillCheatReq on every loaded actor but animals (live quest research)
             st.kind = Step::KillAll;
             steps.push_back(st);
@@ -192,6 +219,13 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
                 input::dev_pad_press(static_cast<uint16_t>(st.addr), st.wait_ms ? st.wait_ms : 150);
                 log::info("Dev script: pad 0x{:04X} for {} ms", st.addr, st.wait_ms);
                 Sleep(st.wait_ms ? st.wait_ms : 150);
+            } else if (st.kind == Step::MemScan) {
+                dev_memscan(st.payload);
+            } else if (st.kind == Step::MemDiff) {
+                dev_memdiff();
+            } else if (st.kind == Step::MemWatch) {
+                dev_memwatch(static_cast<int>(st.to[0]), st.payload, static_cast<int>(st.to[1]),
+                             static_cast<int>(st.to[2]), static_cast<int>(st.wait_ms));
             } else if (st.kind == Step::KillGame) {
                 hunt_dev_kill();
             } else if (st.kind == Step::KillAll) {

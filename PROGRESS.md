@@ -743,3 +743,28 @@ Done in the user's Chrome (signed in as Asher):
   faction message at all (only an autosave request, restored). Either cheat kills do not count for quests (as for
   challenges, BLOCKED T10) or these camps are not the steps' camps. build/port3527/live/defeat_targets.py maps under-way
   defeat steps to places (all_world_locations.json). Defeat steps stay unproven; a real recording (F14) settles it.
+- 2026-11-04 12:30 Roddy's idea (playtest Discord: find quest progress in RAM by diffing memory around a finished
+  step) followed. New dev tools: [dev] quest_events_log=1 (src/mod/net/quest_events.*: logs every game event posted to
+  the quest system, exe+0x19434D0(handler, pa::GameEventHandlerParameter*); MissionTriggerInOutReq's handler only posts
+  one, type 0x11/0x12 + mission + user) and dev script memscan / memdiff / memwatch (src/mod/net/dev_memscan.*; dev_watch
+  now watches up to four addresses and passes the copy protection's own single-step exceptions through).
+  - qev1: 40 cheat kills posted NO game event at all -> why cheat kills never count for quests or challenges.
+    Recordings show hits and deaths are worked out by the game's in-process server (AttackerAck / NotifyHandleDeadAck
+    from the server; the client never sends a kill), so a real kill cannot be faked with a request either.
+  - msc1: 101 copies of "Head to Hernand"'s key in RAM; after the proven trigger 3 had their byte at key+4 go 2 -> 5.
+  - mw2 (hardware watch on 4 copies): both real writes are exe+0x1C119E7 `mov [rdi+0x2C], al` (rax 5, old 2) inside
+    a record copy exe+0x1C119C0, called by exe+0x1C37B10 = upsert into the mission table (record: u32 key +0x28,
+    u8 state +0x2C, u8 +0x2D). One write on the server thread, one on the client's copy.
+  - Server chain: exe+0x2B9AAD0 -> 0x2B95290 -> 0x2B95BE0 -> 0x1C41B00 -> 0x1C41920 -> 0x1C37B10. exe+0x2B95BE0
+    (manager, u32* result, u16* mission INDEX, u64* time, u8) is the quest advancement routine: it queues state
+    changes with exe+0x1C3F0F0(manager, u32* mission key, ctx, u8 state 2/5, changes*) and commits them with
+    exe+0x1C41B00. Seven callers. quest_events now also logs both (ADVANCE / set mission) for the next test.
+  - Next: one test logging ADVANCE / set mission around the trigger (manager pointer, index, time), then call
+    exe+0x2B95BE0 on the server thread for a defeat step = Roddy's "sync the stage to the host" through the game's
+    own routine (runs the next step and the rest, unlike a raw state poke).
+- 2026-11-04 12:57 STOP on tests: Steam Cloud. Steam uploads the save slots the moment the game exits (cloud_log:
+  "AutoCloud on exit", 12:46:50 slot2 upload OK), seconds BEFORE savecheck restores slot2. So the test autosaves have
+  been reaching the user's Steam Cloud copy of slot2 (local slot2 is right: SAVES OK). The 12:50 upload hung
+  (googleapis "failed to issue"), and Steam now sits at "Synchronizing cloud" and launches nothing. Fixed in the
+  kit: events/mission/live/talk_test.sh run with [dev] coop_world=devtest; events_test.sh builds that world itself
+  (copies of the slots + the test save as slot103) so a test never writes the real save folder. Flag F15.

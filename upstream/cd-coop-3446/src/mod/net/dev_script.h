@@ -13,6 +13,7 @@
 //   watch <hex addr> [len] [hits]  (hardware write breakpoint, dev_watch.h; logs who writes it)
 //   pad <hex buttons> <ms>         (a simulated pad press, input/pad_input.h; e.g. pad 0021 300 = View + D-pad Up)
 //   killall                        (KillCheatReq on every loaded actor but wild animals: live quest research)
+//   memscan <hex> / memdiff / memwatch <rel> <hex bytes> <len> <hits> [nth]   (dev_memscan.h)
 // Placeholders in the payload: {P} = our player key (u32), {POS} = our position (3 x f32), {U} = our user key (u32).
 // Spaces inside the hex are ignored. Opcodes are decimal.
 

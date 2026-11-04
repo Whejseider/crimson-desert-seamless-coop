@@ -17,7 +17,8 @@ namespace {
 struct Hit {
     uint64_t rip, regs[16];
     float xmm0, xmm1;
-    uint64_t stack[64];  // the first 64 qwords at rsp (return addresses among them)
+    int slot;              // which watched address (debug register 0..3)
+    uint64_t stack[256];   // the first 256 qwords at rsp (return addresses among them)
 };
 
 constexpr int kMaxHits = 16;
@@ -25,19 +26,32 @@ Hit g_hits[kMaxHits];
 std::atomic<int> g_count{0};
 std::atomic<int> g_want{0};
 std::atomic<bool> g_armed{false};
+std::atomic<uint64_t> g_addr[4] = {};  // what each debug register was set to (0 = unused)
 PVOID g_handler = nullptr;
 
-LONG CALLBACK on_exception(EXCEPTION_POINTERS* e) {
-    if (e->ExceptionRecord->ExceptionCode != EXCEPTION_SINGLE_STEP || !(e->ContextRecord->Dr6 & 1)) {
-        return EXCEPTION_CONTINUE_SEARCH;
+// The slot of a real hit of ours, or -1. The game's copy protection raises single-step exceptions of its own (with
+// Dr6 bits set); those must go on to its handler untouched.
+int our_slot(const CONTEXT* c) {
+    const DWORD64 dr[4] = {c->Dr0, c->Dr1, c->Dr2, c->Dr3};
+    for (int s = 0; s < 4; ++s) {
+        const uint64_t a = g_addr[s].load();
+        if ((c->Dr6 & (1ull << s)) && a && dr[s] == a && (c->Dr7 & (1ull << (s * 2)))) return s;
     }
+    return -1;
+}
+
+LONG CALLBACK on_exception(EXCEPTION_POINTERS* e) {
+    if (e->ExceptionRecord->ExceptionCode != EXCEPTION_SINGLE_STEP) return EXCEPTION_CONTINUE_SEARCH;
     CONTEXT* c = e->ContextRecord;
+    const int slot = our_slot(c);
+    if (slot < 0) return EXCEPTION_CONTINUE_SEARCH;
     c->Dr6 = 0;
     if (g_armed.load()) {
         const int i = g_count.fetch_add(1);
         if (i < kMaxHits && i < g_want.load()) {
             Hit& h = g_hits[i];
             h.rip = c->Rip;
+            h.slot = slot;
             const uint64_t r[16] = {c->Rax, c->Rcx, c->Rdx, c->Rbx, c->Rsp, c->Rbp, c->Rsi, c->Rdi,
                                     c->R8,  c->R9,  c->R10, c->R11, c->R12, c->R13, c->R14, c->R15};
             std::memcpy(h.regs, r, sizeof r);
@@ -45,15 +59,15 @@ LONG CALLBACK on_exception(EXCEPTION_POINTERS* e) {
             std::memcpy(&h.xmm1, &c->Xmm1, 4);
             std::memcpy(h.stack, reinterpret_cast<const void*>(c->Rsp), sizeof h.stack);  // our own thread's stack
         }
-        if (i + 1 >= g_want.load()) c->Dr7 &= ~1ull;  // this thread stops; the others are cleared by the worker
+        if (i + 1 >= g_want.load()) c->Dr7 &= ~0xFFull;  // this thread stops; the others are cleared by the worker
     } else {
-        c->Dr7 &= ~1ull;
+        c->Dr7 &= ~0xFFull;
     }
     return EXCEPTION_CONTINUE_EXECUTION;
 }
 
-// Dr0 = addr and its enable bits on every thread of the game except the caller.
-void set_all(uintptr_t addr, int len, bool on) {
+// Dr0..Dr3 = addrs and their enable bits on every thread of the game except the caller.
+void set_all(const std::vector<uintptr_t>& addrs, int len, bool on) {
     const DWORD me = GetCurrentThreadId(), pid = GetCurrentProcessId();
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
     if (snap == INVALID_HANDLE_VALUE) return;
@@ -68,11 +82,13 @@ void set_all(uintptr_t addr, int len, bool on) {
             CONTEXT c{};
             c.ContextFlags = CONTEXT_DEBUG_REGISTERS;
             if (GetThreadContext(t, &c)) {
+                c.Dr7 &= ~0xFFFF00FFull;  // all four slots off
                 if (on) {
-                    c.Dr0 = addr;
-                    c.Dr7 = (c.Dr7 & ~(0xFull << 16)) | 1ull | (1ull << 16) | (lenbits << 18);  // L0, write, length
-                } else {
-                    c.Dr7 &= ~1ull;
+                    DWORD64* dr[4] = {&c.Dr0, &c.Dr1, &c.Dr2, &c.Dr3};
+                    for (size_t s = 0; s < addrs.size() && s < 4; ++s) {
+                        *dr[s] = addrs[s];
+                        c.Dr7 |= (1ull << (s * 2)) | (1ull << (16 + s * 4)) | (lenbits << (18 + s * 4));  // Ls, write, len
+                    }
                 }
                 if (SetThreadContext(t, &c)) ++n;
             }
@@ -84,9 +100,26 @@ void set_all(uintptr_t addr, int len, bool on) {
     log::info("Dev watch: {} on {} threads", on ? "set" : "cleared", n);
 }
 
+// "exe+0x..." or "<module>+0x..." for a code address, "" when it is in no module.
+std::string where(uint64_t a) {
+    HMODULE m = nullptr;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPCWSTR>(a), &m) || !m) {
+        return {};
+    }
+    if (m == GetModuleHandleW(nullptr)) return std::format("exe+0x{:X}", a - reinterpret_cast<uint64_t>(m));
+    char path[MAX_PATH] = {};
+    GetModuleFileNameA(m, path, MAX_PATH);
+    const char* name = std::strrchr(path, '\\');
+    return std::format("{}+0x{:X}", name ? name + 1 : path, a - reinterpret_cast<uint64_t>(m));
+}
+
 }  // namespace
 
-void dev_watch_start(uintptr_t addr, int len, int hits) {
+void dev_watch_start(uintptr_t addr, int len, int hits) { dev_watch_start_many({addr}, len, hits); }
+
+void dev_watch_start_many(const std::vector<uintptr_t>& addrs, int len, int hits) {
+    if (addrs.empty()) return;
     if (g_armed.exchange(true)) {
         log::warn("Dev watch: one is already running");
         return;
@@ -94,31 +127,31 @@ void dev_watch_start(uintptr_t addr, int len, int hits) {
     if (!g_handler) g_handler = AddVectoredExceptionHandler(1, on_exception);
     g_count = 0;
     g_want = std::min(hits, kMaxHits);
-    std::thread([addr, len] {
-        set_all(addr, len, true);
-        log::info("Dev watch: writes to 0x{:X} ({} bytes)", addr, len);
+    for (size_t s = 0; s < 4; ++s) g_addr[s] = s < addrs.size() ? addrs[s] : 0;
+    std::thread([addrs, len] {
+        set_all(addrs, len, true);
+        for (size_t s = 0; s < addrs.size() && s < 4; ++s) {
+            log::info("Dev watch: slot {} = writes to 0x{:X} ({} bytes)", s, addrs[s], len);
+        }
         for (int i = 0; i < 300 && g_count.load() < g_want.load(); ++i) Sleep(100);  // at most 30 s
-        set_all(addr, len, false);
+        set_all(addrs, len, false);
         g_armed = false;
-        const auto base = reinterpret_cast<uint64_t>(GetModuleHandleW(nullptr));
+        for (auto& a : g_addr) a = 0;
         const int n = std::min(g_count.load(), g_want.load());
         for (int i = 0; i < n; ++i) {
             const Hit& h = g_hits[i];
-            log::info("Dev watch: hit {} at exe+0x{:X} | rax {:X} rcx {:X} rdx {:X} rbx {:X} rsi {:X} rdi {:X} r8 {:X} "
+            log::info("Dev watch: hit {} (slot {}) at {} | rax {:X} rcx {:X} rdx {:X} rbx {:X} rsi {:X} rdi {:X} r8 {:X} "
                       "r9 {:X} r14 {:X} r15 {:X} | xmm0 {} xmm1 {}",
-                      i, h.rip - base, h.regs[0], h.regs[1], h.regs[2], h.regs[3], h.regs[6], h.regs[7], h.regs[8],
-                      h.regs[9], h.regs[14], h.regs[15], h.xmm0, h.xmm1);
-            if (i == 0) {
-                std::string code;
-                for (int k = 0; k < 64; ++k) {
-                    if (h.stack[k] > base + 0x1000 && h.stack[k] < base + 0x6000000) {
-                        code += std::format(" [rsp+0x{:X}]=exe+0x{:X}", k * 8, h.stack[k] - base);
-                    }
-                }
-                log::info("Dev watch: code addresses on the stack:{}", code);
+                      i, h.slot, where(h.rip), h.regs[0], h.regs[1], h.regs[2], h.regs[3], h.regs[6], h.regs[7],
+                      h.regs[8], h.regs[9], h.regs[14], h.regs[15], h.xmm0, h.xmm1);
+            std::string code;
+            for (int k = 0; k < 256; ++k) {
+                if (h.stack[k] < 0x10000) continue;
+                if (const std::string w = where(h.stack[k]); !w.empty()) code += std::format(" [rsp+0x{:X}]={}", k * 8, w);
             }
+            log::info("Dev watch: code addresses on the stack:{}", code);
         }
-        if (n == 0) log::info("Dev watch: no writes to 0x{:X} in 30 s", addr);
+        if (n == 0) log::info("Dev watch: no writes in 30 s");
     }).detach();
 }
 

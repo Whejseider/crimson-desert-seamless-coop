@@ -5,9 +5,12 @@
 // cdmp.log. Used to find where a value on screen comes from (minigame gauge, weather, cutscenes).
 
 #include <cstdint>
+#include <vector>
 
 namespace cdmp::net {
 
 void dev_watch_start(uintptr_t addr, int len, int hits);
+// Up to four addresses at once (debug registers 0..3); each hit says which.
+void dev_watch_start_many(const std::vector<uintptr_t>& addrs, int len, int hits);
 
 }  // namespace cdmp::net
