@@ -98,3 +98,6 @@ friends, then the host presses Ctrl+F1 to invite.
 - #features messages 2 and 3 edited from docs/release/discord-features.txt (challenges are one match; a co-op save
   per friend begins a new journey for both). Editing method that works: Edit, focus the editor, ctrl+a, Delete,
   type line by line with shift+Enter, check the text via JS, Enter.
+- 2026-11-05 later: the user deleted the seven older download posts (7a880b02 .. 0364c3f0) from #download-here
+  themselves; only the a82c1b48 post remains (plus the "pinned a message" notices). Future releases: the old post
+  goes away (the user deletes it; Claude never deletes messages), not relabeled.
