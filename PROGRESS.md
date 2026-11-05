@@ -960,3 +960,8 @@ Done in the user's Chrome (signed in as Asher):
   the old co-op save kept as <name>-old-<date>-<time>, never deleted; or continue it, marked continue); the guest's
   game follows. The guest never enters a co-op save before the host's word for the connection (it had entered its
   old save at the title before the word, nw13). nw12 (host) / nw14 (guest): old save set aside, new journey begun.
+- 2026-11-05 06:10 Regression on the final build, all green (scratch world, SAVES OK each): session (reader, 1175
+  opcodes, guards, aggro hook, playout 150 after migration), Focus block 4/4, live quests both ways, far apart,
+  co-op death (death screen replica, menu opens after the revive), duel 9/9 hits, continue an existing co-op save
+  (host says continue), new journey host + guest (incl. earlier-version saves set aside). Test co-op saves removed
+  from Worlds (devtest and the user's with-steam-...3693 kept).
