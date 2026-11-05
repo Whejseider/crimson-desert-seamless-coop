@@ -119,7 +119,13 @@ constexpr Site kAnimUpdate = {0x976800, {0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, 0x1
 // bandit copy crashed in it (-> 0x7F1E50 -> 0x7F58D0 reads [[main layer]+0x10]+0x116, null).
 constexpr Site kCcLate = {0x94F7F0, {0x48, 0x89, 0x5C, 0x24, 0x10, 0x55, 0x56, 0x57, 0x41, 0x54, 0x41, 0x55,
                                      0x41, 0x56, 0x41, 0x57}, "CC late update"};
-SafetyHookMid g_cc_hook, g_post_hook, g_restore_hook, g_pending_hook, g_tick_hook, g_anim_hook, g_late_hook;
+// Co-op+ (2026-11-05, 3549): in a brand-new game the other player's copy never gets an action and a sixth function
+// read the missing one (exe+0x96918B, in the function at 0x968F50 called from 0x9671E1; the CC is
+// [[[[rcx+0x60]+8]+0x68]+0x40]: it then reads the CC's main layer and its +0x10 action). It answers a bool;
+// skipped as "no".
+constexpr Site kLayerSample = {0x968F50, {0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, 0x18, 0x48, 0x89, 0x68, 0x20, 0x56,
+                                          0x57, 0x41, 0x54, 0x41}, "layer sample"};
+SafetyHookMid g_cc_hook, g_post_hook, g_restore_hook, g_pending_hook, g_tick_hook, g_anim_hook, g_late_hook, g_sample_hook;
 uint8_t* g_ret = nullptr;
 bool g_contain = false;
 std::atomic<uint32_t> g_watch_real{0};
@@ -315,6 +321,22 @@ void on_anim_update(safetyhook::Context& ctx) {
     }
 }
 
+std::atomic<uint64_t> g_skipped_sample{0};
+void on_layer_sample(safetyhook::Context& ctx) {
+    if (!g_contain) return;
+    // The function's own way there (exe+0x96914B..0x969173): [[[[rcx+0x60]+8]+0x68]+0x40] is the CC.
+    uintptr_t p = ctx.rcx;
+    for (const uintptr_t off : {0x60, 0x08, 0x68, 0x40}) {
+        if (!game::safe_read(p + off, &p, 8) || !p) return;
+    }
+    const uintptr_t cc = p;
+    if (copy_main_layer_empty(cc)) {
+        g_skipped_sample.fetch_add(1, std::memory_order_relaxed);
+        ctx.rax = 0;
+        ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
+    }
+}
+
 void on_cc_post(safetyhook::Context& ctx) {
     if (!g_contain) return;
     uint32_t key = 0;
@@ -422,6 +444,10 @@ bool horse_diag_install(bool contain) {
         log::warn("HorseDiag: post-update or tick hook not installed; containment refused (all hooks uninstalled)");
         return false;
     }
+    // Optional (not part of the all-or-nothing set above): without it a fresh character's copy can still crash.
+    if (contain && !g_sample_hook && !hook(kLayerSample, g_sample_hook, on_layer_sample)) {
+        log::warn("HorseDiag: layer-sample guard not installed (a brand-new game's copy may crash)");
+    }
     g_contain = contain;
     log::info("HorseDiag: installed (containment {})", g_contain ? "on" : "off");
     return true;
@@ -436,7 +462,8 @@ void horse_diag_tick() {
     static uint64_t logged = 0, logged_post = 0, last = 0;
     const uint64_t a = g_skipped.load(std::memory_order_relaxed),
                    b = g_skipped_post.load(std::memory_order_relaxed) + g_skipped_tick.load(std::memory_order_relaxed) +
-                       g_skipped_anim.load(std::memory_order_relaxed) + g_skipped_late.load(std::memory_order_relaxed);
+                       g_skipped_anim.load(std::memory_order_relaxed) + g_skipped_late.load(std::memory_order_relaxed) +
+                       g_skipped_sample.load(std::memory_order_relaxed);
     const uint64_t t = now_ms();
     if ((a != logged || b != logged_post) && t - last >= 2000) {
         log::info("HorseDiag: copy's update skipped {} times (post-update {}) while it has no action", a, b);

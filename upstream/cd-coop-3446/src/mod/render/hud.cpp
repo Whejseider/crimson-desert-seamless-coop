@@ -323,21 +323,34 @@ void hud_draw(float width, float height) {
     static input::Edge switch_go, switch_later;
     const bool switch_up = !optin_up && !world_up && net::worlds_switch_card_visible() && opt.build_problem.empty();
     if (switch_up) {
-        const auto [into, name] = net::worlds_switch_card();
+        const net::SwitchCard c = net::worlds_switch_card();
         if (switch_go(input::action_down(input::Action::Challenge, focus))) {
             net::worlds_switch_answer(true);
         } else if (switch_later(input::action_down(input::Action::Decline, focus))) {
             net::worlds_switch_answer(false);
+        } else if (c.into && c.new_game) {
+            ui::guide_card(width, height, "A New Journey with " + c.name,
+                           {"Your adventure with " + c.name + " begins at the start of the story, for both of you,",
+                            "in a co-op save of its own. Your own saves are never touched.",
+                            "",
+                            "{Challenge}   Begin now: return to the title screen and start the new game",
+                            "{Decline}   Later: Esc > Others > Title Screen when you are ready, then New Game",
+                            "",
+                            "Each of you accepts the agreement and chooses a difficulty."},
+                           "Nothing changes until you choose.");
+        } else if (c.into) {
+            ui::guide_card(width, height, "Continue Your Journey with " + c.name,
+                           {"Load your co-op save with " + c.name + ". Your own saves are never touched.",
+                            "",
+                            "{Challenge}   Load now: return to the title screen and load it",
+                            "{Decline}   Later: Esc > Others > Title Screen when you are ready, then Play"},
+                           "Nothing changes until you choose.");
         } else {
-            ui::guide_card(width, height,
-                           into ? "Play in your co-op save with " + name + "?" : name + " left: back to your own saves?",
-                           {into ? "Co-op+ keeps a separate save for playing with " + name + ". Your own saves are never touched."
-                                 : "Your co-op save with " + name + " is kept for next time.",
+            ui::guide_card(width, height, c.name + " Has Left",
+                           {"Return to your own save? Your co-op save with " + c.name + " is kept for next time.",
                             "",
-                            "{Challenge}   Go now: Co-op+ takes you to the title screen and loads it (hands off for a moment)",
-                            "{Decline}   I'll do it myself: Esc > Others > Title Screen, then Play",
-                            "",
-                            "Doing it yourself: Co-op+ changes the saves at the title screen without pressing anything."},
+                            "{Challenge}   Return now: back to the title screen and your own save",
+                            "{Decline}   Later: Esc > Others > Title Screen when you are ready, then Play"},
                            "Nothing changes until you choose.");
         }
         if (g_guide_since.load()) g_guide_since = GetTickCount64();

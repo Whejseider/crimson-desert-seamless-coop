@@ -27,6 +27,8 @@ struct WorldsInput {
     std::string partner_key;   // "steam-<id64>" (or the test key); "" when unknown
     std::string partner_name;
     bool in_world = false;     // our character is loaded (not the title screen, not a loading screen)
+    bool has_pos = false;      // pos_x / pos_z: where our character is (for a new game: where it begins)
+    float pos_x = 0, pos_z = 0;
     bool menu_open = false;    // a full-screen menu (map, inventory, pause...)
     bool host = false;         // we host the session (the guest's world follows the host's story)
 };
@@ -50,7 +52,12 @@ void worlds_on_message(const std::vector<uint8_t>& bytes);  // a World message f
 // go now (the mod takes the game to the title and loads; a banner says so) or "I'll do it" (Esc > Others > Title
 // Screen; the saves change at the title without any keys). first = into a co-op save, second = the friend's name.
 bool worlds_switch_card_visible();
-std::pair<bool, std::string> worlds_switch_card();
+struct SwitchCard {
+    bool into = false;      // into a co-op save (false: back to your own saves)
+    bool new_game = false;  // that co-op save starts as a new game (a pair's first session)
+    std::string name;       // the friend
+};
+SwitchCard worlds_switch_card();
 void worlds_switch_answer(bool go_now);
 std::string worlds_banner();  // "" = none; shown big while the mod drives the game
 // Counts the co-op world switches started (coop.cpp drops the other player's character from the world we leave).

@@ -707,6 +707,11 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 }
                 wi.partner_name = session.peer_name();
                 wi.in_world = local.snapshot().has_value();
+                if (const auto snap = local.snapshot()) {
+                    wi.has_pos = true;
+                    wi.pos_x = snap->position.x;
+                    wi.pos_z = snap->position.z;
+                }
                 wi.menu_open = game::ui_menu_open();
                 wi.host = session.role() == ClientSession::Role::Responder;
                 net::worlds_tick(wi);

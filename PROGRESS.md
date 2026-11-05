@@ -942,3 +942,11 @@ Done in the user's Chrome (signed in as Asher):
   partner's latest reported position, reach 3.5 m / arc 75 deg; (c) playout delay 300 -> 150 ms (the copy was drawn
   ~400 ms late; network loop p95 2 ms, rtt 43 ms in the playtest), migrated once in existing inis (delay_tuned).
   duel_test2.sh (scratch world): our hp 160 at the start, 9/9 swings HIT, 9 echoed hits applied, round lost "down".
+- 2026-11-05 05:05 Playtest #4 / F17 DONE (user: "start both members on a fresh save before launching their co-op
+  mode for the first time"): a pair's first co-op save is ALWAYS a new game (the host decides, tells the guest:
+  RelKind::World; no "host's progress" option). Card "A New Journey with <friend>" (Begin now / Later), banner
+  while the mod drives the game, then each player accepts the agreement and picks the difficulty. The journey only
+  counts as begun when Kliff appears at the new game's start (-9910, -2807, 200 m): loading a copied save with Play
+  instead says so and keeps it pending (nw10). The new-game copy crash is FIXED: a sixth containment guard
+  (horse_diag kLayerSample, exe+0x968F50, CC = [[[[rcx+0x60]+8]+0x68]+0x40]) skips the function while the copy has
+  no action; nw8/nw11: 45-90 s in the new game with the friend's copy beside us, no crash.
