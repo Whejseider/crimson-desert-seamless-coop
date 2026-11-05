@@ -965,3 +965,7 @@ Done in the user's Chrome (signed in as Asher):
   co-op death (death screen replica, menu opens after the revive), duel 9/9 hits, continue an existing co-op save
   (host says continue), new journey host + guest (incl. earlier-version saves set aside). Test co-op saves removed
   from Worlds (devtest and the user's with-steam-...3693 kept).
+- 2026-11-05 07:40 RELEASED 0.1.0-alpha+a82c1b48 (fixes from the first two-player playtest): packaged, install test
+  PASS, Defender clean, installed on this PC (asi 3c07b730, smoke OK). GitHub ashersheets-jpg/crimson-desert-coop-
+  playtest v0.1.0-alpha-a82c1b48 (Latest; README + FEATURES updated). Discord: new pinned download post, 0364c3f0
+  relabeled and unpinned, announcement, #features messages 2 and 3 updated (docs/release/discord-server-posts.md).

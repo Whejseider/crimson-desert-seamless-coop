@@ -88,3 +88,13 @@ friends, then the host presses Ctrl+F1 to invite.
 - #announcements: "Update 0.1.0-alpha+0364c3f0: works with today's game update (1.0.0.3549)".
 - #features message 1 and #how-to-install: "1.0.0.3527" -> "1.0.0.3549" (docs/release/discord-features.txt,
   discord-install.txt).
+
+## 2026-11-05 update 0.1.0-alpha+a82c1b48 (fixes from the first two-player playtest)
+- #download-here: new post with both zips (new journey together, the save switch asks first, death fix, duel hits,
+  less movement delay, one-match challenges), pinned; the 0364c3f0 post got a first line "(Older build: use the
+  newest pinned download below, 0.1.0-alpha+a82c1b48. It has the fixes from the first two-player playtest.)" and was
+  unpinned (not deleted). Only the new post is pinned.
+- #announcements: "Update 0.1.0-alpha+a82c1b48: fixes from the first two-player playtest".
+- #features messages 2 and 3 edited from docs/release/discord-features.txt (challenges are one match; a co-op save
+  per friend begins a new journey for both). Editing method that works: Edit, focus the editor, ctrl+a, Delete,
+  type line by line with shift+Enter, check the text via JS, Enter.
