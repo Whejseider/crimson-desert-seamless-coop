@@ -26,7 +26,7 @@ namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -136,6 +136,32 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "waitfile") {  // waitfile <path>: wait (up to 5 min) until a test driver creates it, then delete it
+            std::string f;
+            std::getline(in >> std::ws, f);
+            st.kind = Step::WaitFile;
+            st.payload.assign(f.begin(), f.end());
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "fscan") {  // fscan <float>: every float equal to it (dev_memscan.h)
+            in >> st.to[0];
+            st.kind = Step::FScan;
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "ffilter") {  // ffilter <lo> <hi>: keep those now within [lo, hi]
+            in >> st.to[0] >> st.to[1];
+            st.kind = Step::FFilter;
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "fwatch") {  // fwatch <hits>: hardware write watch on the first four left
+            in >> st.wait_ms;
+            st.kind = Step::FWatch;
+            steps.push_back(st);
+            continue;
+        }
         if (kind == "memdiff") {  // memdiff: which bytes around the memscan matches changed since
             st.kind = Step::MemDiff;
             steps.push_back(st);
@@ -233,6 +259,18 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             } else if (st.kind == Step::Advance) {
                 quest_events_request_advance(static_cast<uint32_t>(st.addr));
                 log::info("Dev script: advance {:08X}", st.addr);
+            } else if (st.kind == Step::WaitFile) {
+                const std::string f(st.payload.begin(), st.payload.end());
+                int i = 0;
+                for (; i < 3000 && GetFileAttributesA(f.c_str()) == INVALID_FILE_ATTRIBUTES; ++i) Sleep(100);
+                DeleteFileA(f.c_str());
+                log::info("Dev script: waitfile {} {}", f, i < 3000 ? "found" : "timed out");
+            } else if (st.kind == Step::FScan) {
+                dev_fscan(st.to[0]);
+            } else if (st.kind == Step::FFilter) {
+                dev_ffilter(st.to[0], st.to[1]);
+            } else if (st.kind == Step::FWatch) {
+                dev_fwatch(static_cast<int>(st.wait_ms ? st.wait_ms : 8));
             } else if (st.kind == Step::MemDiff) {
                 dev_memdiff();
             } else if (st.kind == Step::MemWatch) {

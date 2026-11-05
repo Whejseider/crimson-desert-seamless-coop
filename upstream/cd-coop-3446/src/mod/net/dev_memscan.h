@@ -14,4 +14,12 @@ void dev_memscan(const std::vector<uint8_t>& pattern);
 void dev_memdiff();
 void dev_memwatch(int rel, const std::vector<uint8_t>& value, int len, int hits, int nth);
 
+// Float narrowing (e.g. the game's speed: 1.0 normally, lower during a slow motion). fscan collects every 4-aligned
+// float equal to `value` in read/write memory (heap and the exe's own data); ffilter keeps those now within
+// [lo, hi] and logs them once few are left (with exe+offset for the exe's data); fwatch puts the hardware write
+// watch on the first four left.
+void dev_fscan(float value);
+void dev_ffilter(float lo, float hi);
+void dev_fwatch(int hits);
+
 }  // namespace cdmp::net

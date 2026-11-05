@@ -833,3 +833,14 @@ Done in the user's Chrome (signed in as Asher):
   400 m; user approved): package (unit tests, install test all PASS, Defender clean both zips), installed in the
   game (asi b4d50b37..., player's ini kept), smoke start (build CEA405CF, no errors, SAVES OK), GitHub release
   v0.1.0-alpha-cea405cf (Latest), Discord (docs/release/discord-server-posts.md). Test kit restores this asi now.
+- 2026-11-04 19:00-20:00 Blocking slow motion in co-op (playtester poll: remove ability slow-mo for sync), step 1:
+  find the game speed. New dev tools: dev script fscan / ffilter / fwatch (float narrowing, dev_memscan.*) and
+  waitfile (a test driver signals steps); build/port3460/tintwatch.ps1 spots the Focus tint on the game window and
+  drives the scan, so the user only presses Focus (X on keyboard / L3+R3; a simulated X press does not start it).
+  Rounds fscan3 / fscan4 (user's Focus x3 each): 7 M floats of 1.0 -> 24-47 that dipped every Focus and came back,
+  but while Focus was on they held unrelated values (0.96, 0.6, 0.2, 0.067 ...; a watch on four: exe+0x495C4E9 /
+  0x495B542, per-frame animation blend history). No single global speed float. The packet recording shows no
+  request tied to Focus (client-side). Next: watch the writer of values that sit at one designed factor during
+  Focus (e.g. the 0.6 group) to find the code that applies the slow-down, then skip it in co-op.
+  ALSO: savecheck --fix had restored the game's settings files in save\ (it reverted the user's new keybind preset;
+  their files were put back from the kept copies); savecheck now compares only the save slots (depth >= 2).
