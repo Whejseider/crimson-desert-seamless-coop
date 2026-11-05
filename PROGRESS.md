@@ -878,3 +878,9 @@ Done in the user's Chrome (signed in as Asher):
   GitHub v0.1.0-alpha-0364c3f0 (Latest; README/FEATURES pushed by hand: publish-playtest.ps1 now stops at git's
   LF/CRLF warning under ErrorActionPreference Stop). Discord: docs/release/discord-server-posts.md. Test kit
   (build/port3527/*.sh) restores this asi now.
+- 2026-11-05 00:00 Test save slot103 removed from the user's save folder AND Steam Cloud. It had been uploaded to
+  the cloud by early tests (before the devtest world) and Steam re-downloaded it at every Steam launch; the release
+  smoke start + savecheck --fix (which touches slot103 to be newest) left it as the newest save, so the title's Play
+  would have loaded the test world. build/port3460/cloud_remove_slot103.ps1: game to title, delete slot103 while it
+  runs (copy in build/test-saves/slot103-cloud-copy-2026-11-04), exit -> Steam synced the deletion; a second launch
+  did not bring it back. SAVES OK, user's ini and release asi in place.
