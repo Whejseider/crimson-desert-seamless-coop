@@ -165,6 +165,10 @@ struct Config {
     std::string dev_coop_world_partner;  // Co-op+ dev: partner key for one-PC tests (the echo peer has no Steam id)
     // Co-op+: quest steps follow between the players live, while both are in a co-op world (quest_live.h).
     bool coop_live_quests = true;
+    // Co-op+: abilities' slow motion (Focus...) does not slow the world while a co-op session is up (net/slowmo.h).
+    bool coop_block_slowmo = true;
+    bool dev_block_slowmo_always = false;
+    bool dev_stat_log = false;  // Co-op+ dev: our stats once a second (game/player_reader.h)  // Co-op+ dev: also with no partner (one-PC tests)
     bool dev_live_quests_any_world = false;  // Co-op+ dev: also outside co-op worlds (one-PC tests)
     // Co-op+: the host's stage cinematics (boss intros...) play for the guest (stage_cinema.h).
     bool coop_stage_cinema = true;

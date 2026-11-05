@@ -844,3 +844,14 @@ Done in the user's Chrome (signed in as Asher):
   Focus (e.g. the 0.6 group) to find the code that applies the slow-down, then skip it in co-op.
   ALSO: savecheck --fix had restored the game's settings files in save\ (it reverted the user's new keybind preset;
   their files were put back from the kept copies); savecheck now compares only the save slots (depth >= 2).
+- 2026-11-04 20:35-21:21 NO SLOW MOTION IN CO-OP, done and verified on one PC (user watching). Focus is a server
+  "special mode": EnableSpecialModeAck (3126: u32 user | u32 mode 101 | f32 FLT_MAX | u32 | u32) on, DisableSpecialModeAck
+  (2701) off; the client never asks. src/mod/net/slowmo.* drops the switch-on in the sniffer's receive filter while a
+  co-op session is up ([coop] block_slowmo=1 default, F8 "Slow motion (Focus) in co-op"; [dev] block_slowmo_always).
+  Found via: game names (ClientFrameEventTimeScale / TimeScalePreset _globalTimeScale _playerTimeScale; that event's
+  handler exe+0x7A2C30 never fired for Focus), float and double scans of the speed (no global speed value), then the
+  recordings (3126/2701 line up with the tint exactly). Automatic Focus: keybd_event X with scan code 0x2D, retried
+  until the tint shows (build/port3460/focusprobe.ps1 -KeepS; tintwatch.ps1; the first press after a load often fails).
+  Results: control run = normal Focus (user saw the tint); block run = Focus triggers, no tint, no slow motion (user
+  watched); Spirit still refills: [dev] stat_log=1 shows stat 17 (Spirit, max 30000) 15915 -> 30000 within 5 s of
+  Focus with the block on (after three Force Palms spent it). Two-PC test pending (PLAYTEST-1 §6d). Not released.

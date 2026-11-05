@@ -30,6 +30,7 @@
 #include "mod/net/quest_events.h"
 #include "mod/net/quest_advance.h"
 #include "mod/optin.h"
+#include "mod/net/slowmo.h"
 #include "mod/net/puppet_visibility.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/horse_diag.h"
@@ -691,6 +692,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             }
             // Co-op+ live quests: the partner's finished quest steps go into our game (quest_live.h).
             net::quest_live_tick(connected, session.peer_name(), now);
+            net::slowmo_set_connected(connected);
             if (std::string t = local.snapshot() ? net::quest_live_take_toast() : std::string(); !t.empty()) {
                 toast = std::move(t);
                 toast_until = now + 8000;
@@ -1727,6 +1729,8 @@ DWORD WINAPI worker(LPVOID) {
             net::story_configure(cfg.coop_share_story, cfg.dev_story_slot);
             net::story_startup();
             net::quest_live_configure(cfg.coop_live_quests, cfg.dev_live_quests_any_world);
+            net::slowmo_configure(cfg.coop_block_slowmo, cfg.dev_block_slowmo_always);
+            game::set_stat_log(cfg.dev_stat_log);
         }
         log::info("Config: player '{}', peer {}:{}, {} Hz, net {}, co-op {}", cfg.player_name,
                   cfg.peer_host, cfg.peer_port, cfg.send_rate_hz, cfg.net_enabled ? "on" : "off",

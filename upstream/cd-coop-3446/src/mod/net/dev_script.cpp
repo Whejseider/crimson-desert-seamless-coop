@@ -26,7 +26,7 @@ namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -144,8 +144,21 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
-        if (kind == "fscan") {  // fscan <float>: every float equal to it (dev_memscan.h)
+        if (kind == "dscan" || kind == "dfilter") {  // dscan / dfilter <lo> <hi>: the same for doubles
+            in >> st.to[0] >> st.to[1];
+            st.kind = kind == "dscan" ? Step::DScan : Step::DFilter;
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "dwatch") {
+            in >> st.wait_ms;
+            st.kind = Step::DWatch;
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "fscan") {  // fscan <float> [hi]: every float equal to it, or within [float, hi] (dev_memscan.h)
             in >> st.to[0];
+            if (!(in >> st.to[1])) st.to[1] = st.to[0];
             st.kind = Step::FScan;
             steps.push_back(st);
             continue;
@@ -265,8 +278,14 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
                 for (; i < 3000 && GetFileAttributesA(f.c_str()) == INVALID_FILE_ATTRIBUTES; ++i) Sleep(100);
                 DeleteFileA(f.c_str());
                 log::info("Dev script: waitfile {} {}", f, i < 3000 ? "found" : "timed out");
+            } else if (st.kind == Step::DScan) {
+                dev_dscan(st.to[0], st.to[1]);
+            } else if (st.kind == Step::DFilter) {
+                dev_dfilter(st.to[0], st.to[1]);
+            } else if (st.kind == Step::DWatch) {
+                dev_dwatch(static_cast<int>(st.wait_ms ? st.wait_ms : 6));
             } else if (st.kind == Step::FScan) {
-                dev_fscan(st.to[0]);
+                dev_fscan_range(st.to[0], st.to[1]);
             } else if (st.kind == Step::FFilter) {
                 dev_ffilter(st.to[0], st.to[1]);
             } else if (st.kind == Step::FWatch) {

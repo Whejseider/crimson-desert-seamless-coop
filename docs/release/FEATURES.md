@@ -81,6 +81,7 @@ ByJunter and its port by nouzert1.
 | Feature | Status |
 |---|---|
 | Time of day and weather follow the host | Works |
+| NEW: Focus does not slow the world in co-op (keeps both worlds in step; F8 setting to turn it back on) | Works, needs testing with two players |
 | Resting at a campfire together (the host's Wait moves both clocks) | Needs testing |
 | NEW: separate co-op saves per friend, host and guest (your solo saves untouched); opt in on the first launch or in F8 | Experimental, needs testing |
 | NEW: quest steps shared live (go to, defeat, talk): your friend finishes a step you also have, it finishes for you, with rewards | Experimental, needs testing |

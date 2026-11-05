@@ -21,6 +21,7 @@
 #include "mod/net/story_sync.h"
 #include "mod/net/revive_prompt.h"
 #include "mod/net/weather_sync.h"
+#include "mod/net/slowmo.h"
 #include "mod/optin.h"
 
 namespace cdmp::settings {
@@ -107,6 +108,9 @@ void init(const std::wstring& ini_path, const Config& cfg, float health_2p, floa
                        cfg.coop_boss_death_wait ? 0 : 1, true, [](int i) { net::revive_set_boss_wait(i == 0); }});
     g_items.push_back({"Weather follows the host", L"coop", L"weather_sync", on_off(), one_zero(),
                        cfg.coop_weather_sync ? 0 : 1, true, [](int i) { net::weather_set_enabled(i == 0); }});
+    g_items.push_back({"Slow motion (Focus) in co-op", L"coop", L"block_slowmo",
+                       {"off: both worlds keep the same speed", "on: as in single player"}, one_zero(),
+                       cfg.coop_block_slowmo ? 0 : 1, true, [](int i) { net::slowmo_set_block(i == 0); }});
     g_items.push_back({"Tougher enemies with a guest", L"scaling", L"enabled", on_off(), one_zero(),
                        cfg.scaling_enabled ? 0 : 1, true, [](int i) { net::scaling_set_enabled(i == 0); }});
     // T40: the 2-player multipliers.

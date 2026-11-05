@@ -23,6 +23,7 @@
 #include "mod/game/safe_memory.h"
 #include "mod/log.h"
 #include "mod/game/game_errors.h"
+#include "mod/net/slowmo.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/loot_twin.h"
 #include "mod/net/native_suppress.h"
@@ -362,7 +363,9 @@ void on_recv_packet(safetyhook::Context& ctx) {
         (loot_filter_s2c(reinterpret_cast<uint8_t*>(ctx.r9), size) ||
          suppress_filter_s2c(reinterpret_cast<const uint8_t*>(ctx.r9), size) ||
          // Co-op+: our server's weather while we follow the host's (weather_sync.h).
-         weather_filter_s2c(reinterpret_cast<const uint8_t*>(ctx.r9), size))) {
+         weather_filter_s2c(reinterpret_cast<const uint8_t*>(ctx.r9), size) ||
+         // Co-op+: no Focus slow motion in co-op (slowmo.h).
+         slowmo_filter_s2c(reinterpret_cast<const uint8_t*>(ctx.r9), size))) {
         ctx.rip = reinterpret_cast<uintptr_t>(g_ret_stub);
     }
 }

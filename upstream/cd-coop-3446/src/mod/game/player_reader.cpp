@@ -1,4 +1,8 @@
 #include "mod/game/player_reader.h"
+#include "mod/log.h"
+#include <string>
+#include <format>
+#include <atomic>
 
 #include <windows.h>
 
@@ -136,6 +140,9 @@ std::optional<PlayerSnapshot> PlayerReader::read() {
     return snap;
 }
 
+std::atomic<bool> g_stat_log{false};
+void set_stat_log(bool on) { g_stat_log = on; }
+
 void PlayerReader::read_stats(uintptr_t components, PlayerSnapshot& out) {
     auto status = read_ptr(components + off::kComponents_Status);
     if (!status || !has_vtable(*status, base_ + off::kVtStatusComponent)) return;
@@ -145,6 +152,22 @@ void PlayerReader::read_stats(uintptr_t components, PlayerSnapshot& out) {
     auto count = game::read<uint32_t>(*container + off::kStatContainer_Count);
     if (!entries || !count || *count > off::kMaxStatEntries) return;
 
+    // [dev] stat_log: every stat of ours once a second (finding a stat's id, e.g. Spirit).
+    if (g_stat_log.load(std::memory_order_relaxed)) {
+        static ULONGLONG last = 0;
+        if (const ULONGLONG now = GetTickCount64(); now - last >= 1000) {
+            last = now;
+            std::string line;
+            for (uint32_t i = 0; i < *count && i < 64; ++i) {
+                const uintptr_t e = *entries + static_cast<uintptr_t>(i) * off::kStatEntry_Size;
+                auto id = game::read<uint64_t>(e + off::kStatEntry_Id);
+                auto cur = game::read<int64_t>(e + off::kStatEntry_Current);
+                auto max = game::read<int64_t>(e + off::kStatEntry_Max);
+                if (id && cur && max) line += std::format(" {:X}={}/{}", *id, *cur, *max);
+            }
+            log::info("Stats:{}", line);
+        }
+    }
     // Look stats up by id: the entry order changes between patches.
     for (uint32_t i = 0; i < *count; ++i) {
         const uintptr_t e = *entries + static_cast<uintptr_t>(i) * off::kStatEntry_Size;

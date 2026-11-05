@@ -264,6 +264,10 @@ WHAT WORKS / WHAT DOESN'T (YET)
 - Crimes and bounties are your own: what you steal or whom you hit in your world
   makes YOU wanted there, never your friend (and the other way round). When one of
   you becomes wanted, the other gets a notice.
+- Slow motion: while you play together, Focus does not slow the world (each of you
+  runs your own world, so one player's slow motion would put them out of step). Focus
+  still works otherwise. Playing alone it is as always. F8 > Settings: "Slow motion
+  (Focus) in co-op" turns it back on.
 - Shared: time of day and weather (the host's). Quest steps: shared live with the
   experimental co-op saves on (see above); otherwise each keeps their own quests and
   you get a notice when your friend completes a quest step. Not shared: civilians.

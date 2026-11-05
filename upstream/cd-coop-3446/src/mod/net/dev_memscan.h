@@ -19,7 +19,13 @@ void dev_memwatch(int rel, const std::vector<uint8_t>& value, int len, int hits,
 // [lo, hi] and logs them once few are left (with exe+offset for the exe's data); fwatch puts the hardware write
 // watch on the first four left.
 void dev_fscan(float value);
+// The same for every float within [lo, hi] (e.g. a frame time step).
+void dev_fscan_range(float lo, float hi);
 void dev_ffilter(float lo, float hi);
 void dev_fwatch(int hits);
+// The same for 8-byte doubles (8-aligned): dscan / dfilter / dwatch.
+void dev_dscan(double lo, double hi);
+void dev_dfilter(double lo, double hi);
+void dev_dwatch(int hits);
 
 }  // namespace cdmp::net

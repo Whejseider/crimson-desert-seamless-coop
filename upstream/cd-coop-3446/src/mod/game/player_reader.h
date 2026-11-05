@@ -49,4 +49,7 @@ private:
     std::string last_failure_;
 };
 
+// [dev] stat_log=1: log every stat of ours once a second (id=current/max, x1000).
+void set_stat_log(bool on);
+
 }  // namespace cdmp::game

@@ -99,6 +99,9 @@ $lines = $lines | ForEach-Object {
             '; Co-op+ EXPERIMENTAL (asked once on the first launch; F8 > Settings too): 1 = a separate save for each friend'
             ';   (host and guest; your own saves untouched) and quest steps shared live. Both players need it on.'
             'coop_worlds=0'
+            '; Co-op+: 1 = Focus does not slow the world while you play together (each game runs its own world, so'
+            ';   one player''s slow motion would put the two out of step). Alone it works as always. F8 > Settings too.'
+            'block_slowmo=1'
             break
         }
         default { $_ }

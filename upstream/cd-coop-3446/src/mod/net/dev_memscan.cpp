@@ -137,7 +137,10 @@ void dev_memwatch(int rel, const std::vector<uint8_t>& value, int len, int hits,
     }
 }
 
-void dev_fscan(float value) {
+void dev_fscan(float value) { dev_fscan_range(value, value); }
+
+void dev_fscan_range(float lo, float hi) {
+    const float value = lo;
     g_floats.clear();
     std::vector<uint8_t> buf(kChunk);
     uint64_t scanned = 0;
@@ -154,11 +157,12 @@ void dev_fscan(float value) {
             scanned += n;
             const auto* f = reinterpret_cast<const float*>(buf.data());
             for (size_t i = 0; i < n / 4; ++i) {
-                if (f[i] == value) g_floats.push_back(base + off + i * 4);
+                if (f[i] >= lo && f[i] <= hi) g_floats.push_back(base + off + i * 4);
             }
         }
     }
-    log::info("Dev fscan: {} floats equal to {} in {} MB ({} ms){}", g_floats.size(), value, scanned >> 20,
+    (void)value;
+    log::info("Dev fscan: {} floats within [{}, {}] in {} MB ({} ms){}", g_floats.size(), lo, hi, scanned >> 20,
               GetTickCount() - t0, g_floats.size() >= kMaxFloats ? " - LIMIT reached" : "");
 }
 
@@ -200,6 +204,72 @@ void dev_fwatch(int hits) {
         return;
     }
     dev_watch_start_many(picks, 4, hits);
+}
+
+std::vector<uintptr_t> g_doubles;
+
+void dev_dscan(double lo, double hi) {
+    g_doubles.clear();
+    std::vector<uint8_t> buf(kChunk);
+    uint64_t scanned = 0;
+    const DWORD t0 = GetTickCount();
+    MEMORY_BASIC_INFORMATION mbi{};
+    for (uintptr_t a = 0x10000; a < 0x7FFFFFFF0000ull && g_doubles.size() < kMaxFloats;
+         a = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize) {
+        if (!VirtualQuery(reinterpret_cast<void*>(a), &mbi, sizeof mbi)) break;
+        if (!scannable(mbi)) continue;
+        const uintptr_t base = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
+        for (size_t off = 0; off < mbi.RegionSize && g_doubles.size() < kMaxFloats; off += kChunk) {
+            const size_t n = std::min(kChunk, mbi.RegionSize - off);
+            if (!game::safe_read(base + off, buf.data(), n)) break;
+            scanned += n;
+            const auto* d = reinterpret_cast<const double*>(buf.data());
+            for (size_t i = 0; i < n / 8; ++i) {
+                if (d[i] >= lo && d[i] <= hi) g_doubles.push_back(base + off + i * 8);
+            }
+        }
+    }
+    log::info("Dev dscan: {} doubles within [{}, {}] in {} MB ({} ms)", g_doubles.size(), lo, hi, scanned >> 20,
+              GetTickCount() - t0);
+}
+
+void dev_dfilter(double lo, double hi) {
+    std::vector<uintptr_t> keep;
+    std::vector<uint8_t> buf(kChunk);
+    uintptr_t buf_at = 0;
+    bool buf_ok = false;
+    for (uintptr_t a : g_doubles) {
+        const uintptr_t chunk = a & ~(static_cast<uintptr_t>(kChunk) - 1);
+        if (chunk != buf_at || !buf_ok) {
+            buf_at = chunk;
+            buf_ok = game::safe_read(chunk, buf.data(), kChunk);
+        }
+        double v = 0;
+        if (buf_ok) {
+            std::memcpy(&v, buf.data() + (a - chunk), 8);
+        } else if (!game::safe_read(a, &v, 8)) {
+            continue;
+        }
+        if (v >= lo && v <= hi) keep.push_back(a);
+    }
+    g_doubles.swap(keep);
+    log::info("Dev dfilter [{}, {}]: {} left", lo, hi, g_doubles.size());
+    if (g_doubles.size() <= 400) {
+        for (uintptr_t a : g_doubles) {
+            double v = 0;
+            game::safe_read(a, &v, 8);
+            log::info("Dev dfilter:   0x{:X} = {}{}", a, v, where_of(a));
+        }
+    }
+}
+
+void dev_dwatch(int hits) {
+    std::vector<uintptr_t> picks(g_doubles.begin(), g_doubles.begin() + std::min<size_t>(4, g_doubles.size()));
+    if (picks.empty()) {
+        log::info("Dev dwatch: nothing left to watch");
+        return;
+    }
+    dev_watch_start_many(picks, 8, hits);
 }
 
 }  // namespace cdmp::net
