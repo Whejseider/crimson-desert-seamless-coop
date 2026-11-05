@@ -48,6 +48,14 @@ std::string g_host_said_key;                  // guest: the host the message cam
 WorldStart g_host_said = WorldStart::Unknown;
 WorldStart g_sent = WorldStart::Unknown;      // host: what this connection was told
 std::vector<std::vector<uint8_t>> g_out;
+// Co-op+ (2026-11-05): a switch only when the player agrees (card); a banner while the mod drives the game.
+enum class Ask { None, Pending, Go, Manual };
+Ask g_ask = Ask::None;
+std::wstring g_ask_for;                       // the world the answer is about
+bool g_ask_into = false;
+std::string g_ask_name;
+std::atomic<bool> g_switch_card{false};
+std::string g_banner;
 std::atomic<uint32_t> g_epoch{1};             // co-op world switches started (coop.cpp drops the old copy)
 std::wstring g_mark_when_in;                  // a new-game world switched at the title: marked once the game runs
 constexpr uint8_t kMsgStart = 1;              // World message: u8 kMsgStart | u8 1 new game / 2 continue
@@ -98,6 +106,11 @@ void set_status(const std::string& s) {
     g_status = s;
 }
 
+void banner(const std::string& s) {
+    std::lock_guard lock(g_m);
+    g_banner = s;
+}
+
 void toast(const std::string& s) {
     std::lock_guard lock(g_m);
     g_toast = "Co-op+\n" + s;
@@ -139,6 +152,7 @@ void run_switch(std::wstring target, std::string partner_name, WorldStart start)
     const bool into = !target.empty();
     const std::string label = into ? "your co-op world with " + partner_name : "your own saves";
     const auto fail = [&](const std::string& why) {
+        banner("");
         log::warn("Co-op worlds: switch to {} stopped: {}", narrow(target.empty() ? L"own saves" : target), why);
         const int n = ++g_failures;
         set_status("Could not switch to " + label + ": " + why +
@@ -152,6 +166,7 @@ void run_switch(std::wstring target, std::string partner_name, WorldStart start)
         g_switching = false;
     };
     log::info("Co-op worlds: switching to {} ({})", narrow(target.empty() ? L"own saves" : target), label);
+    banner("Co-op+ is taking you to " + label + ": hands off the mouse and keyboard for a moment.");
     ++g_epoch;
     set_status("Switching to " + label + "...");
     if (!wait_front("Switching to " + label)) return fail("the game window was not in front");
@@ -185,6 +200,7 @@ void run_switch(std::wstring target, std::string partner_name, WorldStart start)
         // A new-game world whose new game has not started yet. New Game is a held Z (a short press is ignored,
         // 2026-11-05); then the game's agreement and difficulty, which the player answers. Pressed twice, 12 s
         // apart (the title ignores keys for a while after the return); Z does nothing on those two screens.
+        banner("");
         set_status("New game in " + label + ": accept the agreement and choose the difficulty.");
         toast("New game in " + label + ": accept the agreement and choose the difficulty when they appear. "
               "Your own saves are untouched.");
@@ -215,6 +231,7 @@ void run_switch(std::wstring target, std::string partner_name, WorldStart start)
         loading = wait_for([] { return sniffer_world_loading() || g_in_world.load(); }, 12000);
     }
     if (!loading) return fail("the title screen did not start the game (press E)");
+    banner("");
     if (!wait_for([] { return g_in_world.load(); }, 240000)) return fail("the save did not finish loading");
     log::info("Co-op worlds: now in {}", narrow(save_io::world().empty() ? L"own saves" : save_io::world()));
     set_status(save_io::world().empty() ? std::string() : "You are in " + label + ". Your own saves are untouched.");
@@ -228,6 +245,8 @@ void run_switch(std::wstring target, std::string partner_name, WorldStart start)
 // player who goes to the title by hand, and a game started while a co-op world is wanted.
 void switch_at_title(const std::wstring& target, bool host, WorldStart start) {
     std::string why;
+    g_ask = Ask::None;      // at the title the player went there: nothing to ask, no keys
+    g_switch_card = false;
     ++g_epoch;
     if (!save_io::set_world(target, &why, start)) {
         g_status = "Could not open the saves at the title: " + why;
@@ -311,6 +330,8 @@ void worlds_tick(const WorldsInput& in_raw) {
     if (g_want == active) {
         g_countdown_until = 0;
         g_failures = 0;
+        g_ask = Ask::None;
+        g_switch_card = false;
         return;
     }
     // A world with this friend that does not exist yet: the host chooses how it starts (the card), the guest waits
@@ -340,22 +361,54 @@ void worlds_tick(const WorldsInput& in_raw) {
         return;
     }
     if (g_failures >= 5 || in.now_ms < g_retry_after) return;
-    // Only from the world itself (not a menu, not a loading screen), after a countdown the player sees.
+    // Only from the world itself (not a menu, not a loading screen), and only when the player says so.
+    // Co-op+ (2026-11-05 playtest): the game going to the title by itself (keys, the mouse moving and clicking) made
+    // the host think his PC had a virus. Now a card asks: "go now" (the mod does it, with a banner saying so) or
+    // "I'll do it" (the player goes to the title; the saves change there with no keys at all, switch_at_title).
     if (!in.in_world || in.menu_open) return;
-    const std::string label = g_want.empty() ? "your own saves" : "your co-op world with " + g_partner_name;
-    if (!g_countdown_until) {
-        g_countdown_until = in.now_ms + kCountdownMs;
-        g_toast = "Co-op+\nIn 10 s: back to the title screen, then into " + label + " (one loading screen). "
-                  "Your own saves are never changed.";
-        log::info("Co-op worlds: switch to {} in 10 s", narrow(g_want.empty() ? L"own saves" : g_want));
+    const std::string label = g_want.empty() ? "your own saves" : "your co-op save with " + g_partner_name;
+    if (g_ask_for != g_want || g_ask == Ask::None) {
+        g_ask_for = g_want;
+        g_ask = Ask::Pending;
+        g_ask_into = !g_want.empty();
+        g_ask_name = g_partner_name;
+        g_switch_card = true;
+        log::info("Co-op worlds: asking whether to switch to {} now", narrow(g_want.empty() ? L"own saves" : g_want));
     }
-    if (in.now_ms < g_countdown_until) {
-        g_status = std::format("Switching to {} in {} s", label, (g_countdown_until - in.now_ms + 999) / 1000);
+    if (g_ask == Ask::Pending) {
+        g_status = g_want.empty() ? "Your friend left: back to your own saves? (the card on screen)"
+                                  : "Load your co-op save with " + g_partner_name + "? (the card on screen)";
         return;
     }
+    if (g_ask == Ask::Manual) {
+        g_status = "When you are ready for " + label + ": Esc > Others > Title Screen. Co-op+ changes the saves at the "
+                   "title (no keys pressed); then press Play.";
+        return;
+    }
+    g_ask = Ask::None;
     g_countdown_until = 0;
     g_switching = true;
     std::thread(run_switch, g_want, g_partner_name, start).detach();
+}
+
+bool worlds_switch_card_visible() { return g_switch_card.load(); }
+
+std::pair<bool, std::string> worlds_switch_card() {
+    std::lock_guard lock(g_m);
+    return {g_ask_into, g_ask_name};
+}
+
+void worlds_switch_answer(bool go_now) {
+    std::lock_guard lock(g_m);
+    if (!g_switch_card) return;
+    g_switch_card = false;
+    g_ask = go_now ? Ask::Go : Ask::Manual;
+    log::info("Co-op worlds: switch {}", go_now ? "now (the player said go)" : "left to the player (at the title)");
+}
+
+std::string worlds_banner() {
+    std::lock_guard lock(g_m);
+    return g_banner;
 }
 
 uint32_t worlds_switch_epoch() { return g_epoch.load(); }

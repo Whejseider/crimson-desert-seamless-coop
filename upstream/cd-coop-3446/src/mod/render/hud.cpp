@@ -319,7 +319,31 @@ void hud_draw(float width, float height) {
     if (help_edge(input::action_down(input::Action::Help, focus)) && opt.build_problem.empty()) {
         g_guide_since = g_guide_since.load() ? 0 : GetTickCount64();
     }
-    if (const ULONGLONG since = optin_up || world_up ? 0 : g_guide_since.load()) {
+    // Co-op+ (2026-11-05 playtest): switching saves only when the player agrees (coop_worlds.h).
+    static input::Edge switch_go, switch_later;
+    const bool switch_up = !optin_up && !world_up && net::worlds_switch_card_visible() && opt.build_problem.empty();
+    if (switch_up) {
+        const auto [into, name] = net::worlds_switch_card();
+        if (switch_go(input::action_down(input::Action::Challenge, focus))) {
+            net::worlds_switch_answer(true);
+        } else if (switch_later(input::action_down(input::Action::Decline, focus))) {
+            net::worlds_switch_answer(false);
+        } else {
+            ui::guide_card(width, height,
+                           into ? "Play in your co-op save with " + name + "?" : name + " left: back to your own saves?",
+                           {into ? "Co-op+ keeps a separate save for playing with " + name + ". Your own saves are never touched."
+                                 : "Your co-op save with " + name + " is kept for next time.",
+                            "",
+                            "{Challenge}   Go now: Co-op+ takes you to the title screen and loads it (hands off for a moment)",
+                            "{Decline}   I'll do it myself: Esc > Others > Title Screen, then Play",
+                            "",
+                            "Doing it yourself: Co-op+ changes the saves at the title screen without pressing anything."},
+                           "Nothing changes until you choose.");
+        }
+        if (g_guide_since.load()) g_guide_since = GetTickCount64();
+    }
+    if (const std::string b = net::worlds_banner(); !b.empty()) ui::strip(width, height * 0.14f, b);
+    if (const ULONGLONG since = optin_up || world_up || switch_up ? 0 : g_guide_since.load()) {
         const ULONGLONG age = GetTickCount64() - since;
         if (age > 60000 || game::ui_menu_open()) {
             g_guide_since = 0;

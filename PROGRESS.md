@@ -919,3 +919,8 @@ Done in the user's Chrome (signed in as Asher):
   missing in the first town; the host's UI gone after dying + checkpoint respawn (and no horse prompt); duel hits;
   the guest's co-op save made 1 s before the host's story arrived (different town states); challenges never end;
   laggy movement both ways (not the network). Guest log kept in build/playtest-2026-11-05/; host log asked for.
+- 2026-11-05 02:40 Playtest fixes, not released: (1) the co-op save switch only on the player's answer (card: go now
+  / I'll do it; banner while the mod drives the game; no keys at all when the player goes to the title); (2) a
+  friend's revive is ignored while our own respawn is under way. The host's log is lost (friend uninstalled):
+  the death/respawn/UI bug gets a one-PC repro next. Order agreed with the user: 1 switch, 2 death/revive, 3 lag +
+  duel, 4 a fresh save for both on the first session (replaces "wait for the host's story"), 5 challenges end.

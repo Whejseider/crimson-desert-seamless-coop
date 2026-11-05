@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace cdmp::net {
@@ -45,6 +46,13 @@ std::string worlds_card_partner();   // the friend the card is about
 void worlds_answer(bool new_game);   // the card's answer
 std::vector<std::vector<uint8_t>> worlds_take_outgoing();  // World messages for the partner (coop.cpp sends them)
 void worlds_on_message(const std::vector<uint8_t>& bytes);  // a World message from the partner
+// Co-op+ (2026-11-05 playtest): a switch between your own saves and a co-op save only when you agree. The card:
+// go now (the mod takes the game to the title and loads; a banner says so) or "I'll do it" (Esc > Others > Title
+// Screen; the saves change at the title without any keys). first = into a co-op save, second = the friend's name.
+bool worlds_switch_card_visible();
+std::pair<bool, std::string> worlds_switch_card();
+void worlds_switch_answer(bool go_now);
+std::string worlds_banner();  // "" = none; shown big while the mod drives the game
 // Counts the co-op world switches started (coop.cpp drops the other player's character from the world we leave).
 uint32_t worlds_switch_epoch();
 // [dev] coop_world_as_host: one-PC tests run as the guest; this makes the worlds side act as the host (the card).

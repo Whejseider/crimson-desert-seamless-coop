@@ -206,6 +206,13 @@ void revive_set_boss_wait(bool on) { g_boss_wait = on; }
 bool revive_in_place(uint32_t now_ms) {
     const uint32_t own = capture_own_player_key();
     if (!own || !g_dead_since) return false;
+    // Co-op+ (2026-11-05 playtest): the friend's revive arrived while the host's own checkpoint respawn was under way
+    // (its loading burst); the two sequences together left the host with no HUD, no pause menu and no Ride prompt.
+    // One respawn at a time: once we chose (or a load is on), the friend's revive is not applied.
+    if (g_chosen_at || g_loading_req_at || g_revive_req_at || sniffer_world_loading()) {
+        log::info("Revive: the other player revived us, but our own respawn is already under way; not applied");
+        return false;
+    }
     ask_checkpoint(own, now_ms, /*move=*/false);
     log::info("Revive: the other player revived us: up where we fell");
     return true;
