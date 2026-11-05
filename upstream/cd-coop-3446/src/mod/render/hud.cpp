@@ -282,7 +282,8 @@ void hud_draw(float width, float height) {
             optin::answer(false);
         } else {
             ui::guide_card(width, height, "NEW: co-op saves + live quests  (experimental)",
-                           {"Play with a friend and get a SEPARATE SAVE for each friend, like Elden Ring Seamless Co-op.",
+                           {"Each friend you play with gets a co-op save of its own, like Elden Ring Seamless Co-op.",
+                            "The first time you play together, you both begin a new journey at the start of the story.",
                             "Your own saves are never touched: leave the session and you are back in your own world.",
                             "Quest steps your friend finishes (go to, defeat, talk) finish for you too, live.",
                             "",

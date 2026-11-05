@@ -47,6 +47,7 @@ ByJunter and its port by nouzert1.
 | Bosses together; the host lands the final blow so the story is safe | Needs testing |
 | Shared boss and story cutscenes; a skip needs everyone to press it | Needs testing |
 | Revive your friend (hold Shift+F7 by them) | Works |
+| NEW: dying in co-op keeps your HUD, menus and horse (a death used to leave them gone after any revive) | Works |
 | Respawn option: back to your friend after a checkpoint revive | Works |
 | Your friend can't kill your quest NPCs or townsfolk | Works |
 | Loot from shared kills: each your own, host only, or first come | Needs testing |
@@ -68,11 +69,12 @@ ByJunter and its port by nouzert1.
 
 | Feature | Status |
 |---|---|
-| Duel: a ring, 3-2-1, rounds, nobody dies; ring size option | Works |
-| Rock, paper, scissors | Works |
+| Duel: a ring, 3-2-1, first to two rounds, nobody dies; ring size option (hits fixed after the first playtest) | Works, needs testing with two players |
+| Rock, paper, scissors (first to two hands; no hand animation yet) | Works |
 | Hunting contest (3 minutes, the most game wins) | Works |
 | Race to the waypoint (first to the host's map waypoint) | Works |
 | Arm wrestling with your friend in the opponent's chair | Needs testing |
+| Every challenge is one match and ends with a Victory or Defeat card | Works |
 | Lasting scoreboard per friend and titles ("the Duelist") | Works |
 | Quick rematch | Works |
 
@@ -83,7 +85,9 @@ ByJunter and its port by nouzert1.
 | Time of day and weather follow the host | Works |
 | NEW: Focus does not slow the world in co-op (keeps both worlds in step; F8 setting to turn it back on) | Works, needs testing with two players |
 | Resting at a campfire together (the host's Wait moves both clocks) | Needs testing |
-| NEW: separate co-op saves per friend, host and guest (your solo saves untouched); opt in on the first launch or in F8 | Experimental, needs testing |
+| NEW: a co-op save per friend, host and guest (your solo saves untouched); opt in on the first launch or in F8 | Experimental, needs testing |
+| NEW: your first session together begins a new journey for both, at the start of the story | Experimental, needs testing |
+| NEW: switching between your own save and a co-op save asks first (now, or later from the title screen) | Works |
 | NEW: quest steps shared live (go to, defeat, talk): your friend finishes a step you also have, it finishes for you, with rewards | Experimental, needs testing |
 | Each player keeps their own character and items, and their own quests while playing; nothing leaks into the other save | Works |
 | Item trading or a shared stash | Not yet |
@@ -105,6 +109,6 @@ ByJunter and its port by nouzert1.
 | Diagnose: a one-click bug report with personal info removed | Works |
 | Turns itself off safely after a game update, or if an anti-cheat ever appears | Works |
 
-**Known issues:** two players only. Co-op saves and live quests are new and experimental (opt in; tested on one PC so far). The arm wrestling table can be empty for a guest who
+**Known issues:** two players only. Co-op saves and live quests are new and experimental (opt in; first two-player session done, fixes from it are in). In co-op you stay on your feet behind the death screen until you revive. The arm wrestling table can be empty for a guest who
 arrives already connected; leave the pub and come back. Don't save while your friend is in your world (backups
 are made for you).

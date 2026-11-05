@@ -203,11 +203,16 @@ on. Shift+F5 (pad: hold View + D-pad Up) turns it on, Shift+F6 (View + D-pad Dow
 quests". BOTH players need it on.
 
 When it is on:
-- Co-op play gets its own save for each friend, for the host and the guest, like Elden
-  Ring Seamless Co-op. When a session starts, the game goes back to the title screen
-  and loads your save with that friend (one loading screen; the first time it starts
-  as a copy of your own progress). When the session ends it goes back to your own
-  saves the same way. Your own saves are never changed.
+- Each friend you play with gets a co-op save of its own, for the host and the guest,
+  like Elden Ring Seamless Co-op. Your own saves are never changed.
+- The first time you play together, you both begin a NEW JOURNEY: a card asks
+  ("A New Journey with <friend>": begin now, or later from the title screen), the game
+  returns to the title and starts a new game; each of you accepts the agreement and
+  picks a difficulty. From then on, playing together loads that co-op save where you
+  left off, and when the session ends you go back to your own saves (asked first too).
+- A co-op save made by an earlier version (a copy of your own progress): the host is
+  asked once whether to begin a new journey (the old co-op save is kept as a backup
+  folder) or to continue it.
 - Quest steps follow between you live: when your friend finishes a step that you also
   have under way (go somewhere, defeat enemies, talk to someone), it finishes for you
   too, with its rewards, and you get a notice. Steps you have not started are left
@@ -295,6 +300,9 @@ KNOWN ISSUES (alpha)
   teammate revive, summoning, the guest's loot from shared kills. Please report
   what you see (BUG-REPORT.txt).
 - After a game update Co-op+ switches itself off until it is updated.
+- Dying in co-op: Co-op+ shows its own death screen (the game's does not come once your
+  friend has joined), and your character stays on its feet behind it until you revive.
+- Rock, paper, scissors has no hand animation (it is Co-op+'s own challenge).
 
 IMPORTANT: do not save while the other player is in your world. Quit without
 saving, or wait until they leave. Saving during a session is the most likely way to

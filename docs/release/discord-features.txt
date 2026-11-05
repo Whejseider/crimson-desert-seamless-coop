@@ -34,6 +34,7 @@ Two-player co-op (Steam, game 1.0.0.3549). Each of you keeps your own save; your
 - Bosses together; the host lands the final blow so the story is safe: `Needs testing`
 - Shared boss and story cutscenes; a skip needs everyone to press it: `Needs testing`
 - Revive your friend (hold Shift+F7 by them): `Works`
+- NEW: dying in co-op keeps your HUD, menus and horse: `Works`
 - Respawn option: back to your friend after a checkpoint revive: `Works`
 - Your friend can't kill your quest NPCs or townsfolk: `Works`
 - Loot from shared kills: each your own, host only, or first come: `Needs testing`
@@ -54,6 +55,7 @@ Two-player co-op (Steam, game 1.0.0.3549). Each of you keeps your own save; your
 - Hunting contest (3 minutes, the most game wins): `Works`
 - Race to the waypoint (first to the host's map waypoint): `Works`
 - Arm wrestling with your friend in the opponent's chair: `Needs testing`
+- NEW: every challenge is one match (first to 2) and ends with Victory or Defeat: `Works`
 - Lasting scoreboard per friend and titles ("the Duelist"): `Works`
 - Quick rematch: `Works`
 
@@ -62,7 +64,7 @@ Two-player co-op (Steam, game 1.0.0.3549). Each of you keeps your own save; your
 - Time of day and weather follow the host: `Works`
 - NEW: Focus doesn't slow the world in co-op (F8 to turn it back on): `Works, needs testing with two players`
 - Resting at a campfire together (the host's Wait moves both clocks): `Needs testing`
-- NEW: separate co-op saves per friend, host and guest (your solo saves untouched); opt in on the first launch or in F8: `Experimental, needs testing`
+- NEW: a co-op save per friend (solo saves untouched; opt in at first launch or F8); your first session begins a new journey for both: `Experimental, needs testing`
 - NEW: quest steps shared live (go to, defeat, talk): your friend finishes a step you also have, it finishes for you, with rewards: `Experimental, needs testing`
 - Each player keeps their own character and items, and their own quests while playing; nothing leaks into the other save: `Works`
 - Item trading or a shared stash: `Not yet`
@@ -81,5 +83,5 @@ Two-player co-op (Steam, game 1.0.0.3549). Each of you keeps your own save; your
 - Diagnose: a one-click bug report with personal info removed: `Works`
 - Turns itself off safely after a game update, or if an anti-cheat ever appears: `Works`
 
-**Known issues:** two players only. Co-op saves and live quests are new and experimental (opt in; tested on one PC so far). The arm wrestling table can be empty for a guest who arrives already connected; leave the pub and come back. Don't save while your friend is in your world (backups are made for you).
+**Known issues:** two players only. Co-op saves and live quests are experimental. A guest arriving already connected may find the arm wrestling table empty (leave and come back). Don't save while your friend is in your world (backups are made).
 
