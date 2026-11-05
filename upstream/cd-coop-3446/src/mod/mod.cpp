@@ -1045,6 +1045,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 hud.duel_title_color = rh.color;
                 hud.duel_title_alpha = rh.alpha;
             }
+            if (const net::MatchHud mh = net::activity_match_hud(); !mh.title.empty()) {
+                hud.duel_title = mh.title;
+                hud.duel_subtitle = mh.subtitle;
+                hud.duel_title_color = mh.color;
+                hud.duel_title_alpha = mh.alpha;
+            }
             if (const net::DuelHud dh = net::duel_hud(); dh.active) {
                 hud.duel_active = true;
                 hud.duel_centre = {dh.centre[0], dh.centre[1], dh.centre[2]};

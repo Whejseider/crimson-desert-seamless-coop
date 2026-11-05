@@ -200,6 +200,10 @@ std::string how_to_play(uint32_t stage) {
 }
 
 uint32_t g_last_game = 0;  // Co-op+ (T42): the last game we challenged to (the picker opens on it)
+// Co-op+ (2026-11-05): the last match result, shown as the big title card for a few seconds (activity_match_hud).
+std::string g_match_title, g_match_subtitle;
+bool g_match_won = false;
+uint32_t g_match_at = 0;
 
 Game game_of(uint32_t stage) {
     if (std::find(std::begin(kWrestleStages), std::end(kWrestleStages), stage) != std::end(kWrestleStages)) return kGameWrestle;
@@ -705,13 +709,13 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
             } else if (c.state == kChSent) {
                 out.banner = std::format("Challenge sent: {} vs {}. Waiting for an answer ({{Challenge}} withdraws)", game, who);
             } else if (c.state == kChOn && game_of(c.stage) == kGameHunt) {
-                out.banner = std::format("Hunting contest vs {}   series you {} - {} {}   ({{Challenge}} ends)", who,
+                out.banner = std::format("Hunting contest vs {}   you {} - {} {}   (first to 2;  {{Challenge}} stops)", who,
                                          c.ours, c.theirs, who);
             } else if (c.state == kChOn && game_of(c.stage) == kGameRace) {
-                out.banner = std::format("Race vs {}   series you {} - {} {}   ({{Challenge}} ends)", who, c.ours,
+                out.banner = std::format("Race vs {}   you {} - {} {}   (first to 2;  {{Challenge}} stops)", who, c.ours,
                                          c.theirs, who);
             } else if (c.state == kChOn && game_of(c.stage) == kGameDuel) {
-                out.banner = std::format("Duel vs {}   series you {} - {} {}   ({{Challenge}} ends the duel)", who,
+                out.banner = std::format("Duel vs {}   you {} - {} {}   (first to 2;  {{Challenge}} stops)", who,
                                          c.ours, c.theirs, who);
             } else if (c.state == kChOn) {
                 out.banner = std::format("Challenge: {} vs {}   series you {} - {} {}   (start a match at the table; "
@@ -1153,6 +1157,32 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
                                    : game == kGameRace ? "race" : "wrestle", won);
         }
     }
+    // Co-op+ (2026-11-05 playtest: challenges "just keep going forever unless you press View + Up"): a challenge is
+    // one match. Duel, race and hunt: first to two rounds; rock-paper-scissors and the wrestling table: one match
+    // (rock-paper-scissors is itself first to two hands). Each game sees the same rounds, so both end it here on
+    // their own; the result shows as the game's big title card. The challenge key still stops it early.
+    {
+        std::lock_guard lock(g_mutex);
+        if (g_ch.state == kChOn) {
+            const Game game = game_of(g_ch.stage);
+            const int need = game == kGameDuel || game == kGameRace || game == kGameHunt ? 2 : 1;
+            if (g_ch.ours >= need || g_ch.theirs >= need) {
+                const bool won = g_ch.ours > g_ch.theirs;
+                std::string name = activity_minigame_name(g_ch.stage);
+                if (name.rfind("a ", 0) == 0) name.erase(0, 2);
+                if (!name.empty()) name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
+                g_match_title = won ? "Victory" : "Defeat";
+                g_match_subtitle = std::format("{} vs {}   {} - {}", name, who, g_ch.ours, g_ch.theirs);
+                g_match_won = won;
+                g_match_at = GetTickCount();
+                log::info("Activity: the {} is over ({} {} - {})", name, won ? "we won" : "they won", g_ch.ours,
+                          g_ch.theirs);
+                g_last_game = g_ch.stage;
+                g_ch = Challenge{};
+                out.banner.clear();
+            }
+        }
+    }
     // The party journal (party_quests.h): the other player's completed quests. Held back while another notice shows.
     static uint32_t journal_after = 0;
     if (out.toast.empty() && static_cast<int32_t>(now - journal_after) >= 0) {
@@ -1164,6 +1194,19 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
         journal_after = now + 6500;
     }
     return out;
+}
+
+MatchHud activity_match_hud() {
+    constexpr uint32_t kShowMs = 6000;
+    MatchHud h;
+    std::lock_guard lock(g_mutex);
+    const uint32_t t = GetTickCount() - g_match_at;
+    if (g_match_title.empty() || t >= kShowMs) return h;
+    h.title = g_match_title;
+    h.subtitle = g_match_subtitle;
+    h.color = g_match_won ? 0xFF82C8E8 : 0xFF2830C4;  // gold / the death screen's red (ABGR)
+    h.alpha = t < kShowMs - 1000 ? 1.0f : static_cast<float>(kShowMs - t) / 1000.0f;
+    return h;
 }
 
 }  // namespace cdmp::net

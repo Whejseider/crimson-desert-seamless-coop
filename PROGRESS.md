@@ -950,3 +950,8 @@ Done in the user's Chrome (signed in as Asher):
   instead says so and keeps it pending (nw10). The new-game copy crash is FIXED: a sixth containment guard
   (horse_diag kLayerSample, exe+0x968F50, CC = [[[[rcx+0x60]+8]+0x68]+0x40]) skips the function while the copy has
   no action; nw8/nw11: 45-90 s in the new game with the friend's copy beside us, no crash.
+- 2026-11-05 05:15 Playtest #5 (challenges never end) FIXED: a challenge is one match: duel / race / hunt first to
+  2 rounds, rock-paper-scissors and the wrestling table one match; both games end it on their own and show the
+  result as the big title card ("Victory" / "Defeat", game and score, 6 s); banners say "first to 2". du2: two
+  duel rounds lost -> "Defeat / Duel vs ... 0 - 2", challenge closed. Not done: the RPS hand animation (our
+  challenge, not the game's minigame; known limitation).

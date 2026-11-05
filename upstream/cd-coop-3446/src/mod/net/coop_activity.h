@@ -90,4 +90,13 @@ RpsView activity_rps_view();
 // Human name of a minigame stage key ("arm wrestling"...), "a minigame" when unknown.
 std::string activity_minigame_name(uint32_t stage_key);
 
+// Co-op+ (2026-11-05): a finished challenge's result ("Victory" / "Defeat", game and score) as the big title card,
+// for a few seconds after the match; title "" = none.
+struct MatchHud {
+    std::string title, subtitle;
+    unsigned int color = 0;
+    float alpha = 0;
+};
+MatchHud activity_match_hud();
+
 }  // namespace cdmp::net
