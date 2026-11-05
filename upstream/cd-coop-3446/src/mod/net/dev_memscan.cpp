@@ -2,6 +2,8 @@
 
 #include <windows.h>
 
+#include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <string>
 
@@ -270,6 +272,129 @@ void dev_dwatch(int hits) {
         return;
     }
     dev_watch_start_many(picks, 8, hits);
+}
+
+}  // namespace cdmp::net
+
+// ---- gsnap / gdiff (2026-11-05): the exe's whole .data section, before and after -------------------------------
+namespace cdmp::net {
+namespace {
+std::vector<uint8_t> g_gsnap;
+uintptr_t g_gdata = 0;
+size_t g_gsize = 0;
+
+bool data_section(uintptr_t& at, size_t& size) {
+    const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+    const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+    const IMAGE_SECTION_HEADER* s = IMAGE_FIRST_SECTION(nt);
+    for (WORD i = 0; i < nt->FileHeader.NumberOfSections; ++i, ++s) {
+        if (std::memcmp(s->Name, ".data\0\0", 6) == 0) {
+            at = base + s->VirtualAddress;
+            size = s->Misc.VirtualSize;
+            return true;
+        }
+    }
+    return false;
+}
+
+void read_pages(uintptr_t at, size_t size, std::vector<uint8_t>& out) {
+    out.assign(size, 0);
+    for (size_t off = 0; off < size; off += 0x1000) {
+        const size_t n = std::min<size_t>(0x1000, size - off);
+        game::safe_read(at + off, out.data() + off, n);  // an unreadable page stays zero
+    }
+}
+}  // namespace
+
+void dev_gsnap() {
+    if (!data_section(g_gdata, g_gsize)) {
+        log::warn("Dev gsnap: no .data section");
+        return;
+    }
+    read_pages(g_gdata, g_gsize, g_gsnap);
+    log::info("Dev gsnap: {} bytes of .data at exe+0x{:X}", g_gsize,
+              g_gdata - reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)));
+}
+
+void dev_gdiff(int tag) {
+    if (g_gsnap.empty()) {
+        log::warn("Dev gdiff: no gsnap");
+        return;
+    }
+    std::vector<uint8_t> now;
+    read_pages(g_gdata, g_gsize, now);
+    wchar_t exe[MAX_PATH] = {};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    std::wstring path(exe);
+    path = path.substr(0, path.find_last_of(L"\/") + 1) + L"cdmp_gdiff_" + std::to_wstring(tag) + L".txt";
+    FILE* f = _wfopen(path.c_str(), L"w");
+    const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    size_t changed = 0;
+    for (size_t i = 0; i < g_gsize; ++i) {
+        if (now[i] == g_gsnap[i]) continue;
+        ++changed;
+        if (f) std::fprintf(f, "%llX %02X %02X\n", static_cast<unsigned long long>(g_gdata - base + i), g_gsnap[i], now[i]);
+    }
+    if (f) std::fclose(f);
+    log::info("Dev gdiff {}: {} bytes of .data changed since gsnap (file cdmp_gdiff_{}.txt)", tag, changed, tag);
+    g_gsnap.swap(now);  // the next gdiff is against this moment
+}
+
+}  // namespace cdmp::net
+
+// ---- ptrscan (2026-11-05): which globals point at an actor (or its component table) -----------------------------
+#include "mod/game/actor_lookup.h"
+#include "mod/game/offsets.h"
+namespace cdmp::net {
+
+void dev_ptrscan(uint32_t key) {
+    const auto actor = game::find_actor(key);
+    if (!actor) {
+        log::info("Dev ptrscan: actor 0x{:08X} not loaded", key);
+        return;
+    }
+    const auto table = game::read_ptr(*actor + game::build_3549::kActor_ComponentTable);
+    uintptr_t at = 0;
+    size_t size = 0;
+    if (!data_section(at, size)) return;
+    std::vector<uint8_t> d;
+    read_pages(at, size, d);
+    const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    int n = 0;
+    std::string hits;
+    for (size_t i = 0; i + 8 <= size; i += 8) {
+        uint64_t v = 0;
+        std::memcpy(&v, d.data() + i, 8);
+        const char* what = v == *actor ? "actor" : (table && v == *table) ? "components" : nullptr;
+        if (!what) continue;
+        if (++n <= 60) {
+            char s[64];
+            std::snprintf(s, sizeof s, " %llX(%s)", static_cast<unsigned long long>(at - base + i), what);
+            hits += s;
+        }
+    }
+    log::info("Dev ptrscan 0x{:08X}: actor 0x{:X}, {} slot(s) in .data:{}", key, *actor, n, hits);
+}
+
+}  // namespace cdmp::net
+
+// ---- watchstatus (2026-11-05): hardware watch on our own status component + offset ----------------------------
+#include "mod/net/dev_watch.h"
+#include "mod/net/local_capture.h"
+namespace cdmp::net {
+
+void dev_watch_status(int offset, int len, int hits) {
+    const uint32_t own = capture_own_player_key();
+    const auto actor = own ? game::find_actor(own) : std::nullopt;
+    const auto table = actor ? game::read_ptr(*actor + game::build_3549::kActor_ComponentTable) : std::nullopt;
+    const auto status = table ? game::read_ptr(*table + game::build_3549::kComponents_Status) : std::nullopt;
+    if (!status) {
+        log::warn("Dev watchstatus: our status component not found");
+        return;
+    }
+    log::info("Dev watchstatus: status component 0x{:X} (+0x{:X})", *status, offset);
+    dev_watch_start(*status + offset, len, hits);
 }
 
 }  // namespace cdmp::net

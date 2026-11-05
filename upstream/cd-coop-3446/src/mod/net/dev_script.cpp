@@ -26,7 +26,7 @@ namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch, GSnap, GDiff, PtrScan, WatchStatus, Key } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -175,6 +175,39 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "key") {  // key <hex vk> <hold ms>: a key press from inside the game (as coop_worlds.cpp sends)
+            std::string a;
+            in >> a >> st.wait_ms;
+            st.kind = Step::Key;
+            st.addr = static_cast<uintptr_t>(std::stoull(a, nullptr, 16));
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "watchstatus") {  // watchstatus <hex offset> <len> <hits>: our status component (dev_memscan.h)
+            std::string a;
+            int len = 1, hits = 6;
+            in >> a >> len >> hits;
+            st.kind = Step::WatchStatus;
+            st.addr = static_cast<uintptr_t>(std::stoull(a, nullptr, 16));
+            st.to[0] = static_cast<float>(len ? len : 1);
+            st.to[1] = static_cast<float>(hits ? hits : 6);
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "ptrscan") {  // ptrscan <hex actor key>: globals pointing at that actor (dev_memscan.h)
+            std::string a;
+            in >> a;
+            st.kind = Step::PtrScan;
+            st.addr = static_cast<uintptr_t>(std::stoull(a, nullptr, 16));
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "gsnap" || kind == "gdiff") {  // gsnap / gdiff N: the exe's .data, before / after (dev_memscan.h)
+            st.kind = kind == "gsnap" ? Step::GSnap : Step::GDiff;
+            in >> st.wait_ms;
+            steps.push_back(st);
+            continue;
+        }
         if (kind == "memdiff") {  // memdiff: which bytes around the memscan matches changed since
             st.kind = Step::MemDiff;
             steps.push_back(st);
@@ -290,6 +323,21 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
                 dev_ffilter(st.to[0], st.to[1]);
             } else if (st.kind == Step::FWatch) {
                 dev_fwatch(static_cast<int>(st.wait_ms ? st.wait_ms : 8));
+            } else if (st.kind == Step::Key) {
+                const auto vk = static_cast<BYTE>(st.addr);
+                const auto scan = static_cast<BYTE>(MapVirtualKeyW(vk, MAPVK_VK_TO_VSC));
+                keybd_event(vk, scan, 0, 0);
+                Sleep(st.wait_ms ? st.wait_ms : 60);
+                keybd_event(vk, scan, KEYEVENTF_KEYUP, 0);
+                log::info("Dev script: key 0x{:02X} ({} ms)", vk, st.wait_ms);
+            } else if (st.kind == Step::WatchStatus) {
+                dev_watch_status(static_cast<int>(st.addr), static_cast<int>(st.to[0]), static_cast<int>(st.to[1]));
+            } else if (st.kind == Step::PtrScan) {
+                dev_ptrscan(static_cast<uint32_t>(st.addr));
+            } else if (st.kind == Step::GSnap) {
+                dev_gsnap();
+            } else if (st.kind == Step::GDiff) {
+                dev_gdiff(static_cast<int>(st.wait_ms));
             } else if (st.kind == Step::MemDiff) {
                 dev_memdiff();
             } else if (st.kind == Step::MemWatch) {

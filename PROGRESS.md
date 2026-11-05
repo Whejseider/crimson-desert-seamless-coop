@@ -924,3 +924,15 @@ Done in the user's Chrome (signed in as Asher):
   friend's revive is ignored while our own respawn is under way. The host's log is lost (friend uninstalled):
   the death/respawn/UI bug gets a one-PC repro next. Order agreed with the user: 1 switch, 2 death/revive, 3 lag +
   duel, 4 a fresh save for both on the first session (replaces "wait for the host's story"), 5 challenges end.
+- 2026-11-05 02:35-04:30 (user asleep, autonomous) Playtest #2 FIXED: the lost HUD / pause menu / Ride prompt after a
+  co-op death. Reproduced on one PC (death_test.sh: KillCheatReq on our own player, the mod's revive): EVERY co-op
+  revive (checkpoint U and instant Q) left the HUD gone and the menus locked. Cause: our own NotifyHandleDeadAck
+  (2985) puts the client into its death state; only the game's death screen (UIGamePlayControlReviveModal,
+  vtable 0x5A13298, factory 0x10873F0) ends it, and that screen never opens once a copy was loaded (old finding).
+  .data diffs (new dev gsnap/gdiff, ptrscan, watchstatus, key) narrowed it to client UI state, not a global flag.
+  Fix (revive_prompt.cpp revive_filter_s2c): once a copy was ever loaded, our own death notice is not delivered to
+  the client; the server still has us dead, so the mod's prompt, the friend's revive and the server revive work,
+  and the client keeps its HUD and menus (dt9/dt11/dt12: HUD through the death, Esc opens the menu after). Also:
+  the prompt now shows whenever a copy was ever loaded (a death after the friend left had no screen at all), the
+  death screen replica looks like the game's (grey veil, dark red rim, no red bar). Dead end noted: re-addressing
+  the notice to our body actor crashes the game (dt10).

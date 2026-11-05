@@ -27,5 +27,13 @@ void dev_fwatch(int hits);
 void dev_dscan(double lo, double hi);
 void dev_dfilter(double lo, double hi);
 void dev_dwatch(int hits);
+// The exe's whole .data section: gsnap keeps it; gdiff N writes every byte changed since (rva old new) to
+// cdmp_gdiff_N.txt next to the exe and keeps the new state as the next reference.
+void dev_gsnap();
+void dev_gdiff(int tag);
+// Every 8-aligned qword in .data equal to the actor of `key` (or its component table), logged as exe offsets.
+void dev_ptrscan(uint32_t key);
+// Hardware write watch (dev_watch.h) on our own player's status component + offset.
+void dev_watch_status(int offset, int len, int hits);
 
 }  // namespace cdmp::net

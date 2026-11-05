@@ -31,6 +31,7 @@ constexpr uint16_t kOpReviveLoadingStartReq = 3139;  // 04 | u8 type | 00
 constexpr uint16_t kOpReviveLoadingReq = 2390;       // u8 type
 constexpr uint16_t kOpGameLoadingStartReq = 2294;    // empty: the client starts loading a field
 constexpr uint16_t kOpLoadingFieldDataAck = 2399;    // 04 | u32 player | ... | +28 vec3, quat, scale
+constexpr uint16_t kOpNotifyHandleDeadAck = 2985;   // u32 dead | u32 killer | type | ...
 constexpr uint16_t kOpDoTeleportAck = 3052;          // u32 actor | vec3 | 8 bytes (handler reads 4, 12, 8)
 constexpr uint8_t kInstant = 1, kCheckpoint = 2;
 constexpr uint32_t kWaitForGameMs = 4000;   // the game's own screen shows ~2 s after the death
@@ -277,7 +278,10 @@ RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::opt
         if (g_boss_hold) log::info("Revive: we died in a boss fight: waiting for the other player");
     }
     // Only where the game's screen is known to stay away, and never over it or another menu.
-    if (!connected || !puppet_ever_spawned() || game::ui_menu_open()) return RevivePrompt::None;
+    // Co-op+ (2026-11-05): once a copy has been loaded the game's own screen never comes again, connected or not (a
+    // death after the friend left had no screen at all), so the prompt is for that whole session.
+    (void)connected;
+    if (!puppet_ever_spawned() || game::ui_menu_open()) return RevivePrompt::None;
     if (now_ms - g_dead_since < kWaitForGameMs) return RevivePrompt::None;
     const uint32_t own = capture_own_player_key();
     if (!own) return RevivePrompt::None;
@@ -338,6 +342,24 @@ bool revive_teleport_to(float x, float y, float z) {
 void revive_dev_teleport(float x, float y, float z) {
     request_move(x, y, z);
     log::info("Dev: teleport to ({:.1f}, {:.1f}, {:.1f})", x, y, z);
+}
+
+bool revive_filter_s2c(const uint8_t* packet, size_t size) {
+    // Co-op+ (2026-11-05 playtest: the host's HUD, pause menu and Ride prompt were gone after a death). Our own
+    // NotifyHandleDeadAck (2985: u32 dead | u32 killer | ...) puts the client into its death state: HUD hidden, menus
+    // locked, until the game's death screen ends it. Once the other player's copy has been loaded that screen never
+    // opens (see the header), so nothing ever ended it, whichever revive followed. While our prompt stands in for the
+    // screen, the notice is kept from the client: the server has us dead as before (our prompt, the friend's revive
+    // and the server's revive all work), the client keeps its HUD and menus. Verified on one PC (dt9, dt11: HUD
+    // through the death, the menu opens after the revive). Alone (no copy ever loaded) nothing changes.
+    if (!packet || size < 9 || (packet[0] | packet[1] << 8) != kOpNotifyHandleDeadAck || !puppet_ever_spawned()) {
+        return false;
+    }
+    uint32_t dead = 0;
+    std::memcpy(&dead, packet + 5, 4);
+    if (!dead || dead != capture_own_player_key()) return false;
+    log::info("Revive: our death notice is kept from the client (its death state would lock the HUD and menus)");
+    return true;
 }
 
 void revive_observe_s2c(const uint8_t* packet, size_t size) {

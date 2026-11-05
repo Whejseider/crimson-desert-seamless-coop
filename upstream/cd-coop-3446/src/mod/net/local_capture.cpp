@@ -1052,6 +1052,11 @@ uint32_t capture_own_player_key() {
     return g_player_key;
 }
 
+uint32_t capture_own_body_key() {
+    std::lock_guard lock(g_mutex);
+    return g_body_key;
+}
+
 std::optional<NearbyActor> capture_nearest_actor(const proto::Vec3& from, float max_m) {
     std::optional<NearbyActor> best;
     const uint64_t now = steady_ms();

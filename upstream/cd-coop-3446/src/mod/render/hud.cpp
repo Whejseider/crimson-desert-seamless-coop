@@ -342,7 +342,12 @@ void hud_draw(float width, float height) {
         }
         if (g_guide_since.load()) g_guide_since = GetTickCount64();
     }
-    if (const std::string b = net::worlds_banner(); !b.empty()) ui::strip(width, height * 0.14f, b);
+    // While the mod drives the game to the title and back: one centred card, the game's title-card style.
+    if (const std::string b = net::worlds_banner(); !b.empty()) {
+        const size_t nl = b.find('\n');
+        ui::title_card(width, height, b.substr(0, nl), nl == std::string::npos ? std::string() : b.substr(nl + 1),
+                       IM_COL32(232, 200, 130, 255), 1.0f);
+    }
     if (const ULONGLONG since = optin_up || world_up || switch_up ? 0 : g_guide_since.load()) {
         const ULONGLONG age = GetTickCount64() - since;
         if (age > 60000 || game::ui_menu_open()) {

@@ -491,16 +491,17 @@ void death_screen(float sw, float sh, const std::string& title, const std::strin
                   const std::string& choices) {
     ImDrawList* dl = ImGui::GetForegroundDrawList();
     const float k = std::max(0.6f, sh / 1080.0f);
-    // The game greys and darkens the world; we can only darken: an even veil and heavier edges.
-    dl->AddRectFilled(ImVec2(0, 0), ImVec2(sw, sh), IM_COL32(12, 12, 14, 120));
-    const ImU32 edge = IM_COL32(0, 0, 0, 170), clear = IM_COL32(0, 0, 0, 0);
-    dl->AddRectFilledMultiColor(ImVec2(0, 0), ImVec2(sw, sh * 0.25f), edge, edge, clear, clear);
-    dl->AddRectFilledMultiColor(ImVec2(0, sh * 0.75f), ImVec2(sw, sh), clear, clear, edge, edge);
+    // The game greys the world out and rims it in dark red (its own screen, 1.0.0.3549). An overlay cannot take the
+    // colour away, so a heavy cool-grey veil stands in for it, with the red rim on all four edges.
+    dl->AddRectFilled(ImVec2(0, 0), ImVec2(sw, sh), IM_COL32(30, 30, 32, 170));
+    const ImU32 rim = IM_COL32(58, 4, 4, 150), clear = IM_COL32(58, 4, 4, 0);
+    const float ry = sh * 0.13f, rx = sw * 0.09f;
+    dl->AddRectFilledMultiColor(ImVec2(0, 0), ImVec2(sw, ry), rim, rim, clear, clear);
+    dl->AddRectFilledMultiColor(ImVec2(0, sh - ry), ImVec2(sw, sh), clear, clear, rim, rim);
+    dl->AddRectFilledMultiColor(ImVec2(0, 0), ImVec2(rx, sh), rim, clear, clear, rim);
+    dl->AddRectFilledMultiColor(ImVec2(sw - rx, 0), ImVec2(sw, sh), clear, rim, rim, clear);
     const float ts = 40.0f * k, qs = 22.0f * k, cs = 20.0f * k;
     const float cy = sh * 0.44f;
-    // The red brush stroke behind the question.
-    faded_rect(dl, sw * 0.5f - 380 * k, cy + ts * 0.95f, sw * 0.5f + 380 * k, cy + ts * 0.95f + 34 * k,
-               IM_COL32(120, 14, 14, 150));
     const float tw = text_w(g_serif, ts, title);
     text(dl, g_serif, ts, sw * 0.5f - tw * 0.5f, cy - ts * 0.4f, IM_COL32(196, 48, 40, 255), title);
     const float qw = text_w(g_serif, qs, question);

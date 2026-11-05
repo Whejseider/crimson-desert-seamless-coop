@@ -53,6 +53,9 @@ RevivePrompt revive_prompt_tick(bool connected, float hp, float hp_max, std::opt
 bool revive_in_place(uint32_t now_ms);
 
 // Sniffer thread (capture_observe_s2c): the checkpoint the server revives us at (LoadingFieldDataAck).
+// Server -> client, before the game sees it: true = not delivered (our own death notice once a copy has been
+// loaded: revive_prompt.cpp).
+bool revive_filter_s2c(const uint8_t* packet, size_t size);
 void revive_observe_s2c(const uint8_t* packet, size_t size);
 
 // Co-op+ dev ([dev] kill_key=1, Ctrl+Shift+F4): DoTeleportAck for our player to (x, y, z). Research for

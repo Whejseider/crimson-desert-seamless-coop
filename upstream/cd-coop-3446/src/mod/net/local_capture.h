@@ -57,6 +57,8 @@ void capture_emit_activity(std::vector<uint8_t> payload);
 void capture_emit_weather(std::vector<uint8_t> payload);
 // Our own player actor's key (0xA01...), 0 until a save was loaded.
 uint32_t capture_own_player_key();
+// Our own body actor (the B0... actor the player template names; 0 until captured).
+uint32_t capture_own_body_key();
 // Our own user key (0x901...), 0 until a save was loaded.
 uint32_t capture_own_user_key();
 // True for a world character load seen (NPCs and enemies; not our pet,

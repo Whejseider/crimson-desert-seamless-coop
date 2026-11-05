@@ -166,7 +166,8 @@ void run_switch(std::wstring target, std::string partner_name, WorldStart start)
         g_switching = false;
     };
     log::info("Co-op worlds: switching to {} ({})", narrow(target.empty() ? L"own saves" : target), label);
-    banner("Co-op+ is taking you to " + label + ": hands off the mouse and keyboard for a moment.");
+    banner(into ? "Entering Co-op Save\nWith " + partner_name + ". Returning to the title screen to load it; please wait."
+                : "Returning to Your Save\nReturning to the title screen to load it; please wait.");
     ++g_epoch;
     set_status("Switching to " + label + "...");
     if (!wait_front("Switching to " + label)) return fail("the game window was not in front");

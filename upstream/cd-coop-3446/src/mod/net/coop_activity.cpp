@@ -570,7 +570,17 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
     bool pressed = challenge_edge(input::action_down(input::Action::Challenge, focused));
     bool declined = decline_edge(input::action_down(input::Action::Decline, focused));
     // The first-launch card's answer, or the first co-op session's (render/hud.cpp).
-    if (optin::card_visible() || worlds_card_visible() || worlds_switch_card_visible()) pressed = declined = false;
+    // A card's answer (render/hud.cpp) is not also a challenge: while a card is up, and until both keys are let go
+    // after it (2026-11-05: the card's Shift+F5 opened the challenge picker as the card closed; the HUD and this run
+    // on different threads).
+    static bool card_keys_held = false;
+    if (optin::card_visible() || worlds_card_visible() || worlds_switch_card_visible()) card_keys_held = true;
+    if (card_keys_held) {
+        if (!input::action_down(input::Action::Challenge, focused) && !input::action_down(input::Action::Decline, focused)) {
+            card_keys_held = false;
+        }
+        pressed = declined = false;
+    }
     const int test_mode = g_challenge_test.load();
     const bool test = test_mode != 0;
     std::optional<std::pair<uint8_t, uint32_t>> send_it;

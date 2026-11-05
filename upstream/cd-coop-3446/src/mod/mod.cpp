@@ -797,8 +797,10 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     if (const auto& rs = session.remote_state()) partner_hp = rs->health;
                     if (cfg.dev_partner_alive) partner_hp = 100.0f;  // one-PC test of the boss-fight wait
                 }
-                revive_prompt =
-                    net::revive_prompt_tick(connected, s.health, s.health_max, partner_hp, game_has_focus(), now);
+                revive_prompt = cfg.dev_no_revive_prompt  // research: the game's own death input only
+                                    ? net::RevivePrompt::None
+                                    : net::revive_prompt_tick(connected, s.health, s.health_max, partner_hp,
+                                                              game_has_focus(), now);
                 // Co-op+ (T26): [coop] respawn_at=partner -- a revive that put us back at the checkpoint (more than
                 // 50 m from where we fell) is followed by the hop to the other player, once we stand again.
                 {
