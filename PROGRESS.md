@@ -872,3 +872,9 @@ Done in the user's Chrome (signed in as Asher):
   for the session -> mount fix installed after the guard tries; (3) hook failures log the inner reason.
   Not released yet (needs the user's OK). Game state after: shipped ini, release asi 69b9b13e (off on 3549), no game
   running.
+- 2026-11-04 23:20-23:40 RELEASED 0.1.0-alpha+0364c3f0 for game 1.0.0.3549 (user: "Yes, release it"): package (unit
+  tests), install test all PASS, Defender clean both zips, installed in the game (asi 1d5bee23..., player's ini kept,
+  installer accepted 3549), smoke start (build 0364C3F0 on 1.0.0.3549, game reader on, 1175 opcodes, SAVES OK).
+  GitHub v0.1.0-alpha-0364c3f0 (Latest; README/FEATURES pushed by hand: publish-playtest.ps1 now stops at git's
+  LF/CRLF warning under ErrorActionPreference Stop). Discord: docs/release/discord-server-posts.md. Test kit
+  (build/port3527/*.sh) restores this asi now.

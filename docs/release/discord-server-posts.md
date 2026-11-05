@@ -79,3 +79,12 @@ friends, then the host presses Ctrl+F1 to invite.
 - #features message 3: new line "NEW: Focus doesn't slow the world in co-op (F8 to turn it back on)" after the weather
   line (1959 characters).
 - #announcements: "Update 0.1.0-alpha+69b9b13e: no slow motion in co-op".
+
+## 2026-11-04 update 0.1.0-alpha+0364c3f0 (game 1.0.0.3549)
+- #download-here: new post with both zips ("NEW: works with today's game update", the load-time and horse fixes),
+  pinned; the 69b9b13e post got a first line "(Older build: use the newest pinned download below,
+  0.1.0-alpha+0364c3f0. It works with the new game version 1.0.0.3549 and loads faster.)" and was unpinned (not
+  deleted). Only the new post is pinned.
+- #announcements: "Update 0.1.0-alpha+0364c3f0: works with today's game update (1.0.0.3549)".
+- #features message 1 and #how-to-install: "1.0.0.3527" -> "1.0.0.3549" (docs/release/discord-features.txt,
+  discord-install.txt).
