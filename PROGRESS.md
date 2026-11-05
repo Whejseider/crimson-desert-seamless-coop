@@ -884,3 +884,15 @@ Done in the user's Chrome (signed in as Asher):
   would have loaded the test world. build/port3460/cloud_remove_slot103.ps1: game to title, delete slot103 while it
   runs (copy in build/test-saves/slot103-cloud-copy-2026-11-04), exit -> Steam synced the deletion; a second launch
   did not bring it back. SAVES OK, user's ini and release asi in place.
+- 2026-11-05 00:25-00:45 MISTAKE + FIX: a New Game probe (build/port3527/newgame_probe.sh, empty co-op world
+  "newgame-probe": the title shows Play/Load greyed, only New Game; a short Z press did not start it) ran right after
+  the user had played (their slot2 saved 00:16:48, real progress). trial.ps1 deleted the user's session log
+  (cdmp.log) and rewrote cdmp.ini from the 2026-11-04 14:40 copy (the user's opt-in answer is gone: the card asks
+  again). savecheck.sh compared with the 2026-11-01 backup and its --fix would have rolled slot2 back at the next
+  test (it was not run). Fixed in the test kit (build/, not in git): savecheck.sh --snapshot (player's slots + ini
+  at test start; compare / --fix / --restore-ini against that), test_guard.sh sourced by every game test script
+  (refuses to run while Crimson Desert is running; snapshots first), run_echo.ps1 / trial.ps1 never close a running
+  game, trial.ps1 keeps the last log and builds the test ini from the snapshot. Reference now
+  SaveBackups/reference-2026-11-05_00-30-00 (= the user's real slot2 of 00:16:48), SAVES OK.
+- User request (00:20): on the first invite, choose "new save" (both start the game from the beginning) or "start
+  from the host's progress"; solo saves must stay safe. Not built yet (FLAGS F17); a no-code way for tonight given.
