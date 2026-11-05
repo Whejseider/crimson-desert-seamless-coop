@@ -115,14 +115,36 @@ _hdr_src = _read_header('offsets.h') + '\n' + ''.join(_read_header(h) for h in _
 # head array can legitimately live in either file. Both are searched, with the
 # ACTIVE build's text FIRST: a name defined in both must resolve to the active one,
 # and the lookup below takes the first match for that reason.
-_hdr_search = _hdr_src + '\n' + _read_header('offsets_3460.h') + '\n' + _read_header('offsets_3446.h') + '\n' + _read_header('offsets_3424.h')
+# The base tables are found by following each header's own #include of an older
+# table (3549 -> 3527 -> 3479 -> ...), nearest first, so a port that re-exports a
+# whole table (3549 changed only the stamp and the size) resolves to the right values.
+_chain, _seen = [], set(_hdr_names)
+_cur = _hdr_names[0] if _hdr_names else None
+while _cur:
+    _inc = _re.findall(r'#include\s+"mod/game/(offsets_\w+\.h)"', _read_header(_cur))
+    _cur = next((h for h in _inc if h not in _seen), None)
+    if _cur:
+        _seen.add(_cur)
+        _chain.append(_cur)
+for _old in ('offsets_3460.h', 'offsets_3446.h', 'offsets_3424.h'):
+    if _old not in _seen:
+        _chain.append(_old)
+_hdr_search = _hdr_src + '\n' + '\n'.join(_read_header(h) for h in _chain)
+print('  base tables  : %s' % ' -> '.join(_chain))
 print('  active build header: %s' % (_hdr_names[0] if _hdr_names else '(none found)'))
 ok('offsets.h includes exactly one build header', len(_hdr_names) == 1,
    'found %d' % len(_hdr_names))
 
 def _hdr_value(name):
     vals = _re.findall(_re.escape(name) + r'\s*=\s*(0x[0-9A-Fa-f]+)', _hdr_src)
-    return int(vals[-1], 16) if vals else None
+    if vals:
+        return int(vals[-1], 16)
+    # Inherited (`using build_NNNN::name;`): the nearest base table that defines it.
+    for h in _chain:
+        vals = _re.findall(r'constexpr[^=;]*\b' + _re.escape(name) + r'\s*=\s*(0x[0-9A-Fa-f]+)', _read_header(h))
+        if vals:
+            return int(vals[0], 16)
+    return None
 
 _hdr_stamp = _hdr_value('kPeTimestamp')
 _hdr_base = _hdr_value('kImageBase')

@@ -5,7 +5,6 @@
 #include <atomic>
 #include <cstring>
 
-#include "mod/game/safe_memory.h"
 #include "mod/log.h"
 
 namespace cdmp::net {
@@ -30,14 +29,15 @@ void slowmo_configure(bool block, bool always) {
 }
 
 bool slowmo_filter_s2c(const uint8_t* packet, uint16_t size) {
+    // The game's own receive buffer of `size` bytes, read directly like the other filters in the chain. Co-op+ (3549
+    // port): this used game::safe_read, a VirtualQuery per packet received; while a load streams thousands of
+    // messages that call waited on the loader threads' allocations, and LoadingCompleteAck came ~50 s late.
     if (!packet || size < 14) return false;
-    uint8_t head[14];
-    if (!game::safe_read(reinterpret_cast<uintptr_t>(packet), head, sizeof head)) return false;
     uint16_t op;
     uint32_t mode;
-    std::memcpy(&op, head, 2);
+    std::memcpy(&op, packet, 2);
     if (op != kOpEnableSpecialModeAck) return false;
-    std::memcpy(&mode, head + 9, 4);
+    std::memcpy(&mode, packet + 9, 4);
     if (mode != kModeFocus) return false;
     if (!(g_always.load() || (g_block.load() && g_connected.load()))) {
         static std::atomic<int> said{0};

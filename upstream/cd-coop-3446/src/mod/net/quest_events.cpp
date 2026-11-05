@@ -16,7 +16,7 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3527;
+namespace off = game::build_3549;
 
 constexpr uintptr_t kPostEvent = 0x19434D0;  // exe+0x19434D0(handler, GameEventHandlerParameter*)
 constexpr uint8_t kPostHead[16] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74,

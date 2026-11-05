@@ -1,6 +1,6 @@
 # Crimson Desert Seamless Co-op+ (alpha): features
 
-Two-player co-op for Crimson Desert (Steam, game version 1.0.0.3527). Each of you plays in your own save;
+Two-player co-op for Crimson Desert (Steam, game version 1.0.0.3549). Each of you plays in your own save;
 your friend joins your world as their own character. Unofficial fan mod, built on Crimson Desert Multiplayer by
 ByJunter and its port by nouzert1.
 

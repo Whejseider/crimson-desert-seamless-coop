@@ -148,7 +148,7 @@ bool game_build_supported() {
     const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
     const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
-    return base == game::build_3527::kImageBase && nt->FileHeader.TimeDateStamp == game::build_3527::kPeTimestamp;
+    return base == game::build_3549::kImageBase && nt->FileHeader.TimeDateStamp == game::build_3549::kPeTimestamp;
 }
 
 bool log_process_info() {
@@ -189,7 +189,7 @@ public:
     explicit LocalSource(bool in_game) : in_game_(in_game) {
         if (!in_game_) return;
         if (reader_.init()) {
-            log::info("Game reader enabled (build 1.0.0.3527 offsets)");
+            log::info("Game reader enabled (build 1.0.0.3549 offsets)");
         } else {
             log::warn("Game reader DISABLED: {}. Only networking will run.",
                       reader_.last_failure());
@@ -1326,7 +1326,7 @@ void minimap_cycle_loop() {
         if (down && !was_down) {
             const bool back = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
             int at = net::puppet_minimap_offset();
-            if (at < 0xEA || at > 0x16C) at = game::build_3527::kMinimapIconPlayerArrow;
+            if (at < 0xEA || at > 0x16C) at = game::build_3549::kMinimapIconPlayerArrow;
             else at += back ? -2 : 2;
             if (at > 0x16C) at = 0xEA;
             if (at < 0xEA) at = 0x16C;
@@ -1463,7 +1463,7 @@ DWORD WINAPI late_init(LPVOID param) {
     if (init->in_game) {
         log::info("Late init: waiting for the game to finish starting up");
         const auto world_slot = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr)) +
-                                game::build_3527::kWorldSystemSlot;
+                                game::build_3549::kWorldSystemSlot;
         // WorldSystem exists from the title screen on, i.e. after the game
         // created its device and swap chain and started presenting.
         while (!stop_requested(500)) {
@@ -1529,8 +1529,15 @@ DWORD WINAPI late_init(LPVOID param) {
             log::warn("Crash guards: try {} of 5 failed{}", attempt, attempt < 5 ? "; again in 2 s" : "");
             if (attempt < 5) Sleep(2000);
         }
-        if (!contained) {
+        // Co-op+ (3549 port): the mount/dismount fixes are installed after the tries. The climb fix above used to
+        // try the guards itself, and when that first try did not take (1 launch in 2 on 1.0.0.3549) it turned the
+        // horse copy off for the session although the guards took 2 s later.
+        if (guarded) {
+            net::puppet_install_ride_fix();
+        } else {
             net::puppet_set_horse_enabled(false);
+        }
+        if (!contained) {
             log::warn("Horse and enemy copies disabled: their crash containment could not be installed");
             render::hud_set_problem(render::Problem::Guards,
                                     "Your friend's horse and the shared enemies are off this time (a safety check did "
@@ -1637,6 +1644,7 @@ DWORD WINAPI late_init(LPVOID param) {
     } else if (init->clone_hotkeys) {
         net::puppet_set_offset(init->mirror_offset_m);
         net::puppet_install_climb_fix();
+        net::puppet_install_ride_fix();
         net::puppet_visibility_install();  // Co-op+: copies are drawn (3460)
         net::capture_install_equip_hook();
         mirror_hotkey_loop(init->mirror_delay_ms);
@@ -1693,7 +1701,7 @@ DWORD WINAPI worker(LPVOID) {
         const bool build_ok = !in_game || game_build_supported();
         std::string build_problem;
         if (!build_ok) {
-            build_problem = std::format("Co-op+ is off: this mod was made for game version 1.0.0.3527, not {}. "
+            build_problem = std::format("Co-op+ is off: this mod was made for game version 1.0.0.3549, not {}. "
                                         "The game runs normally; update Co-op+ to play together.",
                                         file_version(module_path(nullptr)));
             log::warn("{}", build_problem);

@@ -6,7 +6,7 @@ Screenshots: `docs/release/shot-list.md`. Files to upload: the player zip (main 
 
 **Name:** Crimson Desert Seamless Co-op+
 **Category:** Gameplay. **Tags:** multiplayer, co-op, gameplay. **Version:** 0.1.0-alpha.
-**Game version:** 1.0.0.3527 (Steam). On any other version the mod switches itself off.
+**Game version:** 1.0.0.3549 (Steam). On any other version the mod switches itself off.
 
 ## Summary (one line, at most 350 characters)
 Play Crimson Desert with a Steam friend. Invite them or use "Join Game", explore and fight the same enemies
@@ -53,7 +53,7 @@ world.
   could clash.
 
 ### Requirements
-- Crimson Desert on Steam, game version 1.0.0.3527. Both players need the **same Co-op+ zip**.
+- Crimson Desert on Steam, game version 1.0.0.3549. Both players need the **same Co-op+ zip**.
 - Steam friends, with the Steam overlay on.
 - Ultimate ASI Loader is included (ThirteenAG, MIT). Nothing else to install.
 

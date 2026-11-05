@@ -15,7 +15,7 @@
 namespace cdmp::net {
 
 // Hooks the server's mission state setter (to learn the quest manager) and MissionTriggerInOutReq's handler (where
-// requests run). Build 1.0.0.3527 only (each site is checked); false if a site does not match. Once.
+// requests run). Build 1.0.0.3549 only (each site is checked); false if a site does not match. Once.
 bool quest_advance_install();
 // True once the quest manager is known (after a save has loaded).
 bool quest_advance_ready();

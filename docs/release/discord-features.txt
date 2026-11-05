@@ -1,6 +1,6 @@
 ===== Discord message 1 of 3 (paste as its own message) =====
 **Crimson Desert Seamless Co-op+ (alpha) - feature list**
-Two-player co-op (Steam, game 1.0.0.3527). Each of you keeps your own save; your friend joins your world as their own character.
+Two-player co-op (Steam, game 1.0.0.3549). Each of you keeps your own save; your friend joins your world as their own character.
 `Works` = checked in game on one PC against a stand-in player (still report what you see)
 `Needs testing` = built, needs two real players to confirm. Please try these!
 `Not yet` = not in this version

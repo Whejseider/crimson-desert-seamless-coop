@@ -8,6 +8,7 @@
 
 #include <safetyhook.hpp>
 
+#include "mod/hook_error.h"
 #include "mod/game/offsets.h"
 #include "mod/game/safe_memory.h"
 #include "mod/log.h"
@@ -15,7 +16,7 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3527;
+namespace off = game::build_3549;
 
 constexpr uint32_t kCopyHorse = 0xB010F002;
 
@@ -362,7 +363,8 @@ bool hook(const Site& site, SafetyHookMid& out, safetyhook::MidHookFn fn) {
     auto h = safetyhook::MidHook::create(reinterpret_cast<void*>(base + site.rva), fn);
     if (!h) {
         // Co-op+ (T06): the reason, for the rare launch where a hook does not take (1 in 80, 2026-11-03).
-        log::warn("HorseDiag: {} hook failed (safetyhook error {})", site.name, static_cast<int>(h.error().type));
+        log::warn("HorseDiag: {} hook failed (safetyhook error {}.{})", site.name,
+                  static_cast<int>(h.error().type), hook_failure_detail(h.error()));
         return false;
     }
     out = std::move(*h);

@@ -22,6 +22,7 @@
 
 #include "common/equip_state.h"
 #include "common/inject_clock.h"
+#include "mod/hook_error.h"
 #include "mod/game/actor_lookup.h"
 #include "mod/game/game_clock.h"
 #include "mod/game/offsets.h"
@@ -34,7 +35,7 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3527;
+namespace off = game::build_3549;
 using Bytes = std::vector<uint8_t>;
 
 // Fresh keys for the puppet. Real serials seen so far are below 0x1000, so
@@ -2631,8 +2632,8 @@ bool puppet_install_layer_guards() {
                 if (hook) {
                     g_layer_guard_hook = std::move(*hook);
                 } else {
-                    log::warn("Puppet: action-layer guard hook failed (safetyhook error {})",
-                              static_cast<int>(hook.error().type));
+                    log::warn("Puppet: action-layer guard hook failed (safetyhook error {}.{})",
+                              static_cast<int>(hook.error().type), hook_failure_detail(hook.error()));
                 }
                 uint8_t h2[sizeof off::kActionLayersAdvanceHead];
                 if (game::safe_read(base + off::kActionLayersAdvance, h2, sizeof h2) &&
@@ -2642,8 +2643,8 @@ bool puppet_install_layer_guards() {
                     if (skip) {
                         g_layers_skip_hook = std::move(*skip);
                     } else {
-                        log::warn("Puppet: action-layers skip hook failed (safetyhook error {})",
-                                  static_cast<int>(skip.error().type));
+                        log::warn("Puppet: action-layers skip hook failed (safetyhook error {}.{})",
+                                  static_cast<int>(skip.error().type), hook_failure_detail(skip.error()));
                     }
                 } else {
                     log::warn("Puppet: action-layers advance (exe+0x{:X}) not recognised", off::kActionLayersAdvance);
@@ -2677,18 +2678,24 @@ bool puppet_install_climb_fix() {
                                                    reinterpret_cast<void*>(point_climb_enter));
     const bool ok = static_cast<bool>(g_climb_enter_hook);
     log::info("Puppet: wall-climb fix {}", ok ? "installed" : "FAILED to install");
-    // Mount / dismount (same idea). Both share one prologue. Only with the
+    return ok;
+}
+
+bool puppet_install_ride_fix() {
+    // Mount / dismount (same idea as the climb fix). Both share one prologue. Only with the
     // horse: without one, the copy stayed stuck in the dismount pose.
-    if (!g_horse_enabled) return ok;
+    if (!g_horse_enabled) return true;
     // A horse copy must never load without the guard (caballo-coop.md §9.4 R1).
     if (!puppet_install_layer_guards()) {
         g_horse_enabled = false;
         log::warn("Puppet: action-layer crash guard not installed; horse copy disabled");
-        return ok;
+        return false;
     }
+    const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
     for (auto [rva, hook, fn, name] :
          {std::tuple{off::kRideOnEnter, &g_ride_on_hook, reinterpret_cast<void*>(ride_on_enter), "RideOn"},
          }) {
+        if (*hook) continue;
         uint8_t h[sizeof off::kRideEnterHead];
         if (!game::safe_read(base + rva, h, sizeof h) || std::memcmp(h, off::kRideEnterHead, sizeof h) != 0) {
             log::warn("Puppet: {}::Enter not recognised; mounting may freeze the other player", name);
@@ -2697,7 +2704,7 @@ bool puppet_install_climb_fix() {
         *hook = safetyhook::create_inline(reinterpret_cast<void*>(base + rva), fn);
         log::info("Puppet: {} fix {}", name, *hook ? "installed" : "FAILED to install");
     }
-    return ok;
+    return true;
 }
 
 void puppet_scrub_c2s(uint8_t* packet, uint16_t size) {

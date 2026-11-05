@@ -23,7 +23,7 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3527;
+namespace off = game::build_3549;
 
 constexpr uint32_t kPuppetPlayer = 0xA010F001;
 // Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
@@ -51,8 +51,11 @@ constexpr uint8_t kSetCurrentTargetHead[] = {0x48, 0x8B, 0xC4, 0x4C, 0x89, 0x48,
 // never fills for the other player's copy (it only does for actors this
 // client controls): enemies on the copy always wait and circle
 // (copia-objetivo-sin-ataques.md section 7). The entry is a 5-byte jmp into .xtls.
+// Co-op+ (3549): the entry did not move (the vtable slot 0x5C7CAD8 still holds it), but its jmp target did
+// (3527 -> 0xD0B4BD0, 3549 -> 0xD047F30): the copy protection is re-laid out on every game build, so these five
+// bytes must be re-read on each port (build/port3549/dis2.py, vtref.py). 3527: E9 6B 2F BF 0A.
 constexpr uintptr_t kCheckAIBattleType = 0x24C1C60;  // 3479: 0x24BE2F0 (slot 1 of the vtable, now 0x5C7CAD0)
-constexpr uint8_t kCheckAIBattleTypeHead[] = {0xE9, 0x6B, 0x2F, 0xBF, 0x0A};
+constexpr uint8_t kCheckAIBattleTypeHead[] = {0xE9, 0xCB, 0x62, 0xB8, 0x0A};
 
 SafetyHookInline g_is_targetable;
 SafetyHookInline g_battle_type;

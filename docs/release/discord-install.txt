@@ -3,7 +3,7 @@
 
 **Download:** the newest zip pinned in #download-here: `CrimsonDesert-SeamlessCoop-<version>.zip` (not the `-mod-manager` one). **You and your co-op partner need the SAME zip.**
 
-**You need:** Crimson Desert on Steam, game version 1.0.0.3527. You and your partner must be Steam friends with the Steam overlay on.
+**You need:** Crimson Desert on Steam, game version 1.0.0.3549. You and your partner must be Steam friends with the Steam overlay on.
 
 **Install (game closed):**
 1. Right-click the zip > Properties. If there's an **Unblock** box at the bottom, tick it > OK.

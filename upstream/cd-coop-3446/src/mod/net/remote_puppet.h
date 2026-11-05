@@ -92,6 +92,9 @@ bool puppet_take_injection(std::vector<uint8_t>& out);
 // Lets the puppet follow its network position during free wall climbs
 // (hooks PointClimb::Enter; only the puppet is affected). Call once.
 bool puppet_install_climb_fix();
+// The mount/dismount fixes for the horse copy ([coop] horse=1): they need the crash guards below, and turn the
+// horse copy off when those cannot be installed. Call after the guards' own tries (mod.cpp); idempotent.
+bool puppet_install_ride_fix();
 
 // Crash guards for network-created copies whose action layers have a chart
 // but nothing playing yet (INFORME-CABALLO-CRASH.md). Call once; idempotent.
@@ -129,7 +132,7 @@ void puppet_want_rope_bend(bool on);
 
 // Load and drive the sender's horse too, with the mount/dismount fixes
 // ([coop] horse=1; experimental, off by default). Call before
-// puppet_install_climb_fix.
+// puppet_install_ride_fix.
 void puppet_set_horse_enabled(bool on);
 // Apply the sender's equipment changes ([coop] equip=1; experimental).
 void puppet_set_equip_enabled(bool on);

@@ -18,7 +18,7 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3527;
+namespace off = game::build_3549;
 
 // The state steps on 3460 (each: cmp word [rcx+0x5E], from / jnz / mov word [rcx+0x5E], to / ret).
 struct Step {

@@ -860,3 +860,15 @@ Done in the user's Chrome (signed in as Asher):
   player's ini kept), smoke start (build 69B9B13E, "Focus's slow motion is skipped in co-op sessions", SAVES OK),
   GitHub release v0.1.0-alpha-69b9b13e (Latest; the publish script's release step fails on quotes in -Notes, so
   gh release create --notes-file), Discord (docs/release/discord-server-posts.md). Test kit restores this asi now.
+- 2026-11-04 22:20-23:25 PORT to game 1.0.0.3549 (Steam update; user: "make sure everything works for the newest
+  update"). Details: docs/research/port-3549.md. Every mod address maps to itself (map_all.py, all +0, heads equal);
+  offsets_3549.h = 3527's table with the new PE stamp / image size; installer, README and release texts say 3549;
+  verify-port.ps1 follows the header include chain (all pass). AI battle-type jmp head re-read (protection moved).
+  Live, one PC, devtest world, SAVES OK each run: session + partner (p49b/c), aggro hook, Focus block (3126/101
+  unchanged, fb49/fb49b), live quests both ways (ls49c), far apart (far49), opt-in card (opt49).
+  Found + fixed: (1) loads ~50 s slower since the slow-motion block (VirtualQuery per received packet; in-world ->
+  LoadingCompleteAck 37-63 s since 20:58 vs 12 s before; the released 69b9b13e has it) -> direct read, 12 s again;
+  (2) a transient crash-guard hook failure (1.3, trampoline out of range; retry succeeds) left the horse copy off
+  for the session -> mount fix installed after the guard tries; (3) hook failures log the inner reason.
+  Not released yet (needs the user's OK). Game state after: shipped ini, release asi 69b9b13e (off on 3549), no game
+  running.

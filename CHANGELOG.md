@@ -2,6 +2,8 @@
 
 ## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 
+Game 1.0.0.3549 (2026-11-04): Steam updated the game again. No game address moved (docs/research/port-3549.md); offline checks pass and co-op, live quests, the Focus block, far-apart partners and the opt-in card were verified live on one PC. Fixed on the way: loading screens took about 50 s longer since the slow-motion block (each received message was checked with a slow memory query), and a hook that needed a second try could leave your friend's horse switched off for the session.
+
 No slow motion in co-op (2026-11-04, playtester poll): while a co-op session is up, Focus no longer slows the world. Focus is a "special mode" (101) the game's in-process server switches on; the mod does not pass that switch to the client, so the ability still triggers but time keeps its normal speed and both worlds stay in step. Alone, nothing changes. F8 > Settings "Slow motion (Focus) in co-op" ([coop] block_slowmo) turns it back on.
 
 Fix (2026-11-04, from a Reddit question): when your friend is far away (another region), their character is no longer left frozen next to you and reloaded every 15-20 s. It is hidden beyond 600 m (the partner frame shows the real distance) and comes back once they are within 400 m. Your own character is never affected; there is no distance limit.
