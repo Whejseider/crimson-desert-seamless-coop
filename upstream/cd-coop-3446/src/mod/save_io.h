@@ -36,6 +36,11 @@ bool world_exists(const std::wstring& name);
 bool world_has_saves(const std::wstring& name);
 // Unknown: no such world.
 WorldStart world_start(const std::wstring& name);
+// Co-op+ (2026-11-05): a world made by an earlier version (no coopplus-world.ini: a copy of the player's own progress).
+bool world_is_legacy(const std::wstring& name);
+void world_mark_continue(const std::wstring& name);
+// Renamed to <name>-old-<date>-<time> (kept, never deleted) so the next switch makes a new one. Not while in use.
+bool world_archive(const std::wstring& name, std::string* why);
 // A new-game world whose new game has not been started yet (the next switch presses New Game, not Play).
 bool world_new_game_pending(const std::wstring& name);
 void world_mark_new_game_started(const std::wstring& name);

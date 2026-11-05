@@ -294,23 +294,26 @@ void hud_draw(float width, float height) {
         }
         if (g_guide_since.load()) g_guide_since = GetTickCount64();  // the controls card comes after
     }
-    // Co-op+ (2026-11-05): the host's first session with a friend: how the co-op world starts (coop_worlds.h).
+    // Co-op+ (2026-11-05): the host, once, for a co-op save made by an earlier version (a copy of their own progress):
+    // a new journey for both, or keep it (coop_worlds.h).
     static input::Edge world_new, world_cont;
     const bool world_up = !optin_up && net::worlds_card_visible() && opt.build_problem.empty();
     if (world_up) {
+        const std::string name = net::worlds_card_partner();
         if (world_new(input::action_down(input::Action::Challenge, focus))) {
             net::worlds_answer(true);
         } else if (world_cont(input::action_down(input::Action::Decline, focus))) {
             net::worlds_answer(false);
         } else {
-            ui::guide_card(width, height, "First co-op session with " + net::worlds_card_partner(),
-                           {"You each get a separate co-op save for playing together. How should it start?",
+            ui::guide_card(width, height, "A New Journey with " + name + "?",
+                           {"Your co-op save with " + name + " was made by an earlier version of Co-op+,",
+                            "as a copy of your own progress. Co-op saves now begin at the start of the story.",
                             "",
-                            "{Challenge}   NEW SAVE: you both start the game from the beginning",
-                            "{Decline}   Start from your progress: your friend keeps their character and joins your story",
+                            "{Challenge}   Begin a new journey together (the old co-op save is kept as a backup)",
+                            "{Decline}   Continue the old co-op save",
                             "",
-                            "Your own saves are never touched. Your friend's game follows your choice."},
-                           "With a new save, each of you accepts the agreement and picks the difficulty.");
+                            "Your own saves are never touched. " + name + "'s game follows your choice."},
+                           "Asked once for this co-op save.");
         }
         if (g_guide_since.load()) g_guide_since = GetTickCount64();
     }

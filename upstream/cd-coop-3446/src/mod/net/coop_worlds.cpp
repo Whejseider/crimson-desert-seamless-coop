@@ -328,8 +328,10 @@ void worlds_tick(const WorldsInput& in_raw) {
         // The host tells the guest how their world starts, once per connection (as soon as it is known).
         if (in.host && g_sent == WorldStart::Unknown) {
             const std::wstring w = world_for(g_partner_key);
-            const WorldStart s = save_io::world_exists(w) ? save_io::world_start(w)
-                                 : g_choice_key == g_partner_key ? g_choice : WorldStart::Unknown;
+            // An earlier version's co-op save waits for the host's answer (the card) before anything is said.
+            const WorldStart s = save_io::world_exists(w) && !save_io::world_is_legacy(w) ? save_io::world_start(w)
+                                 : g_choice_key == g_partner_key                          ? g_choice
+                                                                                          : WorldStart::Unknown;
             if (s != WorldStart::Unknown) {
                 g_out.push_back({kMsgStart, static_cast<uint8_t>(s == WorldStart::NewGame ? 1 : 2)});
                 g_sent = s;
@@ -375,7 +377,36 @@ void worlds_tick(const WorldsInput& in_raw) {
     // save before launching their co-op mode for the first time"): a pair's first co-op save is always a NEW GAME for
     // both. The host decides it (and tells the guest, World message); the guest waits for that word, so both games
     // agree even if one of them already had a world with the other. Nothing switches until it is known.
+    // Co-op+ (2026-11-05): a co-op save made by an earlier version (a copy of the player's own progress). The host is
+    // asked once: a new journey (the old save is kept as <name>-old-<date>, worlds_answer) or continue it; the guest's
+    // game follows the host's word the same way.
+    if (!g_want.empty() && g_want != active) {
+        if (in.host && save_io::world_is_legacy(g_want) && g_choice_key != g_partner_key) {
+            if (!g_card) log::info("Co-op worlds: {}'s co-op save is from an earlier version: asking", g_partner_name);
+            g_card_key = g_partner_key;
+            g_card_name = g_partner_name;
+            g_card = true;
+            g_countdown_until = 0;
+            g_status = "A new journey with " + g_partner_name + "? (the card on screen)";
+            return;
+        }
+        if (!in.host && save_io::world_exists(g_want) && g_host_said_key == g_partner_key) {
+            std::string why;
+            if (g_host_said == WorldStart::NewGame && save_io::world_start(g_want) != WorldStart::NewGame) {
+                if (!save_io::world_archive(g_want, &why)) log::warn("Co-op worlds: old co-op save not set aside: {}", why);
+            } else if (g_host_said == WorldStart::Continue && save_io::world_is_legacy(g_want)) {
+                save_io::world_mark_continue(g_want);
+            }
+        }
+    }
     WorldStart start = WorldStart::Continue;
+    // The guest never enters a co-op save before the host's game has said how it starts (sent at once on every
+    // connection): an earlier version's save at the title was entered before a "new journey" word could set it aside.
+    if (!in.host && !g_want.empty() && g_host_said_key != g_partner_key) {
+        g_countdown_until = 0;
+        g_status = "Joining " + g_partner_name + ": waiting for their game.";
+        return;
+    }
     if (!g_want.empty() && !save_io::world_exists(g_want)) {
         if (in.host && g_choice_key != g_partner_key) {
             g_choice_key = g_partner_key;
@@ -468,6 +499,14 @@ void worlds_answer(bool new_game) {
     g_choice_key = g_card_key;
     g_choice = new_game ? WorldStart::NewGame : WorldStart::Continue;
     g_status.clear();
+    // The earlier version's co-op save: set aside for the new journey (kept, never deleted), or kept going.
+    const std::wstring w = world_for(g_card_key);
+    std::string why;
+    if (new_game && save_io::world_exists(w) && !save_io::world_archive(w, &why)) {
+        log::warn("Co-op worlds: old co-op save not set aside: {}", why);
+    } else if (!new_game && save_io::world_is_legacy(w)) {
+        save_io::world_mark_continue(w);
+    }
     log::info("Co-op worlds: our co-op world with {} starts from {}", g_card_name, start_text(g_choice));
 }
 

@@ -955,3 +955,8 @@ Done in the user's Chrome (signed in as Asher):
   result as the big title card ("Victory" / "Defeat", game and score, 6 s); banners say "first to 2". du2: two
   duel rounds lost -> "Defeat / Duel vs ... 0 - 2", challenge closed. Not done: the RPS hand animation (our
   challenge, not the game's minigame; known limitation).
+- 2026-11-05 05:35 Co-op saves made by earlier versions (copies of the player's progress, no coopplus-world.ini; the
+  user and Matikjr have one from the playtest): the host is asked ONCE ("A New Journey with X?": begin a new journey,
+  the old co-op save kept as <name>-old-<date>-<time>, never deleted; or continue it, marked continue); the guest's
+  game follows. The guest never enters a co-op save before the host's word for the connection (it had entered its
+  old save at the title before the word, nw13). nw12 (host) / nw14 (guest): old save set aside, new journey begun.

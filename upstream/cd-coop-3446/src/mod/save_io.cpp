@@ -277,6 +277,34 @@ bool world_has_saves(const std::wstring& name) {
     return false;
 }
 
+bool world_is_legacy(const std::wstring& name) {
+    std::error_code ec;
+    return world_exists(name) && !fs::exists(g_worlds_root + name + L"\\coopplus-world.ini", ec);
+}
+
+void world_mark_continue(const std::wstring& name) {
+    WritePrivateProfileStringW(L"world", L"start", L"continue", (g_worlds_root + name + L"\\coopplus-world.ini").c_str());
+}
+
+bool world_archive(const std::wstring& name, std::string* why) {
+    if (name.empty() || world() == name) {
+        if (why) *why = "that co-op save is in use";
+        return false;
+    }
+    SYSTEMTIME t{};
+    GetLocalTime(&t);
+    const std::wstring to = g_worlds_root + name + std::format(L"-old-{:04}{:02}{:02}-{:02}{:02}{:02}", t.wYear, t.wMonth,
+                                                               t.wDay, t.wHour, t.wMinute, t.wSecond);
+    std::error_code ec;
+    fs::rename(g_worlds_root + name, to, ec);
+    if (ec) {
+        if (why) *why = ec.message();
+        return false;
+    }
+    log::info("SaveIO: co-op save '{}' kept as '{}' (a new journey starts)", narrow(name), narrow(to.substr(g_worlds_root.size())));
+    return true;
+}
+
 bool world_new_game_pending(const std::wstring& name) {
     if (world_start(name) != WorldStart::NewGame) return false;
     return GetPrivateProfileIntW(L"world", L"new_game_started", 0,
