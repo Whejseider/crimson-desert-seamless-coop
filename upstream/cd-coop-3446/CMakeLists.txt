@@ -142,6 +142,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/coop_chat.cpp
     src/mod/settings_menu.cpp
     src/mod/net/kill_feed.cpp
+    src/mod/net/session_summary.cpp
     src/mod/net/coop_race.cpp
     src/mod/net/scoreboard.cpp
     src/mod/net/weather_sync.cpp

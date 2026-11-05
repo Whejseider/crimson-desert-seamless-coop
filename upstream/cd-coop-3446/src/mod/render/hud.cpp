@@ -22,6 +22,7 @@
 #include "mod/render/game_ui.h"
 #include "mod/settings_menu.h"
 #include "mod/net/coop_worlds.h"
+#include "mod/net/session_summary.h"
 #include "mod/optin.h"
 
 namespace cdmp::render {
@@ -358,6 +359,39 @@ void hud_draw(float width, float height) {
                            "Nothing changes until you choose.");
         }
         if (g_guide_since.load()) g_guide_since = GetTickCount64();
+    }
+    // Co-op+ (2026-11-05): the session summary once the friend is gone (session_summary.h). It waits for the other
+    // cards, menus, cutscenes and loading (we must be standing in the world), then stays 15 s; {Decline} closes it.
+    {
+        constexpr ULONGLONG kShowMs = 15000, kFadeMs = 1500;
+        static ULONGLONG shown_at = 0;
+        static input::Edge close_edge;
+        const net::SummaryCard sc = net::summary_card();
+        const bool clear = !optin_up && !world_up && !switch_up && net::worlds_banner().empty() && d.local &&
+                           !d.revive_prompt && !game::ui_menu_open() && !game::cutscene_playing().value_or(false);
+        const bool close = close_edge(input::action_down(input::Action::Decline, focus));
+        if (!sc.pending) {
+            shown_at = 0;
+        } else if (clear) {
+            if (!shown_at) {
+                shown_at = GetTickCount64();
+                net::summary_card_shown();
+            }
+            const ULONGLONG age = GetTickCount64() - shown_at;
+            if (age >= kShowMs || (close && age > 400)) {
+                net::summary_card_done();
+                shown_at = 0;
+            } else {
+                const float a = age < 400 ? static_cast<float>(age) / 400.0f
+                                : age > kShowMs - kFadeMs ? static_cast<float>(kShowMs - age) / kFadeMs
+                                                          : 1.0f;
+                std::vector<ui::SummaryLine> rows;
+                for (const auto& r : sc.rows) rows.push_back({r.label, r.ours, r.theirs});
+                ui::summary_card(width, height, sc.title, sc.subtitle, sc.partner, rows,
+                                 "Until your next journey together.        {Decline}  Close", a);
+                if (g_guide_since.load()) g_guide_since = GetTickCount64();
+            }
+        }
     }
     // While the mod drives the game to the title and back: one centred card, the game's title-card style.
     if (const std::string b = net::worlds_banner(); !b.empty()) {

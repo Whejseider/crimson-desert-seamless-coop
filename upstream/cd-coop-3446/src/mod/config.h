@@ -163,6 +163,7 @@ struct Config {
     // Co-op+: a co-op world (separate saves) per friend, switched to when a session starts (coop_worlds.h).
     bool coop_coop_worlds = false;
     std::string dev_coop_world_partner;  // Co-op+ dev: partner key for one-PC tests (the echo peer has no Steam id)
+    bool dev_summary_test = false;  // Co-op+ dev: the session summary card for any session, 3 s after it ends
     bool dev_no_revive_prompt = false;  // Co-op+ dev: no revive prompt and no revive keys (death-screen research)
     bool dev_coop_world_as_host = false;  // Co-op+ dev: the co-op worlds side acts as the host (first-session card)
     // Co-op+: quest steps follow between the players live, while both are in a co-op world (quest_live.h).

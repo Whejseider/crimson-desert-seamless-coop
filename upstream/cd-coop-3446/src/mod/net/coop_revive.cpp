@@ -11,6 +11,7 @@
 #include "mod/log.h"
 #include "mod/net/coop_activity.h"
 #include "mod/net/revive_prompt.h"
+#include "mod/net/session_summary.h"
 
 namespace cdmp::net {
 namespace {
@@ -56,6 +57,7 @@ ReviveTick revive_partner_tick(bool connected, float hp, float hp_max, const pro
         if (g_revived_by_partner.exchange(false)) {
             if (g_on && connected && down_ms < kBleedOutMs + 2000 && revive_in_place(now)) {
                 log::info("Revive: {} revived us", who);
+                summary_note(SummaryStat::TheyRevivedUs);
             }
         } else if (g_on && connected && partner && !partner_down && down_ms < kBleedOutMs) {
             out.line = std::format("{} can revive you ({} s)", who, (kBleedOutMs - down_ms + 999) / 1000);
@@ -95,6 +97,7 @@ ReviveTick revive_partner_tick(bool connected, float hp, float hp_max, const pro
     activity_send(kReviveYouType, {});
     out.toast = std::format("Co-op\nYou revived {}", who);
     log::info("Revive: we revived {}", who);
+    summary_note(SummaryStat::WeRevived);
     return out;
 }
 

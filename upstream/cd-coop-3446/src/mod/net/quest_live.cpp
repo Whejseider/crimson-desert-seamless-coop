@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "mod/log.h"
+#include "mod/net/session_summary.h"
 #include "mod/net/coop_worlds.h"
 #include "mod/net/party_quests.h"
 #include "mod/net/quest_advance.h"
@@ -118,6 +119,7 @@ void watch_mission_list(const uint8_t* packet, size_t size) {
                 if (g_now - inj.at > kResultMs || (inj.mission && inj.mission != key)) continue;
                 from_partner = true;
                 ++g_steps_together;
+                summary_note(SummaryStat::QuestStep);
                 log::info("Live quests: {} finished here too (from {})", mission_label(key), g_partner);
                 g_toast = "Co-op+\nQuest step done together with " + (g_partner.empty() ? "your friend" : g_partner) +
                           ": " + mission_label(key);

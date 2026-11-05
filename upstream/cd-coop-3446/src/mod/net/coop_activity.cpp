@@ -18,6 +18,7 @@
 
 #include "mod/game/ui_state.h"
 #include "mod/log.h"
+#include "mod/net/session_summary.h"
 #include "mod/net/boss_safe.h"
 #include "mod/net/coop_duel.h"
 #include "mod/net/coop_hunt.h"
@@ -1175,6 +1176,7 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
                 g_match_subtitle = std::format("{} vs {}   {} - {}", name, who, g_ch.ours, g_ch.theirs);
                 g_match_won = won;
                 g_match_at = GetTickCount();
+                summary_note(won ? SummaryStat::MatchWon : SummaryStat::MatchLost);
                 log::info("Activity: the {} is over ({} {} - {})", name, won ? "we won" : "they won", g_ch.ours,
                           g_ch.theirs);
                 g_last_game = g_ch.stage;

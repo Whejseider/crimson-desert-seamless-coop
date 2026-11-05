@@ -969,3 +969,12 @@ Done in the user's Chrome (signed in as Asher):
   PASS, Defender clean, installed on this PC (asi 3c07b730, smoke OK). GitHub ashersheets-jpg/crimson-desert-coop-
   playtest v0.1.0-alpha-a82c1b48 (Latest; README + FEATURES updated). Discord: new pinned download post, 0364c3f0
   relabeled and unpinned, announcement, #features messages 2 and 3 updated (docs/release/discord-server-posts.md).
+- 2026-11-05 17:25 Workshop features (user: "get started with the smaller ones"). Most small ideas already existed
+  (map/minimap marker, shared waypoints, revive with bleed-out, rematch, scoreboard + titles, photo quick message,
+  race). New: the SESSION SUMMARY card (net/session_summary.*): a session runs from connecting until the friend is
+  gone 20 s (a reconnect continues it); 2+ minutes -> "Journey Together / with X - 1 h 12 min", columns You / X:
+  enemies defeated (kill feed both ways), bosses down together, revives each way, challenges won, quest steps
+  finished together (live quests), distance side by side (our steps while within 150 m). Waits for the other cards,
+  menus, cutscenes and loading (shows after a co-op world switch once back in our own save), 15 s, {Decline} closes.
+  sm1 (scratch world, [dev] summary_test=1): kills 12/12, card on screen 3 s after the peer stopped, Shift+F6 closed
+  it, SAVES OK.

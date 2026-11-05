@@ -301,6 +301,67 @@ void guide_card(float sw, float sh, const std::string& title, const std::vector<
     rich_text(dl, sw * 0.5f - fw * 0.5f, y, fs, footer, with_alpha(IM_COL32(200, 192, 176, 255), alpha * 0.9f));
 }
 
+void summary_card(float sw, float sh, const std::string& title, const std::string& subtitle, const std::string& partner,
+                  const std::vector<SummaryLine>& rows, const std::string& footer, float alpha) {
+    g_glyph_method = static_cast<int>(input::connected_pad());
+    struct Restore {
+        ~Restore() { g_glyph_method = -1; }
+    } restore;
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    const float k = std::max(0.6f, sh / 1080.0f);
+    const float ts = 40.0f * k, ss = 20.0f * k, hs = 19.0f * k, ls = 22.0f * k, fs = 17.0f * k;
+    const float row_h = ls + 16.0f * k;
+    // Columns: the labels on the left, then "You" and the friend, each centred on its column.
+    float label_w = 0;
+    for (const auto& r : rows) label_w = std::max(label_w, text_w(g_serif, ls, r.label));
+    const float col_w = std::max({150.0f * k, text_w(g_serif_bold, hs, partner) + 30.0f * k});
+    const float inner = std::max({label_w + 2 * col_w + 40.0f * k, text_w(g_serif_bold, ts, title) + 40.0f * k,
+                                  text_w(g_serif, ss, subtitle) + 40.0f * k, 560.0f * k});
+    const float w = inner + 200.0f * k;
+    const float h = ts + ss + 70.0f * k + hs + 18.0f * k + static_cast<float>(rows.size()) * row_h + fs + 50.0f * k;
+    const float x0 = sw * 0.5f - w * 0.5f, y0 = sh * 0.46f - h * 0.5f;
+    const float left = sw * 0.5f - inner * 0.5f, right = sw * 0.5f + inner * 0.5f;
+    const float c2 = right - col_w * 0.5f, c1 = c2 - col_w;  // column centres: you, them
+    faded_rect(dl, x0, y0, x0 + w, y0 + h, with_alpha(IM_COL32(8, 7, 6, 232), alpha));
+    faded_rect(dl, x0, y0, x0 + w, y0 + 1.0f, with_alpha(kRule, alpha));
+    faded_rect(dl, x0, y0 + h - 1.0f, x0 + w, y0 + h, with_alpha(kRule, alpha));
+    float y = y0 + 24 * k;
+    text(dl, g_serif_bold, ts, sw * 0.5f - text_w(g_serif_bold, ts, title) * 0.5f, y, with_alpha(kGold, alpha), title);
+    y += ts + 6 * k;
+    text(dl, g_serif, ss, sw * 0.5f - text_w(g_serif, ss, subtitle) * 0.5f, y, with_alpha(IM_COL32(205, 198, 184, 255), alpha),
+         subtitle);
+    y += ss + 16 * k;
+    faded_rect(dl, sw * 0.5f - 260 * k, y, sw * 0.5f + 260 * k, y + 1.0f, with_alpha(kRule, alpha));
+    y += 22 * k;
+    // Column heads: our mark is plain light, theirs is their mark and colour (T34).
+    const std::string you = "You";
+    text(dl, g_serif_bold, hs, c1 - text_w(g_serif_bold, hs, you) * 0.5f, y, with_alpha(kText, alpha), you);
+    const float pw = text_w(g_serif_bold, hs, partner);
+    player_mark(dl, c2 - pw * 0.5f - 11 * k, y + hs * 0.55f, 5.0f * k, with_alpha(g_partner, alpha));
+    text(dl, g_serif_bold, hs, c2 - pw * 0.5f, y, with_alpha(g_partner, alpha), partner);
+    y += hs + 18 * k;
+    for (size_t i = 0; i < rows.size(); ++i) {
+        const auto& r = rows[i];
+        if (i % 2 == 0) {
+            faded_rect(dl, left - 30 * k, y - 7 * k, right + 30 * k, y + ls + 7 * k,
+                       with_alpha(IM_COL32(255, 240, 210, 12), alpha));
+        }
+        text(dl, g_serif, ls, left, y, with_alpha(IM_COL32(214, 208, 196, 255), alpha), r.label);
+        if (r.theirs.empty()) {
+            const float vw = text_w(g_serif_bold, ls, r.ours);
+            text(dl, g_serif_bold, ls, (c1 + c2) * 0.5f - vw * 0.5f, y, with_alpha(kGold, alpha), r.ours);
+        } else {
+            text(dl, g_serif_bold, ls, c1 - text_w(g_serif_bold, ls, r.ours) * 0.5f, y, with_alpha(kText, alpha), r.ours);
+            text(dl, g_serif_bold, ls, c2 - text_w(g_serif_bold, ls, r.theirs) * 0.5f, y, with_alpha(g_partner, alpha),
+                 r.theirs);
+        }
+        y += row_h;
+    }
+    y += 12 * k;
+    const float fw = rich_text(nullptr, 0, 0, fs, footer, kText);
+    rich_text(dl, sw * 0.5f - fw * 0.5f, y, fs, footer, with_alpha(IM_COL32(200, 192, 176, 255), alpha * 0.9f));
+}
+
 void strip(float sw, float y, const std::string& body, float alpha) {
     ImDrawList* dl = ImGui::GetForegroundDrawList();
     const float k = std::max(0.6f, sw / 1920.0f);

@@ -31,6 +31,16 @@ void band(float screen_w, float y, const std::string& title, const std::string& 
 void guide_card(float screen_w, float screen_h, const std::string& title, const std::vector<std::string>& lines,
                 const std::string& footer, float alpha = 1.0f);
 
+// Co-op+ (2026-11-05): the session summary card, the game's results-screen look: a gold title over a subtitle, two
+// columns headed "You" and the friend's name (in their colour), one row per line (theirs "" = one value for both),
+// and a footer with action tokens.
+struct SummaryLine {
+    std::string label, ours, theirs;
+};
+void summary_card(float screen_w, float screen_h, const std::string& title, const std::string& subtitle,
+                  const std::string& partner, const std::vector<SummaryLine>& rows, const std::string& footer,
+                  float alpha = 1.0f);
+
 // A one-line band (lighter), e.g. the running state of a challenge.
 void strip(float screen_w, float y, const std::string& text, float alpha = 1.0f);
 

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "mod/log.h"
+#include "mod/net/session_summary.h"
 #include "mod/net/boss_rules.h"
 
 namespace cdmp::net {
@@ -149,6 +150,7 @@ void boss_note_hp(uint32_t enemy_key, float hp, float hp_max) {
     if (hp <= 0.0f && it->second.hp > 0.0f) {
         it->second.died_ms = now;
         log::info("Boss: enemy 0x{:08X} is down", enemy_key);
+        summary_note(SummaryStat::Boss);
     } else if (hp > 0.0f) {
         it->second.died_ms = 0;
     }

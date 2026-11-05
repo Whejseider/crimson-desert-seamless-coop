@@ -14,6 +14,7 @@
 #include "mod/net/enemy_relay.h"
 #include "mod/net/guest_hits.h"
 #include "mod/net/local_capture.h"
+#include "mod/net/session_summary.h"
 
 namespace cdmp::net {
 namespace {
@@ -61,6 +62,7 @@ void kill_feed_observe_s2c(const uint8_t* packet, size_t size) {
     g_lines.push_back({0, name ? name : "", true});
     g_to_send.push_back(name ? name : "");
     log::info("Kill feed: we took down 0x{:08X} ({})", victim, name ? name : "an enemy");
+    summary_note(SummaryStat::OurKill);
 }
 
 void kill_feed_on_event(const uint8_t* d, size_t n) {
@@ -70,6 +72,7 @@ void kill_feed_on_event(const uint8_t* d, size_t n) {
     }
     std::lock_guard lock(g_mutex);
     g_lines.push_back({0, std::move(name), false});
+    summary_note(SummaryStat::TheirKill);
 }
 
 std::vector<FeedLine> kill_feed_tick(bool connected, const std::string& partner_name, uint32_t now) {

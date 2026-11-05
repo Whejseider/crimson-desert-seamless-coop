@@ -52,6 +52,7 @@
 #include "mod/net/coop_travel.h"
 #include "mod/net/coop_chat.h"
 #include "mod/net/kill_feed.h"
+#include "mod/net/session_summary.h"
 #include "mod/net/coop_race.h"
 #include "mod/net/scoreboard.h"
 #include "mod/net/state_audit.h"
@@ -871,6 +872,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     toast_until = now + 6000;
                 }
                 net::weather_tick(connected, host, own_pos.has_value(), own_pos, now);  // Co-op+: weather_sync.h
+                net::summary_tick(connected, session.peer_name(), own_pos, partner_pos, now);  // Co-op+: session_summary.h
                 // Co-op+ (T06): digests; a resync (Shift+F8 / View + RB, or the digests out of step) drops the
                 // session and joins again: everything of the other player is removed here and sent again.
                 net::sync_tick(connected, now);
@@ -1852,6 +1854,7 @@ DWORD WINAPI worker(LPVOID) {
         net::activity_set_rps_test(cfg.dev_rps_test);
         net::activity_set_challenge_test(cfg.dev_challenge_test);
         net::duel_set_test(cfg.dev_duel_test);
+        net::summary_set_test(cfg.dev_summary_test);
         net::party_quests_set_test(cfg.dev_quest_test);
         net::hunt_set_test(cfg.dev_hunt_test);
         net::sync_set_test(cfg.dev_desync_test);
