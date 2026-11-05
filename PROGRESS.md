@@ -913,3 +913,9 @@ Done in the user's Chrome (signed in as Asher):
   test); peer sim answers "no" without --story; [dev] coop_world is now the tests' "own saves" (set_dev_home) so a
   switch can never reach the player's real folder (test nw1 had loaded the user's own save: nothing saved, SAVES
   OK); [dev] coop_world_as_host; worlds_configure keeps a dev test partner.
+- 2026-11-05 02:15 FIRST TWO-PC PLAYTEST (friend Matikjr hosted, the user joined; 42 min): docs/tests/playtest-2026-11-05.md.
+  Worked: Steam invite/join, connection (rtt p50 43 ms), hits on NPCs for both, co-op saves made for both (solo saves
+  untouched). Broken: the host's game switching to the title by itself felt like a virus; revive; the host's NPCs
+  missing in the first town; the host's UI gone after dying + checkpoint respawn (and no horse prompt); duel hits;
+  the guest's co-op save made 1 s before the host's story arrived (different town states); challenges never end;
+  laggy movement both ways (not the network). Guest log kept in build/playtest-2026-11-05/; host log asked for.
