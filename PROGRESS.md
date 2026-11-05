@@ -855,3 +855,8 @@ Done in the user's Chrome (signed in as Asher):
   Results: control run = normal Focus (user saw the tint); block run = Focus triggers, no tint, no slow motion (user
   watched); Spirit still refills: [dev] stat_log=1 shows stat 17 (Spirit, max 30000) 15915 -> 30000 within 5 s of
   Focus with the block on (after three Force Palms spent it). Two-PC test pending (PLAYTEST-1 §6d). Not released.
+- 2026-11-04 21:22-21:40 RELEASED 0.1.0-alpha+69b9b13e (no slow motion in co-op; user approved): package (unit tests,
+  install test all PASS, Defender clean both zips, shipped ini block_slowmo=1), installed in the game (asi 33f2cf0d...,
+  player's ini kept), smoke start (build 69B9B13E, "Focus's slow motion is skipped in co-op sessions", SAVES OK),
+  GitHub release v0.1.0-alpha-69b9b13e (Latest; the publish script's release step fails on quotes in -Notes, so
+  gh release create --notes-file), Discord (docs/release/discord-server-posts.md). Test kit restores this asi now.

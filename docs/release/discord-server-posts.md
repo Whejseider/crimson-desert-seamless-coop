@@ -72,3 +72,10 @@ friends, then the host presses Ctrl+F1 to invite.
 - #download-here: new post with both zips, pinned; the 16df564d post got a first line "(Older build: use the newest
   pinned download below, 0.1.0-alpha+cea405cf ...)" and was unpinned (not deleted).
 - #announcements: "Hotfix 0.1.0-alpha+cea405cf: far-away friend".
+
+## 2026-11-04 update 0.1.0-alpha+69b9b13e (no slow motion in co-op)
+- #download-here: new post with both zips, pinned; the cea405cf post got a first line "(Older build: use the newest
+  pinned download below, 0.1.0-alpha+69b9b13e ...)" and was unpinned (not deleted).
+- #features message 3: new line "NEW: Focus doesn't slow the world in co-op (F8 to turn it back on)" after the weather
+  line (1959 characters).
+- #announcements: "Update 0.1.0-alpha+69b9b13e: no slow motion in co-op".
