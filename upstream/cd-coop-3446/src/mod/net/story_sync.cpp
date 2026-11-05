@@ -195,16 +195,19 @@ void host_answer(uint32_t id) {
 }
 
 // --- guest -------------------------------------------------------------------------------------------------------
+bool g_auto = false;  // the ask is the co-op world's background one (coop_worlds.h), not the player's
+
 void guest_fail(const std::string& why) {
     g_state = Guest::Failed;
     g_status = "Story copy: not done. " + why;
-    g_toast = "Co-op+\n" + g_status;
+    // Co-op+ (2026-11-05): the co-op world's background ask says nothing on screen (the user saw this on every one-PC
+    // test); the world switch says so when the story matters ("keeps its own story this time").
+    if (!g_auto) g_toast = "Co-op+\n" + g_status;
     g_parts.clear();
     log::warn("Story sync: {}", why);
 }
 
 // Co-op worlds (coop_worlds.h): the host's story kept in memory for the guest's co-op world; nothing is written.
-bool g_auto = false;
 Bytes g_ready;
 std::string g_ready_peer;
 

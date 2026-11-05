@@ -122,8 +122,9 @@ enum class RelKind : uint8_t {
     EnemyZone = 8,    // EnemyZoneMsg: the guest's enemy zone and the host's answer
     Story = 9,        // Co-op+ story sync (mod/net/story_sync.h): ask, the host's quest data in parts, or no
     Quest = 10,       // Co-op+ live quests (mod/net/quest_live.h): a client request that finished a quest step
+    World = 11,       // Co-op+ co-op worlds (mod/net/coop_worlds.h): how the host's world with the guest starts
 };
-inline constexpr uint8_t kMaxRelKind = 10;  // newer kinds are acknowledged and dropped
+inline constexpr uint8_t kMaxRelKind = 11;  // newer kinds are acknowledged and dropped
 
 // In a sender's enemy messages, the receiver itself (the sender's copy of
 // the receiver, 0xA010F001 there; the receiver's own player key is not

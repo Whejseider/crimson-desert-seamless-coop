@@ -23,6 +23,8 @@
 // --quest HEX[@SEC] (relay, one player): Co-op+ live quests test. Like --story, and SEC seconds (default 90) after the
 //        game's first reliable message sends it one RelKind::Quest message (HEX = its bytes, mod/net/quest_live.h),
 //        as the partner's finished step; the game's own Quest messages are printed, not echoed.
+// --rel-kind N: the RelKind of the --quest message (default 10 = Quest; 11 = World: 0101 new game, 0102 the
+//        host's progress, as a host's choice for its co-op world with the game, mod/net/coop_worlds.h).
 // --loss / --jitter simulate a bad connection (percent / ms) on everything
 // this tool sends. --public listens on all interfaces (for a friend).
 
@@ -62,6 +64,7 @@ struct Options {
     std::string replay_path;  // Co-op+: --replay FILE (mode replay)
     std::string story_path;   // Co-op+: --story FILE (relay): answers story asks
     std::string quest_hex;    // Co-op+: --quest HEX[@SEC] (relay): one live quest message to the game
+    int quest_kind = 10;      // Co-op+: --rel-kind N, the RelKind of that message
     // Co-op+: --far START,END,M (echo): between START and END seconds after the first client, the echoed player is M
     // metres away instead of --offset (the partner in another region, then back).
     int far_start_s = -1, far_end_s = -1;
@@ -95,6 +98,7 @@ std::optional<Options> parse(int argc, char** argv) {
         else if ((a == "--replay") && (v = next())) o.replay_path = v;
         else if ((a == "--story") && (v = next())) o.story_path = v;
         else if ((a == "--quest") && (v = next())) o.quest_hex = v;
+        else if ((a == "--rel-kind") && (v = next())) o.quest_kind = std::atoi(v);
         else if ((a == "--far") && (v = next())) std::sscanf(v, "%d,%d,%f", &o.far_start_s, &o.far_end_s, &o.far_m);
         else {
             usage();
@@ -182,7 +186,7 @@ public:
             if (chan_) chan_->tick(now);
             if (chan_ && !quest_msg_.empty() && !quest_sent_ && quest_due_ms_ && now >= quest_due_ms_) {
                 quest_sent_ = true;
-                const bool ok = chan_->send(proto::RelKind::Quest, quest_msg_, now);
+                const bool ok = chan_->send(static_cast<proto::RelKind>(opt_.quest_kind), quest_msg_, now);
                 std::printf("Quest: sent the partner's step%s\n", ok ? "" : " (refused)");
             }
             if (opt_.mode == "bot" && !clients_.empty() && now - last_bot >= 50) {
@@ -348,6 +352,14 @@ private:
                 std::printf("Quest: the game sent");
                 for (const uint8_t b : m.bytes) std::printf(" %02x", b);
                 std::printf("\n");
+            } else if (m.kind == proto::RelKind::Story && m.bytes.size() >= 5 && m.bytes[0] == 1 && story_.empty()) {
+                // No --story: answer "no" as a host with sharing off would (an empty story is not story data).
+                std::vector<uint8_t> no(m.bytes.begin(), m.bytes.begin() + 5);
+                no[0] = 3;
+                const std::string text = "the test peer has no story";
+                no.insert(no.end(), text.begin(), text.end());
+                chan_->send(proto::RelKind::Story, no, now_ms());
+                std::printf("Story: asked; answered no (no --story)\n");
             } else if (m.kind == proto::RelKind::Story && m.bytes.size() >= 5 && m.bytes[0] == 1) {
                 const auto comp = save::lz4_compress(story_.data(), story_.size());
                 const size_t part = 200 * 1024, count = (comp.size() + part - 1) / part;

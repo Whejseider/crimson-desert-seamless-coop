@@ -7,6 +7,7 @@
 #include <format>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 #include "mod/log.h"
 #include "mod/save_io.h"
@@ -27,7 +28,7 @@ std::mutex g_m;
 bool g_enabled = false;
 std::string g_test_partner;
 WorldsInput g_in;
-std::atomic<bool> g_in_world{false}, g_menu_open{false}, g_host{false};
+std::atomic<bool> g_in_world{false}, g_menu_open{false}, g_host{false}, g_dev_host{false};
 uint64_t g_connected_since = 0, g_gone_since = 0;
 std::string g_partner_key, g_partner_name;  // the last partner seen (kept while they are briefly away)
 std::wstring g_want;                        // the world we should be in
@@ -36,6 +37,20 @@ std::atomic<bool> g_switching{false};
 std::atomic<int> g_failures{0};
 uint64_t g_retry_after = 0, g_out_of_world_since = 0;
 std::string g_status, g_toast;
+// Co-op+ (2026-11-05, user: "new save" or "start from host's current progress" on the first invite): how a world
+// that does not exist yet starts. The host chooses on a card; the guest's game follows the host's choice (World msg).
+using save_io::WorldStart;
+std::atomic<bool> g_card{false};
+std::string g_card_key, g_card_name;          // the partner the card asks about
+std::string g_choice_key;                     // host: the partner the answer is for
+WorldStart g_choice = WorldStart::Unknown;
+std::string g_host_said_key;                  // guest: the host the message came from
+WorldStart g_host_said = WorldStart::Unknown;
+WorldStart g_sent = WorldStart::Unknown;      // host: what this connection was told
+std::vector<std::vector<uint8_t>> g_out;
+std::atomic<uint32_t> g_epoch{1};             // co-op world switches started (coop.cpp drops the old copy)
+std::wstring g_mark_when_in;                  // a new-game world switched at the title: marked once the game runs
+constexpr uint8_t kMsgStart = 1;              // World message: u8 kMsgStart | u8 1 new game / 2 continue
 
 std::string narrow(const std::wstring& w) {
     std::string s;
@@ -104,8 +119,23 @@ bool wait_front(const std::string& what) {
     return wait_for(game_in_front, 180000);
 }
 
-// The switch itself (its own thread): title screen, change the saves, Play.
-void run_switch(std::wstring target, std::string partner_name) {
+const char* start_text(WorldStart s) {
+    return s == WorldStart::NewGame ? "a new game" : s == WorldStart::Continue ? "the host's progress" : "not chosen";
+}
+
+// The guest's co-op world follows the host's story (the host's quests go into the WORLD copy only). Not for a
+// new-game world: the story a guest gets on connecting is the host's SOLO story.
+void put_host_story(const std::wstring& target) {
+    if (g_host || save_io::world_start(target) == WorldStart::NewGame || !save_io::world_has_saves(target)) return;
+    std::string why;
+    if (!story_put_into_world(save_io::world_folder(target), &why)) {
+        log::warn("Co-op worlds: the host's story was not put into the world: {}", why);
+        toast("Your co-op world keeps its own story this time (" + why + ").");
+    }
+}
+
+// The switch itself (its own thread): title screen, change the saves, Play (or New Game for a new-game world).
+void run_switch(std::wstring target, std::string partner_name, WorldStart start) {
     const bool into = !target.empty();
     const std::string label = into ? "your co-op world with " + partner_name : "your own saves";
     const auto fail = [&](const std::string& why) {
@@ -122,6 +152,7 @@ void run_switch(std::wstring target, std::string partner_name) {
         g_switching = false;
     };
     log::info("Co-op worlds: switching to {} ({})", narrow(target.empty() ? L"own saves" : target), label);
+    ++g_epoch;
     set_status("Switching to " + label + "...");
     if (!wait_front("Switching to " + label)) return fail("the game window was not in front");
     key(VK_ESCAPE, 40);
@@ -142,15 +173,38 @@ void run_switch(std::wstring target, std::string partner_name) {
     if (!wait_for([] { return !g_in_world.load(); }, 30000)) return fail("the game did not go back to the title");
     Sleep(8000);
     std::string why;
-    if (!save_io::set_world(target, &why)) {
+    bool new_game = false;
+    if (!save_io::set_world(target, &why, start)) {
         log::warn("Co-op worlds: {}; staying with the saves we had", why);
         toast("Could not open " + label + " (" + why + "); loading the saves you had.");
-    } else if (into && !g_host) {
-        // The guest's world follows the host's story: the host's quests go into the WORLD copy only.
-        if (!story_put_into_world(save_io::world_folder(target), &why)) {
-            log::warn("Co-op worlds: the host's story was not put into the world: {}", why);
-            toast("Your co-op world keeps its own story this time (" + why + ").");
+    } else if (into) {
+        new_game = save_io::world_new_game_pending(target);
+        put_host_story(target);
+    }
+    if (new_game) {
+        // A new-game world whose new game has not started yet. New Game is a held Z (a short press is ignored,
+        // 2026-11-05); then the game's agreement and difficulty, which the player answers. Pressed twice, 12 s
+        // apart (the title ignores keys for a while after the return); Z does nothing on those two screens.
+        set_status("New game in " + label + ": accept the agreement and choose the difficulty.");
+        toast("New game in " + label + ": accept the agreement and choose the difficulty when they appear. "
+              "Your own saves are untouched.");
+        for (int attempt = 0; attempt < 2; ++attempt) {
+            if (!wait_front("New game in " + label)) return fail("the game window was not in front (press New Game, Z)");
+            key('Z', 1500);
+            if (wait_for([] { return sniffer_world_loading() || g_in_world.load(); }, 12000)) break;
         }
+        log::info("Co-op worlds: New Game pressed in {}; waiting for the player's agreement and difficulty",
+                  narrow(target));
+        if (!wait_for([] { return g_in_world.load(); }, 900000)) {
+            return fail("the new game did not start (at the title: New Game, Z)");
+        }
+        log::info("Co-op worlds: the new game started in {}", narrow(target));
+        save_io::world_mark_new_game_started(target);  // from now on this world loads with Play
+        set_status("You are in " + label + " (a new game). Your own saves are untouched.");
+        toast("You are in " + label + " (a new game). Your own saves are untouched.");
+        g_failures = 0;
+        g_switching = false;
+        return;
     }
     // Play (E): the newest save of the saves now in use. The title takes a while to accept keys after the return
     // (a press 8 s in was ignored, 2026-11-04): press, then again every 12 s until the game starts loading.
@@ -172,19 +226,25 @@ void run_switch(std::wstring target, std::string partner_name) {
 
 // At the title screen (out of the world, not loading): the saves can change right away, no keys needed. Covers a
 // player who goes to the title by hand, and a game started while a co-op world is wanted.
-void switch_at_title(const std::wstring& target, bool host) {
+void switch_at_title(const std::wstring& target, bool host, WorldStart start) {
     std::string why;
-    if (!save_io::set_world(target, &why)) {
+    ++g_epoch;
+    if (!save_io::set_world(target, &why, start)) {
         g_status = "Could not open the saves at the title: " + why;
         return;
     }
-    if (!target.empty() && !host && !story_put_into_world(save_io::world_folder(target), &why)) {
+    if (!target.empty() && !host && save_io::world_start(target) != WorldStart::NewGame &&
+        save_io::world_has_saves(target) && !story_put_into_world(save_io::world_folder(target), &why)) {
         log::warn("Co-op worlds: the host's story was not put into the world: {}", why);
     }
+    if (!target.empty() && save_io::world_new_game_pending(target)) g_mark_when_in = target;
     g_failures = 0;
     g_status.clear();
     g_toast = target.empty() ? "Co-op+\nYour own saves are back: press Play (E)."
-                             : "Co-op+\nYour co-op world with " + g_partner_name + " is ready: press Play (E).";
+              : save_io::world_new_game_pending(target)
+                  ? "Co-op+\nYour new co-op game with " + g_partner_name +
+                        " is ready: press New Game (hold Z), then accept and choose the difficulty."
+                  : "Co-op+\nYour co-op world with " + g_partner_name + " is ready: press Play (E).";
     log::info("Co-op worlds: saves switched at the title to {}", narrow(target.empty() ? L"own saves" : target));
 }
 
@@ -193,13 +253,16 @@ void switch_at_title(const std::wstring& target, bool host) {
 void worlds_configure(bool enabled, const std::string& test_partner) {
     std::lock_guard lock(g_m);
     g_enabled = enabled;
-    g_test_partner = test_partner;
+    // The opt-in turns this on again with no partner (optin.cpp): a [dev] test partner set before stays (2026-11-05:
+    // losing it made a one-PC test switch "back" to the player's own saves).
+    if (!test_partner.empty()) g_test_partner = test_partner;
     log::info("Co-op worlds: {}{}", enabled ? "on (a save per friend; your own saves only when you play alone)" : "off",
               test_partner.empty() ? "" : " | [dev] partner " + test_partner);
 }
 
 void worlds_tick(const WorldsInput& in_raw) {
     WorldsInput in = in_raw;
+    if (g_dev_host) in.host = true;
     g_in_world = in.in_world;
     g_menu_open = in.menu_open;
     g_host = in.host;
@@ -215,8 +278,22 @@ void worlds_tick(const WorldsInput& in_raw) {
         g_partner_key = in.partner_key;
         g_partner_name = in.partner_name.empty() ? "your friend" : in.partner_name;
         if (in.now_ms - g_connected_since >= kJoinStableMs) g_want = world_for(g_partner_key);
+        if (!in.host && g_host_said != WorldStart::Unknown && g_host_said_key.empty()) g_host_said_key = g_partner_key;
+        // The host tells the guest how their world starts, once per connection (as soon as it is known).
+        if (in.host && g_sent == WorldStart::Unknown) {
+            const std::wstring w = world_for(g_partner_key);
+            const WorldStart s = save_io::world_exists(w) ? save_io::world_start(w)
+                                 : g_choice_key == g_partner_key ? g_choice : WorldStart::Unknown;
+            if (s != WorldStart::Unknown) {
+                g_out.push_back({kMsgStart, static_cast<uint8_t>(s == WorldStart::NewGame ? 1 : 2)});
+                g_sent = s;
+                log::info("Co-op worlds: told {} that our co-op world starts from {}", g_partner_name, start_text(s));
+            }
+        }
     } else {
         g_connected_since = 0;
+        g_sent = WorldStart::Unknown;
+        g_card = false;
         if (!g_gone_since) g_gone_since = in.now_ms ? in.now_ms : 1;
         if (in.now_ms - g_gone_since >= kLeaveStableMs) g_want.clear();
     }
@@ -227,13 +304,39 @@ void worlds_tick(const WorldsInput& in_raw) {
     }
     if (g_switching) return;
     const std::wstring active = save_io::world();
+    if (!g_mark_when_in.empty() && in.in_world) {
+        if (g_mark_when_in == active) save_io::world_mark_new_game_started(active);
+        g_mark_when_in.clear();
+    }
     if (g_want == active) {
         g_countdown_until = 0;
         g_failures = 0;
         return;
     }
+    // A world with this friend that does not exist yet: the host chooses how it starts (the card), the guest waits
+    // for the host's choice. Nothing switches until it is known.
+    WorldStart start = WorldStart::Continue;
+    if (!g_want.empty() && !save_io::world_exists(g_want)) {
+        start = in.host ? (g_choice_key == g_partner_key ? g_choice : WorldStart::Unknown)
+                        : (g_host_said_key == g_partner_key ? g_host_said : WorldStart::Unknown);
+        if (start == WorldStart::Unknown) {
+            g_countdown_until = 0;
+            if (in.host) {
+                if (!g_card) log::info("Co-op worlds: first session with {}: asking how our co-op world starts", g_partner_name);
+                g_card_key = g_partner_key;
+                g_card_name = g_partner_name;
+                g_card = true;
+                g_status = "Your first co-op session with " + g_partner_name + ": choose how your co-op world starts "
+                           "(the card on screen).";
+            } else {
+                g_status = "Your first co-op session with " + g_partner_name + ": waiting for them (the host) to "
+                           "choose how your co-op world starts.";
+            }
+            return;
+        }
+    }
     if (g_out_of_world_since && in.now_ms - g_out_of_world_since > 10000) {  // sitting at the title
-        switch_at_title(g_want, in.host);
+        switch_at_title(g_want, in.host, start);
         return;
     }
     if (g_failures >= 5 || in.now_ms < g_retry_after) return;
@@ -252,7 +355,52 @@ void worlds_tick(const WorldsInput& in_raw) {
     }
     g_countdown_until = 0;
     g_switching = true;
-    std::thread(run_switch, g_want, g_partner_name).detach();
+    std::thread(run_switch, g_want, g_partner_name, start).detach();
+}
+
+uint32_t worlds_switch_epoch() { return g_epoch.load(); }
+
+void worlds_dev_as_host(bool on) { g_dev_host = on; }
+
+bool worlds_card_visible() { return g_card.load(); }
+
+std::string worlds_card_partner() {
+    std::lock_guard lock(g_m);
+    return g_card_name;
+}
+
+void worlds_answer(bool new_game) {
+    std::lock_guard lock(g_m);
+    if (!g_card) return;
+    g_card = false;
+    g_choice_key = g_card_key;
+    g_choice = new_game ? WorldStart::NewGame : WorldStart::Continue;
+    g_status.clear();
+    log::info("Co-op worlds: our co-op world with {} starts from {}", g_card_name, start_text(g_choice));
+}
+
+std::vector<std::vector<uint8_t>> worlds_take_outgoing() {
+    std::lock_guard lock(g_m);
+    std::vector<std::vector<uint8_t>> out;
+    out.swap(g_out);
+    return out;
+}
+
+void worlds_on_message(const std::vector<uint8_t>& bytes) {
+    if (bytes.size() < 2 || bytes[0] != kMsgStart || g_host) return;
+    const WorldStart s = bytes[1] == 1 ? WorldStart::NewGame : bytes[1] == 2 ? WorldStart::Continue : WorldStart::Unknown;
+    if (s == WorldStart::Unknown) return;
+    std::lock_guard lock(g_m);
+    g_host_said = s;
+    g_host_said_key = g_partner_key;  // "" until the partner is known: worlds_tick fills it in
+    log::info("Co-op worlds: the host says our co-op world with them starts from {}", start_text(s));
+    if (!save_io::world_exists(world_for(g_partner_key)) || g_partner_key.empty()) {
+        g_toast = s == WorldStart::NewGame
+                      ? "Co-op+\n" + g_partner_name + " chose a NEW SAVE for your co-op world: you both start the "
+                        "game from the beginning. Your own saves are untouched."
+                      : "Co-op+\n" + g_partner_name + " chose to start your co-op world from their progress: you "
+                        "keep your character and join their story. Your own saves are untouched.";
+    }
 }
 
 std::string worlds_hud_text() {

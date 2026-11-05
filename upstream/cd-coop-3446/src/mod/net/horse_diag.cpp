@@ -278,10 +278,12 @@ void on_cc_update(safetyhook::Context& ctx) {
 // Co-op+ (3479): what the crashing code reads -- the MAIN layer (index byte [[cc+0x30]+0x1B] into the
 // layers at cc+0x88) and its current (+0x10) and playing (+0x18) action. Empty for a copy between
 // loading and its first relayed action, and again for a moment between actions. True when the code
-// would dereference null. Only for the copies these guards are for (horse and enemies).
+// would dereference null. For every copy: Co-op+ (2026-11-05, 3549) the OTHER PLAYER's copy crashed the CC tick the
+// same way (exe+0x944E70 -> 0x949350 -> 0x251A1AD reads [action]+0x28) 1.5 s after it was loaded at the start of a
+// new game; skipping a frame it could not run is all this does (the copy waits for its action, as horses do).
 bool copy_main_layer_empty(uintptr_t cc) {
     uint32_t key = 0;
-    if (!read_key(cc, key) || (key != kCopyHorse && !is_enemy_copy_key(key))) return false;
+    if (!read_key(cc, key) || !is_copy(key)) return false;
     uintptr_t info = 0, layer = 0, cur = 0, play = 0;
     uint8_t idx = 0;
     if (!game::safe_read(cc + 0x30, &info, 8) || !info || !game::safe_read(info + 0x1B, &idx, 1) || idx > 7) return false;

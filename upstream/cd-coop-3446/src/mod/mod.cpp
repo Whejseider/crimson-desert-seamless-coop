@@ -1729,9 +1729,10 @@ DWORD WINAPI worker(LPVOID) {
         optin::init(dir + L"cdmp.ini", in_game && build_ok && cfg.coop_enabled, cfg.coop_coop_worlds,
                     GetPrivateProfileIntW(L"general", L"experimental_asked", 0, (dir + L"cdmp.ini").c_str()) != 0);
         if (optin::enabled() && !cfg.dev_coop_world_partner.empty()) net::worlds_configure(true, cfg.dev_coop_world_partner);
+        net::worlds_dev_as_host(cfg.dev_coop_world_as_host);
         if (in_game && build_ok && (cfg.dev_save_io_log || !cfg.dev_coop_world.empty())) {
             save_io::install(cfg.dev_save_io_log);
-            if (!cfg.dev_coop_world.empty()) save_io::set_world(cfg.dev_coop_world, nullptr);
+            if (!cfg.dev_coop_world.empty()) save_io::set_dev_home(cfg.dev_coop_world);
         }
         if (in_game && build_ok && cfg.coop_enabled) {
             net::story_configure(cfg.coop_share_story, cfg.dev_story_slot);

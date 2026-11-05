@@ -273,6 +273,7 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_coop_world = read_string(ini_path, L"dev", L"coop_world", "");
     c.coop_coop_worlds = read_uint(ini_path, L"coop", L"coop_worlds", 0) != 0;
     c.dev_coop_world_partner = narrow(read_string(ini_path, L"dev", L"coop_world_partner", ""));
+    c.dev_coop_world_as_host = read_uint(ini_path, L"dev", L"coop_world_as_host", 0) != 0;
     c.coop_live_quests = read_uint(ini_path, L"coop", L"live_quests", 1) != 0;
     c.coop_block_slowmo = read_uint(ini_path, L"coop", L"block_slowmo", 1) != 0;
     c.dev_block_slowmo_always = read_uint(ini_path, L"dev", L"block_slowmo_always", 0) != 0;

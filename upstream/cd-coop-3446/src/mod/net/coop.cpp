@@ -1,5 +1,6 @@
 #include "mod/net/coop_race.h"
 #include "mod/net/coop.h"
+#include "mod/net/coop_worlds.h"
 #include "mod/net/story_sync.h"
 #include "mod/net/quest_live.h"
 #include "mod/net/coop_activity.h"
@@ -183,6 +184,10 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     for (auto& m : quest_live_take_outgoing()) {
         if (!session_.send_reliable(proto::RelKind::Quest, m, now_ms)) log::warn("Live quests: a message did not fit");
     }
+    // Co-op+ co-op worlds: how the host's world with the guest starts (the first session's choice).
+    for (auto& m : worlds_take_outgoing()) {
+        if (!session_.send_reliable(proto::RelKind::World, m, now_ms)) log::warn("Co-op worlds: a message did not fit");
+    }
     enemy_tick();
     loot_tick();
     // Enemy messages wait in the relay while the reliable channel is backed up
@@ -218,6 +223,18 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
         }
     }
 
+    // Co-op+ (2026-11-05): a co-op world switch (ours) starts: the other player's character from before belongs to the
+    // world we leave. Loaded again in the new one it stood ~1 km off, and when their new character replaced it a
+    // moment later the game crashed (new-game test, twice). Forgotten here; the character they send from the new
+    // world (a new spawn generation) is the one loaded.
+    if (const uint32_t e = worlds_switch_epoch(); e != worlds_epoch_) {
+        if (worlds_epoch_ && (last_spawn_ || remote_spawn_ || puppet_spawned())) {
+            log::info("Co-op: our saves are changing (co-op world switch); the other player's character from before is "
+                      "dropped, the one they send from the new world is loaded");
+            forget_partner(now_ms);
+        }
+        worlds_epoch_ = e;
+    }
     // Silence from the other player: hide their character until they're back.
     if (session_.stats().remote_states != last_remote_states_) {
         last_remote_states_ = session_.stats().remote_states;
@@ -679,6 +696,8 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
         story_on_message(msg.bytes);  // Co-op+: either role (ask / parts / no), story_sync.cpp checks
     } else if (msg.kind == proto::RelKind::Quest) {
         quest_live_on_message(msg.bytes);  // Co-op+ live quests: either role
+    } else if (msg.kind == proto::RelKind::World) {
+        worlds_on_message(msg.bytes);  // Co-op+ co-op worlds: the host's choice for a new world
     } else if (msg.kind == proto::RelKind::Despawn && msg.bytes.size() >= 4) {
         uint32_t gen = 0;
         std::memcpy(&gen, msg.bytes.data(), 4);

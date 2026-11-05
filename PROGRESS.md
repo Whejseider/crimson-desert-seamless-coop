@@ -896,3 +896,20 @@ Done in the user's Chrome (signed in as Asher):
   SaveBackups/reference-2026-11-05_00-30-00 (= the user's real slot2 of 00:16:48), SAVES OK.
 - User request (00:20): on the first invite, choose "new save" (both start the game from the beginning) or "start
   from the host's progress"; solo saves must stay safe. Not built yet (FLAGS F17); a no-code way for tonight given.
+- 2026-11-05 00:30-01:25 F17 "new save or the host's progress" on the first session: BUILT, NOT RELEASED.
+  coop_worlds: the host gets a card (Shift+F5 new save / Shift+F6 the host's progress), the guest's game follows the
+  host's choice (RelKind::World = 11, peer sim --quest 0101 --rel-kind 11). A new-save world is a COPY of the
+  player's slots (an EMPTY folder left the title holding its old slot list: "failed to load save", no buttons) with
+  coopplus-world.ini start=new; at the title the mod holds Z (New Game; a short press is ignored), the player
+  accepts the agreement and picks the difficulty; new_game_started=1 once in the world (later sessions: Play).
+  Guest test nw3/nw4/nw5: world made, New Game, new game running in the world, player's saves untouched (SAVES OK).
+  BLOCKER: the partner's character copy crashes the game seconds after it loads in a brand-new game: its action
+  layer has a chart but never an action (the opening character), and three different update functions read the
+  missing action (0x251A1AD via CC tick, then 0x96918B via 0x9671E6). The CC tick guard now covers the player copy
+  too (horse_diag.cpp) and a co-op world switch drops the partner's old character (coop.cpp; it was loaded ~1 km
+  off in the new world and swapped a moment later), but the copy itself still crashes. Next: why a fresh
+  character's copy gets no action (its spawn template is 10593 bytes against 12610 in a normal save).
+  Also fixed: the co-op world's background story ask no longer shows "Story copy: not done" (user saw it on every
+  test); peer sim answers "no" without --story; [dev] coop_world is now the tests' "own saves" (set_dev_home) so a
+  switch can never reach the player's real folder (test nw1 had loaded the user's own save: nothing saved, SAVES
+  OK); [dev] coop_world_as_host; worlds_configure keeps a dev test partner.

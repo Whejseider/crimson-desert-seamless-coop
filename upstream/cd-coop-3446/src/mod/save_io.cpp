@@ -33,6 +33,7 @@ std::wstring g_worlds_root; // Documents\CrimsonDesert-CoopPlus\Worlds\ (as Wind
 std::mutex g_world_mutex;
 std::wstring g_world;       // the active world's name ("" = none)
 std::wstring g_world_root;  // g_worlds_root + name + backslash
+std::wstring g_home;        // [dev] coop_world: the scratch world that stands for "own saves" in tests
 std::atomic<bool> g_active{false};
 
 fs::path known_folder(REFKNOWNFOLDERID id) {
@@ -251,16 +252,65 @@ void install(bool log) {
 
 std::wstring world_folder(const std::wstring& name) { return g_worlds_root + name; }
 
-bool set_world(const std::wstring& name, std::string* why) {
+void set_dev_home(const std::wstring& name) {
+    {
+        std::lock_guard lock(g_world_mutex);
+        g_home = name;
+    }
+    set_world(L"", nullptr);
+}
+
+bool world_exists(const std::wstring& name) {
+    std::error_code ec;
+    return !name.empty() && fs::exists(g_worlds_root + name, ec);
+}
+
+bool world_has_saves(const std::wstring& name) {
+    std::error_code ec;
+    for (const auto& acct : fs::directory_iterator(g_worlds_root + name, ec)) {
+        if (!acct.is_directory(ec)) continue;
+        for (const auto& slot : fs::directory_iterator(acct.path(), ec)) {
+            const std::wstring sn = slot.path().filename().wstring();
+            if (slot.is_directory(ec) && sn.rfind(L"slot", 0) == 0 && sn.find(L'_') == std::wstring::npos) return true;
+        }
+    }
+    return false;
+}
+
+bool world_new_game_pending(const std::wstring& name) {
+    if (world_start(name) != WorldStart::NewGame) return false;
+    return GetPrivateProfileIntW(L"world", L"new_game_started", 0,
+                                 (g_worlds_root + name + L"\\coopplus-world.ini").c_str()) == 0;
+}
+
+void world_mark_new_game_started(const std::wstring& name) {
+    WritePrivateProfileStringW(L"world", L"new_game_started", L"1", (g_worlds_root + name + L"\\coopplus-world.ini").c_str());
+}
+
+WorldStart world_start(const std::wstring& name) {
+    wchar_t v[32] = {};
+    GetPrivateProfileStringW(L"world", L"start", L"", v, 32, (g_worlds_root + name + L"\\coopplus-world.ini").c_str());
+    if (std::wstring(v) == L"new") return WorldStart::NewGame;
+    return world_exists(name) ? WorldStart::Continue : WorldStart::Unknown;  // older worlds were all copies
+}
+
+bool set_world(const std::wstring& name, std::string* why, WorldStart start_new_as) {
     const auto fail = [&](std::string w) {
         log::warn("SaveIO: world '{}' not used: {}", narrow(name), w);
         if (why) *why = std::move(w);
         return false;
     };
     if (name.empty()) {
-        g_active.store(false, std::memory_order_release);
         std::lock_guard lock(g_world_mutex);
         g_world.clear();
+        if (!g_home.empty()) {
+            // One-PC tests: "own saves" is the scratch world, never the player's real save folder.
+            g_world_root = g_worlds_root + g_home + L"\\";
+            g_active.store(true, std::memory_order_release);
+            log::info("SaveIO: own saves = [dev] scratch world '{}' (the player's saves are not used)", narrow(g_home));
+            return true;
+        }
+        g_active.store(false, std::memory_order_release);
         g_world_root.clear();
         log::info("SaveIO: own saves (no co-op world)");
         return true;
@@ -272,13 +322,25 @@ bool set_world(const std::wstring& name, std::string* why) {
     const fs::path root = g_worlds_root + name;
     std::error_code ec;
     if (!fs::exists(root, ec)) {
-        // A new world: a copy of the player's own slot folders (never the temporary _new / _backup ones). The
-        // copy is made under a temporary name and renamed when complete, so a half copy is never used.
-        const fs::path game = known_folder(FOLDERID_LocalAppData) / L"Pearl Abyss" / L"CD" / L"save";
+        if (start_new_as == WorldStart::Unknown) return fail("how this co-op world starts is not chosen yet");
+        const bool new_game = start_new_as == WorldStart::NewGame;
+        // A new world: a copy of the player's own slot folders (never the temporary _new / _backup ones), made under
+        // a temporary name and renamed when complete, so a half copy is never used. A new-game world is a copy too
+        // (2026-11-05: an EMPTY folder left the title holding the slot list it had read before the switch: "failed to
+        // load save" and no buttons); the new game then saves over those copies, in the world only.
+        // One-PC tests copy the [dev] scratch world, never the player's real folder.
+        fs::path game = known_folder(FOLDERID_LocalAppData) / L"Pearl Abyss" / L"CD" / L"save";
+        {
+            std::lock_guard lock(g_world_mutex);
+            if (!g_home.empty()) game = g_worlds_root + g_home;
+        }
         const fs::path tmp = root.wstring() + L".making";
         fs::remove_all(tmp, ec);
         fs::create_directories(tmp, ec);
         if (ec) return fail("could not create " + narrow(tmp.wstring()) + " (" + ec.message() + ")");
+        const std::wstring ini = tmp.wstring() + L"\\coopplus-world.ini";
+        WritePrivateProfileStringW(L"world", L"start", new_game ? L"new" : L"continue", ini.c_str());
+        if (new_game) WritePrivateProfileStringW(L"world", L"new_game_started", L"0", ini.c_str());
         size_t slots = 0;
         for (const auto& acct : fs::directory_iterator(game, ec)) {
             if (!acct.is_directory(ec)) continue;
@@ -297,8 +359,8 @@ bool set_world(const std::wstring& name, std::string* why) {
         if (slots == 0) return fail("no save slots to copy");
         fs::rename(tmp, root, ec);
         if (ec) return fail("could not finish " + narrow(root.wstring()) + " (" + ec.message() + ")");
-        log::info("SaveIO: new co-op world '{}': {} slot(s) copied from your own saves (they stay as they are)",
-                  narrow(name), slots);
+        log::info("SaveIO: new co-op world '{}': {} slot(s) copied from your own saves (they stay as they are){}",
+                  narrow(name), slots, new_game ? "; a new game starts in it" : "");
     }
     {
         std::lock_guard lock(g_world_mutex);

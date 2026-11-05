@@ -101,6 +101,7 @@ private:
     uint32_t spawned_at_ms_ = 0;
     uint32_t missing_since_ms_ = 0;
     bool far_ = false;  // Co-op+: the other player is too far away to be drawn (coop.cpp)
+    uint32_t worlds_epoch_ = 0;  // Co-op+: the co-op world switches seen (coop_worlds.h)
     uint32_t drift_since_ms_ = 0;  // Co-op+ (T06): the copy drawn far from the reported position since
     uint32_t resyncs_ = 0;
 

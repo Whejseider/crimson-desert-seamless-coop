@@ -21,6 +21,7 @@
 #include "mod/input/pad_input.h"
 #include "mod/render/game_ui.h"
 #include "mod/settings_menu.h"
+#include "mod/net/coop_worlds.h"
 #include "mod/optin.h"
 
 namespace cdmp::render {
@@ -293,12 +294,32 @@ void hud_draw(float width, float height) {
         }
         if (g_guide_since.load()) g_guide_since = GetTickCount64();  // the controls card comes after
     }
+    // Co-op+ (2026-11-05): the host's first session with a friend: how the co-op world starts (coop_worlds.h).
+    static input::Edge world_new, world_cont;
+    const bool world_up = !optin_up && net::worlds_card_visible() && opt.build_problem.empty();
+    if (world_up) {
+        if (world_new(input::action_down(input::Action::Challenge, focus))) {
+            net::worlds_answer(true);
+        } else if (world_cont(input::action_down(input::Action::Decline, focus))) {
+            net::worlds_answer(false);
+        } else {
+            ui::guide_card(width, height, "First co-op session with " + net::worlds_card_partner(),
+                           {"You each get a separate co-op save for playing together. How should it start?",
+                            "",
+                            "{Challenge}   NEW SAVE: you both start the game from the beginning",
+                            "{Decline}   Start from your progress: your friend keeps their character and joins your story",
+                            "",
+                            "Your own saves are never touched. Your friend's game follows your choice."},
+                           "With a new save, each of you accepts the agreement and picks the difficulty.");
+        }
+        if (g_guide_since.load()) g_guide_since = GetTickCount64();
+    }
     // Co-op+ (T31): the controls card.
     static input::Edge help_edge;
     if (help_edge(input::action_down(input::Action::Help, focus)) && opt.build_problem.empty()) {
         g_guide_since = g_guide_since.load() ? 0 : GetTickCount64();
     }
-    if (const ULONGLONG since = optin_up ? 0 : g_guide_since.load()) {
+    if (const ULONGLONG since = optin_up || world_up ? 0 : g_guide_since.load()) {
         const ULONGLONG age = GetTickCount64() - since;
         if (age > 60000 || game::ui_menu_open()) {
             g_guide_since = 0;
