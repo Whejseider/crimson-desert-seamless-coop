@@ -995,3 +995,16 @@ Done in the user's Chrome (signed in as Asher):
   diamond on the minimap and the world map with the copy 25 m away, gone during the search, back after.
   Not built: fishing contest (no catch signal known; needs a recorded fishing session). Regression: duel 9/9 HIT
   (rg9), death + checkpoint revive (rg10); SAVES OK; release asi back.
+- 2026-11-05 18:55 FISHING RESEARCH (user: "record a fishing session then ... figure it out"). Findings so far:
+  item keys from the live item table (strscan + ptr_multi, record = name object ptr | key at +8): FishingRod 11001,
+  FishingRod_II 1000639, FishingRod_III 1000640; fish items are "Food_<species>" (build/port3479/fishkeys.txt):
+  river 298xx (Ricefish 1001241, Carp 29808, Trout 29807, Catfish 29811...), sea 296xx (Salmon 29603, Mackerel
+  29609...), legendary 295xx (Sailfish 29506, GoldCarp 29509, Coelacanth 29508, Golden Coelacanth 1001293);
+  Ricefish 1001241 checked against the test save's inventory. AddItemToInventoryAck 3110 = every item into the bag:
+  +5 u8 type (4 in game, 1 login lists), +6 owner, +10 u16 reason, +14 u16 count, element: +17 u64 item no, +25 u32
+  ITEM KEY, +31 u64 stack, +55 u16 slot (seen: quest reward, use item). Keyboard: Equipment Quick Slot = 2 (not F2),
+  Map M, Inventory I, WASD moves the inventory cursor, Space = Use. Rodbel Fishing Dock at (-10240, 548, -3959)
+  (river bank at about (-10217, -3986)); the bandits blockade it in the test save (dev killall + a cutscene).
+  The test save has no rod in the bag; make_rod_save.py put one in (bag slot 7): the inventory shows "Fishing Rod,
+  Tool" but "Cannot be equipped" (client-side: no EquipItemReq is sent). The dock's NPC fishermen equip 11001
+  (EquipItemOnlyAck), so the key is right. Next: the activated Mining Drill record turned into the rod (fishing2).
