@@ -31,6 +31,8 @@ std::vector<proto::GameEvent> hits_take_events();
 void hits_on_event(const proto::GameEvent& ev);
 
 void hits_set_enabled(bool on);
+// Our HP and maximum from the game's own reading (local player), for when no VaryHPAck has given them yet.
+void hits_note_own_health(float hp, float hp_max);
 // Co-op+ dev ([dev] kill_key=1, Ctrl+Shift+F9): our player dies the way a lethal relayed blow kills it
 // (HP to 1, then a collision from ourselves). For repeatable death tests on one PC.
 bool hits_dev_kill_self(int64_t hp_x1000);

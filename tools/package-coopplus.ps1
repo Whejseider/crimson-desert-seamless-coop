@@ -83,6 +83,8 @@ $lines = $lines | ForEach-Object {
             break
         }
         '^self_marker=1$' { 'self_marker=0'; break }
+        # Co-op+ (2026-11-05 playtest: each saw the other lagging): 150 ms is plenty on a normal connection.
+        '^delay_ms=300$' { 'delay_ms=150'; 'delay_tuned=1'; break }
         '^guest_loot=1$' {
             'guest_loot=1'
             '; Co-op+: who loots a kill you both took part in. per_player = each of you takes your own drop (default);'

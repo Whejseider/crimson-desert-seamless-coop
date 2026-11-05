@@ -936,3 +936,9 @@ Done in the user's Chrome (signed in as Asher):
   the prompt now shows whenever a copy was ever loaded (a death after the friend left had no screen at all), the
   death screen replica looks like the game's (grey veil, dark red rim, no red bar). Dead end noted: re-addressing
   the notice to our body actor crashes the game (dt10).
+- 2026-11-05 04:35 Playtest #3 (lag + duel) FIXED on one PC: (a) the duel's own HP came only from a VaryHPAck, so an
+  unhurt player had none and EVERY duel hit on them was dropped ("our hp -0.0" in the playtest): seeded from the
+  game's own reading (player_hits hits_note_own_health); (b) swings judged against the drawn copy (late) OR the
+  partner's latest reported position, reach 3.5 m / arc 75 deg; (c) playout delay 300 -> 150 ms (the copy was drawn
+  ~400 ms late; network loop p95 2 ms, rtt 43 ms in the playtest), migrated once in existing inis (delay_tuned).
+  duel_test2.sh (scratch world): our hp 160 at the start, 9/9 swings HIT, 9 echoed hits applied, round lost "down".

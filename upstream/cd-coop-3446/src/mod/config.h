@@ -109,7 +109,7 @@ struct Config {
     // cdmp_peer --mode relay with nobody else connected, yourself) appears as
     // a remote character. Writes packets into the game; off by default.
     bool coop_enabled = false;
-    uint32_t coop_delay_ms = 300;  // playout delay; longer = smoother climb-ups
+    uint32_t coop_delay_ms = 150;  // playout delay; longer = smoother climb-ups, more lag (2026-11-05: 300 -> 150)
     float coop_offset_m = 0.0f;    // sideways offset of the remote character
     // Experimental, off by default: the copy's horse is not created by the
     // client (owned load) or crashes the game (ownerless load); live tests 1-2.

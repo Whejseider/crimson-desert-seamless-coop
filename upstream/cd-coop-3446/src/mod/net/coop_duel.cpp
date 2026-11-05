@@ -36,8 +36,8 @@ constexpr uint32_t kFightTitleMs = 1200;  // "Fight!" stays this long
 constexpr uint32_t kOverMs = 6000;      // the result on screen, then the next round
 constexpr uint32_t kImpactMs = 280;     // a swing lands this long after it starts
 constexpr uint32_t kSwingGapMs = 220;   // one hit per swing: the same attack again within this is the same swing
-constexpr float kReachM = 3.2f;
-constexpr float kArcDeg = 65.0f;
+constexpr float kReachM = 3.5f;
+constexpr float kArcDeg = 75.0f;
 constexpr double kFloor = 0.03;         // a round is lost at 3% health (nobody dies in a duel)
 constexpr uint32_t kOurCharacterThere = 0xA010F001;
 
@@ -189,7 +189,10 @@ DuelTick duel_tick(bool on, bool inviter, bool connected, std::optional<std::arr
     const bool attack = on && attack_input_down();
     if (attack && !attack_was) g_attack_input_at = now;
     attack_was = attack;
-    // What our screen shows of them is where our swings land.
+    // Where our swings may land: what our screen shows of them (the copy, drawn ~0.3-0.4 s late) and where they
+    // last said they are. Co-op+ (2026-11-05 playtest: 40 of 49 swings missed at 0.4-2.5 m because the late copy
+    // was behind us): a swing that reaches either counts.
+    std::optional<std::array<float, 3>> reported = partner;
     if (auto pp = puppet_position()) partner = std::array<float, 3>{pp->x, pp->y, pp->z};
     std::vector<std::vector<uint8_t>> hits_in;
     std::vector<Swing> swings;
@@ -303,16 +306,26 @@ DuelTick duel_tick(bool on, bool inviter, bool connected, std::optional<std::arr
     }
     // Our swings that reach them.
     for (const Swing& s : swings) {
-        if (!partner) break;
+        if (!partner && !reported) break;
         // Judged at the impact: where they are now, from where we are now.
         const auto from = me.value_or(s.pos);
-        const float dx = (*partner)[0] - from[0], dz = (*partner)[2] - from[2];
-        const float d = std::sqrt(dx * dx + dz * dz);
-        const float dy = std::fabs((*partner)[1] - from[1]);
-        const float cosang = d > 0.01f ? (dx * s.fx + dz * s.fz) / d : 1.0f;
         // ([dev] duel_test: the echo copy always stands at our side, never in front: any direction.)
         const float arc = g_test ? 180.0f : kArcDeg;
-        const bool hit = d <= kReachM && dy < 2.0f && cosang >= std::cos(arc * 3.14159265f / 180.0f);
+        float d = 1e9f, cosang = -1.0f;
+        bool hit = false;
+        for (const auto& at : {partner, reported}) {
+            if (!at) continue;
+            const float dx = (*at)[0] - from[0], dz = (*at)[2] - from[2];
+            const float dd = std::sqrt(dx * dx + dz * dz);
+            const float dy = std::fabs((*at)[1] - from[1]);
+            const float ca = dd > 0.01f ? (dx * s.fx + dz * s.fz) / dd : 1.0f;
+            const bool h = dd <= kReachM && dy < 2.0f && ca >= std::cos(arc * 3.14159265f / 180.0f);
+            if (h || dd < d) {
+                d = dd;
+                cosang = ca;
+            }
+            hit = hit || h;
+        }
         log::info("Duel: our swing 0x{:08X} (base {:.1f}): {:.1f} m, {:.0f} deg -> {}", s.hash, s.base, d,
                   std::acos(std::clamp(cosang, -1.0f, 1.0f)) * 57.2958f, hit ? "HIT" : "miss");
         if (!hit) continue;

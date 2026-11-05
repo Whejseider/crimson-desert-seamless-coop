@@ -203,6 +203,16 @@ int64_t hits_own_hp() {
     return g_own_hp;
 }
 
+void hits_note_own_health(float hp, float hp_max) {
+    // Co-op+ (2026-11-05 playtest: no duel hit ever landed): our HP and maximum came only from a VaryHPAck, so a
+    // player who had not been hurt since the session started had none, and every duel hit on them was dropped
+    // (coop_duel.cpp skips them without a maximum). The game's own reading fills them in until a VaryHPAck does.
+    if (!(hp_max > 0.0f) || hp < 0.0f) return;
+    std::lock_guard lock(g_mutex);
+    if (g_own_hp_max <= 0) g_own_hp_max = static_cast<int64_t>(hp_max * 1000.0);
+    if (g_own_hp < 0) g_own_hp = static_cast<int64_t>(hp * 1000.0);
+}
+
 int64_t hits_own_hp_max() {
     std::lock_guard lock(g_mutex);
     return g_own_hp_max;

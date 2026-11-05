@@ -64,7 +64,8 @@ constexpr wchar_t kDefaultIni[] =
     L"; 1 shows the other player (through cdmp_peer) as a character in your world\r\n"
     L"enabled=0\r\n"
     L"; Playout delay in ms (longer = smoother climbing, more lag)\r\n"
-    L"delay_ms=300\r\n"
+    L"delay_ms=150\r\n"
+    L"delay_tuned=1\r\n"
     L"; Sideways offset of the other player in metres (0 = exact position)\r\n"
     L"offset_m=0\r\n"
     L"; The enemy relay: the host's enemies appear as copies in the other player's\r\n"
@@ -250,6 +251,15 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
     c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;
     c.coop_delay_ms = std::clamp(read_uint(ini_path, L"coop", L"delay_ms", c.coop_delay_ms), 50u, 5000u);
+    // Co-op+ (2026-11-05 playtest: each player saw the other lagging; the copy is drawn ~400 ms late, 300 of them
+    // this buffer). The old default 300 becomes 150 once (delay_tuned); a value the player chose stays.
+    if (read_uint(ini_path, L"coop", L"delay_tuned", 0) == 0) {
+        if (c.coop_delay_ms == 300) {
+            c.coop_delay_ms = 150;
+            WritePrivateProfileStringW(L"coop", L"delay_ms", L"150", ini_path.c_str());
+        }
+        WritePrivateProfileStringW(L"coop", L"delay_tuned", L"1", ini_path.c_str());
+    }
     c.coop_offset_m = read_metres(ini_path, L"coop", L"offset_m", c.coop_offset_m);
     c.coop_horse = read_uint(ini_path, L"coop", L"horse", 1) != 0;
     c.coop_equip = read_uint(ini_path, L"coop", L"equip", 1) != 0;

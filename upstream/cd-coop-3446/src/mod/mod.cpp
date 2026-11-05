@@ -791,6 +791,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                                   s.position.z);
                     }
                 }
+                net::hits_note_own_health(s.health, s.health_max);  // duel hits need our HP (player_hits.h)
                 // Co-op+: our own revive choices when the game's death screen stays away (revive_prompt.h).
                 std::optional<float> partner_hp;
                 if (connected) {
