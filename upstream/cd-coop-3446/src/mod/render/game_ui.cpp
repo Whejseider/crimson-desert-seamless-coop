@@ -362,6 +362,35 @@ void summary_card(float sw, float sh, const std::string& title, const std::strin
     rich_text(dl, sw * 0.5f - fw * 0.5f, y, fs, footer, with_alpha(IM_COL32(200, 192, 176, 255), alpha * 0.9f));
 }
 
+void veil(float sw, float sh, const std::string& count, const std::string& lines, float alpha) {
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    const float k = std::max(0.6f, sh / 1080.0f);
+    dl->AddRectFilled(ImVec2(0, 0), ImVec2(sw, sh), with_alpha(IM_COL32(6, 5, 4, 246), alpha));
+    // A faint warm glow behind the count, the game's loading-screen feel.
+    const float cy = sh * 0.42f;
+    faded_rect(dl, sw * 0.5f - 520 * k, cy - 90 * k, sw * 0.5f + 520 * k, cy + 150 * k,
+               with_alpha(IM_COL32(40, 30, 18, 120), alpha));
+    const float hs = 22.0f * k, cs = 120.0f * k, ls = 23.0f * k;
+    const std::string head = "Counting";
+    text(dl, g_serif, hs, sw * 0.5f - text_w(g_serif, hs, head) * 0.5f, cy - 70 * k,
+         with_alpha(IM_COL32(205, 195, 175, 255), alpha), head);
+    text(dl, g_serif_bold, cs, sw * 0.5f - text_w(g_serif_bold, cs, count) * 0.5f, cy - 38 * k, with_alpha(kGold, alpha),
+         count);
+    float y = cy + cs - 20 * k;
+    faded_rect(dl, sw * 0.5f - 240 * k, y, sw * 0.5f + 240 * k, y + 1.0f, with_alpha(kRule, alpha));
+    y += 18 * k;
+    size_t at = 0;
+    while (at <= lines.size()) {
+        const size_t nl = lines.find('\n', at);
+        const std::string l = lines.substr(at, nl == std::string::npos ? std::string::npos : nl - at);
+        const float lw = rich_text(nullptr, 0, 0, ls, l, kText);
+        rich_text(dl, sw * 0.5f - lw * 0.5f, y, ls, l, with_alpha(kText, alpha));
+        y += ls + 12 * k;
+        if (nl == std::string::npos) break;
+        at = nl + 1;
+    }
+}
+
 void strip(float sw, float y, const std::string& body, float alpha) {
     ImDrawList* dl = ImGui::GetForegroundDrawList();
     const float k = std::max(0.6f, sw / 1920.0f);

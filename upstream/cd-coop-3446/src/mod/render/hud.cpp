@@ -272,6 +272,8 @@ void hud_draw(float width, float height) {
         dl->AddText(f, fs, ImVec2(x + 1, y + 1), IM_COL32(0, 0, 0, 200), t.c_str());
         dl->AddText(f, fs, ImVec2(x, y), col, t.c_str());
     }
+    // Co-op+ (2026-11-05): hide and seek, the seeker counting with eyes closed. Under every card and notice.
+    if (d.veil && !game::ui_menu_open()) ui::veil(width, height, d.veil_count, d.veil_line);
     // Co-op+: the experimental opt-in, once, on the first launch of this build (optin.h). It waits for an answer;
     // the controls card waits behind it.
     static input::Edge optin_yes, optin_no;
@@ -412,7 +414,7 @@ void hud_draw(float width, float height) {
                             input::connected_pad() == input::Method::Keyboard
                                 ? "{Ping}  Quick messages and map pins          {Chat}  Type a chat line"
                                 : "{Ping}  Quick messages (D-pad Left/Right choose) and map pins",
-                            "{Challenge}  Challenge: duel, rock-paper-scissors, hunting, arm wrestling",
+                            "{Challenge}  Challenge: duel, race, hide and seek, hunting, rock-paper-scissors, arm wrestling",
                             "{ReviveFriend}  Hold by a downed friend to revive          {Resync}  Resync if things look wrong",
                             "Don't save while your friend is in your world: Co-op+ backs your saves up for you."},
                            input::connected_pad() == input::Method::Keyboard
@@ -471,11 +473,13 @@ void hud_draw(float width, float height) {
 
     // Co-op+ (T14): the partner frame, whenever connected (not over a full-screen menu or a cutscene).
     if (d.connected && d.remote && !panel_visible && !game::ui_menu_open() && !game::cutscene_playing().value_or(false) &&
-        !d.revive_prompt) {
+        !d.revive_prompt && !d.veil) {
         const float hp = d.remote->health_max > 0 ? d.remote->health / d.remote->health_max : -1.0f;
         const float st = d.remote->stamina_max > 0 ? d.remote->stamina / d.remote->stamina_max : -1.0f;
         std::string status = d.partner_in_menu ? std::string("in a menu") : std::string();
-        if (d.local) {
+        if (d.hide_partner) {
+            status = "hiding";  // hide and seek: no distance to give them away
+        } else if (d.local) {
             const std::string dist = std::format("{:.0f} m", remote_distance);
             status = status.empty() ? dist : status + "  -  " + dist;
         }
@@ -489,23 +493,23 @@ void hud_draw(float width, float height) {
     if (!cam || !cam_world || game::ui_menu_open()) return;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
-    if (d.duel_active && d.duel_radius > 0) {
-        // Co-op+ duel: the duel ground, a ring of gold on the ground with posts (coop_duel.h); red while we are out.
-        const bool out = d.duel_out_left_s >= 0;
+    // A ring of gold on the ground with posts: the duel ground (coop_duel.h) and the hiding area (coop_hideseek.h);
+    // red while we are out. A big ring gets more segments and taller posts (the ground rises and falls under it).
+    auto ground_ring = [&](const proto::Vec3& centre, float radius, bool out) {
         const ImU32 ring = out ? IM_COL32(210, 60, 45, 210) : IM_COL32(232, 200, 130, 170);
-        constexpr int kSegments = 96;
+        const int segments = std::clamp(static_cast<int>(radius * 2.0f), 96, 256) / 8 * 8;
+        const float post_h = radius > 40.0f ? 3.0f : 1.6f;
         std::optional<game::ScreenPoint> prev;
-        for (int i = 0; i <= kSegments; ++i) {
-            const float a = 6.2831853f * static_cast<float>(i) / kSegments;
-            const proto::Vec3 p{d.duel_centre.x + d.duel_radius * std::cos(a), d.duel_centre.y + 0.08f,
-                                d.duel_centre.z + d.duel_radius * std::sin(a)};
+        for (int i = 0; i <= segments; ++i) {
+            const float a = 6.2831853f * static_cast<float>(i) / static_cast<float>(segments);
+            const proto::Vec3 p{centre.x + radius * std::cos(a), centre.y + 0.08f, centre.z + radius * std::sin(a)};
             auto sp = game::project(*cam, *cam_world, p, width, height);
             if (sp && prev && (i % 2 == 0)) {
                 dl->AddLine(ImVec2(prev->x, prev->y), ImVec2(sp->x, sp->y), IM_COL32(0, 0, 0, 120), 5.0f);
                 dl->AddLine(ImVec2(prev->x, prev->y), ImVec2(sp->x, sp->y), ring, 2.5f);
             }
-            if (sp && i % 8 == 0 && i < kSegments) {
-                const proto::Vec3 top{p.x, p.y + 1.6f, p.z};
+            if (sp && i % 8 == 0 && i < segments) {
+                const proto::Vec3 top{p.x, p.y + post_h, p.z};
                 if (auto st = game::project(*cam, *cam_world, top, width, height)) {
                     dl->AddLine(ImVec2(sp->x, sp->y), ImVec2(st->x, st->y), IM_COL32(0, 0, 0, 110), 4.0f);
                     dl->AddLine(ImVec2(sp->x, sp->y), ImVec2(st->x, st->y), ring, 2.0f);
@@ -514,9 +518,11 @@ void hud_draw(float width, float height) {
             }
             prev = sp;
         }
-    }
+    };
+    if (d.duel_active && d.duel_radius > 0) ground_ring(d.duel_centre, d.duel_radius, d.duel_out_left_s >= 0);
+    if (d.area_active && d.area_radius > 0) ground_ring(d.area_centre, d.area_radius, d.area_outside);
 
-    if (d.remote && plates_visible && nameplate::alpha(remote_distance) > 0.0f) {
+    if (d.remote && plates_visible && !d.hide_partner && nameplate::alpha(remote_distance) > 0.0f) {
         const proto::Vec3 head{d.remote->pos.x, d.remote->pos.y + kHeadHeight, d.remote->pos.z};
         if (auto p = game::project(*cam, *cam_world, head, width, height)) {
             draw_remote_marker(dl, *p, d, remote_distance);

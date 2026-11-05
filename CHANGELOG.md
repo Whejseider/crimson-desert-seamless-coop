@@ -2,6 +2,11 @@
 
 ## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 
+New (2026-11-05, after the first playtest):
+- Hide and seek, a new challenge: the challenger counts first with eyes closed (45 s) while the friend hides within 100 m (a gold ring on the ground marks the edge, red when you are outside). The seeker has 3 minutes; the hider's name tag, distance and map marker are hidden, and Cold / Warm / Hot tells how close you are. Within 4 m = found. Roles swap every round, first to 2.
+- "Journey Together": when your friend leaves, a card sums up the session (time together, enemies each of you defeated, bosses, revives, challenges won, quest steps finished together, distance travelled side by side).
+- Fixed: your friend's marker was missing from the minimap and the map while they were near (within 400 m); it showed only when they were far away.
+
 First two-player playtest fixes (2026-11-05):
 - A new journey together: the first time two friends play with co-op saves on, both begin a new game at the start of the story in a co-op save of its own ("A New Journey with <friend>"); each accepts the agreement and picks a difficulty. Co-op saves made by earlier versions (copies of your own progress): the host is asked once whether to begin anew (the old one is kept as a backup) or continue. The friend's character no longer crashes a brand-new game.
 - Switching saves asks first: a card offers "now" (the game goes to the title and loads it, with a notice on screen) or "later" (go to the title yourself; nothing is pressed for you). The game no longer takes over the keyboard and mouse unannounced.

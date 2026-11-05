@@ -1,3 +1,4 @@
+#include "mod/net/coop_hideseek.h"
 #include "mod/net/coop_race.h"
 #include "mod/net/coop.h"
 #include "mod/net/coop_worlds.h"
@@ -386,13 +387,15 @@ void CoopLink::update_map_pin(bool connected, uint32_t now_ms) {
     // the position they report.
     std::optional<proto::Vec3> where;
     if (connected && local_in_world_ && last_remote_ms_ && now_ms - last_remote_ms_ < kRemoteSilenceMs) {
-        const bool icon = puppet_minimap_offset() > 0;
+        // Co-op+ (2026-11-05): only an icon the game really asked for; otherwise the pin marks them while near too.
+        const bool icon = puppet_minimap_offset() > 0 && puppet_minimap_asked();
         if (const auto drawn = puppet_position()) {
             if (!icon) where = drawn;
         } else if (const auto& rs = session_.remote_state()) {
             where = rs->pos;
         }
     }
+    if (hideseek_partner_hidden()) where.reset();  // Co-op+: hide and seek, we are the seeker
     if (where) pin_wanted_ms_ = now_ms;
     if (!where) {
         // Brief gaps (a missed position read) must not make it blink.

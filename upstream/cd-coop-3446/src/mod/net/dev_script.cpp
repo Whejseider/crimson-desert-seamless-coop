@@ -260,11 +260,14 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(std::move(st));
             continue;
         }
-        if (kind == "tp") {
+        if (kind == "tp" || kind == "tprel") {  // tprel dx dy dz: from where we stood when the script started
             st.kind = Step::Teleport;
             if (!(in >> st.to[0] >> st.to[1] >> st.to[2])) {
-                log::warn("Dev script: line {} needs tp x y z", lineno);
+                log::warn("Dev script: line {} needs {} x y z", lineno, kind);
                 continue;
+            }
+            if (kind == "tprel") {
+                for (int i = 0; i < 3; ++i) st.to[i] += pos[i];
             }
             steps.push_back(st);
             continue;

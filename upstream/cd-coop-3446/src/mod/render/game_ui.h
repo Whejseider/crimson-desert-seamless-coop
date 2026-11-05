@@ -41,6 +41,10 @@ void summary_card(float screen_w, float screen_h, const std::string& title, cons
                   const std::string& partner, const std::vector<SummaryLine>& rows, const std::string& footer,
                   float alpha = 1.0f);
 
+// Co-op+ (2026-11-05): hide and seek, the seeker's closed eyes: the screen darkened all over, a large count in gold
+// and the lines under it (split at line breaks).
+void veil(float screen_w, float screen_h, const std::string& count, const std::string& lines, float alpha = 1.0f);
+
 // A one-line band (lighter), e.g. the running state of a challenge.
 void strip(float screen_w, float y, const std::string& text, float alpha = 1.0f);
 

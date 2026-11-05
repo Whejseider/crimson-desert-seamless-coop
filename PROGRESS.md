@@ -978,3 +978,20 @@ Done in the user's Chrome (signed in as Asher):
   menus, cutscenes and loading (shows after a co-op world switch once back in our own save), 15 s, {Decline} closes.
   sm1 (scratch world, [dev] summary_test=1): kills 12/12, card on screen 3 s after the peer stopped, Shift+F6 closed
   it, SAVES OK.
+- 2026-11-05 17:58 HIDE AND SEEK (net/coop_hideseek.*, Activity type 26, stage 0xD0E10004, last in the picker): the
+  challenger counts first; the seeker sends the round start with its position = the area centre; 45 s veil ("Counting
+  13", eyes closed) while the friend hides within 100 m (user mid-task: "within 100m or something like that ... or the
+  game will never end"; a gold ground ring with 3 m posts marks the edge, red outside, 10 s outside = round lost);
+  then 3 min seek: the hider's name tag, frame distance and map pin are hidden, Cold / Cool / Warm / Hot / Burning hot;
+  within 4 m (and 5 m in height) = found (the seeker decides and tells the hider; no word 6 s after time = not found);
+  roles swap each round, first to 2, scoreboard "hide". Ctrl+F4 (go to friend) is refused during the game.
+  Tests (scratch world, echo peer, [dev] hideseek_test): hs1-hs4 we seek: veil, "Warm", tp near -> "Found! You found
+  ... in 0:12"; hs5 we hide: "Well Hidden"; hs6 hider walked to 90 m (ring at the edge) then 112 m: "Back into the
+  hiding area! ... 112 m", round lost (left the area). SAVES OK each.
+  FINDING + FIX (pre-existing): on 1.0.0.3549 the game never asks the minimap hook for the copy's icon (no log of ours
+  ever shows "the game asked for the other player's icon"), yet update_map_pin assumed an icon whenever [coop]
+  minimap_icon was set and took the map pin away while the copy was loaded: a friend within 400 m was on NEITHER the
+  minimap nor the map. Now the pin stays unless the game really asked (puppet_minimap_asked); hs4 shots: the gold
+  diamond on the minimap and the world map with the copy 25 m away, gone during the search, back after.
+  Not built: fishing contest (no catch signal known; needs a recorded fishing session). Regression: duel 9/9 HIT
+  (rg9), death + checkpoint revive (rg10); SAVES OK; release asi back.

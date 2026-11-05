@@ -234,12 +234,13 @@ void __fastcall minimap_icon(void* comp, uint16_t* icon, uint16_t* sub, uint8_t*
         if (!is_enemy_copy(actor)) note_npc_icon(given);
         return;
     }
-    if (offset == 0 || actor != kPuppetPlayer) {
+    if (actor != kPuppetPlayer) {
         g_hook.call<void>(comp, icon, sub, a, b);
         return;
     }
     g_calls.fetch_add(1, std::memory_order_relaxed);
-    if (offset < 0) {  // diagnostic: what does the game decide for it?
+    // Diagnostic, or our icon switched off (hide and seek): what does the game decide for it?
+    if (offset <= 0) {
         g_hook.call<void>(comp, icon, sub, a, b);
         __try {
             g_diag_answer.store(*icon | static_cast<uint32_t>(*sub) << 16, std::memory_order_relaxed);
@@ -300,6 +301,7 @@ void puppet_minimap_set_offset(int table_offset) {
 }
 
 int puppet_minimap_offset() { return g_offset.load(); }
+bool puppet_minimap_asked() { return g_calls.load(std::memory_order_relaxed) != 0; }
 
 void puppet_minimap_set_enemy_offset(int table_offset) {
     if (table_offset > 0 && (table_offset < 0xEA || table_offset > 0x16C || table_offset % 2)) return;

@@ -24,6 +24,9 @@ bool puppet_minimap_install(int table_offset);
 // but draws it only for a new copy (reload the puppet to see it).
 void puppet_minimap_set_offset(int table_offset);
 int puppet_minimap_offset();
+// Co-op+ (2026-11-05): the game has asked for the copy's icon at least once (on 1.0.0.3549 it never does for the
+// other player's copy, so the copy carries no minimap icon and the map pin stands in for it).
+bool puppet_minimap_asked();
 // The icon (table offset, 0 = the game's) of the other player's enemy copies
 // when the game gives them none.
 void puppet_minimap_set_enemy_offset(int table_offset);

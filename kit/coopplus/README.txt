@@ -149,8 +149,8 @@ PLAYING TOGETHER
   (pad: Menu/Options or B): yours says "waiting for <name>" until they press too.
 - Time of day and weather follow the host (rain, clouds and wind included).
 - CHALLENGE YOUR FRIEND (Shift+F5, pad: View + D-pad Up):
-  * A choice opens: Duel, Rock-paper-scissors, Hunting contest, and the arm / hand wrestling table
-    you stand at (if any). Left/Right arrows (pad: D-pad Left/Right) choose,
+  * A choice opens: Duel, Rock-paper-scissors, Hunting contest, Race, Hide and seek, and the
+    arm / hand wrestling table you stand at (if any). Left/Right arrows (pad: D-pad Left/Right) choose,
     Shift+F5 sends, Shift+F6 cancels.
   * Your friend gets "<name> challenges you to ...": Shift+F5 accepts, Shift+F6
     declines (an invite lapses after a minute).
@@ -176,10 +176,22 @@ PLAYING TOGETHER
   * RACE TO THE WAYPOINT: the host's map waypoint (right-click on the map) is the
     finish; after 3, 2, 1 the first to get within 12 m wins (ride, glide, run). Set a
     new waypoint for the next race.
+  * HIDE AND SEEK: the one who sent the challenge counts first (eyes closed: the
+    screen goes dark for 45 seconds) while the other hides within 100 m of where they
+    count; a gold ring on the ground marks the edge. Then the seeker has 3 minutes:
+    the hider's name tag, map marker and distance are hidden, and "Cold / Cool / Warm /
+    Hot" says how close you are. Get within 4 m to find them. Not found in time: the
+    hider wins the round. A hider outside the ring for 10 seconds loses it. Roles swap
+    every round.
   * Rock, paper, scissors: press U (scissors), F (paper) or E (rock) - pad X, Y,
     B; both hands show over your characters when both of you have picked; first to
     2 wins the match.
-  * A series score is kept ("you 2 - 1 <name>"); Shift+F5 again ends the challenge.
+  * Each challenge is one match: duel, race, hunt and hide and seek are first to 2
+    rounds; it ends with a Victory or Defeat card. Shift+F5 stops it early.
+- WHEN YOU PART WAYS: once your friend has left (and not come back for 20 seconds), a
+  "Journey Together" card sums up your session: time together, enemies each of you
+  defeated, bosses, revives, challenges won, quest steps finished together and the
+  distance travelled side by side (sessions of 2 minutes or more; Shift+F6 closes it).
 - Other minigames (contests, card games...): each of you plays in your own world;
   your friend sees "<name> is playing a minigame" and when you finish.
 - Mounts: your friend sees you ride your horse, and sees your flying mount too.

@@ -75,6 +75,15 @@ struct HudData {
     std::string travel_line;
     std::string chat_input, chat_quick;  // Co-op+ (T24): the open chat line / quick list
     std::vector<std::string> chat_log;   // recent chat lines  // Co-op+ (T19): a summon / party travel request  // Co-op+ (T15): "hold to revive" / progress (reviver) or the bleed-out (downed)  // Co-op+ (T09): their name tag says "in a menu"
+    // Co-op+ (2026-11-05) hide and seek: we seek, so the friend is hidden from us (no name tag, no distance); while we
+    // count, the screen is veiled with the count.
+    bool hide_partner = false;
+    bool area_active = false;  // the hiding area's ring
+    proto::Vec3 area_centre{};
+    float area_radius = 0;
+    bool area_outside = false;
+    bool veil = false;
+    std::string veil_count, veil_line;
     bool rps_on = false;
     int rps_ours = -1, rps_theirs = -1;
     bool rps_ours_picked = false, rps_theirs_picked = false;

@@ -21,6 +21,7 @@ ByJunter and its port by nouzert1.
 | Automatic reconnect after a crash, a long alt-tab or a dropped connection | Works |
 | Joining while the host is in a fight, a menu or a loading screen | Works |
 | Leaving (Ctrl+F2) returns you to your own world with nothing left behind | Works |
+| NEW: "Journey Together" card when you part ways: time, enemies, bosses, revives, challenges, quest steps, distance | Works |
 | Automatic resync when things drift apart, plus a manual resync key | Works |
 
 ## Your friend in your world
@@ -29,7 +30,7 @@ ByJunter and its port by nouzert1.
 |---|---|
 | Their character walks, runs, climbs, glides, swims and fights, in matching gear that updates live | Works |
 | Name tag over their head (fades with distance, hidden over menus) | Works |
-| On your minimap and map; shared map waypoints | Works |
+| On your minimap and map; shared map waypoints (fixed: the marker is now there when your friend is near, too) | Works |
 | Partner frame: their name, health and stamina, with a "Badly hurt" warning | Works |
 | Horses (a fixed bug: the horse copy no longer appears where it was first called) | Works |
 | Flying mount (Blackstar) | Needs testing |
@@ -73,6 +74,7 @@ ByJunter and its port by nouzert1.
 | Rock, paper, scissors (first to two hands; no hand animation yet) | Works |
 | Hunting contest (3 minutes, the most game wins) | Works |
 | Race to the waypoint (first to the host's map waypoint) | Works |
+| NEW: Hide and seek (hide within 100 m, a ring marks the edge; the seeker gets warmer / colder) | Works, needs testing with two players |
 | Arm wrestling with your friend in the opponent's chair | Needs testing |
 | Every challenge is one match and ends with a Victory or Defeat card | Works |
 | Lasting scoreboard per friend and titles ("the Duelist") | Works |

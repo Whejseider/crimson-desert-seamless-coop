@@ -53,6 +53,7 @@
 #include "mod/net/coop_chat.h"
 #include "mod/net/kill_feed.h"
 #include "mod/net/session_summary.h"
+#include "mod/net/coop_hideseek.h"
 #include "mod/net/coop_race.h"
 #include "mod/net/scoreboard.h"
 #include "mod/net/state_audit.h"
@@ -772,7 +773,10 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 // Co-op+: Ctrl+F4 takes us to the other player (alive, not in a menu, 1 m beside them).
                 static bool go_was_down = false;
                 const bool go_down = connected && input::action_down(input::Action::GoToFriend, game_has_focus());
-                if (go_down && !go_was_down && s.health > 0.0f) {
+                if (go_down && !go_was_down && net::hideseek_active()) {
+                    toast = "Hide and seek\nNo shortcuts to your friend during the game";
+                    toast_until = now + 4000;
+                } else if (go_down && !go_was_down && s.health > 0.0f) {
                     if (const auto& rs = session.remote_state(); rs && rs->health > 0.0f) {
                         net::revive_teleport_to(rs->pos.x + 1.0f, rs->pos.y + 0.5f, rs->pos.z);
                         log::info("Co-op: to the other player at ({:.0f}, {:.0f})", rs->pos.x, rs->pos.z);
@@ -1047,6 +1051,20 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 hud.duel_title_color = rh.color;
                 hud.duel_title_alpha = rh.alpha;
             }
+            if (const net::HideSeekHud sh = net::hideseek_hud(); !sh.title.empty() || sh.veil || sh.area) {  // 2026-11-05
+                hud.duel_title = sh.title;
+                hud.duel_subtitle = sh.subtitle;
+                hud.duel_title_color = sh.color;
+                hud.duel_title_alpha = sh.alpha;
+                hud.veil = sh.veil;
+                hud.area_active = sh.area;
+                hud.area_centre = {sh.area_centre[0], sh.area_centre[1], sh.area_centre[2]};
+                hud.area_radius = sh.area_radius;
+                hud.area_outside = sh.outside;
+                hud.veil_count = sh.veil_count;
+                hud.veil_line = sh.veil_line;
+            }
+            hud.hide_partner = connected && net::hideseek_partner_hidden();
             if (const net::MatchHud mh = net::activity_match_hud(); !mh.title.empty()) {
                 hud.duel_title = mh.title;
                 hud.duel_subtitle = mh.subtitle;
@@ -1855,6 +1873,7 @@ DWORD WINAPI worker(LPVOID) {
         net::activity_set_challenge_test(cfg.dev_challenge_test);
         net::duel_set_test(cfg.dev_duel_test);
         net::summary_set_test(cfg.dev_summary_test);
+        net::hideseek_set_test(cfg.dev_hideseek_test);
         net::party_quests_set_test(cfg.dev_quest_test);
         net::hunt_set_test(cfg.dev_hunt_test);
         net::sync_set_test(cfg.dev_desync_test);
