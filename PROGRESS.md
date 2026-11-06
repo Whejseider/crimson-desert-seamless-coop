@@ -1390,3 +1390,11 @@ Done in the user's Chrome (signed in as Asher):
   observers only (revive, party journal, contests, kill feed, activity notices, duel swings, weather).
   Open: duel HITS on the old base came from swings + injected damage (the sniffer, off here): to check how a duel
   is decided in native mode (the server's PvP rules).
+- 2026-11-06 10:05 tc38 (-Walk -Fight -CoopPlus, packet bridge): the bridge is live on both copies ("Sniffer: the
+  Co-op+ layer (coopplus.asi) gets the client's packets from now on"); both reached the dock; the host's swings hit
+  nothing this time but the bandits brought the host down (Co-op+ Local hp 108 -> 0 in 20 s) and the Co-op+ REVIVE
+  prompt appeared on the host's screen: "Guest can revive you (30 s)" (docs/research/native-shots/tc38-52-host-
+  fought.png): the death reached the layer through the bridge. Both alive, SAVES OK (the death is in the sandbox).
+  Second bridge direction (built, testing in tc39): the native cdmp.asi exports cdmp_inject_c2s (its
+  sniffer_inject_c2s queue) and the layer's sniffer_inject_c2s sends through it in native mode (revive, duel hits,
+  give-backs). On the guest that request goes the native way, to the host's server, for user 2's character.

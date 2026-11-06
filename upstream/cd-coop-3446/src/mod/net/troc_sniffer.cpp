@@ -1,4 +1,5 @@
 #include "mod/net/troc_sniffer.h"
+#include "mod/native_layer.h"
 
 #include <safetyhook.hpp>
 
@@ -655,6 +656,15 @@ bool opcodes_resolved() { return !g_name_by_opcode.empty(); }
 bool sniffer_world_loading() { return world_loading(); }
 
 bool sniffer_inject_c2s(std::vector<uint8_t> packet) {
+    if (kNativeLayer) {
+        // native_layer.h: our sniffer is off; the native base's cdmp.asi sends it through its own (cdmp_inject_c2s).
+        using InjectFn = int (*)(const uint8_t*, size_t);
+        static InjectFn fn = nullptr;
+        if (!fn) {
+            if (HMODULE m = GetModuleHandleW(L"cdmp.asi")) fn = reinterpret_cast<InjectFn>(GetProcAddress(m, "cdmp_inject_c2s"));
+        }
+        return fn && fn(packet.data(), packet.size()) != 0;
+    }
     // While the world loads it would only wait and expire: the caller is told.
     if (!g_post_fn || packet.size() < 5 || packet.size() > 0x7F00 || world_loading()) return false;
     AcquireSRWLockExclusive(&g_c2s_lock);

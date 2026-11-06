@@ -294,6 +294,22 @@ if ($Fight) {
         & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:1500 shot:$Name-53-guest-sees-fight" | Out-Null
     } catch { "fight step failed: $_" }
     "fight done $(Get-Date -Format HH:mm:ss.fff)"
+    if ($CoopPlus) {
+        # Revive (tc39+): the bandits usually bring the host down (tc38: "Guest can revive you (30 s)"); the guest
+        # walks to the host's last position (its packet log) and presses ReviveFriend (Shift+F7) there.
+        $hlog = Get-ChildItem "$bin\cdmp_packets.host_*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        $hp = (python "$here\pos.py" $hlog.FullName).Trim()
+        "host at $hp; the guest goes to revive at $(Get-Date -Format HH:mm:ss.fff)"
+        if ($hp) {
+            $xz = $hp.Split(' ')
+            $env:CD_PID = "$($gp.Id)"; python "$here\camwalk\walkto.py" $xz[0] $xz[1] 2.5 2>&1 | Select-Object -Last 2
+            $env:CD_PID = ''
+            try {
+                & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:500 shot:$Name-54-guest-by-host kd:SHIFT k:F7:150 ku:SHIFT w:6000 shot:$Name-55-guest-revived" | Out-Null
+                & "$here\actpid.ps1" -GamePid $h.Id -Seq "w:1500 shot:$Name-56-host-after-revive" | Out-Null
+            } catch { "revive step failed: $_" }
+        }
+    }
 }
 & "$here\keyspid.ps1" -GamePid $h.Id -Keys SPACE | Out-Null
 Start-Sleep 3
