@@ -1500,3 +1500,16 @@ Done in the user's Chrome (signed in as Asher):
   Discord (after the user's "You finish Discord", 12:30-12:45): download post with both zips sent and pinned, the
   a82c1b48 post unpinned (not deleted), announcement posted, #features 1 (version) and 2 (hide and seek, fishing)
   and #how-to-install (version) edited. Details and the editing method: docs/release/discord-server-posts.md.
+- 2026-11-06 12:50-14:40 LOW LATENCY (user: "player lag at an absolute minimum ... under 30 ms between player screens";
+  top priority). Measured with a new probe (tools/lag, [dev] lag_probe=1, echo peer): the released build drew the
+  other player 352 ms behind (150 ms playout + the game's own 200 ms render delay). Now 26 ms on one PC (24 per
+  window), path just as smooth (residual 0.05 m); 72 ms with a simulated 30 ms +-10 network. Changes: playout buffer
+  in the timestamps, adaptive ([coop] buffer_ms, default 10; the old delay_ms is no longer read); the fast lane thread
+  (movement in and out without waiting for the ~30 ms network loop); writer wakes on our packets; smoothed own-clock
+  estimate; the pose stream (our transform every frame, [coop] pose_stream); halfway prediction ([coop] predict).
+  Details and the numbers per step: docs/research/latency.md. Checks on this build, SAVES OK each: duel 9/9 HIT
+  (du77), death + revive (dt77), live quests both ways (ls77, peer --quest 0101380996480F00@20 + advance1.txt), far
+  apart and back (far77). hideseek_test.sh: two Lefts for hide and seek (LEFTS=1 = fishing).
+  LESSONS: the echo peer hides clock problems (the echoed packet carries our own stamp): measure lateness against a
+  smoothed clock. The network loop's own work (enemy relay etc.) is ~30 ms a pass: nothing latency-critical may wait
+  for it. Not yet: two real games (two copies) and horse riding / climbing with the new pipeline.

@@ -17,6 +17,9 @@
 
 #include "common/equip_state.h"
 #include "mod/game/offsets.h"
+#include "mod/net/fast_lane.h"
+#include "mod/net/wire_layout.h"
+#include "mod/net/lag_probe.h"
 #include "mod/log.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/loot_twin.h"
@@ -32,7 +35,13 @@
 namespace cdmp::net {
 namespace {
 
+// The game draws a remote actor this long behind its timestamps (GlobalVariableInt at exe+0x6CB9548 on 2976, still
+// 200 on 3576: measured 352 ms = 150 + 200 + transit with the old fixed delay, 2026-11-06).
+constexpr int64_t kGameDrawDelayMs = 200;
+
 std::atomic<bool> g_ready{false};
+// Co-op+ low latency: our game captured an event that waits in the outbox (the network loop stops waiting for input).
+std::atomic<bool> g_outbox_waiting{false};
 std::atomic<bool> g_no_copy{false};
 std::atomic<uint32_t> g_pings{0};
 constexpr size_t kMaxOutbox = 4096;            // ~1 s of events; more means the link is stuck
@@ -70,25 +79,37 @@ bool relay_is_reliable(const proto::GameEvent& ev) {
 void coop_set_ready() { g_ready = true; }
 void coop_set_copy_disabled(bool off) { g_no_copy = off; }
 uint32_t coop_pings_received() { return g_pings; }
+bool coop_outbox_waiting() { return g_outbox_waiting.load(std::memory_order_acquire); }
 
 CoopLink::CoopLink(ClientSession& session, uint32_t delay_ms, float offset_m, bool map_pin)
-    : session_(session), delay_ms_(delay_ms), offset_m_(offset_m), map_pin_(map_pin) {
+    : session_(session), delay_ms_(delay_ms), offset_m_(offset_m), map_pin_(map_pin), playout_(delay_ms) {
     puppet_set_offset(offset_m_);
     session_.set_game_handlers(
         [this](const proto::GameEvent& ev, uint32_t now) { on_event(ev, now); },
         [this](const ReliableChannel::Message& m, uint32_t now) { on_reliable(m, now); });
     capture_set_sink([this](const proto::GameEvent& ev) {
+        // Co-op+ low latency: our own movement goes out from the fast lane at once (fast_lane.h).
+        if (fast_lane_hot(ev.kind) && g_ready.load(std::memory_order_acquire) && fast_lane_send(ev)) {
+            if (ev.kind == proto::EventKind::Move && lag_probe_on()) lag_probe_mark(1, event_timestamp(ev));
+            return;
+        }
         std::lock_guard lock(outbox_mutex_);
         if (outbox_.size() >= kMaxOutbox) {
             ++outbox_dropped_;
             return;
         }
         outbox_.push_back(ev);
+        g_outbox_waiting.store(true, std::memory_order_release);
+        fast_lane_wake();
     });
-    log::info("Co-op: enabled (playout delay {} ms)", delay_ms_);
+    fast_lane_set_hot_handler([this](const proto::GameEvent& ev, uint32_t now) { return on_hot_event(ev, now); });
+    // Moves go into the game as they arrive: the buffer is in their timestamps (ts_shift), not in a hold.
+    puppet_set_move_hold(0);
+    log::info("Co-op: enabled (low latency: the other player drawn {}+ ms after the network, adaptive)", delay_ms_);
 }
 
 CoopLink::~CoopLink() {
+    fast_lane_set_hot_handler({});  // first: the fast lane may be inside it (the setter waits for that)
     suppress_stop(/*restore=*/true);
     capture_set_sink({});
     session_.set_game_handlers({}, {});
@@ -153,6 +174,7 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
         {
             std::lock_guard lock(outbox_mutex_);
             out.swap(outbox_);
+            g_outbox_waiting.store(false, std::memory_order_release);
         }
         if (!connected || !g_ready) return;  // not linked: what was collected is dropped
         for (auto& ev : out) {
@@ -168,6 +190,7 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
                 // Co-op+: a one-off event on the lossy channel: three copies (a repeat only re-places the pin).
                 for (int i = 0; i < 3; ++i) session_.send_event(ev, now_ms);
             } else {
+                if (ev.kind == proto::EventKind::Move && lag_probe_on()) lag_probe_mark(1, event_timestamp(ev));
                 session_.send_event(std::move(ev), now_ms);
             }
         }
@@ -494,7 +517,11 @@ void CoopLink::forget_partner(uint32_t now_ms) {
     // count now, not from before the link was lost: otherwise their fresh
     // character was removed and loaded again at once (live test, 21:03:53).
     last_remote_ms_ = now_ms;
-    clock_.reset();
+    {
+        std::lock_guard feed_lock(feed_mutex_);
+        clock_.reset();
+        playout_.reset();
+    }
     ordered_in_ = 0;
     ordered_held_.clear();
     held_enemy_spawns_.clear();
@@ -510,10 +537,10 @@ void CoopLink::deliver_ordered(proto::RelKind kind, std::vector<uint8_t> payload
         if (last_spawn_) merge_equip(*last_spawn_, payload);
         if (remote_spawn_) merge_equip(*remote_spawn_, payload);
         if (puppet_spawned()) {
-            puppet_event(proto::GameEvent{proto::EventKind::Equip, std::move(payload)}, 0, delay_ms_);
+            puppet_event(proto::GameEvent{proto::EventKind::Equip, std::move(payload)}, 0, hold_for(0));
         }
     } else if (puppet_spawned()) {
-        puppet_event(proto::GameEvent{proto::EventKind::Relay, std::move(payload)}, 0, delay_ms_);
+        puppet_event(proto::GameEvent{proto::EventKind::Relay, std::move(payload)}, 0, hold_for(0));
     }
 }
 
@@ -600,18 +627,33 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
         return;
     }
     if (ev.kind == proto::EventKind::GuestHit) {  // about our enemies
-        if (local_in_world_) guest_hits_on_event(ev, delay_ms_);
+        if (local_in_world_) guest_hits_on_event(ev, hold_for(0));
         return;
     }
     if (ev.kind == proto::EventKind::EnemyAct || ev.kind == proto::EventKind::EnemyPos) {
         // The other player's enemies: their timestamps are on the same clock
         // as the other player's own events.
+        std::lock_guard feed_lock(feed_mutex_);
         if (const auto offset = clock_.offset()) {
-            enemy_on_event(ev, *offset + static_cast<int64_t>(delay_ms_), delay_ms_);
+            enemy_on_event(ev, ts_shift(*offset), hold_for(0));
         }
         return;
     }
+    feed_puppet(ev, now_ms);
+}
+
+bool CoopLink::on_hot_event(const proto::GameEvent& ev, uint32_t now_ms) {
+    if (!accepts(ev.kind)) return false;  // the network loop says why
+    ++events_in_;
+    feed_puppet(ev, now_ms);
+    return true;
+}
+
+void CoopLink::feed_puppet(const proto::GameEvent& ev, uint32_t now_ms) {
     if (!puppet_spawned()) return;
+    if (ev.kind == proto::EventKind::Move && lag_probe_on()) lag_probe_mark(2, event_timestamp(ev));
+    std::lock_guard feed_lock(feed_mutex_);
+    std::optional<int64_t> sample;  // our clock on arrival - its timestamp
     if (const uint64_t ts = event_timestamp(ev)) {
         const uint64_t local = capture_game_clock_ms();
         if (local == 0) {
@@ -622,11 +664,61 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
             }
             return;
         }
-        clock_.add(local, ts, now_ms);
+        // Moves only set the clock mapping (and with it how late things arrive): the other game's actions and turns
+        // are stamped up to ~25 ms before they leave it, which would size the buffer by that and not by the network.
+        if (ev.kind == proto::EventKind::Move || !clock_.offset()) clock_.add(local, ts, now_ms);
+        sample = static_cast<int64_t>(local) - static_cast<int64_t>(ts);
+        if (ev.kind == proto::EventKind::Move) playout_.note_move(ts);
     }
     const auto offset = clock_.offset();
     if (!offset) return;
-    puppet_event(ev, *offset + static_cast<int64_t>(delay_ms_), delay_ms_);
+    const int64_t late = sample ? std::max<int64_t>(0, *sample - *offset) : 0;
+    playout_.update(clock_.lateness(95));
+    const int64_t shift = ts_shift(*offset);
+    puppet_event(ev, shift, hold_for(late));
+    if (ev.kind == proto::EventKind::Move) predict_after(ev, shift, 0);
+}
+
+void CoopLink::predict_after(const proto::GameEvent& ev, int64_t shift, uint64_t hold) {
+    namespace w = wire;
+    const auto& m = ev.payload;
+    const bool ok = predict_ && m.size() >= w::kMoveTs + 8 && m.size() >= w::kMoveParent + 8;
+    std::vector<uint8_t> prev;
+    prev.swap(prev_move_);
+    prev_move_ = m;
+    if (!ok || prev.size() != m.size() || std::memcmp(prev.data(), m.data(), 4) != 0) return;  // another actor
+    const auto foot = [](const std::vector<uint8_t>& b) {
+        for (size_t i = 0; i < 8; ++i) {
+            if (b[w::kMoveParent + i] != 0xFF) return false;
+        }
+        return true;
+    };
+    if (!foot(m) || !foot(prev)) return;
+    uint64_t ts = 0, ts_prev = 0;
+    std::memcpy(&ts, m.data() + w::kMoveTs, 8);
+    std::memcpy(&ts_prev, prev.data() + w::kMoveTs, 8);
+    if (ts <= ts_prev || ts - ts_prev < 5 || ts - ts_prev > 60) return;  // standing, or a pause: nothing to go on
+    const int64_t dt = static_cast<int64_t>(ts - ts_prev);
+    const int64_t h = std::min<int64_t>((playout_.gap_ms() + 1) / 2, dt / 2);
+    if (h < 3) return;
+    float p[3], q[3];
+    std::memcpy(p, m.data() + w::kMovePos, sizeof p);
+    std::memcpy(q, prev.data() + w::kMovePos, sizeof q);
+    float v[3];
+    float speed2 = 0;
+    for (int i = 0; i < 3; ++i) {
+        v[i] = (p[i] - q[i]) / static_cast<float>(dt);  // metres per ms
+        speed2 += v[i] * v[i];
+    }
+    if (!(speed2 < 0.03f * 0.03f) || speed2 < 0.0005f * 0.0005f) return;  // > 30 m/s (a teleport) or standing
+    std::vector<uint8_t> pred = m;
+    for (int i = 0; i < 3; ++i) p[i] += v[i] * static_cast<float>(h);
+    const uint64_t pts = ts + static_cast<uint64_t>(h);
+    std::memcpy(pred.data() + w::kMovePos, p, sizeof p);
+    std::memcpy(pred.data() + w::kMoveLocalPos, p, sizeof p);  // Path.local = world on foot
+    std::memcpy(pred.data() + w::kMoveTs, &pts, 8);
+    ++predicted_;
+    puppet_event(proto::GameEvent{proto::EventKind::Move, std::move(pred)}, shift, hold);
 }
 
 void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms) {
@@ -692,7 +784,7 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
         }
         enemy_on_remove(msg.bytes);
     } else if (msg.kind == proto::RelKind::EnemyState) {
-        enemy_on_state(msg.bytes, delay_ms_);
+        enemy_on_state(msg.bytes, hold_for(0));
     } else if (msg.kind == proto::RelKind::EnemyZone) {
         on_enemy_zone(msg.bytes, now_ms);
     } else if (msg.kind == proto::RelKind::Story) {
@@ -712,14 +804,26 @@ void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms)
     }
 }
 
+int64_t CoopLink::ts_shift(int64_t offset) const {
+    std::lock_guard feed_lock(feed_mutex_);
+    return offset + playout_.ms() - kGameDrawDelayMs;
+}
+
+uint64_t CoopLink::hold_for(int64_t late_ms) const {
+    std::lock_guard feed_lock(feed_mutex_);
+    return static_cast<uint64_t>(std::max<int64_t>(0, playout_.ms() - late_ms));
+}
+
 std::string CoopLink::describe() const {
+    std::lock_guard feed_lock(feed_mutex_);
     const auto off = clock_.offset();
     const auto target = clock_.target();
-    return std::format("co-op: other player {} | events in {} | clock offset {} (target {}) | "
-                       "reliable pending {} | outbox dropped {}",
-                       puppet_spawned() ? "loaded" : "not loaded", events_in_,
+    return std::format("co-op: other player {} | events in {} | clock offset {} (target {}) | buffer {} ms "
+                       "(late p95 {} ms, move gap {} ms, {} predicted) | reliable pending {} | outbox dropped {}",
+                       puppet_spawned() ? "loaded" : "not loaded", events_in_.load(),
                        off ? std::format("{} ms", *off) : std::string("unknown"),
-                       target ? std::format("{} ms", *target) : std::string("-"),
+                       target ? std::format("{} ms", *target) : std::string("-"), playout_.ms(), clock_.lateness(95),
+                       playout_.gap_ms(), predicted_,
                        session_.reliable_pending(), outbox_dropped_);
 }
 

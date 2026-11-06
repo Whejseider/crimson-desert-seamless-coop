@@ -19,6 +19,7 @@
 #include <deque>
 #include <optional>
 #include <utility>
+#include <vector>
 
 namespace cdmp {
 
@@ -61,6 +62,17 @@ public:
     std::optional<int64_t> offset() const { return offset_; }
     // The raw windowed minimum the offset is moving towards.
     std::optional<int64_t> target() const { return target_; }
+    // How late events arrive beyond the applied offset: the `pct` percentile (0-100) of (sample - offset) over the
+    // window, 0 before the first estimate. Co-op+ sizes its playout buffer with it (coop.cpp).
+    int64_t lateness(int pct) const {
+        if (!offset_ || samples_.empty()) return 0;
+        std::vector<int64_t> v;
+        v.reserve(samples_.size());
+        for (const auto& s : samples_) v.push_back(s.second - *offset_);
+        const size_t k = std::min(v.size() - 1, v.size() * static_cast<size_t>(std::clamp(pct, 0, 100)) / 100);
+        std::nth_element(v.begin(), v.begin() + static_cast<std::ptrdiff_t>(k), v.end());
+        return std::max<int64_t>(0, v[k]);
+    }
 
     void reset() {
         samples_.clear();

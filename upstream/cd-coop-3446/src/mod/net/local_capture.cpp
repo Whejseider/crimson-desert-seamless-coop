@@ -12,12 +12,14 @@
 #include <windows.h>
 
 #include <atomic>
+#include <deque>
 #include <chrono>
 #include <cmath>
 #include <cstring>
 #include <map>
 #include <set>
 #include <mutex>
+#include <thread>
 #include <optional>
 #include <vector>
 
@@ -160,8 +162,18 @@ constexpr uint64_t kSynthIntervalMs = 50;
 constexpr float kSynthMinMove = 0.05f;          // metres
 
 // Game clock: last own Req timestamp and when we saw it.
-std::atomic<uint64_t> g_clock_ts{0};
-std::atomic<uint64_t> g_clock_at{0};
+// Co-op+ low latency (2026-11-06): our game clock, estimated from our own Reqs as steady_ms + g_clock_offset. Each Req
+// gives ts - (when it was captured); the capture comes a little after the stamp, by a varying amount, so the largest
+// such value over the last second is the best estimate (the earliest capture). The old estimate (latest Req's ts +
+// time since it was processed) carried that variation, ~18 ms at the 95th percentile, into every arrival time and so
+// into the playout buffer. A sample well below the estimate (the game paused or hitched: its clock stopped) starts
+// the window again. 0 = no estimate yet.
+std::atomic<int64_t> g_clock_offset{0};
+std::atomic<bool> g_clock_known{false};
+std::deque<std::pair<uint64_t, int64_t>> g_clock_window;  // (capture ms, ts - capture ms); capture writer only
+constexpr uint64_t kClockWindowMs = 1000;
+constexpr int64_t kClockStepBackMs = 40;
+thread_local uint64_t g_packet_us = 0;  // when the packet being handled was captured (capture_set_packet_time_us)
 // Whether capture_game_clock_ms reads the game's own clock (game_clock.h),
 // which stops in menus, instead of estimating it from the last Req and the
 // wall clock, which runs on through a pause (pausa-copia-congelada.md F2).
@@ -352,8 +364,19 @@ void emit(proto::EventKind kind, Bytes payload) {
 
 void note_clock(uint64_t ts) {
     if (ts == 0) return;
-    g_clock_ts.store(ts, std::memory_order_relaxed);
-    g_clock_at.store(steady_ms(), std::memory_order_relaxed);
+    {
+        const uint64_t at = g_packet_us ? g_packet_us / 1000 : steady_ms();
+        const int64_t sample = static_cast<int64_t>(ts) - static_cast<int64_t>(at);
+        if (g_clock_known && sample < g_clock_offset.load(std::memory_order_relaxed) - kClockStepBackMs) {
+            g_clock_window.clear();  // the game clock stood still (menu, hitch): start again from here
+        }
+        g_clock_window.emplace_back(at, sample);
+        while (g_clock_window.size() > 1 && at - g_clock_window.front().first > kClockWindowMs) g_clock_window.pop_front();
+        int64_t best = g_clock_window.front().second;
+        for (const auto& w : g_clock_window) best = std::max(best, w.second);
+        g_clock_offset.store(best, std::memory_order_relaxed);
+        g_clock_known.store(true, std::memory_order_release);
+    }
     if (g_clock_reader.load(std::memory_order_relaxed) != 0) return;
     const auto read = game::client_game_clock_ms();
     if (!read) {
@@ -476,6 +499,91 @@ void capture_synth(uint64_t now) {
                   g_synthesized);
     }
     emit(proto::EventKind::Move, std::move(req));
+}
+
+// ---------------------------------------------------------------- pose stream
+// Co-op+ low latency (2026-11-06): the game sends a MoveActorReq every ~25 ms and stamps it up to ~25 ms before it
+// leaves (lag tests lag8/lag9: arrival times 18-29 ms apart at the 95th percentile with ~1 ms of network), so the
+// other player learnt where we are late and unevenly, and their copy needed a buffer of about that much. Here a thread
+// reads our transform every 1 ms and sends a Move the moment a new frame moved us: built from our last real Move (as
+// capture_synth does), stamped with our game clock (capture_game_clock_ms). The real Moves still update that template;
+// one older than what the stream already sent is not sent (the other game would drop it: not newer). On foot only (a
+// parent, a horse or a boat, gives Moves another meaning); [coop] pose_stream=0 turns it off.
+constexpr uint64_t kPoseMinGapMs = 7;   // at most ~140 a second
+constexpr float kPoseMinMove = 0.002f;  // metres; below it only a turn counts
+std::atomic<bool> g_pose_enabled{true};
+std::atomic<bool> g_pose_running{false};
+std::mutex g_pose_mutex;           // the template, from the writer thread
+Bytes g_pose_template;             // our last real Move on foot (empty: none, or not on foot)
+std::atomic<uint64_t> g_pose_last_ts{0};  // newest timestamp sent in a Move of ours (real or from the stream)
+std::atomic<uint64_t> g_pose_sent{0}, g_pose_real_skipped{0};
+std::atomic<uint64_t> g_pose_sent_at{0};  // steady_ms of the stream's latest Move
+constexpr uint64_t kPoseFallbackMs = 100;  // the stream silent this long while the game moves us: real Moves go out
+
+bool on_foot(const Bytes& move) {
+    if (move.size() < wire::kMoveParent + 8) return false;
+    for (size_t i = 0; i < 8; ++i) {
+        if (move[wire::kMoveParent + i] != 0xFF) return false;
+    }
+    return true;
+}
+
+void pose_thread() {
+    if (const HMODULE winmm = GetModuleHandleW(L"winmm.dll")) {  // 1 ms waits (our loader's name for the system one)
+        if (const auto begin = reinterpret_cast<unsigned(__stdcall*)(unsigned)>(GetProcAddress(winmm, "timeBeginPeriod"))) {
+            begin(1);
+        }
+    }
+    float last_pos[3] = {NAN, NAN, NAN}, last_rot[4] = {NAN, NAN, NAN, NAN};
+    uint64_t last_sent_ms = 0;
+    uint64_t log_at = steady_ms();
+    for (;;) {
+        Sleep(1);
+        if (!g_pose_enabled.load(std::memory_order_relaxed)) continue;
+        const uint32_t key = g_own_key;
+        if (!key) continue;
+        Bytes req;
+        {
+            std::lock_guard lock(g_pose_mutex);
+            if (g_pose_template.empty()) continue;
+            req = g_pose_template;
+        }
+        const auto pos = game::actor_world_position(key);
+        const auto rot = game::actor_world_rotation(key);
+        if (!pos || !rot) continue;
+        const float p[3] = {pos->x, pos->y, pos->z};
+        const float q[4] = {rot->x, rot->y, rot->z, rot->w};
+        if (!std::isfinite(p[0]) || !std::isfinite(p[2])) continue;
+        const float dx = p[0] - last_pos[0], dy = p[1] - last_pos[1], dz = p[2] - last_pos[2];
+        const bool moved = !(dx * dx + dy * dy + dz * dz < kPoseMinMove * kPoseMinMove);  // NaN: first read
+        const bool turned = std::fabs(q[0] - last_rot[0]) + std::fabs(q[1] - last_rot[1]) +
+                                std::fabs(q[2] - last_rot[2]) + std::fabs(q[3] - last_rot[3]) > 1e-4f ||
+                            std::isnan(last_rot[0]);
+        if (!moved && !turned) continue;  // the same frame (or standing still)
+        const uint64_t now = steady_ms();
+        std::memcpy(last_pos, p, sizeof p);
+        std::memcpy(last_rot, q, sizeof q);
+        if (now - last_sent_ms < kPoseMinGapMs) continue;
+        uint64_t ts = capture_game_clock_ms();
+        if (ts == 0) continue;
+        const uint64_t prev = g_pose_last_ts.load(std::memory_order_relaxed);
+        if (ts <= prev) ts = prev + 1;
+        std::memcpy(req.data() + wire::kMovePos, p, sizeof p);
+        std::memcpy(req.data() + wire::kMoveRot, q, sizeof q);
+        std::memcpy(req.data() + wire::kMoveLocalPos, p, sizeof p);  // Path.local (equal on foot)
+        std::memcpy(req.data() + wire::kMoveLocalRot, q, sizeof q);
+        std::memcpy(req.data() + kMoveTs, &ts, 8);
+        g_pose_last_ts.store(ts, std::memory_order_relaxed);
+        last_sent_ms = now;
+        g_pose_sent_at.store(now, std::memory_order_relaxed);
+        ++g_pose_sent;
+        emit(proto::EventKind::Move, std::move(req));
+        if (now - log_at >= 30000) {
+            log_at = now;
+            log::info("Capture: pose stream: {} moves from our transform, {} older real moves not sent", g_pose_sent.load(),
+                      g_pose_real_skipped.load());
+        }
+    }
 }
 
 // The unridden horse: Moves built from its transform in memory every 50 ms
@@ -828,6 +936,24 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
         g_last_move_ms = steady_ms();
         g_last_move_ts = ts;
         std::memcpy(g_last_sent_pos, payload.data() + wire::kMovePos, sizeof g_last_sent_pos);
+        // Co-op+ pose stream: the template for the moves from our transform; on foot only.
+        const bool foot = g_pose_enabled.load(std::memory_order_relaxed) && on_foot(payload);
+        {
+            std::lock_guard lock(g_pose_mutex);
+            if (foot) g_pose_template = payload;
+            else g_pose_template.clear();
+        }
+        if (foot && g_pose_running.load(std::memory_order_relaxed)) {
+            // The stream sends our moves on foot; a real one only updates its template. The game stamps its Moves up
+            // to ~25 ms before they leave, and those late arrivals would make the other side's buffer that much
+            // longer (lag10). If the stream has gone quiet (it cannot read our transform), the real Moves go out.
+            const uint64_t streamed = g_pose_sent_at.load(std::memory_order_relaxed);
+            if ((streamed && steady_ms() - streamed < kPoseFallbackMs) || ts <= g_pose_last_ts.load(std::memory_order_relaxed)) {
+                ++g_pose_real_skipped;
+                return;
+            }
+            g_pose_last_ts.store(ts, std::memory_order_relaxed);
+        }
     }
     emit(kind, std::move(payload));
 }
@@ -991,8 +1117,17 @@ bool capture_install_equip_hook() {
 }
 
 void capture_set_sink(EventSink sink) {
-    std::lock_guard lock(g_mutex);
-    g_sink = std::move(sink);
+    {
+        std::lock_guard lock(g_mutex);
+        g_sink = std::move(sink);
+    }
+    // Co-op+ pose stream: started with the first sink (co-op), runs for the game session; idle without a template.
+    if (!g_pose_running.exchange(true)) std::thread(pose_thread).detach();
+}
+
+void capture_set_pose_stream(bool on) {
+    g_pose_enabled = on;
+    log::info("Capture: pose stream {} (our moves from our transform every frame)", on ? "on" : "off");
 }
 
 std::optional<proto::SpawnInfo> capture_spawn_info(const proto::Vec3& pos, const proto::Quat& rot) {
@@ -1226,13 +1361,15 @@ bool apply_remote_damage(const std::vector<uint8_t>& ev) {
 bool capture_game_clock_trusted() { return g_clock_reader.load(std::memory_order_relaxed) == 1; }
 bool capture_game_clock_decided() { return g_clock_reader.load(std::memory_order_relaxed) != 0; }
 
+void capture_set_packet_time_us(uint64_t t_us) { g_packet_us = t_us; }
+
 uint64_t capture_game_clock_ms() {
     if (g_clock_reader.load(std::memory_order_relaxed) == 1) {
         if (const auto c = game::client_game_clock_ms()) return *c;
     }
-    const uint64_t ts = g_clock_ts.load(std::memory_order_relaxed);
-    if (ts == 0) return 0;
-    return ts + (steady_ms() - g_clock_at.load(std::memory_order_relaxed));
+    if (!g_clock_known.load(std::memory_order_acquire)) return 0;
+    const int64_t c = static_cast<int64_t>(steady_ms()) + g_clock_offset.load(std::memory_order_relaxed);
+    return c > 0 ? static_cast<uint64_t>(c) : 1;
 }
 
 uint64_t event_timestamp(const proto::GameEvent& ev) {

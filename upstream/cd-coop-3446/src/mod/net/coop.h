@@ -4,6 +4,7 @@
 // and drives the other player's character (remote_puppet.h) from theirs.
 // Lives on the network thread (run_network in mod.cpp).
 
+#include <atomic>
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -15,6 +16,7 @@
 
 #include "common/client_session.h"
 #include "common/clock_mapper.h"
+#include "common/playout_buffer.h"
 #include "common/protocol.h"
 
 namespace cdmp::net {
@@ -25,6 +27,8 @@ void coop_set_ready();
 void coop_set_copy_disabled(bool off);
 // Co-op+: how many pings (Ctrl+F3) the other player sent us so far (the HUD shows a toast for each).
 uint32_t coop_pings_received();
+// Co-op+ low latency: something of ours waits to be sent (the network loop stops waiting for input). Any thread.
+bool coop_outbox_waiting();
 
 class CoopLink {
 public:
@@ -57,6 +61,12 @@ private:
     uint64_t refused_by_role_ = 0;
     std::deque<uint32_t> spawns_in_;  // when the other player's character came lately
     void on_event(const proto::GameEvent& ev, uint32_t now_ms);
+    // Co-op+ low latency: the other player's own movement, straight from the fast lane's thread (fast_lane.h).
+    bool on_hot_event(const proto::GameEvent& ev, uint32_t now_ms);
+    // Their event to their copy: onto our clock, through the playout buffer (either thread; holds feed_mutex_).
+    void feed_puppet(const proto::GameEvent& ev, uint32_t now_ms);
+    // After one of their Moves on foot: the position halfway to the next one, from their speed (feed_mutex_ held).
+    void predict_after(const proto::GameEvent& ev, int64_t shift, uint64_t hold);
     void on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms);
     void deliver_ordered(proto::RelKind kind, std::vector<uint8_t> payload);
     void remove_puppet(uint32_t now_ms);
@@ -68,7 +78,7 @@ private:
     uint64_t zone_refused_ = 0;
 
     ClientSession& session_;
-    uint32_t delay_ms_;
+    uint32_t delay_ms_;  // [coop] buffer_ms: the smallest playout buffer
     float offset_m_;
     bool was_connected_ = false;
     bool local_in_world_ = false;     // debounced: a missing read for <500 ms does not count
@@ -119,8 +129,29 @@ private:
     uint32_t pin_ms_ = 0;
     uint32_t pin_wanted_ms_ = 0;  // last time a pin was wanted
 
+    // Co-op+ low latency: clock_ and playout_ are used by the fast lane's thread and the network loop.
+    mutable std::recursive_mutex feed_mutex_;
     ClockMapper clock_;
-    uint64_t events_in_ = 0, events_waiting_clock_ = 0;
+    // Co-op+ low latency (2026-11-06): the other player is drawn at fastest transit + this buffer (playout_buffer.h).
+    PlayoutBuffer playout_;
+    bool predict_ = true;          // [coop] predict
+    std::vector<uint8_t> prev_move_;  // their previous Move (for its speed)
+    uint64_t predicted_ = 0;
+public:
+    void set_predict(bool on) {
+        predict_ = on;
+        playout_.set_predicting(on);
+    }
+
+private:
+    // Timestamp shift for the other player's events: onto our clock, drawn `playout_` after the fastest transit (the
+    // game itself draws remote actors kGameDrawDelayMs behind their timestamps, so that much is taken off).
+    int64_t ts_shift(int64_t offset) const;
+    // How long to hold an event that arrived `late_ms` after the fastest transit, so it goes in when its moment is
+    // drawn (actions start the moment the game gets them).
+    uint64_t hold_for(int64_t late_ms) const;
+    std::atomic<uint64_t> events_in_{0};
+    uint64_t events_waiting_clock_ = 0;
 };
 
 }  // namespace cdmp::net

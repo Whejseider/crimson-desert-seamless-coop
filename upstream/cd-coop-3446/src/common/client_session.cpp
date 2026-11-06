@@ -45,6 +45,7 @@ void ClientSession::tick(uint32_t now_ms) {
 void ClientSession::send_event(proto::GameEvent event, uint32_t now_ms) {
     if (state_ != State::Connected) return;
     send(std::move(event), now_ms);
+    std::lock_guard lock(send_mutex_);
     ++stats_.events_sent;
 }
 
@@ -107,7 +108,7 @@ bool ClientSession::versions_match(const std::string& name, uint32_t build, cons
     return false;
 }
 
-void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms) {
+void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms, bool event_handled) {
     stats_.bytes_received += bytes.size();
     auto packet = proto::decode(bytes);
     if (!packet) {
@@ -216,7 +217,7 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
         ++stats_.events_received;
         if (static_cast<uint8_t>(ev->kind) > proto::kMaxEventKind) {
             ++stats_.unknown_kinds;  // a newer peer's event
-        } else if (game_event_fn_) {
+        } else if (game_event_fn_ && !event_handled) {
             game_event_fn_(*ev, now_ms);
         }
     } else if (auto* data = std::get_if<proto::RelData>(&packet->body)) {
@@ -240,6 +241,7 @@ void ClientSession::on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms)
 }
 
 void ClientSession::send(proto::Body body, uint32_t now_ms) {
+    std::lock_guard lock(send_mutex_);
     proto::Packet packet;
     packet.seq = next_seq_++;
     packet.send_ms = now_ms;

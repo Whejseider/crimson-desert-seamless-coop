@@ -108,6 +108,9 @@ bool puppet_install_layer_guards();
 // (PostPacket, game thread, in place): such a message gets actor (or gimmick) 0, which the server ignores.
 void puppet_scrub_c2s(uint8_t* packet, uint16_t size);
 
+// How long a Move waits after arriving before it goes into the game (default 100 ms, see kHoldMs). Co-op+ low
+// latency sets 0: its playout buffer is in the timestamps instead. Any thread.
+void puppet_set_move_hold(uint64_t ms);
 // Sideways offset of the puppet (world X, metres); 0 = the sender's exact path.
 void puppet_set_offset(float metres);
 // [dev] desync_test (coop_sync.h): the copy ignores the sender's events for this long (a desync to detect).

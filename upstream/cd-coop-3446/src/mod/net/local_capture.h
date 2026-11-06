@@ -78,6 +78,11 @@ EnemyState capture_enemy_state(uint32_t key);
 // once that reading agrees with our Reqs (it stops in menus), else
 // extrapolated from the player's latest own Req. 0 while unknown.
 uint64_t capture_game_clock_ms();
+// The sniffer's writer, before each capture_observe_*: when that packet was captured (QPC microseconds, the
+// steady_clock's base). Our clock estimate uses it instead of when the writer got to the packet.
+void capture_set_packet_time_us(uint64_t t_us);
+// Co-op+ low latency: our moves also from our transform every frame ([coop] pose_stream, default on).
+void capture_set_pose_stream(bool on);
 // True once the game's own clock (game_clock.h) is known to agree with our Reqs.
 bool capture_game_clock_trusted();
 // The check of the game's clock read is over (trusted or estimated instead).

@@ -109,7 +109,7 @@ struct Config {
     // cdmp_peer --mode relay with nobody else connected, yourself) appears as
     // a remote character. Writes packets into the game; off by default.
     bool coop_enabled = false;
-    uint32_t coop_delay_ms = 150;  // playout delay; longer = smoother climb-ups, more lag (2026-11-05: 300 -> 150)
+    uint32_t coop_delay_ms = 10;  // [coop] buffer_ms: the smallest playout buffer after the network (playout_buffer.h)
     float coop_offset_m = 0.0f;    // sideways offset of the remote character
     // Experimental, off by default: the copy's horse is not created by the
     // client (owned load) or crashes the game (ownerless load); live tests 1-2.
@@ -163,6 +163,9 @@ struct Config {
     // Co-op+: a co-op world (separate saves) per friend, switched to when a session starts (coop_worlds.h).
     bool coop_coop_worlds = false;
     std::string dev_coop_world_partner;  // Co-op+ dev: partner key for one-PC tests (the echo peer has no Steam id)
+    bool coop_pose_stream = true;
+    bool coop_predict = true;  // Co-op+ low latency: a predicted position between the other player's moves (coop.cpp)  // Co-op+ low latency: our moves from our transform every frame (local_capture.cpp)
+    bool dev_lag_probe = false;  // Co-op+ dev: write where we and the copy are drawn every 4 ms (lag_probe.h)
     bool dev_fishing_test = false;  // Co-op+ dev: fishing contest one-PC test (the echoed score is ignored)
     int dev_hideseek_test = 0;  // Co-op+ dev: hide and seek one-PC test (1 we seek, 2 we hide; coop_hideseek.h)
     bool dev_summary_test = false;  // Co-op+ dev: the session summary card for any session, 3 s after it ends

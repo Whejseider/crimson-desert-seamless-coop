@@ -12,6 +12,7 @@
 #include "common/byte_ring.h"
 #include "common/client_session.h"
 #include "common/clock_mapper.h"
+#include "common/playout_buffer.h"
 #include "common/enemy_load.h"
 #include "common/enemy_zone.h"
 #include "common/equip_state.h"
@@ -664,6 +665,9 @@ void test_clock_mapper() {
     }
     CHECK(m.offset() && *m.offset() >= -50000 + 30 && *m.offset() <= -50000 + 40);
     CHECK(m.target() && *m.target() >= -50000 + 30 && *m.target() <= -50000 + 33);
+    // Transit 30-80 ms: events arrive up to ~50 ms after the fastest; the 95th percentile says so.
+    CHECK(m.lateness(95) >= 35 && m.lateness(95) <= 50);
+    CHECK(m.lateness(0) == 0);
     // A faster sample lowers the target at once but the offset only by 1 ms.
     const int64_t before = *m.offset();
     m.add(50000 + 3000 + 5, 100000 + 3000, 3000);
@@ -675,6 +679,7 @@ void test_clock_mapper() {
     }
     CHECK(*m.target() == -50000 + 40);
     CHECK(*m.offset() == -50000 + 40);
+    CHECK(m.lateness(95) == 0);  // steady transit: nothing arrives late
     // The other game paused for 2 s: re-estimated after ~0.5 s, not 4 s.
     for (uint32_t t = 9000; t < 9000 + 25 * ClockMapper::kLateRunToReset; t += 25) {
         m.add(50000 + t + 2040, 100000 + t, t);
@@ -690,6 +695,31 @@ void test_clock_mapper() {
     CHECK(*m.offset() == -50000 + 40);
     m.reset();
     CHECK(!m.offset() && !m.target());
+}
+
+// Co-op+ low latency: the playout buffer starts at its target, rises at most 5 ms and falls at most 1 ms per event,
+// and stays within [min, 250].
+void test_playout_buffer() {
+    PlayoutBuffer b(30);
+    CHECK(b.ms() == 30);
+    CHECK(b.update(0) == 30);    // 0 late + 25 ms move gap < the minimum
+    PlayoutBuffer c(30);
+    CHECK(c.update(40) == 65);   // first estimate taken at once
+    CHECK(c.update(100) == 70);  // then up by 5
+    CHECK(c.update(0) == 69);    // down by 1
+    for (int i = 0; i < 100; ++i) c.update(0);
+    CHECK(c.ms() == 30);
+    for (int i = 0; i < 100; ++i) c.update(10000);
+    CHECK(c.ms() == PlayoutBuffer::kMaxMs);
+    c.reset();
+    CHECK(c.update(5) == 30);
+    // Moves every 8 ms (the pose stream): the spacing is measured, the buffer shrinks to it.
+    PlayoutBuffer d(5);
+    for (uint64_t ts = 1000; ts < 1000 + 8 * 40; ts += 8) d.note_move(ts);
+    CHECK(d.gap_ms() == 8);
+    CHECK(d.update(2) == 10);
+    d.note_move(5000);  // a long pause between moves is not spacing
+    CHECK(d.gap_ms() == 8);
 }
 
 // Injected movement timestamps stay within [now - 500, now + 300] of the
@@ -1739,6 +1769,7 @@ int main() {    test_pattern();
     test_versions();
     test_session_game_data();
     test_clock_mapper();
+    test_playout_buffer();
     test_equip_state();
     test_inject_clock();
     test_field_time();

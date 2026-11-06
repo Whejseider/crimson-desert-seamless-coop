@@ -89,6 +89,10 @@ uint64_t now_us() {
     return t / f * 1000000ull + t % f * 1000000ull / f;  // no overflow for long uptimes
 }
 
+// Co-op+ low latency: the writer waits for this as well as for its 10 ms tick; set for every packet of ours, so our
+// movement reaches co-op (and the fast lane) at once instead of on the writer's next tick (up to 10 ms later).
+HANDLE g_c2s_wake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+
 void capture(Dir dir, uint32_t session, const uint8_t* pkt, uint64_t rsp) {
     uint16_t size = 0;
     if (!guarded_copy(&size, reinterpret_cast<const void*>(rsp + off::kHookArgSizeStackOffset),
@@ -118,6 +122,7 @@ void capture(Dir dir, uint32_t session, const uint8_t* pkt, uint64_t rsp) {
         ++g_dropped;
     }
     ReleaseSRWLockExclusive(&g_lock);
+    if (dir == Dir::ClientToServer && g_c2s_wake) SetEvent(g_c2s_wake);
 }
 
 // ClientNet::PostPacket(ClientNet*, int* result, u32 session, const u8* packet,
@@ -450,13 +455,13 @@ struct Writer {
         const bool c2s = h.dir == Dir::ClientToServer;
         (c2s ? window_c2s : window_s2c)[op]++;
         (c2s ? total_c2s : total_s2c)[op]++;
-        if (!text) {  // not recording: only feed co-op
-            if (h.copied == h.size) {
-                if (c2s) capture_observe_c2s(data, h.copied);
-                else capture_observe_s2c(data, h.copied);
-            }
-            return;
+        // Co-op first (low latency: our movement goes out from here), the recording after.
+        if (h.copied == h.size) {
+            capture_set_packet_time_us(h.t_us);
+            if (c2s) capture_observe_c2s(data, h.copied);
+            else capture_observe_s2c(data, h.copied);
         }
+        if (!text) return;  // not recording
 
         // Hex preview through a lookup table: formatting used to be the
         // bottleneck that made v1 drop packets during loading bursts.
@@ -476,13 +481,6 @@ struct Writer {
             op, slot, payload_len, payload_len + 5u == h.size ? "" : " (size mismatch)", hex);
         if (len > 0) std::fwrite(line, 1, std::min<size_t>(len, sizeof line - 1), text);
 
-        if (h.copied == h.size) {
-            if (c2s) {
-                capture_observe_c2s(data, h.copied);
-            } else {
-                capture_observe_s2c(data, h.copied);
-            }
-        }
 
         const BinRecord r{h.t_us, static_cast<uint8_t>(h.dir), 0, h.size, h.copied, 0, h.session,
                           h.thread};
@@ -597,7 +595,8 @@ DWORD WINAPI writer_thread(LPVOID p) {
             last_stats = GetTickCount64();
             w.stats(dropped, truncated);
         }
-        if (WaitForSingleObject(args->stop, 10) == WAIT_OBJECT_0) break;
+        const HANDLE waits[2] = {args->stop, g_c2s_wake};
+        if (WaitForMultipleObjects(g_c2s_wake ? 2 : 1, waits, FALSE, 10) == WAIT_OBJECT_0) break;
     }
     if (w.text) {
         std::fprintf(w.text, "# session totals | %llu packets\n", static_cast<unsigned long long>(w.packets));

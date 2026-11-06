@@ -31,6 +31,7 @@
 #include "mod/net/enemy_relay.h"
 #include "mod/net/horse_diag.h"
 #include "common/keys.h"
+#include "mod/net/lag_probe.h"
 #include "mod/net/local_capture.h"
 
 namespace cdmp::net {
@@ -733,7 +734,9 @@ uint64_t action_due(uint64_t due) {
     g_last_action_due = due;
     return due;
 }
-uint64_t move_hold_for(uint64_t delay_ms) { return std::min(delay_ms, kHoldMs); }
+// Co-op+ low latency: co-op puts its buffer into the timestamps and sets 0 (puppet_set_move_hold); the mirror keeps it.
+std::atomic<uint64_t> g_move_hold_ms{kHoldMs};
+uint64_t move_hold_for(uint64_t delay_ms) { return std::min(delay_ms, g_move_hold_ms.load()); }
 // Until the client's buffer reaches the action's (shifted) timestamp at ack+ts_at.
 uint64_t action_hold_for(const Bytes& ack, size_t ts_at, uint64_t delay_ms) {
     if (!capture_game_clock_trusted() || ack.size() < ts_at + 8) return delay_ms;
@@ -1332,7 +1335,13 @@ void puppet_forget() {
 
 bool puppet_take_reload_request() { return g_reload_request.exchange(false); }
 void puppet_request_reload() { g_reload_request = true; }
+// Co-op+ low latency: the feed (the other player's events and their enemies') comes from two threads now, the fast
+// lane (their own movement, fast_lane.h) and the network loop (everything else). They share g_last_move, g_ts_shift and
+// g_ref_pos, so each feed function holds this.
+std::recursive_mutex g_feed_mutex;
+
 bool puppet_spawn_enemy(uint32_t copy_key, std::vector<uint8_t> load, std::vector<uint8_t> action_req) {
+    std::lock_guard feed_lock(g_feed_mutex);
     // Every copy of its position moves by the puppet offset (found from the
     // last Transform, as for the horse).
     static const uint8_t kMarker[20] = {0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
@@ -1419,6 +1428,7 @@ std::map<uint32_t, std::array<float, 3>> g_enemy_pos;
 
 void puppet_enemy_move(uint32_t copy_key, uint64_t ts, const proto::Vec3& pos, const proto::Quat& rot,
                        int64_t ts_shift_ms, uint64_t delay_ms) {
+    std::lock_guard feed_lock(g_feed_mutex);
     if (g_last_move.size() != wire::kMoveReqSize) return;
     Bytes m = g_last_move;
     const float p[3] = {pos.x, pos.y, pos.z};
@@ -1448,6 +1458,7 @@ void puppet_enemy_move(uint32_t copy_key, uint64_t ts, const proto::Vec3& pos, c
 
 void puppet_enemy_action(uint16_t req_op, const std::vector<uint8_t>& req, int64_t ts_shift_ms,
                          uint64_t delay_ms) {
+    std::lock_guard feed_lock(g_feed_mutex);
     if (req.size() < 4) return;
     uint32_t key;
     std::memcpy(&key, req.data(), 4);
@@ -1668,6 +1679,7 @@ std::atomic<uint64_t> g_frozen_until{0};  // [dev] desync_test
 void puppet_set_frozen_ms(uint32_t ms) { g_frozen_until = steady_ms() + ms; }
 
 void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t delay_ms) {
+    std::lock_guard feed_lock(g_feed_mutex);
     if (!puppet_spawned() || ev.payload.size() > proto::kMaxEventPayload) return;
     if (steady_ms() < g_frozen_until.load()) return;
     if (g_copy_hooked && steady_ms() - g_rope_seen_ms > kRopeWatchdogMs) {
@@ -2595,6 +2607,15 @@ bool puppet_take_injection(std::vector<uint8_t>& out) {
             uint32_t key;
             std::memcpy(&key, out.data() + 5, 4);
             if (key == kPuppetPlayer || key == kPuppetBody) {
+                if (key == kPuppetPlayer && lag_probe_on() && out.size() >= 5 + wire::kMoveTs + 8) {
+                    // [dev] lag probe: how far ahead of the game's drawing time (its clock - 200 ms, our estimate of
+                    // its clock) this position goes in; below 0 it came too late and the copy waited for it.
+                    uint64_t ts;
+                    std::memcpy(&ts, out.data() + 5 + wire::kMoveTs, 8);
+                    const int64_t margin = static_cast<int64_t>(ts) -
+                                           (static_cast<int64_t>(capture_game_clock_ms()) - kClientRenderDelayMs);
+                    lag_probe_mark(3, static_cast<uint64_t>(margin));
+                }
                 std::memcpy(g_told_pos, out.data() + 5 + wire::kMovePos, sizeof g_told_pos);
                 g_told_x.store(g_told_pos[0], std::memory_order_relaxed);
                 g_told_z.store(g_told_pos[2], std::memory_order_relaxed);
@@ -2743,6 +2764,8 @@ void puppet_scrub_c2s(uint8_t* packet, uint16_t size) {
     }
     std::memset(packet + at, 0, 4);
 }
+
+void puppet_set_move_hold(uint64_t ms) { g_move_hold_ms = ms; }
 
 void puppet_set_offset(float metres) {
     g_offset_x = metres;

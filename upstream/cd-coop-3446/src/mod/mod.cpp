@@ -3,6 +3,8 @@
 #include "mod/input/actions.h"
 #include "mod/input/pad_input.h"
 
+#include <array>
+#include <cstring>
 #include <cmath>
 #include <filesystem>
 #include <exception>
@@ -56,6 +58,8 @@
 #include "mod/net/session_summary.h"
 #include "mod/net/coop_hideseek.h"
 #include "mod/net/coop_fishing.h"
+#include "mod/net/fast_lane.h"
+#include "mod/net/lag_probe.h"
 #include "mod/net/coop_race.h"
 #include "mod/net/scoreboard.h"
 #include "mod/net/state_audit.h"
@@ -289,6 +293,19 @@ void audit_tick(uint32_t now) {
 
 SessionEnd run_network(const Config& cfg, LocalSource& local) {
     using Kind = SessionEnd::Kind;
+    // Co-op+ low latency: 1 ms timer resolution while the network runs, so its 1 ms waits are 1 ms and not 15.6.
+    // Through winmm.dll (our own loader's name; it forwards to the system one).
+    using TimePeriodFn = unsigned(__stdcall*)(unsigned);
+    const HMODULE winmm = GetModuleHandleW(L"winmm.dll");
+    const auto time_begin = winmm ? reinterpret_cast<TimePeriodFn>(GetProcAddress(winmm, "timeBeginPeriod")) : nullptr;
+    const auto time_end = winmm ? reinterpret_cast<TimePeriodFn>(GetProcAddress(winmm, "timeEndPeriod")) : nullptr;
+    if (time_begin) time_begin(1);
+    struct TimerBack {
+        TimePeriodFn end;
+        ~TimerBack() {
+            if (end) end(1);
+        }
+    } timer_back{time_begin ? time_end : nullptr};
     if (!net::startup()) {
         log::error("Winsock startup failed");
         render::hud_set_problem(render::Problem::Network,
@@ -414,10 +431,17 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     log::info("Network: {} as {}; peer {}", transport->status(), host ? "host" : "guest",
               peer ? peer->str() : (host ? "= whoever connects" : "= the only friend playing"));
 
+    // Co-op+ low latency: the fast lane (fast_lane.h) sends our movement from its own thread; it uses its copy of the
+    // peer, which this loop keeps current (fast_lane_set_peer), while this loop uses `peer` itself.
+    const auto loop_thread = std::this_thread::get_id();
     ClientSession session(
         cfg.player_name, kModBuild,
         [&](const std::vector<uint8_t>& bytes) {
-            if (peer) transport->send(*peer, bytes);
+            if (std::this_thread::get_id() == loop_thread) {
+                if (peer) transport->send(*peer, bytes);
+            } else if (const auto p = net::fast_lane_peer()) {
+                transport->send(*p, bytes);
+            }
         },
         [](const std::string& text) { log::info("Session: {}", text); },
         host ? ClientSession::Role::Responder : ClientSession::Role::Initiator);
@@ -437,7 +461,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                                                cfg.coop_map_pin);
         // A real other player (Steam): each side only takes what the other role sends.
         coop->set_strict_roles(steam != nullptr);
+        coop->set_predict(cfg.coop_predict);
+        net::fast_lane_start(*transport, [&session](proto::GameEvent ev) { session.send_event(std::move(ev), now_ms()); });
     }
+    struct FastLaneStop {
+        ~FastLaneStop() { net::fast_lane_stop(); }
+    } fast_lane_stop_on_return;
 
     const uint32_t state_interval = 1000 / cfg.send_rate_hz;
     bool reduced_rate = false;  // Co-op+ (T11): poor link, half rate
@@ -470,7 +499,42 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
     };
     SessionEnd end;
 
+    // Co-op+ low latency: where a loop's time goes (the wait for input, everything else), logged every 10 s.
+    std::vector<int64_t> loop_wait_us, loop_rest_us;
+    std::array<std::vector<int64_t>, 12> loop_sections;  // [dev] where "the rest" goes: up to each of five points
+    auto section_mark = std::chrono::steady_clock::now();
+    const auto loop_section = [&](size_t i) {
+        const auto t = std::chrono::steady_clock::now();
+        loop_sections[i].push_back(std::chrono::duration_cast<std::chrono::microseconds>(t - section_mark).count());
+        section_mark = t;
+    };
+    auto loop_mark = std::chrono::steady_clock::now();
+    uint32_t loop_log_at = now_ms();
+    const auto us_since = [](std::chrono::steady_clock::time_point t) {
+        return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t).count();
+    };
     while (!stop_requested()) {
+        loop_rest_us.push_back(us_since(loop_mark));
+        if (now_ms() - loop_log_at >= 10000 && !loop_wait_us.empty()) {
+            loop_log_at = now_ms();
+            const auto pct = [](std::vector<int64_t>& v, size_t p) {
+                std::sort(v.begin(), v.end());
+                return v[std::min(v.size() - 1, v.size() * p / 100)] / 1000.0;
+            };
+            log::info("Timing: network loop, 10 s: {} loops | waiting for input p50 {:.1f} p95 {:.1f} ms | the rest "
+                      "p50 {:.1f} p95 {:.1f} max {:.1f} ms",
+                      loop_wait_us.size(), pct(loop_wait_us, 50), pct(loop_wait_us, 95), pct(loop_rest_us, 50),
+                      pct(loop_rest_us, 95), pct(loop_rest_us, 100));
+            std::string parts;
+            for (auto& s : loop_sections) {
+                if (!s.empty()) parts += std::format(" {:.1f}/{:.1f}", pct(s, 50), pct(s, 95));
+                s.clear();
+            }
+            log::info("Timing: network loop sections (p50/p95 ms): before-coop, coop-1, coop-2-rest, rate, state, "
+                      "player-block, activity, weather, summary, sync, resync, coop-update:{}", parts);
+            loop_wait_us.clear();
+            loop_rest_us.clear();
+        }
         transport->poll(now_ms());
 
         // Co-op+ (T07): Leave on any transport (it was read only with Steam, so a room-code / UDP guest could not).
@@ -592,11 +656,32 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         // events/s (a busy city) handling one per loop built a backlog of
         // seconds in the first real test (RTT up to 2.9 s).
         net::PeerAddr from;
-        int timeout = 5;
-        for (int handled = 0; handled < 512; ++handled) {
-            auto n = transport->recv(from, buf, timeout);
-            if (!n) break;
-            timeout = 0;
+        // Co-op+ low latency (2026-11-06): wait for input in 1 ms slices (timer at 1 ms, set below) and stop as soon
+        // as our game captured something to send. One 5 ms wait made a loop of ~11.5 ms (87 a second): our moves
+        // waited up to that long to go out, and the other player's as long to come in.
+        int wait_slices = 5;
+        const auto wait_from = std::chrono::steady_clock::now();
+        for (int handled = 0; handled < 512;) {
+            std::optional<size_t> n;
+            bool event_handled = false;  // the fast lane gave its event to the copy already
+            if (net::fast_lane_running()) {
+                // The fast lane receives; it wakes us for each datagram and for our slow outbox.
+                auto d = net::fast_lane_next(wait_slices > 0 ? 5 : 0);
+                wait_slices = 0;
+                if (!d) break;
+                from = d->from;
+                n = std::min(d->bytes.size(), buf.size());
+                std::memcpy(buf.data(), d->bytes.data(), *n);
+                event_handled = d->event_handled;
+            } else {
+                n = transport->recv(from, buf, wait_slices > 0 ? 1 : 0);
+                if (!n) {
+                    if (wait_slices-- > 0 && !net::coop_outbox_waiting()) continue;
+                    break;
+                }
+            }
+            ++handled;
+            wait_slices = 0;
             if (host && !peer) {
                 // Lock onto the first player who greets us.
                 // Only a Hello of our protocol: one of another version would
@@ -616,12 +701,16 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     log::info("Network: player at {} is joining", from.str());
                 }
             }
-            if (peer && from == *peer) session.on_datagram({buf.data(), *n}, now_ms());
+            if (peer && from == *peer) session.on_datagram({buf.data(), *n}, now_ms(), event_handled);
         }
 
+        loop_wait_us.push_back(us_since(wait_from));
+        loop_mark = std::chrono::steady_clock::now();
+        section_mark = loop_mark;
         const uint32_t now = now_ms();
         session.tick(now);
         const bool connected = session.state() == ClientSession::State::Connected;
+        net::fast_lane_set_peer(peer, connected);
         net::RevivePrompt revive_prompt = net::RevivePrompt::None;
         if (host && was_connected && !connected && peer) {
             log::info("Network: {} left; waiting for a player", peer->str());
@@ -680,6 +769,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 toast_until = now + 12000;
             }
         }
+        loop_section(0);
         if (coop) {
             // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
             // [dev] scaling_as_host: one-PC test of party scaling (the echo session runs as guest).
@@ -725,6 +815,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 }
             }
         }
+        loop_section(1);
         if (coop) {
             std::optional<proto::Vec3> pos;
             proto::Quat rot;
@@ -863,6 +954,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     }
                 }
             }
+            loop_section(5);
             // Co-op+: shared cutscenes (notice, everyone skips) and minigame notices (coop_activity.h). Every loop,
             // also when our position is not readable (in a minigame the player snapshot goes away).
             {
@@ -872,16 +964,20 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 }
                 if (pos) own_pos = std::array<float, 3>{pos->x, pos->y, pos->z};
                 auto act = net::activity_tick(connected, host, game_has_focus(), own_pos, partner_pos, session.peer_name(), now);
+                loop_section(6);
                 activity_banner = std::move(act.banner);
                 if (!act.toast.empty()) {
                     toast = std::move(act.toast);
                     toast_until = now + 6000;
                 }
                 net::weather_tick(connected, host, own_pos.has_value(), own_pos, now);  // Co-op+: weather_sync.h
+                loop_section(7);
                 net::summary_tick(connected, session.peer_name(), own_pos, partner_pos, now);  // Co-op+: session_summary.h
+                loop_section(8);
                 // Co-op+ (T06): digests; a resync (Shift+F8 / View + RB, or the digests out of step) drops the
                 // session and joins again: everything of the other player is removed here and sent again.
                 net::sync_tick(connected, now);
+                loop_section(9);
                 static input::Edge resync_key;
                 static uint32_t last_auto_resync = 0;
                 std::string why = net::sync_take_resync();
@@ -899,9 +995,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     session.disconnect(now);
                 }
             }
+            loop_section(10);
             coop->update(pos, rot, now);
+            loop_section(11);
         }
 
+        loop_section(2);
         // Co-op+ (T11): a poor link (rtt over 250 ms or the reliable channel backing up) halves the state rate
         // before anything else is given up; back to full rate once it is good again (rtt under 150 ms).
         {
@@ -921,6 +1020,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             }
             reduced_rate = reduced;
         }
+        loop_section(3);
         if (now - last_state >= (reduced_rate ? state_interval * 2 : state_interval)) {
             last_state = now;
             if (auto state = local.sample(now)) session.send_local_state(*state, now);
@@ -1093,6 +1193,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         }
 
         const bool mark_down = (GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState(VK_F12) & 0x8000);
+        loop_section(4);
         if (mark_down && !mark_was_down) log::warn("=== MARK {} (Ctrl+F12) ===", ++marks);
         mark_was_down = mark_down;
         if (now - last_report >= 5000) {
@@ -1147,6 +1248,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
 
     net::save_guard_set_connected(false, {});
     net::scaling_set_party(1, host);  // nobody in our world until the next session says so
+    net::fast_lane_stop();  // before the transport and the session go
     coop.reset();
     if (was_connected) g_audit_due = now_ms();  // a Leave / Join: audited by the next session's loop (T08)
     // Co-op+ (T08): our own weather back now (it came back only from the next session's loop, which may not start).
@@ -1893,6 +1995,8 @@ DWORD WINAPI worker(LPVOID) {
         net::summary_set_test(cfg.dev_summary_test);
         net::hideseek_set_test(cfg.dev_hideseek_test);
         net::fishing_set_test(cfg.dev_fishing_test);
+        if (cfg.dev_lag_probe) net::lag_probe_start();
+        net::capture_set_pose_stream(cfg.coop_pose_stream);
         net::party_quests_set_test(cfg.dev_quest_test);
         net::hunt_set_test(cfg.dev_hunt_test);
         net::sync_set_test(cfg.dev_desync_test);

@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <span>
 #include <string>
@@ -77,7 +78,9 @@ public:
     // Sends Bye (best effort) and resets to Connecting.
     void disconnect(uint32_t now_ms);
 
-    void on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms);
+    // `event_handled`: its GameEvent was already given to the game by the fast lane (mod/net/fast_lane.h); the
+    // datagram still counts (packet numbers, the timeout), its event is not handed out again.
+    void on_datagram(std::span<const uint8_t> bytes, uint32_t now_ms, bool event_handled = false);
 
     State state() const { return state_; }
     const Stats& stats() const { return stats_; }
@@ -127,6 +130,9 @@ private:
     std::optional<proto::PlayerState> remote_state_;
 
     uint32_t next_seq_ = 1;
+    // Co-op+ low latency: the fast lane sends our movement from its own thread (send_event); everything else from the
+    // network loop. Guards next_seq_, the send counters and the send function.
+    std::mutex send_mutex_;
     uint32_t last_rx_seq_ = 0;  // Co-op+ (T32): the other side's newest packet number
     bool started_ = false;
     uint32_t last_hello_ms_ = 0;

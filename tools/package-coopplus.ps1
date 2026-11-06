@@ -83,8 +83,10 @@ $lines = $lines | ForEach-Object {
             break
         }
         '^self_marker=1$' { 'self_marker=0'; break }
-        # Co-op+ (2026-11-05 playtest: each saw the other lagging): 150 ms is plenty on a normal connection.
-        '^delay_ms=300$' { 'delay_ms=150'; 'delay_tuned=1'; break }
+        # Co-op+ low latency (2026-11-06): no fixed playout delay any more; buffer_ms is the smallest buffer after the
+        # network, adaptive above it (src/common/playout_buffer.h).
+        '^; Playout delay in ms' { '; How soon after the network your friend is drawn, at least (ms). It grows by itself on a jumpy connection;'; '; raise it only if your friend''s character stutters'; break }
+        '^delay_ms=300$' { 'buffer_ms=10'; break }
         '^guest_loot=1$' {
             'guest_loot=1'
             '; Co-op+: who loots a kill you both took part in. per_player = each of you takes your own drop (default);'
