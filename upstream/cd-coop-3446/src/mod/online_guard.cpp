@@ -59,7 +59,7 @@ std::string compat_check() {
     }
     for (const auto& e : std::filesystem::directory_iterator(dir, ec)) {
         const std::wstring n = e.path().filename().wstring();
-        if (e.path().extension() == L".asi" && n != L"cdmp.asi") found += std::format("{}{}", found.empty() ? "" : ", ", narrow(n));
+        if (e.path().extension() == L".asi" && n != L"cdmp.asi" && n != L"coopplus.asi") found += std::format("{}{}", found.empty() ? "" : ", ", narrow(n));
     }
     if (found.empty()) {
         log::info("Compatibility: no other ASI loader, .asi mod or ReShade next to the game");

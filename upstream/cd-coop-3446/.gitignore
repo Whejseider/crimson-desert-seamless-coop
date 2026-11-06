@@ -28,3 +28,4 @@ hang-dumps/
 
 # Capturas de pacotes: 533 MB cada, e sao dados de pesquisa local, nao fonte.
 build/research/captura-*/
+build-native-layer/

@@ -5,7 +5,7 @@
 #  - guest: the guest role sends the whole save folder to ...\CD\save_cdmp_guest, which this script fills with a test
 #    slot and a windowed settings file. The real save folder is only read (its settings file, as the template).
 param([string]$Name = 'tc1', [string]$HostVariant = 'coop-test-bandits', [string]$GuestVariant = 'rps',
-      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk, [switch]$Ride, [switch]$Fight)
+      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk, [switch]$Ride, [switch]$Fight, [switch]$CoopPlus)
 $ErrorActionPreference = 'Stop'
 $bin = 'D:\SteamLibrary\steamapps\common\Crimson Desert\bin64'
 $here = $PSScriptRoot; $saves = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\build\test-saves'
@@ -117,6 +117,36 @@ wallup_send=1
 dismount_probe=1
 guest_fast_travel_veto=probe
 '@
+
+if ($CoopPlus) {
+    # The Co-op+ layer (docs/research/native-coopplus-layer.md): coopplus.asi next to the native cdmp.asi, its
+    # per-role inis (CDMP_ROLE picks coopplus.<role>.ini), linked through cdmp_peer in relay mode on port 37115 (the
+    # native tunnel uses 37015). twocopy.sh removes the DLL, the inis and the relay afterwards.
+    $layer = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\upstream\cd-coop-3446\build-native-layer\bin\RelWithDebInfo\coopplus.asi'
+    Copy-Item $layer "$bin\coopplus.asi" -Force
+    foreach ($r in 'host', 'guest') {
+        $name = $(if ($r -eq 'host') { 'Host' } else { 'Guest' })
+        Write-Ini "$bin\coopplus.$r.ini" @"
+[general]
+player_name=$name
+onboarded=1
+experimental_asked=1
+[net]
+enabled=1
+transport=udp
+role=$r
+peer_host=127.0.0.1
+peer_port=37115
+[coop]
+enabled=1
+[overlay]
+enabled=1
+"@
+    }
+    $peer = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\upstream\cd-coop-3446\build\bin\RelWithDebInfo\cdmp_peer.exe'
+    Start-Process $peer -ArgumentList '--port', '37115', '--mode', 'relay' -WindowStyle Hidden
+    "co-op+ layer: coopplus.asi + relay on 37115"
+}
 
 # The windowed settings (template: the player's own file, read only).
 $xml = [IO.File]::ReadAllText("$cd\save\user_engine_option_save.xml")

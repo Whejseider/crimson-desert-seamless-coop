@@ -1,4 +1,5 @@
 #include "mod/mod.h"
+#include "mod/native_layer.h"
 #include "mod/input/actions.h"
 #include "mod/input/pad_input.h"
 
@@ -1530,7 +1531,12 @@ DWORD WINAPI late_init(LPVOID param) {
             nullptr, 0, [](LPVOID) -> DWORD { combat_test_loop(); return 0; }, nullptr, 0, nullptr));
     }
     // Templates and injection both live in the sniffer's hooks.
-    if ((init->coop || init->clone_hotkeys) && !sniffer_ok) {
+    if (kNativeLayer && init->coop) {
+        // Co-op+ on the native base (native_layer.h): no sniffer, no puppet, no enemy copies; the link carries only
+        // what the layer adds (activities, chat, waypoints, the party frame's state), so it is ready at once.
+        net::coop_set_ready();
+        log::info("Native layer: the co-op link is ready (no sniffer, no copies: the native base shares the world)");
+    } else if ((init->coop || init->clone_hotkeys) && !sniffer_ok) {
         log::warn("Co-op and the mirror need the sniffer ([sniffer] enabled=1); not active");
     } else if (init->coop) {
         // Combat values learnt in earlier sessions, and kept from now on
@@ -1730,7 +1736,7 @@ scaling::Settings scaling_settings(const Config& cfg, const std::wstring& dir) {
 
 DWORD WINAPI worker(LPVOID) {
     const std::wstring dir = dir_of(module_path(g_self));
-    log::open(dir + L"cdmp.log");
+    log::open(own_file(dir, L".log"));
     crash_log::install();
     log::info("=== Crimson Desert Multiplayer {} (build {:08X}{}, protocol {}) ===", CDMP_VERSION, kModBuild,
               CDMP_BUILD_DIRTY ? " + local changes" : "", proto::kVersion);
@@ -1747,7 +1753,12 @@ DWORD WINAPI worker(LPVOID) {
                                         file_version(module_path(nullptr)));
             log::warn("{}", build_problem);
         }
-        const Config cfg = load_config(dir + L"cdmp.ini");
+        Config cfg = load_config(own_file(dir, L".ini"));
+        // Co-op+ on the native base (native_layer.h): the world-simulating systems are off in coopplus.asi.
+        if (const std::string off = apply_native_layer(cfg); kNativeLayer) {
+            log::info("Native layer (coopplus.asi next to the native base's cdmp.asi): off whatever the ini says: {}",
+                      off.empty() ? "nothing was on" : off);
+        }
         // Co-op+ (T28): a second ASI loader loads us twice; only the first copy runs.
         if (in_game && !online_guard::first_instance()) {
             log::warn("Co-op+ was loaded twice (two ASI loaders next to the game?); this copy stays off");
@@ -1767,8 +1778,8 @@ DWORD WINAPI worker(LPVOID) {
         }
         // Co-op+ story sync: a story taken from a host goes into the save now, before the game loads one.
         // Co-op+ co-op worlds (save_io.h) + live quests: the experimental opt-in (optin.h), asked on the first launch.
-        optin::init(dir + L"cdmp.ini", in_game && build_ok && cfg.coop_enabled, cfg.coop_coop_worlds,
-                    GetPrivateProfileIntW(L"general", L"experimental_asked", 0, (dir + L"cdmp.ini").c_str()) != 0);
+        optin::init(own_file(dir, L".ini"), in_game && build_ok && cfg.coop_enabled, cfg.coop_coop_worlds,
+                    GetPrivateProfileIntW(L"general", L"experimental_asked", 0, (own_file(dir, L".ini")).c_str()) != 0);
         if (optin::enabled() && !cfg.dev_coop_world_partner.empty()) net::worlds_configure(true, cfg.dev_coop_world_partner);
         net::worlds_dev_as_host(cfg.dev_coop_world_as_host);
         if (in_game && build_ok && (cfg.dev_save_io_log || !cfg.dev_coop_world.empty())) {
@@ -1839,22 +1850,22 @@ DWORD WINAPI worker(LPVOID) {
             // Co-op+ (T40): the multipliers set in the F8 settings win over scaling.toml's 2-player values.
             const auto panel_value = [&](const wchar_t* key) {
                 wchar_t buf[32] = {};
-                GetPrivateProfileStringW(L"scaling", key, L"0", buf, 32, (dir + L"cdmp.ini").c_str());
+                GetPrivateProfileStringW(L"scaling", key, L"0", buf, 32, (own_file(dir, L".ini")).c_str());
                 const float v = std::wcstof(buf, nullptr);
                 return v >= 1.0f && v <= 4.0f ? v : 0.0f;
             };
             if (const float v = panel_value(L"panel_health_2p")) sc.health_2p = sc.health[2] = v;
             if (const float v = panel_value(L"panel_boss_health_2p")) sc.boss_health_2p = sc.boss_health[2] = v;
             net::scaling_configure(sc);
-            settings::init(dir + L"cdmp.ini", cfg, sc.health[2] > 0 ? sc.health[2] : sc.health_2p,
+            settings::init(own_file(dir, L".ini"), cfg, sc.health[2] > 0 ? sc.health[2] : sc.health_2p,
                            sc.boss_health[2] > 0 ? sc.boss_health[2] : sc.boss_health_2p);
-            net::scoreboard_init(dir + L"cdmp_scores.ini");  // Co-op+ (T43)
+            net::scoreboard_init(own_file(dir, L"_scores.ini"));  // Co-op+ (T43)
             // Co-op+ (T31): first run?
-            if (GetPrivateProfileIntW(L"general", L"onboarded", 0, (dir + L"cdmp.ini").c_str()) == 0) {
-                g_onboard_ini = dir + L"cdmp.ini";
+            if (GetPrivateProfileIntW(L"general", L"onboarded", 0, (own_file(dir, L".ini")).c_str()) == 0) {
+                g_onboard_ini = own_file(dir, L".ini");
             }
             // Co-op+ (T30): rebound hotkeys, and what is wrong with them.
-            for (const auto& w : input::load_bindings(dir + L"cdmp.ini")) {
+            for (const auto& w : input::load_bindings(own_file(dir, L".ini"))) {
                 log::warn("Keys: {}", w);
                 g_compat_note += (g_compat_note.empty() ? std::string() : std::string("\n")) + "Keys: " + w;
             }

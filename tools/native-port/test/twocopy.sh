@@ -15,5 +15,12 @@ done
 sleep 6
 for r in host guest; do cp "$BIN/cdmp.$r.log" $N/$NAME.$r.log 2>/dev/null; done
 cp $REL "$BIN/cdmp.asi"; rm -f "$BIN/cdmp.host.ini" "$BIN/cdmp.guest.ini"
+# Co-op+ layer runs (-CoopPlus): its logs kept, then the DLL, its inis and the relay removed (the player's game
+# must never load coopplus.asi).
+for r in host guest; do cp "$BIN/coopplus.$r.log" $N/$NAME.coopplus.$r.log 2>/dev/null; done
+rm -f "$BIN/coopplus.asi" "$BIN/coopplus.host.ini" "$BIN/coopplus.guest.ini" "$BIN/coopplus.host.log" "$BIN/coopplus.guest.log" \
+      "$BIN/coopplus.host_scores.ini" "$BIN/coopplus.guest_scores.ini"
+taskkill //IM cdmp_peer.exe //F >/dev/null 2>&1
+[ -f "$BIN/coopplus.asi" ] && echo "WARNING: coopplus.asi still in the game folder"
 bash $H/savecheck.sh --restore-ini; bash $H/savecheck.sh --fix | tail -2
 for r in host guest; do echo "== $r"; grep -aE " ERR | WRN |user 2|User 2|Session2 guest|tunnel|login|Login" $N/$NAME.$r.log | cut -c1-240 | head -40; done

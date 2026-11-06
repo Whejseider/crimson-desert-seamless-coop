@@ -163,7 +163,15 @@ add_library(cdmp_mod SHARED
 cdmp_strict(cdmp_mod)
 target_link_libraries(cdmp_mod PRIVATE cdmp_common imgui safetyhook::safetyhook)
 target_include_directories(cdmp_mod PRIVATE ${CMAKE_BINARY_DIR}/generated)
-set_target_properties(cdmp_mod PROPERTIES OUTPUT_NAME "cdmp" PREFIX "" SUFFIX ".asi")
+# Co-op+ on the native base (src/mod/native_layer.h, docs/research/native-coopplus-layer.md): coopplus.asi, the
+# Co-op+ layer next to the native base's cdmp.asi, with the world-simulating systems off. Its own build tree.
+option(CDMP_NATIVE_LAYER "Build coopplus.asi, the Co-op+ layer for the native base" OFF)
+if(CDMP_NATIVE_LAYER)
+    target_compile_definitions(cdmp_mod PRIVATE CDMP_NATIVE_LAYER=1)
+    set_target_properties(cdmp_mod PROPERTIES OUTPUT_NAME "coopplus" PREFIX "" SUFFIX ".asi")
+else()
+    set_target_properties(cdmp_mod PROPERTIES OUTPUT_NAME "cdmp" PREFIX "" SUFFIX ".asi")
+endif()
 
 # Co-op+: our own pure, unit-tested layers (party scaling curves, TOML settings) from
 # the repository this tree is vendored in. Skipped when built on its own.
