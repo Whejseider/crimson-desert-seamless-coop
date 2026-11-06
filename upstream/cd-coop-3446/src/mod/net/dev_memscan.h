@@ -30,6 +30,8 @@ void dev_dwatch(int hits);
 // The exe's whole .data section: gsnap keeps it; gdiff N writes every byte changed since (rva old new) to
 // cdmp_gdiff_N.txt next to the exe and keeps the new state as the next reference.
 void dev_gsnap();
+// Co-op+ dev: where the game keeps its client clock: writable data that advances like a clock (logged).
+void dev_clockscan();
 void dev_gdiff(int tag);
 // Every 8-aligned qword in .data equal to the actor of `key` (or its component table), logged as exe offsets.
 void dev_ptrscan(uint32_t key);

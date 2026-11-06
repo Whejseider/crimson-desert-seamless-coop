@@ -3,6 +3,8 @@
 # shift that best lines the copy's path up with ours (a constant sideways offset fitted out) is the delay from our
 # screen to the copy. Also: the time from one of our Moves being sent to its echo arriving (marks 1 and 2).
 #   python lag.py <cdmp_lag.csv>
+#   python lag.py <host csv> <guest csv>   two copies on one PC: the host's own path (first file) against the host's
+#                                          copy in the guest's game (second file); one PC, one clock
 import sys
 import numpy as np
 
@@ -45,8 +47,20 @@ def best_shift(t, me, cp, max_ms=900):
     return best[0], float(np.sqrt(best[1]))
 
 
-def main(path):
+def main(path, other=None):
     pos, sent, recv, margins = load(path)
+    if other:
+        # two copies: our own path from the first file, the copy of us from the second (its "copy" columns)
+        pos2, sent2, recv2, margins = load(other)
+        if len(pos) < 100 or len(pos2) < 100:
+            print('lag: too few samples (%d / %d)' % (len(pos), len(pos2)))
+            return
+        t2 = pos2[:, 0]
+        keep = (pos[:, 0] >= t2[0]) & (pos[:, 0] <= t2[-1])
+        pos = pos[keep]
+        pos[:, 3] = np.interp(pos[:, 0], t2, pos2[:, 3])
+        pos[:, 4] = np.interp(pos[:, 0], t2, pos2[:, 4])
+        recv = recv2
     if len(pos) < 100:
         print('lag: too few samples (%d); was the copy there?' % len(pos))
         return
@@ -63,6 +77,16 @@ def main(path):
     moving = speed > 0.5
     print('lag: %d samples over %.1f s, every %.1f ms on average, moving %.0f%% of the time' %
           (len(t), (t[-1] - t[0]) / 1e6, np.mean(np.diff(t)) / 1000, 100 * moving.mean()))
+    # stutter: while we moved, how often the copy stood still for 2+ frames (>= 35 ms) between two of its moves
+    cmove = np.r_[True, (np.diff(cp[:, 0]) != 0) | (np.diff(cp[:, 1]) != 0)]
+    tc = t[cmove]
+    gaps = np.diff(tc) / 1000.0
+    mid = (tc[1:] + tc[:-1]) / 2
+    mv = np.interp(mid, t, moving.astype(float)) > 0.5
+    if mv.sum():
+        stall = (gaps[mv] >= 35).sum()
+        print('lag: copy stood still 35+ ms while we moved: %d times (%.1f%% of its steps); its steps p50 %.0f p95 %.0f ms' %
+              (stall, 100.0 * stall / mv.sum(), np.percentile(gaps[mv], 50), np.percentile(gaps[mv], 95)))
     s, res = best_shift(t, me, cp)
     print('lag: SCREEN TO COPY %s ms (path residual %.2f m)' % (s, res if res is not None else -1))
     # per 3 s window while moving
@@ -90,4 +114,4 @@ def main(path):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None)

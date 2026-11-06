@@ -23,15 +23,20 @@ inline constexpr bool kNativeLayer = false;
 inline constexpr const wchar_t* kFileStem = L"cdmp";
 #endif
 
-// dir + "cdmp" (or "coopplus") + suffix, e.g. own_file(dir, L".ini"). The native build follows the native base's
-// two-copy convention: with CDMP_ROLE=host|guest in the environment its files are coopplus.<role>.ini / .log.
+// Two copies of the game on one PC (tests; ByJunter's convention, docs/research/two-copies-oldbase.md): the
+// environment variable CDMP_ROLE=host|guest. "" when absent (every player): nothing changes then.
+inline std::wstring test_role() {
+    wchar_t role[16] = {};
+    const DWORD n = GetEnvironmentVariableW(L"CDMP_ROLE", role, 16);
+    if (n > 0 && n < 16 && (std::wstring(role) == L"host" || std::wstring(role) == L"guest")) return role;
+    return {};
+}
+
+// dir + "cdmp" (or "coopplus") + suffix, e.g. own_file(dir, L".ini"). With CDMP_ROLE the files are
+// cdmp.<role>.ini / .log (coopplus.<role>.* in the native build).
 inline std::wstring own_file(const std::wstring& dir, const wchar_t* suffix) {
     std::wstring stem = kFileStem;
-    if (kNativeLayer) {
-        wchar_t role[16] = {};
-        const DWORD n = GetEnvironmentVariableW(L"CDMP_ROLE", role, 16);
-        if (n > 0 && n < 16 && (std::wstring(role) == L"host" || std::wstring(role) == L"guest")) stem += L"." + std::wstring(role);
-    }
+    if (const std::wstring role = test_role(); !role.empty()) stem += L"." + role;
     return dir + stem + suffix;
 }
 

@@ -60,6 +60,7 @@
 #include "mod/net/coop_fishing.h"
 #include "mod/net/fast_lane.h"
 #include "mod/net/lag_probe.h"
+#include "mod/two_copy.h"
 #include "mod/net/coop_race.h"
 #include "mod/net/scoreboard.h"
 #include "mod/net/state_audit.h"
@@ -462,6 +463,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         // A real other player (Steam): each side only takes what the other role sends.
         coop->set_strict_roles(steam != nullptr);
         coop->set_predict(cfg.coop_predict);
+        net::puppet_set_direct(cfg.coop_direct);
         net::fast_lane_start(*transport, [&session](proto::GameEvent ev) { session.send_event(std::move(ev), now_ms()); });
     }
     struct FastLaneStop {
@@ -1838,6 +1840,9 @@ scaling::Settings scaling_settings(const Config& cfg, const std::wstring& dir) {
 
 DWORD WINAPI worker(LPVOID) {
     const std::wstring dir = dir_of(module_path(g_self));
+    // Co-op+ dev: two copies on one PC (two_copy.h); the game's short-lived second process of a role stays untouched.
+    const std::wstring role = test_role();
+    if (!role.empty() && two_copy::extra_process(role)) return 0;
     log::open(own_file(dir, L".log"));
     crash_log::install();
     log::info("=== Crimson Desert Multiplayer {} (build {:08X}{}, protocol {}) ===", CDMP_VERSION, kModBuild,
@@ -1884,6 +1889,17 @@ DWORD WINAPI worker(LPVOID) {
                     GetPrivateProfileIntW(L"general", L"experimental_asked", 0, (own_file(dir, L".ini")).c_str()) != 0);
         if (optin::enabled() && !cfg.dev_coop_world_partner.empty()) net::worlds_configure(true, cfg.dev_coop_world_partner);
         net::worlds_dev_as_host(cfg.dev_coop_world_as_host);
+        if (!role.empty()) {
+            // Two copies on one PC: never on the real save folder.
+            if (cfg.dev_coop_world.empty()) {
+                log::warn("Two copies: CDMP_ROLE={} needs [dev] coop_world (a scratch world); Co-op+ stays off", narrow(role));
+                return 0;
+            }
+            log::info("Two copies: role {}, files cdmp.{}.*, the whole save folder in scratch world '{}'", narrow(role),
+                      narrow(role), narrow(cfg.dev_coop_world));
+            save_io::set_whole_folder(true);
+            two_copy::keep_full_speed();
+        }
         if (in_game && build_ok && (cfg.dev_save_io_log || !cfg.dev_coop_world.empty())) {
             save_io::install(cfg.dev_save_io_log);
             if (!cfg.dev_coop_world.empty()) save_io::set_dev_home(cfg.dev_coop_world);

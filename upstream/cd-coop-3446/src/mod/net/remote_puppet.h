@@ -111,6 +111,22 @@ void puppet_scrub_c2s(uint8_t* packet, uint16_t size);
 // How long a Move waits after arriving before it goes into the game (default 100 ms, see kHoldMs). Co-op+ low
 // latency sets 0: its playout buffer is in the timestamps instead. Any thread.
 void puppet_set_move_hold(uint64_t ms);
+// How long the other player's movement waits in our queue for the game to take it (90th percentile, ms; known once the
+// game clock is read). Any thread.
+int64_t puppet_injection_wait_p90();
+// Co-op+ low latency: the other player's positions straight into their copy's position / rotation buffers, in the
+// copy's own movement step (puppet_visibility.cpp), instead of waiting for the game's next OnRecvPacket.
+struct PuppetPose {
+    float pos[3];
+    float quat[4];
+    uint64_t ts;  // already on our clock, as the MoveActorAck carries it
+};
+void puppet_set_direct(bool on);
+bool puppet_direct_enabled();
+// The step: every position fed since the last call (the feed thread fills them as they arrive).
+void puppet_take_direct(std::vector<PuppetPose>& out);
+// [dev] The stamp of the newest copy position handed to the game (0: none yet).
+uint64_t puppet_last_injected_move_ts();
 // Sideways offset of the puppet (world X, metres); 0 = the sender's exact path.
 void puppet_set_offset(float metres);
 // [dev] desync_test (coop_sync.h): the copy ignores the sender's events for this long (a desync to detect).

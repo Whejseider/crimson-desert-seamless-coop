@@ -35,6 +35,9 @@ std::wstring g_world;       // the active world's name ("" = none)
 std::wstring g_world_root;  // g_worlds_root + name + backslash
 std::wstring g_home;        // [dev] coop_world: the scratch world that stands for "own saves" in tests
 std::atomic<bool> g_active{false};
+// Two copies on one PC (CDMP_ROLE, tests only): everything under save\ goes to the scratch world, the graphics and
+// input options in save\ too (each copy its own windowed settings), not only save\<account>\.
+std::atomic<bool> g_whole_folder{false};
 
 fs::path known_folder(REFKNOWNFOLDERID id) {
     PWSTR p = nullptr;
@@ -62,6 +65,7 @@ size_t account_part(const std::wstring& low) {
     if (g_game_root.empty() || low.compare(0, g_game_root.size(), g_game_root) != 0) return std::wstring::npos;
     size_t i = g_game_root.size();
     const size_t start = i;
+    if (g_whole_folder.load(std::memory_order_relaxed)) return start;
     while (i < low.size() && iswdigit(low[i])) ++i;
     if (i == start || (i < low.size() && low[i] != L'\\')) return std::wstring::npos;  // save\<digits>[\...] only
     return start;
@@ -251,6 +255,8 @@ void install(bool log) {
 }
 
 std::wstring world_folder(const std::wstring& name) { return g_worlds_root + name; }
+
+void set_whole_folder(bool on) { g_whole_folder = on; }
 
 void set_dev_home(const std::wstring& name) {
     {

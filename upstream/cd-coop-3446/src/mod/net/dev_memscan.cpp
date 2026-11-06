@@ -5,11 +5,15 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <chrono>
+#include <format>
 #include <string>
+#include <vector>
 
 #include "mod/game/safe_memory.h"
 #include "mod/log.h"
 #include "mod/net/dev_watch.h"
+#include "mod/net/local_capture.h"
 
 namespace cdmp::net {
 namespace {
@@ -306,6 +310,72 @@ void read_pages(uintptr_t at, size_t size, std::vector<uint8_t>& out) {
     }
 }
 }  // namespace
+
+// Co-op+ dev (2026-11-06, low latency): where the game keeps its client clock (the one its MoveActorReq stamps use and
+// remote actors are drawn against). Every writable section of the exe (their names are decoys that change every
+// build) is read twice ~500 ms apart; every 4-aligned u64 / u32 that advanced like a millisecond clock (and every u64
+// like a microsecond one) is logged with its distance to our estimate of the game clock (capture_game_clock_ms).
+void dev_clockscan() {
+    const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+    const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+    struct Sec {
+        uintptr_t at;
+        size_t size;
+        std::vector<uint8_t> a, b;
+    };
+    std::vector<Sec> secs;
+    const IMAGE_SECTION_HEADER* s = IMAGE_FIRST_SECTION(nt);
+    for (WORD i = 0; i < nt->FileHeader.NumberOfSections; ++i, ++s) {
+        if (s->Characteristics & IMAGE_SCN_MEM_WRITE) secs.push_back({base + s->VirtualAddress, s->Misc.VirtualSize, {}, {}});
+    }
+    const auto t1 = std::chrono::steady_clock::now();
+    const uint64_t est1 = capture_game_clock_ms();
+    for (auto& x : secs) read_pages(x.at, x.size, x.a);
+    Sleep(500);
+    const auto t2 = std::chrono::steady_clock::now();
+    const uint64_t est2 = capture_game_clock_ms();
+    for (auto& x : secs) read_pages(x.at, x.size, x.b);
+    const double dt = std::chrono::duration<double, std::milli>(t2 - t1).count();
+    struct Hit {
+        int64_t dist;
+        std::string line;
+    };
+    std::vector<Hit> hits;
+    for (const auto& x : secs) {
+        for (size_t i = 0; i + 8 <= x.size; i += 4) {
+            uint64_t a, b;
+            std::memcpy(&a, x.a.data() + i, 8);
+            std::memcpy(&b, x.b.data() + i, 8);
+            if (b <= a) continue;
+            const double d = static_cast<double>(b - a);
+            const char* kind = nullptr;
+            int64_t dist = 0;
+            if (d > dt * 0.8 && d < dt * 1.2) {
+                kind = "u64 ms";
+                dist = static_cast<int64_t>(b) - static_cast<int64_t>(est2);
+            } else if (d > dt * 800 && d < dt * 1200) {
+                kind = "u64 us";
+                dist = static_cast<int64_t>(b / 1000) - static_cast<int64_t>(est2);
+            } else {
+                const uint32_t a32 = static_cast<uint32_t>(a), b32 = static_cast<uint32_t>(b);
+                const double d32 = static_cast<double>(b32 - a32);
+                if (b32 > a32 && d32 > dt * 0.8 && d32 < dt * 1.2) {
+                    kind = "u32 ms";
+                    dist = static_cast<int64_t>(b32) - static_cast<int64_t>(est2 & 0xFFFFFFFFull);
+                }
+            }
+            if (!kind) continue;
+            hits.push_back({std::llabs(dist), std::format("exe+0x{:X} {} value {} (advanced {:.0f} in {:.0f} ms) | minus our "
+                                                          "estimate: {} ms",
+                                                          x.at - base + i, kind, b, d, dt, dist)});
+        }
+    }
+    std::sort(hits.begin(), hits.end(), [](const Hit& l, const Hit& r) { return l.dist < r.dist; });
+    log::info("Dev clockscan: {} clock-like values in {} writable sections (our estimate {} -> {})", hits.size(),
+              secs.size(), est1, est2);
+    for (size_t i = 0; i < hits.size() && i < 40; ++i) log::info("Dev clockscan: {}", hits[i].line);
+}
 
 void dev_gsnap() {
     if (!data_section(g_gdata, g_gsize)) {

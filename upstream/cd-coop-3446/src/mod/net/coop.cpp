@@ -18,6 +18,7 @@
 #include "common/equip_state.h"
 #include "mod/game/offsets.h"
 #include "mod/net/fast_lane.h"
+#include "mod/net/puppet_visibility.h"
 #include "mod/net/wire_layout.h"
 #include "mod/net/lag_probe.h"
 #include "mod/log.h"
@@ -673,7 +674,9 @@ void CoopLink::feed_puppet(const proto::GameEvent& ev, uint32_t now_ms) {
     const auto offset = clock_.offset();
     if (!offset) return;
     const int64_t late = sample ? std::max<int64_t>(0, *sample - *offset) : 0;
-    playout_.update(clock_.lateness(95));
+    // Late on the network, then late again waiting for the game to take it (it only takes packets when its own come in).
+    // With the positions put straight into the copy's buffer (puppet_visibility.cpp) there is no such wait.
+    playout_.update(clock_.lateness(95) + (puppet_direct_active() ? 0 : puppet_injection_wait_p90()));
     const int64_t shift = ts_shift(*offset);
     puppet_event(ev, shift, hold_for(late));
     if (ev.kind == proto::EventKind::Move) predict_after(ev, shift, 0);
@@ -819,11 +822,12 @@ std::string CoopLink::describe() const {
     const auto off = clock_.offset();
     const auto target = clock_.target();
     return std::format("co-op: other player {} | events in {} | clock offset {} (target {}) | buffer {} ms "
-                       "(late p95 {} ms, move gap {} ms, {} predicted) | reliable pending {} | outbox dropped {}",
+                       "(late p95 {} ms, game takes it after {} ms, move gap {} ms, {} predicted) | reliable pending {} | "
+                       "outbox dropped {}",
                        puppet_spawned() ? "loaded" : "not loaded", events_in_.load(),
                        off ? std::format("{} ms", *off) : std::string("unknown"),
                        target ? std::format("{} ms", *target) : std::string("-"), playout_.ms(), clock_.lateness(95),
-                       playout_.gap_ms(), predicted_,
+                       puppet_injection_wait_p90(), playout_.gap_ms(), predicted_,
                        session_.reliable_pending(), outbox_dropped_);
 }
 

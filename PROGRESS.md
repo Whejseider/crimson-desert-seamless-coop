@@ -1513,3 +1513,13 @@ Done in the user's Chrome (signed in as Asher):
   LESSONS: the echo peer hides clock problems (the echoed packet carries our own stamp): measure lateness against a
   smoothed clock. The network loop's own work (enemy relay etc.) is ~30 ms a pass: nothing latency-critical may wait
   for it. Not yet: two real games (two copies) and horse riding / climbing with the new pipeline.
+- 2026-11-06 14:40-15:45 LOW LATENCY, round 2. (1) Two copies of the RELEASED mod on one PC now work (CDMP_ROLE role
+  files, whole save folder to a per-role scratch world, full GPU priority for the copy without focus; harness
+  tools/lag/twocopy_cp.sh, SAVES OK each run). (2) The game's clock found again: exe+0x7233A78 (dev clockscan); read
+  smoothly it fixes an idle receiver's drifting estimate (two copies: late positions 42 % -> 11 %) and revives the
+  trusted-clock paths. (3) A stutter measure showed the earlier 26 ms was choppy (copy standing still on 32 % of its
+  steps); the buffer now also covers the game's wait before it takes our packets (p90): 52 ms, smooth (0.4 %), two
+  copies 52-54 ms. (4) Direct writes into the copy's position buffer (mc+0x430 / 0x4E8 on 3576) work but gave no gain:
+  off ([coop] direct). Checks on this build: duel 10/10 HIT (du78), death + revive (dt78), live quests both ways
+  (ls78). LESSON: measure smoothness with latency; a lower delay that makes the copy stop and jump is worse.
+  Notes: docs/research/latency.md.

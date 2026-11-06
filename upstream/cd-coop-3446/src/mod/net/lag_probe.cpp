@@ -13,6 +13,7 @@
 
 #include "mod/game/actor_lookup.h"
 #include "mod/log.h"
+#include "mod/native_layer.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/remote_puppet.h"
 
@@ -36,7 +37,8 @@ void push(std::string line) {
 void run() {
     wchar_t exe[MAX_PATH] = {};
     GetModuleFileNameW(nullptr, exe, MAX_PATH);
-    const auto path = std::filesystem::path(exe).parent_path() / L"cdmp_lag.csv";
+    const std::wstring role = test_role();  // two copies on one PC: one file each
+    const auto path = std::filesystem::path(exe).parent_path() / (role.empty() ? L"cdmp_lag.csv" : L"cdmp_lag." + role + L".csv");
     FILE* f = _wfopen(path.c_str(), L"w");
     if (!f) {
         log::warn("Lag probe: cannot write {}", path.string());

@@ -144,6 +144,10 @@ inline constexpr uintptr_t kClientClockGlobal = 0x70DBF2D;  // 3549:0x70D9E3D, 8
 inline constexpr uintptr_t kClientFrameClockMs = 0x70DBF61;  // = flag + 0x34
 inline constexpr uintptr_t kClientFrameClockUs = 0x70DBF69;  // = flag + 0x3C
 inline constexpr uintptr_t kClientClockBias = 0x71C03A8;  // = kWorldSystemSlot + 0x2A8 (8/8 references agree)
+// Co-op+ low latency (2026-11-06): the client's game clock in ms, one u64. Found live with the dev clockscan
+// (dev_memscan.h): it runs with the wall clock and stays ~54 ms ahead of the newest MoveActorReq stamp (the game stamps
+// its Reqs that much behind it), unlike flag+0x34 above (0.7 s off). game_clock.cpp reads it on this build.
+inline constexpr uintptr_t kClientClockMs = 0x7233A78;
 inline constexpr uintptr_t kMinimapIconRoot = 0x71C0498;  // = kWorldSystemSlot + 0x398
 inline constexpr uintptr_t kMinimapIconRootAlt = 0x71C04A0;  // = kWorldSystemSlot + 0x3A0
 inline constexpr uintptr_t kStatusFlagsChanged = 0x6EA030;  // 3549:0x6E99D0, head matches

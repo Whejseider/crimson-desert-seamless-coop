@@ -12,6 +12,14 @@ namespace off = build_3576;
 
 std::optional<uint64_t> client_game_clock_ms() {
     static const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    // Co-op+ (3576): the clock found with the dev clockscan. local_capture still checks it against our Reqs' stamps
+    // before trusting it (within 250 ms of 50 of them).
+    if constexpr (off::kClientClockMs != 0) {
+        if (off::kClientClockMs + 8 > off::kImageSize) return std::nullopt;
+        const auto ms = read<uint64_t>(base + off::kClientClockMs);
+        if (!ms || *ms == 0 || *ms > 365ull * 24 * 60 * 60 * 1000) return std::nullopt;
+        return *ms;
+    }
     // The clock getter's own address is still the 2976 one and its head cannot match
     // on this build, so comparing the head -- the old check -- would disable the clock
     // outright. What is resolved instead is the GLOBAL that getter consults: on 3446

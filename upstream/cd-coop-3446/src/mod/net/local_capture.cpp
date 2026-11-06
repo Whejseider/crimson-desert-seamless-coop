@@ -1363,9 +1363,27 @@ bool capture_game_clock_decided() { return g_clock_reader.load(std::memory_order
 
 void capture_set_packet_time_us(uint64_t t_us) { g_packet_us = t_us; }
 
+// Co-op+ low latency: the game's clock moves once per frame (3576: kClientClockMs), so a raw read is up to a frame
+// behind "now" and that step would look like ~16 ms of jitter in every arrival time. Read as the wall clock plus the
+// largest (clock - wall) seen lately: the clock at the start of the frame we are in, continued smoothly. The offset
+// sinks by 1 ms per 100 ms so a clock a little slower than the wall clock is followed, and a read 40 ms below it (a
+// pause, a correction stepping back) is taken at once.
+std::atomic<int64_t> g_frame_offset{INT64_MIN};
+std::atomic<uint64_t> g_frame_offset_at{0};
+
 uint64_t capture_game_clock_ms() {
     if (g_clock_reader.load(std::memory_order_relaxed) == 1) {
-        if (const auto c = game::client_game_clock_ms()) return *c;
+        if (const auto c = game::client_game_clock_ms()) {
+            const uint64_t now = steady_ms();
+            const int64_t sample = static_cast<int64_t>(*c) - static_cast<int64_t>(now);
+            int64_t best = g_frame_offset.load(std::memory_order_relaxed);
+            const uint64_t at = g_frame_offset_at.load(std::memory_order_relaxed);
+            if (best != INT64_MIN && now > at) best -= static_cast<int64_t>((now - at) / 100);
+            if (best == INT64_MIN || sample > best || sample < best - 40) best = sample;
+            g_frame_offset.store(best, std::memory_order_relaxed);
+            if (now - at >= 100 || best == sample) g_frame_offset_at.store(now, std::memory_order_relaxed);
+            return static_cast<uint64_t>(static_cast<int64_t>(now) + best);
+        }
     }
     if (!g_clock_known.load(std::memory_order_acquire)) return 0;
     const int64_t c = static_cast<int64_t>(steady_ms()) + g_clock_offset.load(std::memory_order_relaxed);

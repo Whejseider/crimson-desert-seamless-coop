@@ -164,6 +164,7 @@ struct Config {
     bool coop_coop_worlds = false;
     std::string dev_coop_world_partner;  // Co-op+ dev: partner key for one-PC tests (the echo peer has no Steam id)
     bool coop_pose_stream = true;
+    bool coop_direct = false;  // Co-op+ low latency: positions straight into the copy's buffers (puppet_visibility.cpp)
     bool coop_predict = true;  // Co-op+ low latency: a predicted position between the other player's moves (coop.cpp)  // Co-op+ low latency: our moves from our transform every frame (local_capture.cpp)
     bool dev_lag_probe = false;  // Co-op+ dev: write where we and the copy are drawn every 4 ms (lag_probe.h)
     bool dev_fishing_test = false;  // Co-op+ dev: fishing contest one-PC test (the echoed score is ignored)

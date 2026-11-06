@@ -48,6 +48,9 @@ void world_mark_new_game_started(const std::wstring& name);
 // [dev] coop_world (one-PC tests): this scratch world stands for the player's own saves from now on, so no switch
 // of the co-op worlds can reach the real save folder. Must exist (the test scripts make it).
 void set_dev_home(const std::wstring& name);
+// Two copies on one PC (CDMP_ROLE): the whole save folder, options included, goes to the scratch world. Before
+// install / set_dev_home.
+void set_whole_folder(bool on);
 
 // Where a world's files live (for backups and the panel).
 std::wstring world_folder(const std::wstring& name);

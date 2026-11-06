@@ -305,6 +305,17 @@ struct Timing {
     std::vector<int64_t> wait, margin;
 };
 Timing g_timing[2];  // 0 the other player (and horse), 1 enemy copies
+// Co-op+ low latency: how long the other player's movement waits in our queue for the game's next OnRecvPacket (we
+// can only hand packets over inside it), its 90th percentile followed step by step (+0.9 ms when a wait is above it,
+// -0.1 ms when below). The playout buffer covers it (coop.cpp): p90 gave a smooth copy at 52 ms (lag15: standing still
+// 2+ frames on 0.4 % of its steps), p75 50 ms (1.7 %, lag20), none 38 ms (4.8 %, lag14).
+std::atomic<int64_t> g_inject_wait_p90_x10{100};  // tenths of a ms
+std::atomic<uint64_t> g_last_injected_move_ts{0};  // [dev] the newest copy position's stamp handed to the game
+// Co-op+ low latency: copy positions also go straight into the copy's own buffers in its movement step (puppet_visibility
+// .cpp), so they need not wait for the game's next OnRecvPacket. Filled on the feed thread, taken in the step.
+std::atomic<bool> g_direct_enabled{false};
+std::mutex g_direct_mutex;
+std::vector<PuppetPose> g_direct;
 // The last position we told the copy to be at (a delivered MoveActorAck) and
 // when, under g_queue_lock: puppet_tick reloads a copy that stopped following
 // them (live test, 4 Oct 22:08: after dying twice through D1/D2 and five
@@ -1740,6 +1751,19 @@ void puppet_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t dela
             std::memcpy(g_last_move_pos, payload.data() + wire::kMovePos, sizeof g_last_move_pos);
             ack_op = off::kOpMoveActorAck;
             ack = move_ack(payload);
+            if (ack && g_direct_enabled.load(std::memory_order_relaxed) && ack->size() >= wire::kMoveTs + 8) {
+                // On foot only (a parent gives the position another meaning); the shifted, rebased Ack's own values.
+                bool foot = payload.size() >= wire::kMoveParent + 8;
+                for (size_t i = 0; foot && i < 8; ++i) foot = payload[wire::kMoveParent + i] == 0xFF;
+                if (foot) {
+                    PuppetPose p;
+                    std::memcpy(p.pos, ack->data() + wire::kMovePos, sizeof p.pos);
+                    std::memcpy(p.quat, ack->data() + wire::kMoveRot, sizeof p.quat);
+                    std::memcpy(&p.ts, ack->data() + wire::kMoveTs, 8);
+                    std::lock_guard lock(g_direct_mutex);
+                    if (g_direct.size() < 64) g_direct.push_back(p);
+                }
+            }
             if (u32_at(payload, wire::kMoveParent) == kPuppetHorse) ride_horse(payload, now, move_hold);
             {
                 // Dismounted (parent back to none for a few Moves): unless our
@@ -2579,6 +2603,12 @@ bool puppet_take_injection(std::vector<uint8_t>& out) {
                 continue;
             }
             Timing& t = g_timing[(key & 0xFFFF0000u) == 0xB01F0000u ? 1 : 0];
+            if (key == kPuppetPlayer) {
+                if (buffer == InjectClock::Buffer::Position) g_last_injected_move_ts.store(fixed, std::memory_order_relaxed);
+                const int64_t w10 = static_cast<int64_t>(now - due) * 10;
+                const int64_t q = g_inject_wait_p90_x10.load(std::memory_order_relaxed);
+                g_inject_wait_p90_x10.store(std::clamp<int64_t>(q + (w10 > q ? 9 : -1), 0, 1000), std::memory_order_relaxed);
+            }
             if (t.wait.size() < 4096) {
                 t.wait.push_back(static_cast<int64_t>(now - due));
                 t.margin.push_back(static_cast<int64_t>(fixed) -
@@ -2766,6 +2796,24 @@ void puppet_scrub_c2s(uint8_t* packet, uint16_t size) {
 }
 
 void puppet_set_move_hold(uint64_t ms) { g_move_hold_ms = ms; }
+
+int64_t puppet_injection_wait_p90() { return g_inject_wait_p90_x10.load(std::memory_order_relaxed) / 10; }
+uint64_t puppet_last_injected_move_ts() { return g_last_injected_move_ts.load(std::memory_order_relaxed); }
+
+void puppet_set_direct(bool on) {
+    g_direct_enabled = on;
+    if (!on) {
+        std::lock_guard lock(g_direct_mutex);
+        g_direct.clear();
+    }
+}
+bool puppet_direct_enabled() { return g_direct_enabled.load(std::memory_order_relaxed); }
+
+void puppet_take_direct(std::vector<PuppetPose>& out) {
+    out.clear();
+    std::lock_guard lock(g_direct_mutex);
+    out.swap(g_direct);
+}
 
 void puppet_set_offset(float metres) {
     g_offset_x = metres;

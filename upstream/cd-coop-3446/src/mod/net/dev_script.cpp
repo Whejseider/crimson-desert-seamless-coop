@@ -26,7 +26,7 @@ namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch, GSnap, GDiff, PtrScan, WatchStatus, Key } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch, GSnap, GDiff, PtrScan, WatchStatus, Key, ClockScan } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -202,6 +202,11 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "clockscan") {  // clockscan: values that run like the game's clock (dev_memscan.h)
+            st.kind = Step::ClockScan;
+            steps.push_back(st);
+            continue;
+        }
         if (kind == "gsnap" || kind == "gdiff") {  // gsnap / gdiff N: the exe's .data, before / after (dev_memscan.h)
             st.kind = kind == "gsnap" ? Step::GSnap : Step::GDiff;
             in >> st.wait_ms;
@@ -337,6 +342,8 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
                 dev_watch_status(static_cast<int>(st.addr), static_cast<int>(st.to[0]), static_cast<int>(st.to[1]));
             } else if (st.kind == Step::PtrScan) {
                 dev_ptrscan(static_cast<uint32_t>(st.addr));
+            } else if (st.kind == Step::ClockScan) {
+                dev_clockscan();
             } else if (st.kind == Step::GSnap) {
                 dev_gsnap();
             } else if (st.kind == Step::GDiff) {

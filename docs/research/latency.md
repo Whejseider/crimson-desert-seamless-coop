@@ -11,8 +11,14 @@ PC (game 1.0.0.3576, scratch world, echo peer: the copy replays our own moves), 
 | + pose stream, moves-only clock (lag11) | 44 ms (32 per window) | 0.6 / 1.2 | lateness 1-3 ms |
 | + halfway prediction (lag12) | **26 ms (24 per window)** | 0.7 / 1.3 | buffer 15-24 ms |
 | same, simulated internet 30 ms ± 10 (lag13) | 72 ms | 39 / 49 | buffer grows to ~30 ms by itself |
+| + the game's own clock read (lag14) | 38 ms | 0.6 / 1.2 | copy stood still 2+ frames on 4.8 % of its steps |
+| + buffer covers the game's take-up wait, p90 (lag15) | **52 ms** | 0.6 / 1.3 | **smooth: 0.4 %** (shipped) |
+| two real copies of the game, host -> guest (cp3) | 52-54 ms | 0.6 / 1.2 | both games at half speed on one GPU |
 
-Path residual (how far the copy's path is from ours once shifted) stayed 0.05-0.06 m throughout: no extra jitter.
+Path residual (how far the copy's path is from ours once shifted) stayed 0.03-0.06 m throughout. **The lower numbers
+above 38 ms were not smooth**: the stutter measure added later (lag.py: how often the copy stood still 2+ frames while
+we moved) gives 31.6 % for lag12's 26 ms; positions came too late for the game and the copy stood, then caught up.
+The shipped setting is the smooth one.
 Duel 9/9 HIT (du77), death + checkpoint revive (dt77), live quests both ways (ls77), far apart and back (far77) pass.
 
 ## How to measure
@@ -51,8 +57,27 @@ shift. The network loop logs `Timing: network loop ...` (wait / work, and per se
    halfway to the next one from their speed, so the buffer covers half the spacing. The real move lands next and
    wins; at 6 m/s the worst error is a few cm.
 
+6. **The game's clock is readable again** (3576: one u64 ms at exe+0x7233A78, found with the dev `clockscan`,
+   dev_memscan.h; it runs ~54 ms ahead of the Req stamps). Read smoothly (wall clock + the largest clock-minus-wall
+   seen lately, local_capture.cpp), it replaces the estimate everywhere and turns the old trusted-clock paths back on
+   (InjectClock, pause detection, actions held until drawn). An idle receiver's estimate had drifted (two-copy test:
+   42 % of positions late, by up to 70 ms); with the read clock 11 %.
+7. **The game only takes our packets inside its own OnRecvPacket** (when its in-process server sends something):
+   10 ms at the median, 20-35 ms at the 90th percentile. The buffer covers that wait (its p90, remote_puppet.cpp),
+   which is what makes the copy smooth. Putting the positions straight into the copy's buffers in its movement step
+   (puppet_visibility.cpp, `[coop] direct`, off: the buffers are at mc+0x430 / mc+0x4E8 on 3576) did not lower the
+   delay (50 ms, more stutter): the rest is the game's own frame (applying the interpolated position, drawing).
+
+## Two copies of the released mod on one PC
+`tools/lag/twocopy_cp.sh <name>` (ByJunter's way: SteamAppId / SteamGameId, PlatformServiceType=Steam). With
+`CDMP_ROLE=host|guest` the mod uses cdmp.<role>.ini / .log, the game's short-lived second process stays untouched
+(per-role mutex), the whole save folder (options too) goes to the scratch world Worlds	wocopy_<role> (the mod stays
+off without `[dev] coop_world`), and the copy without the focus keeps full GPU priority (mod/two_copy.cpp). The
+harness makes both worlds (test slot, windowed low-quality settings), the role inis from the player's ini snapshot,
+presses Play twice, and lag.py compares the host's own path with its copy in the guest's game.
+
 ## Limits
-- The copy can never be closer than the network's one-way time: on the internet the result is that + ~25 ms. Below it
+- The copy can never be closer than the network's one-way time: on the internet the result is that + ~50 ms. Below it
   only by predicting their position ahead (dead reckoning); not done (wrong on dodges and turns, which duels are made
   of).
 - Our transform changes every ~20-30 ms at ~56 fps here (the median spacing of the stream); a faster PC gives a
