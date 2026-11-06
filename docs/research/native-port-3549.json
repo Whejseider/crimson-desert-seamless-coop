@@ -1,34 +1,156 @@
 {
  "_about": "Native Server (build 2976) -> 1.0.0.3549 address port. old, new, how it was found. 2026-11-05.",
- "game/offsets.h": {"_": "from the old base's resolved 3549 tables by name (resolve.py); kVtPhysicsObject/kVtCamera = 0 (no check, as in the old base); kCamera_Block 0x428 -> 0x430"},
- "kNwVirtualAsyncSessionVtable": ["0x57260C0", "0x5AC3B38", "RTTI .?AVNwVirtualAsyncSession@pa@@ (unique); slot 9 = SessionSend"],
- "kNwAsyncSessionVtable": ["0x5726140", "0x5AC3AB8", "RTTI .?AVNwAsyncSession@pa@@"],
- "kServerUserActorVtable": ["0x5B257A8", "0x5EECCA8", "RTTI .?AVServerUserActor@pa@@"],
- "kToNearExceptOneControlVtable": ["0x5B25358", "0x5EEC7E0", "RTTI ToNearExceptOneControlSendTargetFinder"],
- "kToNearExceptOneSelfVtable": ["0x5B25378", "0x5EEC800", "RTTI ToNearExceptOneSelfSendTargetFinder"],
- "kToNearVtable": ["0x5B25418", "0x5EEC820", "RTTI ToNearSendTargetFinder"],
- "kWindowsLock3Vtable": ["0x557C120", "0x5908E10", "RTTI .?AV?$WindowsLock@$02@pa@@"],
- "kSessionSend": ["0x1437740", "0x161ACC0", "head unique + NwVirtualAsyncSession vf9"],
- "kSyncSessionSend": ["0x14380B0", "0x161B630", "head unique; same distance from SessionSend (0x970)"],
- "kNwSessionCtor": ["0x1436EE0", "0x161A4A0", "the only non-dtor writer of the NwSession vtable 0x5AC3AA0; fields +8 +10 +80 +88 +90 +98 +A0 as before; head CHANGED (prologue)"],
- "kToNearVf1": ["0x2A75860", "0x2D04650", "head unique + ToNear vtable slot 1"],
- "kExceptOneSelfVf1": ["0x2A75880", "0x2D04670", "ExceptOneSelf vtable slot 1 (+0x20, as before)"],
- "kExceptOneVf1": ["0x2A759B0", "0x2D047A0", "ExceptOneControl vtable slot 1 (+0x150, as before)"],
- "kAllocThread": ["0x47EF9B0", "0x4B00AA0", "called by the NwSession ctor (size 0x30, align 0x10); full-bytes check must be regenerated (rip displacements)"],
- "kAllocGlobal": ["0x47EFA78", "0x4B00B68", "head matches; AllocThread + 0xC8 as before"],
- "kQueuePush": ["0x35DF50", "0x3A7A30", "called by SyncSessionSend"],
- "kQueuePop": ["0x35E030", "0x3A7B10", "(not in the table) next function; called by the server run loop"],
- "kServerRunThread": ["0x27733F0", "0x29AAF80", "(doc only) the caller of pop that calls OnRecvPacket"],
- "kServerOnRecvPacket": ["0x2773C20", "0x29AB7F0", "head match among the run loop's call targets"],
- "kNetLoopPump": ["0x35BAD4", "0x3A5464", "39-byte AOB unique"],
- "kClientNetSlot": ["0x6D69170", "0x71BDED0", "region shift +0x454D60 (WorldSystemSlot, MinimapIconRoot); 301 code refs; LIVE CHECK"],
- "kServerNetSlot": ["0x6D69680", "0x71BE3E0", "region shift; stored by the server module init 0x29FAB50 (mov [rip],rdi)"],
- "kServerActorLookupSlot": ["0x6D69698", "0x71BE3F8", "decoded from the slot-refresh sequence (AOB unique) = region shift"],
- "kTlsIndexSlot": ["0x6C88C50", "0x70D5D50", "PE TLS directory AddressOfIndex"],
- "kSamSlot": ["0x6DA67D8", null, "TODO live: a global equal to [[ServerActorLookupSlot]] (opcion-d-d0.md:192)"],
- "kSlotRefreshReqSequence": ["0x2A22475", "0x2CABDBB", "AOB with wildcards unique; bytes array must be regenerated"],
- "kSaveMgrRefreshSlots": ["0x1870C20", "0x19B2080", "the call inside the sequence; still jmp .xtls; head bytes regenerated: E9 1B 00 E4 09"],
- "kWindowsLockVf1": ["0x1371340", "0x1553610", "WindowsLock<3> vtable slot 1"],
- "kWindowsLockVf2": ["0xCE4EF0", "0xDF0170", "WindowsLock<3> vtable slot 2"],
- "kTitlePlayReadsSaveMgr": ["0x65DC3E", null, "TODO: the title's Play reading [WorldSystem]+0x88 (AOB not found as is)"]
+ "game/offsets.h": {
+  "_": "from the old base's resolved 3549 tables by name (resolve.py); kVtPhysicsObject/kVtCamera = 0 (no check, as in the old base); kCamera_Block 0x428 -> 0x430"
+ },
+ "kNwVirtualAsyncSessionVtable": [
+  "0x57260C0",
+  "0x5AC3B38",
+  "RTTI .?AVNwVirtualAsyncSession@pa@@ (unique); slot 9 = SessionSend"
+ ],
+ "kNwAsyncSessionVtable": [
+  "0x5726140",
+  "0x5AC3AB8",
+  "RTTI .?AVNwAsyncSession@pa@@"
+ ],
+ "kServerUserActorVtable": [
+  "0x5B257A8",
+  "0x5EECCA8",
+  "RTTI .?AVServerUserActor@pa@@"
+ ],
+ "kToNearExceptOneControlVtable": [
+  "0x5B25358",
+  "0x5EEC7E0",
+  "RTTI ToNearExceptOneControlSendTargetFinder"
+ ],
+ "kToNearExceptOneSelfVtable": [
+  "0x5B25378",
+  "0x5EEC800",
+  "RTTI ToNearExceptOneSelfSendTargetFinder"
+ ],
+ "kToNearVtable": [
+  "0x5B25418",
+  "0x5EEC820",
+  "RTTI ToNearSendTargetFinder"
+ ],
+ "kWindowsLock3Vtable": [
+  "0x557C120",
+  "0x5908E10",
+  "RTTI .?AV?$WindowsLock@$02@pa@@"
+ ],
+ "kSessionSend": [
+  "0x1437740",
+  "0x161ACC0",
+  "head unique + NwVirtualAsyncSession vf9"
+ ],
+ "kSyncSessionSend": [
+  "0x14380B0",
+  "0x161B630",
+  "head unique; same distance from SessionSend (0x970)"
+ ],
+ "kNwSessionCtor": [
+  "0x1436EE0",
+  "0x161A4A0",
+  "the only non-dtor writer of the NwSession vtable 0x5AC3AA0; fields +8 +10 +80 +88 +90 +98 +A0 as before; head CHANGED (prologue)"
+ ],
+ "kToNearVf1": [
+  "0x2A75860",
+  "0x2D04650",
+  "head unique + ToNear vtable slot 1"
+ ],
+ "kExceptOneSelfVf1": [
+  "0x2A75880",
+  "0x2D04670",
+  "ExceptOneSelf vtable slot 1 (+0x20, as before)"
+ ],
+ "kExceptOneVf1": [
+  "0x2A759B0",
+  "0x2D047A0",
+  "ExceptOneControl vtable slot 1 (+0x150, as before)"
+ ],
+ "kAllocThread": [
+  "0x47EF9B0",
+  "0x4B00AA0",
+  "called by the NwSession ctor (size 0x30, align 0x10); full-bytes check must be regenerated (rip displacements)"
+ ],
+ "kAllocGlobal": [
+  "0x47EFA78",
+  "0x4B00B68",
+  "head matches; AllocThread + 0xC8 as before"
+ ],
+ "kQueuePush": [
+  "0x35DF50",
+  "0x3A7A30",
+  "called by SyncSessionSend"
+ ],
+ "kQueuePop": [
+  "0x35E030",
+  "0x3A7B10",
+  "(not in the table) next function; called by the server run loop"
+ ],
+ "kServerRunThread": [
+  "0x27733F0",
+  "0x29AAF80",
+  "(doc only) the caller of pop that calls OnRecvPacket"
+ ],
+ "kServerOnRecvPacket": [
+  "0x2773C20",
+  "0x29AB7F0",
+  "head match among the run loop's call targets"
+ ],
+ "kNetLoopPump": [
+  "0x35BAD4",
+  "0x3A5464",
+  "39-byte AOB unique"
+ ],
+ "kClientNetSlot": [
+  "0x6D69170",
+  "0x71BDED0",
+  "region shift +0x454D60 (WorldSystemSlot, MinimapIconRoot); 301 code refs; LIVE CHECK"
+ ],
+ "kServerNetSlot": [
+  "0x6D69680",
+  "0x71BE3E0",
+  "region shift; stored by the server module init 0x29FAB50 (mov [rip],rdi)"
+ ],
+ "kServerActorLookupSlot": [
+  "0x6D69698",
+  "0x71BE3F8",
+  "decoded from the slot-refresh sequence (AOB unique) = region shift"
+ ],
+ "kTlsIndexSlot": [
+  "0x6C88C50",
+  "0x70D5D50",
+  "PE TLS directory AddressOfIndex"
+ ],
+ "kSamSlot": [
+  "0x6DA67D8",
+  "0x71FC598",
+  "live: the only .data qword pointing to an object with the ServerActorManager vtable (exe+0x5EECE88, RTTI) in run np1; 5 code refs (lea), one in 0x29AD5B0 beside the server run loop"
+ ],
+ "kSlotRefreshReqSequence": [
+  "0x2A22475",
+  "0x2CABDBB",
+  "AOB with wildcards unique; bytes array must be regenerated"
+ ],
+ "kSaveMgrRefreshSlots": [
+  "0x1870C20",
+  "0x19B2080",
+  "the call inside the sequence; still jmp .xtls; head bytes regenerated: E9 1B 00 E4 09"
+ ],
+ "kWindowsLockVf1": [
+  "0x1371340",
+  "0x1553610",
+  "WindowsLock<3> vtable slot 1"
+ ],
+ "kWindowsLockVf2": [
+  "0xCE4EF0",
+  "0xDF0170",
+  "WindowsLock<3> vtable slot 2"
+ ],
+ "kTitlePlayReadsSaveMgr": [
+  "0x65DC3E",
+  "0x72B3F8",
+  "the same [WorldSystem+0x88] read (mov rcx,[WorldSystem]; mov rcx,[rcx+0x88]) at +0xA8 of 0x72B350 (2976: +0xAE of Play), followed by a save-manager call 0x19B2E80; the check only needs +0x88"
+ ]
 }

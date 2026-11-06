@@ -1052,3 +1052,13 @@ Done in the user's Chrome (signed in as Asher):
   (tools/native-port/pin_unported.py; PORTED = offsets_s2.h, server.cpp). Safety added to the native base: the HOST
   role now redirects saves into cdmp_save_sandbox at start-up (the game ends if the redirect fails), and
   CDMP_SANDBOX_ADD copies a test slot into the sandbox only. Builds clean (native repo commit 15173f6, local).
+- 2026-11-05 22:00 NATIVE BASE RUNS ON 3549 (first live check, run np1): one copy, CDMP_ROLE=host, saves redirected
+  into cdmp_save_sandbox from the start, test slot copied into the sandbox only (CDMP_SANDBOX_ADD, dated now so
+  Continue loads it). Loaded into the world; the ported session2 core reads live: ServerNet, session 1 (vtable
+  NwVirtualAsyncSession matches), the host user (ServerUserActor vtable, key 0x90100000, back-pointer == session),
+  the host character key 0xA0100001, the server FieldTime ticking. ServerActorManager slot found live:
+  exe+0x71FC598 (the only .data pointer to an object with the SAM vtable 0x5EECE88; 5 code refs). One warning in the
+  log (the redirect notice), no errors. SAVES OK. Also ported: the title's [WorldSystem+0x88] read (0x72B3F8) and the
+  slot refresh test made build-relative (84/84). Harness: tools/native-port/test/probe.{sh,ps1}.
+  Next: the ~33 addresses of the join modules (report_guard, clock_gate, identity_fix, field_share, guest_save_host,
+  world_anchor, guest.cpp), then the two-copy join.
