@@ -38,10 +38,14 @@ void revive_partner_set(bool on, bool test) {
 
 void revive_partner_on_event() { g_revived_by_partner = true; }
 
+std::atomic<bool> g_partner_present{false};
+bool revive_partner_present() { return g_partner_present.load(std::memory_order_relaxed); }
+
 ReviveTick revive_partner_tick(bool connected, float hp, float hp_max, const proto::Vec3& pos,
                                const std::optional<ReviveRemote>& partner, const std::string& name, bool focused,
                                uint32_t now) {
     ReviveTick out;
+    g_partner_present.store(connected && partner.has_value(), std::memory_order_relaxed);
     std::lock_guard lock(g_mutex);
     const std::string who = name.empty() ? std::string("Your friend") : name;
     const bool we_down = hp_max > 0 && hp <= 0;

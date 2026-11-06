@@ -20,6 +20,8 @@
 #include "mod/log.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/remote_puppet.h"
+#include "mod/net/coop_revive.h"
+#include "mod/native_layer.h"
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::net {
@@ -352,7 +354,9 @@ bool revive_filter_s2c(const uint8_t* packet, size_t size) {
     // screen, the notice is kept from the client: the server has us dead as before (our prompt, the friend's revive
     // and the server's revive all work), the client keeps its HUD and menus. Verified on one PC (dt9, dt11: HUD
     // through the death, the menu opens after the revive). Alone (no copy ever loaded) nothing changes.
-    if (!packet || size < 9 || (packet[0] | packet[1] << 8) != kOpNotifyHandleDeadAck || !puppet_ever_spawned()) {
+    // On the native base (the layer, tc50) no copy is ever spawned by us: a friend connected and in reach counts.
+    const bool friend_with_us = puppet_ever_spawned() || (kNativeLayer && revive_partner_present());
+    if (!packet || size < 9 || (packet[0] | packet[1] << 8) != kOpNotifyHandleDeadAck || !friend_with_us) {
         return false;
     }
     uint32_t dead = 0;

@@ -54,6 +54,14 @@ std::optional<uintptr_t> PlayerReader::resolve_actor() {
     return actor;
 }
 
+uint32_t PlayerReader::controlled_key() {
+    if (!enabled_) return 0;
+    auto actor = resolve_actor();
+    if (!actor) return 0;
+    auto key = game::read<uint32_t>(*actor + off::kActor_Key);
+    return key ? *key : 0;
+}
+
 std::optional<uintptr_t> PlayerReader::character_control() {
     if (!enabled_) return fail("unsupported game build");
     auto actor = resolve_actor();

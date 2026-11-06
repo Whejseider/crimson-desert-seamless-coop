@@ -30,6 +30,7 @@
 #include "mod/game/player_reader.h"
 #include "mod/game/safe_memory.h"
 #include "mod/log.h"
+#include "mod/native_layer.h"
 #include "mod/net/aggro_test.h"
 #include "mod/net/boss_safe.h"
 #include "mod/net/enemy_relay.h"
@@ -1050,6 +1051,16 @@ uint32_t capture_own_user_key() {
 }
 
 uint32_t capture_own_player_key() {
+    if (kNativeLayer) {
+        // Co-op+ on the native base (tc48): there is ONE server, so this client also receives the other player's
+        // user-owned load, and the last load seen is not ours (the host revived the guest's character instead of
+        // its own). The game's controlled actor says which character is ours.
+        static game::PlayerReader reader;
+        static const bool ok = reader.init();
+        if (ok) {
+            if (const uint32_t key = reader.controlled_key()) return key;
+        }
+    }
     std::lock_guard lock(g_mutex);
     return g_player_key;
 }
@@ -1266,5 +1277,13 @@ extern "C" __declspec(dllexport) void coopplus_observe(int c2s, const uint8_t* p
         // inert here: native_layer.h turned their features off (no copies, no relay, no zone, no guest hits).
         capture_observe_s2c(packet, size);
     }
+}
+
+// The one server packet the layer holds back (tc49): our own death notice while a friend is with us. The client's
+// death state hides the HUD until the game's death screen ends it, and our revive prompt stands in for that screen,
+// so after a revive the HUD stayed hidden. Same rule as on the old base (revive_filter_s2c); called by the native
+// sniffer on the game's thread, before the game reads the packet. 1 = drop.
+extern "C" __declspec(dllexport) int coopplus_filter_s2c(const uint8_t* packet, size_t size) {
+    return cdmp::net::revive_filter_s2c(packet, size) ? 1 : 0;
 }
 #endif

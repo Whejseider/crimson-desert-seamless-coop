@@ -36,6 +36,9 @@ public:
     // The player's ClientCharacterControlActorComponent (vtable-checked).
     std::optional<uintptr_t> character_control();
 
+    // The key of the character this game controls (actor + kActor_Key), 0 when not in the world.
+    uint32_t controlled_key();
+
     // Why the last read() returned nullopt, for logging.
     const std::string& last_failure() const { return last_failure_; }
 

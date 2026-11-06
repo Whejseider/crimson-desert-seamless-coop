@@ -34,6 +34,10 @@ ReviveTick revive_partner_tick(bool connected, float hp, float hp_max, const pro
 // Activity type 18 from the other player: they revived us.
 void revive_partner_on_event();
 
+// A friend is connected and their state reaches us (as of the last revive_partner_tick). On the native base, where no
+// copy of them is ever spawned by us, this is what "a friend is with us" means (revive_filter_s2c).
+bool revive_partner_present();
+
 // [coop] teammate_revive; [dev] revive_test (one PC: a dead player may revive the echo copy of themselves, so the
 // whole loop runs: hold -> message -> echoed back -> revived in place).
 void revive_partner_set(bool on, bool test);

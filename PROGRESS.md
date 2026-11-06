@@ -1460,3 +1460,29 @@ Done in the user's Chrome (signed in as Asher):
   first-chance diagnostic line differs); RemoteInterp ON (4 mid hooks, the other player alpha 1.00); SAVES OK.
   Revive still untested on 3576 (the host's walker got stuck, so the host never fell). Native repo ec4681c, bundle
   refreshed.
+- 2026-11-06 08:30-08:45 tc48 (-Kill, new twocopy.ps1 switch: the host's layer gets [dev] script=selfkill.txt and
+  the harness presses Ctrl+Shift+F6 after the fight): the KillCheatReq went through the INJECTION BRIDGE
+  (coopplus -> cdmp_inject_c2s) and the host fell (hp 0.0/300); the guest walked to 1.7 m and held ReviveFriend;
+  the host's layer logged "Guest revived us" and sent 3139 / 2390 / 2294 / 2957, the server answered each (3137,
+  2352, ReviveAck 3053) ... for the GUEST's character: the ReviveReq carried 0xA01001B7. On the native base there is
+  one server, so the host's client also receives the guest's user-owned load and local_capture's "last user load is
+  ours" rule took the guest's key. Fix: in native mode capture_own_player_key() returns the game's controlled
+  actor's key (PlayerReader::controlled_key(), actor + kActor_Key), the learnt one only as a fallback. Also seen:
+  the client got the death notice (2985) this time (the layer only observes packets in native mode, so its filter
+  that kept the client out of the death state is not in the chain): to check whether the HUD survives the revive.
+- 2026-11-06 08:45-09:00 tc49: REVIVE WORKS ON THE NATIVE BASE. The ReviveReq now carries the host's own key
+  (01 00 10 A0), the server answers NotifyHandleReviveAck + ReviveAck, the layer logs "we are alive again", hp
+  300/300 (Local line). But the host's minimap / date / region text stayed hidden after it (shot tc49-56): the
+  client had processed our NotifyHandleDeadAck (2985). Second bridge direction for packets added: the native
+  sniffer's OnRecvPacket hook asks the layer's new export coopplus_filter_s2c(packet, size) (resolved like
+  coopplus_observe, SEH-contained) and returns through a `ret` stub when it says 1 (the hook is on the function's
+  first instruction, as on the old base). The layer answers with revive_filter_s2c (our own death notice while a
+  friend's copy was seen). tc50 checks the HUD.
+- 2026-11-06 09:00-09:15 tc50: the filter export was found ("may now hold back server packets") but never dropped:
+  revive_filter_s2c required puppet_ever_spawned(), and the layer never spawns a copy on the native base. Now
+  "a friend is with us" = a copy was seen OR (native layer) the revive tick's connected && partner state present
+  (coop_revive.cpp revive_partner_present). tc51: "our death notice is kept from the client", the guest's revive,
+  "we are alive again", hp 300/300, and the HUD is there afterwards (minimap, date, region, quest tracker; shot
+  tc51-56). REVIVE ON THE NATIVE BASE: DONE (kill through the injection bridge, revive, HUD kept).
+  Harness note: in tc51 a game "Do you want to exit the game?" dialog was open from the fight onward (a stray Esc
+  of the menu step; tc49 had none): the host's attacks then do nothing. Not the mod.
