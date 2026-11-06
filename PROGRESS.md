@@ -1423,3 +1423,6 @@ Done in the user's Chrome (signed in as Asher):
   Nov 5 slot2 is newer inside the save, so Play loaded it in p76a); optin_test resets the player's answered opt-in;
   walkto.py picks its globals by the game's PE stamp. Installer / README / release texts say 3576.
   Not released (needs the user's OK).
+- 2026-11-06 07:35 Release candidate 0.1.0-alpha+fcc6e968 for 1.0.0.3576 PACKAGED (not published): unit tests pass,
+  test-install-fake all 13 steps PASS, Defender clean on both zips. Waiting for the user's OK (FLAGS F24). The game
+  folder keeps the released a82c1b48 (off on 3576) until then.
