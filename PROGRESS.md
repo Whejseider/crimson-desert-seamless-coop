@@ -1327,3 +1327,10 @@ Done in the user's Chrome (signed in as Asher):
   0x2E6B1DE..0x2E6B22A, scope lookup 0x2BD5700 (+0x1A region), scope flush 0x2BD5C80 (+6), realm mark 0x29AAF36;
   field key +0x2D0, TLS realm 0x1EB. The host ini now has observer_milestone(_send, _reload, _reload_any)=1
   (ByJunter's), so the server should send user 2 its own 2384 and the guest's 0x11 unstick should stop firing.
+- 2026-11-06 07:50 tc33 (-Walk -Fight, the camera walker): SHARED COMBAT WORKS on 3549. Both players reached
+  Rodbel Fishing Dock (host 16.3 m / guest 18.7 m from the target); the host fought the Bleed Bandits (shot
+  docs/research/native-shots/tc33-52-host-fought.png). Every VaryHPAck about the three bandits the host hit
+  (0xB0100472, 0xB01005E9, 0xB010043E) reached the guest with the SAME values within 0.1 s, including two kills
+  (B01005E9 -> 0 at +24 s, B0100472 -> 0 at +37 s); both players' own HP changes reach the other too. Both alive,
+  SAVES OK. (Capture analysis: the CDPK .bin files; VaryHPAck payload u32 key, u32 max 1000000, u32 hp.)
+  The camera walker (tools/native-port/test/camwalk, CD_PID) works for both copies on 3549.
