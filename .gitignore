@@ -7,3 +7,4 @@ __pycache__/
 *.pyc
 tools/audio/*.exe
 tools/audio/*.obj
+upstream/cdmp-native/

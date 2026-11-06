@@ -1033,3 +1033,7 @@ Done in the user's Chrome (signed in as Asher):
   Fishing contest vs Your friend 1 - 0". SAVES OK each run. LESSON: never edit a bash script while it runs (the
   fish6 cleanup broke mid-file; cleaned up by hand: SAVES OK, ini, release asi). hold_session.sh now archives the
   packet recordings in build/port3479/recordings instead of deleting them.
+- 2026-11-05 20:30 NATIVE SERVER (user: "a pretty big priority"): ByJunter's CrimsonDesertMultiplayer-NativeServer
+  cloned to upstream/cdmp-native (branch coopplus-3549, git-ignored until vendored), builds unchanged, 84/84 tests.
+  Scope measured: 481 game addresses for build 2976; 38 found uniquely in 3549 by their byte heads. Plan and
+  numbers: docs/research/native-port-plan.md (two-copy testing, core-first port, then the Co-op+ layer on top).
