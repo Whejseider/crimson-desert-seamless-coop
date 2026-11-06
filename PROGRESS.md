@@ -1117,3 +1117,21 @@ Done in the user's Chrome (signed in as Asher):
     not ported yet. Next: port those points and identify 0x7F66A0's actor (the capture logs rcx).
   tc7 showed the guest's Continue sometimes needs a second press: the harness now presses again after 10 s.
   SAVES OK in every run; the player's ini and the release asi restored each time.
+- 2026-11-06 01:35 NATIVE BASE, TWO COPIES ON ONE PC: THE GUEST IS IN THE WORLD (run tc16; screenshots
+  docs/research/native-shots/tc16-*.png). Host at Hernand Farmhouse, guest at Nas River (same shared field, the
+  host's clock Day 27 11:14), both alive to the end, SAVES OK. What it took since tc9 (learned, for reuse):
+  - Guest crashes in the host's field = remote actors whose action layer has no current action ([CC+0x88+8i]+0x10
+    null; S3). Fix that works: ByJunter's HOST-side holds (child_hold + observer_hold + observer_load_defer +
+    observer_hold_family + observer_hold_acks + character_hold, child_settle_ms 4000, child_reannounce) so such
+    actors reach the guest only after their first action. Guest-side guards (guest_update_guard on the null-action
+    consumer 0x251DFC0, a new Co-op+ guard on the movement update's read 0x7F6872 -> 0x7F6CC3) are contention only.
+  - The guest's loading screen hung in state 0x11 of the field-change machine 0x855A00 (P in r13, state at
+    P+0x15C): it waits for the field owner's character's stage manager ([[pj+0x68]+0xA8]+0x18) byte +0x259 >= 2
+    (3549; 2976 +0x231). Only PlayAllPreLoadSequencerAck's handler writes 2 (3549: 0xC9CB9B after vf48 at
+    [rbp-0x48]); the host's server sends it for the host's character. ByJunter routes it with guest_seq_route
+    (not ported yet); for now guest_reload_wait sets the own manager's +0x259 to 2 after 4 s in 0x11 (game thread).
+  - guest_actor_diag waited 2 min for unported diag points before installing its state hook: now only the wait
+    list code gates it. The harness presses Continue twice when the first only refreshes the slot list.
+  - Packet-only host modules worth enabling (no addresses): observer_seq_copy(+_2322).
+  Next: get the two characters together (they spawn apart), movement sync (remote_interp/remote_motion), then the
+  scene/NPC modules and guest_seq_route; then the Co-op+ features on top.

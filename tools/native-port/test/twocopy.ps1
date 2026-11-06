@@ -46,6 +46,16 @@ share_field=1
 relay_fix=1
 clock_gate=1
 identity_fix=1
+child_hold=1
+observer_hold=1
+observer_load_defer=1
+observer_hold_family=1
+observer_hold_acks=1
+character_hold=1
+child_settle_ms=4000
+child_reannounce=1
+observer_seq_copy=1
+observer_seq_copy_2322=1
 '@
 Write-Ini "$bin\cdmp.guest.ini" @'
 [general]
@@ -72,6 +82,9 @@ guest_mode=remote
 guest_crash_dump=1
 guest_layer_guard=1
 guest_remote_update_guard=1
+guest_update_guard=1
+guest_actor_diag=1
+guest_reload_wait_fix=1
 '@
 
 # The windowed settings (template: the player's own file, read only).
