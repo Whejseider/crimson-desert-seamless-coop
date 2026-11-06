@@ -1523,3 +1523,26 @@ Done in the user's Chrome (signed in as Asher):
   off ([coop] direct). Checks on this build: duel 10/10 HIT (du78), death + revive (dt78), live quests both ways
   (ls78). LESSON: measure smoothness with latency; a lower delay that makes the copy stop and jump is worse.
   Notes: docs/research/latency.md.
+- 2026-11-06 15:50-17:20 CO-OP MENUS (user: a Co-op section in the game's Start menu; a co-op main menu before playing).
+  (1) Co-op page (render/coop_page.cpp): a "Co-op" tab after "Others" in the game's own tab bar (1920x1080 positions
+  scaled by height, centred: x 964, y 50; only in the world), F8 / pad chord / click opens it: sections Session (status,
+  invite, leave, go to friend, bring friend, resync), Saves & Story, Combat & Loot, Reviving, World, Display, Challenges
+  (every former F8 setting with a one-line explanation, settings_menu.h page_rows), Controls, Status (the old panel's
+  lines; the old panel on/off). Keyboard (LL hook), pad (masked on Xbox), mouse (WH_MOUSE_LL, clicks swallowed while
+  open). Shots ui1-*. (2) Title lobby (net/coop_lobby.cpp + the page module), redesigned on the user's spec in the
+  look of the game's difficulty dialog: Start Solo / Invite Friends / Start Co-op (only with a friend) / Co-op
+  Settings; the party top right with a crown by the host; Start Co-op asks: Continue Our Co-op Save (greyed until
+  one exists) / Start From My Solo Progress / New Co-op Save (user's order). New save: the host's game presses New Game
+  and the host picks the difficulty; the guest sits on "Waiting for <host>" (opaque) and its game is driven behind it
+  (New Game, the agreement if shown, the host's difficulty: W to the top, S down, Space) once the host's run enters the
+  world (capture_template_generation moves on: New Game makes the character already at the difficulty dialog, so
+  in-world cannot tell). Continue / solo progress: both press Play after a 3 s countdown. Difficulties reported both
+  ways (ChangeGameDifficultyReq, 0 Easy 1 Normal 2 Hard); different ones in a session bring up a card.
+  Two-copy tests with co-op saves (twocopy_cp.sh -Lobby -CoopSaves): cpl1 (ready/start/play), cpw4 + cpw5 (host new
+  save, Normal; guest followed on Normal, New Game started), SAVES OK every run. FLAGS F25: the user allowed accepting
+  the EULA in test copies only; in real play the mod accepts it for the guest. In the sandboxed copies the game did
+  not show the EULA at all (New Game went to the difficulty).
+  LESSONS: the race lobby_choose/tick (prepare the save before the phase); PowerShell variables ignore case ($Worlds
+  vs $worlds); python heredocs eat backslashes ("\a" -> BEL): write edit scripts to files.
+  Not yet: two real PCs (Steam invite / join through the lobby), the guest arriving exactly at the first cutscene (it
+  follows ~15 s after the host's run enters), a release.

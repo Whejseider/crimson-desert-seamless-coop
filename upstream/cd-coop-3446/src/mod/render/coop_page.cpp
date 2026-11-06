@@ -21,6 +21,7 @@
 #include "mod/render/hud.h"
 #include "mod/settings_menu.h"
 #include "mod/net/coop_lobby.h"
+#include "mod/net/troc_sniffer.h"
 
 namespace cdmp::render {
 namespace {
@@ -222,49 +223,214 @@ void wrap(ImDrawList* dl, float x, float y, float width, float size, const std::
 
 bool inside(const ImVec2& p, float l, float t, float r, float b) { return p.x >= l && p.x <= r && p.y >= t && p.y <= b; }
 
-// ---- the title lobby (net/coop_lobby.h): the co-op main menu before anyone plays
-struct LobbyItem {
-    std::string label;
+// ---- the title lobby (net/coop_lobby.h): the co-op main menu before anyone plays, in the look of the game's own
+// dialogs (its difficulty choice): a centred band with light rules, a header line, option cards with an emblem on the
+// left, the chosen one framed in gold.
+enum class Emblem { Solo, Invite, Coop, Settings, NewSave, FromSolo, Continue };
+
+void draw_emblem(ImDrawList* dl, float cx, float cy, float r, Emblem e, ImU32 c) {
+    // a diamond plate with a symbol, like the difficulty cards' crests
+    dl->AddQuadFilled(ImVec2(cx, cy - r), ImVec2(cx + r, cy), ImVec2(cx, cy + r), ImVec2(cx - r, cy), IM_COL32(58, 48, 36, 255));
+    dl->AddQuad(ImVec2(cx, cy - r), ImVec2(cx + r, cy), ImVec2(cx, cy + r), ImVec2(cx - r, cy), IM_COL32(150, 120, 80, 200), 1.2f);
+    const float s = r * 0.55f, w = std::max(1.5f, r * 0.09f);
+    auto sword = [&](float x, float y, float ang) {
+        const float dx = std::sin(ang), dy = -std::cos(ang);
+        dl->AddLine(ImVec2(x - dx * s, y - dy * s), ImVec2(x + dx * s, y + dy * s), c, w);
+        const float gx = x - dx * s * 0.45f, gy = y - dy * s * 0.45f;
+        dl->AddLine(ImVec2(gx - dy * s * 0.35f, gy + dx * s * 0.35f), ImVec2(gx + dy * s * 0.35f, gy - dx * s * 0.35f), c, w);
+    };
+    switch (e) {
+        case Emblem::Solo: sword(cx, cy, 0.0f); break;
+        case Emblem::Coop: sword(cx, cy, 0.62f); sword(cx, cy, -0.62f); break;
+        case Emblem::Invite:
+            dl->AddLine(ImVec2(cx - s, cy), ImVec2(cx + s, cy), c, w);
+            dl->AddLine(ImVec2(cx, cy - s), ImVec2(cx, cy + s), c, w);
+            break;
+        case Emblem::Settings:
+            dl->AddCircle(ImVec2(cx, cy), s * 0.75f, c, 12, w);
+            for (int i = 0; i < 6; ++i) {
+                const float a = i * 1.0472f;
+                dl->AddLine(ImVec2(cx + std::cos(a) * s * 0.75f, cy + std::sin(a) * s * 0.75f),
+                            ImVec2(cx + std::cos(a) * s * 1.05f, cy + std::sin(a) * s * 1.05f), c, w);
+            }
+            break;
+        case Emblem::NewSave:
+            dl->AddRect(ImVec2(cx - s * 0.6f, cy - s * 0.8f), ImVec2(cx + s * 0.6f, cy + s * 0.8f), c, 0.0f, w);
+            dl->AddLine(ImVec2(cx - s * 0.3f, cy), ImVec2(cx + s * 0.3f, cy), c, w);
+            dl->AddLine(ImVec2(cx, cy - s * 0.3f), ImVec2(cx, cy + s * 0.3f), c, w);
+            break;
+        case Emblem::FromSolo:
+            dl->AddCircle(ImVec2(cx, cy - s * 0.35f), s * 0.3f, c, 10, w);
+            dl->AddBezierQuadratic(ImVec2(cx - s * 0.6f, cy + s * 0.7f), ImVec2(cx, cy - s * 0.1f), ImVec2(cx + s * 0.6f, cy + s * 0.7f), c, w);
+            break;
+        case Emblem::Continue:
+            dl->AddTriangleFilled(ImVec2(cx - s * 0.45f, cy - s * 0.6f), ImVec2(cx + s * 0.6f, cy), ImVec2(cx - s * 0.45f, cy + s * 0.6f), c);
+            break;
+    }
+}
+
+void draw_crown(ImDrawList* dl, float x, float y, float h, ImU32 c) {
+    // three points on a band: the host
+    const float w = h * 1.3f;
+    const ImVec2 pts[] = {ImVec2(x, y + h), ImVec2(x, y + h * 0.3f), ImVec2(x + w * 0.25f, y + h * 0.62f), ImVec2(x + w * 0.5f, y),
+                          ImVec2(x + w * 0.75f, y + h * 0.62f), ImVec2(x + w, y + h * 0.3f), ImVec2(x + w, y + h)};
+    dl->AddConvexPolyFilled(pts, 3, c);
+    dl->AddConvexPolyFilled(pts + 2, 3, c);
+    dl->AddConvexPolyFilled(pts + 4, 3, c);
+    dl->AddRectFilled(ImVec2(x, y + h * 0.62f), ImVec2(x + w, y + h), c);
+}
+
+struct Card {
+    Emblem emblem;
+    std::string title, line;
     bool enabled = true;
-    bool chosen = false;  // the host's choice (or the guest's ready), marked
     std::function<void()> act;
 };
 
-std::vector<LobbyItem> lobby_items(const net::LobbyView& v) {
-    std::vector<LobbyItem> items;
-    const bool counting = v.countdown >= 0;
-    if (v.host) {
-        items.push_back({"Invite Players", !counting, false, [] { input::trigger(input::Action::Invite); }});
-        if (v.worlds_on) {
-            items.push_back({"Start a New Save Together", v.connected && !counting, v.choice == 1, [] { net::lobby_new_save(); }});
-            items.push_back({"Continue Our Save", v.connected && v.can_continue && !counting, v.choice == 2,
-                             [] { net::lobby_continue(); }});
-        }
-        items.push_back({counting ? std::format("Starting in {}", v.countdown) : std::string("Start"),
-                         v.connected && v.partner_ready && v.choice != 0 && v.save_ready && !counting, false,
-                         [] { net::lobby_start(); }});
-    } else {
-        items.push_back({counting ? std::format("Starting in {}", v.countdown)
-                                  : std::string(v.we_ready ? "Cancel Ready" : "Ready Up"),
-                         v.connected && v.choice != 0 && v.save_ready && !counting, v.we_ready,
-                         [] { net::lobby_toggle_ready(); }});
-        items.push_back({"Leave the Party", v.connected && !counting, false, [] { input::trigger(input::Action::Leave); }});
+// The dialog: a header over the cards; returns the card under the mouse (-1). `sel` is the chosen one.
+int draw_cards(ImDrawList* dl, float width, float height, const std::string& header, const std::vector<Card>& cards, int sel,
+               ImVec2 mouse, float top_y) {
+    const float s = height / 1080.0f, cx = width * 0.5f;
+    const float card_w = 640 * s, card_h = 92 * s, gap = 14 * s;
+    const float band_t = top_y, band_b = top_y + 96 * s + cards.size() * (card_h + gap) + 30 * s;
+    // the band: dark in the middle, fading to the sides, a light rule above and below (the game's dialogs)
+    dl->AddRectFilledMultiColor(ImVec2(0, band_t), ImVec2(cx, band_b), IM_COL32(16, 14, 12, 0), IM_COL32(16, 14, 12, 235),
+                                IM_COL32(16, 14, 12, 235), IM_COL32(16, 14, 12, 0));
+    dl->AddRectFilledMultiColor(ImVec2(cx, band_t), ImVec2(width, band_b), IM_COL32(16, 14, 12, 235), IM_COL32(16, 14, 12, 0),
+                                IM_COL32(16, 14, 12, 0), IM_COL32(16, 14, 12, 235));
+    for (float y : {band_t, band_b}) {
+        dl->AddRectFilledMultiColor(ImVec2(cx - 560 * s, y), ImVec2(cx, y + 1.2f * s), IM_COL32(205, 195, 175, 0),
+                                    IM_COL32(205, 195, 175, 150), IM_COL32(205, 195, 175, 150), IM_COL32(205, 195, 175, 0));
+        dl->AddRectFilledMultiColor(ImVec2(cx, y), ImVec2(cx + 560 * s, y + 1.2f * s), IM_COL32(205, 195, 175, 150),
+                                    IM_COL32(205, 195, 175, 0), IM_COL32(205, 195, 175, 0), IM_COL32(205, 195, 175, 150));
     }
-    items.push_back({"Co-op Settings", true, false, [] { coop_page_toggle(); }});
-    items.push_back({"Play Solo", !counting, false, [] { net::lobby_dismiss(); }});
-    return items;
+    const float hs = 25 * s;
+    text(dl, cx - text_w(hs, header) * 0.5f, band_t + 30 * s, hs, header, kText);
+    int over = -1;
+    for (size_t i = 0; i < cards.size(); ++i) {
+        const Card& c = cards[i];
+        const float l = cx - card_w * 0.5f, t = band_t + 86 * s + i * (card_h + gap);
+        const bool chosen = static_cast<int>(i) == sel && c.enabled;
+        if (inside(mouse, l, t, l + card_w, t + card_h)) over = static_cast<int>(i);
+        dl->AddRectFilled(ImVec2(l, t), ImVec2(l + card_w, t + card_h),
+                          chosen ? IM_COL32(110, 96, 74, 235) : IM_COL32(40, 37, 33, c.enabled ? 235 : 170));
+        dl->AddRect(ImVec2(l, t), ImVec2(l + card_w, t + card_h),
+                    chosen ? IM_COL32(232, 200, 130, 255) : IM_COL32(120, 112, 100, c.enabled ? 160 : 80), 0.0f, chosen ? 2.0f : 1.0f);
+        const float ex = l + card_h * 0.55f, ey = t + card_h * 0.5f;
+        draw_emblem(dl, ex, ey, card_h * 0.34f, c.emblem, c.enabled ? (chosen ? kGold : IM_COL32(220, 210, 190, 255))
+                                                                       : IM_COL32(120, 112, 100, 200));
+        dl->AddLine(ImVec2(l + card_h * 1.08f, t + 16 * s), ImVec2(l + card_h * 1.08f, t + card_h - 16 * s),
+                    IM_COL32(150, 140, 125, 110), 1.0f);
+        const ImU32 tc = !c.enabled ? IM_COL32(140, 134, 124, 200) : kText;
+        const float tx = l + card_h * 1.3f;
+        text(dl, tx, t + (c.line.empty() ? card_h * 0.32f : 16 * s), 30 * s, c.title, tc, true);
+        if (!c.line.empty()) text(dl, tx, t + 54 * s, 20 * s, c.line, c.enabled ? kDim : IM_COL32(120, 114, 106, 200));
+    }
+    return over;
 }
 
-// Draws the lobby and takes its input; false when it is not on screen.
+// The party in the top right: our name and the friend's, a crown by the host's.
+void draw_party(ImDrawList* dl, float width, float height, const net::LobbyView& v) {
+    const float s = height / 1080.0f, right = width - 70 * s, top = 92 * s, size = 26 * s;
+    text(dl, right - text_w(19 * s, "PARTY", true), top, 19 * s, "PARTY", kGold, true);
+    dl->AddRectFilledMultiColor(ImVec2(right - 330 * s, top + 32 * s), ImVec2(right, top + 33.2f * s), IM_COL32(205, 195, 175, 0),
+                                IM_COL32(205, 195, 175, 150), IM_COL32(205, 195, 175, 150), IM_COL32(205, 195, 175, 0));
+    struct Member {
+        std::string name;
+        bool host;
+        ImU32 colour;
+    };
+    std::vector<Member> m;
+    m.push_back({v.own_name, v.host, kText});
+    if (v.connected) m.push_back({v.partner_name, !v.host, ui::partner_colour()});
+    std::sort(m.begin(), m.end(), [](const Member& a, const Member& b) { return a.host > b.host; });
+    float y = top + 48 * s;
+    for (const Member& p : m) {
+        const float tw = text_w(size, p.name);
+        text(dl, right - tw, y, size, p.name, p.colour);
+        if (p.host) draw_crown(dl, right - tw - 40 * s, y + 6 * s, 18 * s, kGold);
+        y += size + 22 * s;
+    }
+    if (!v.connected) {
+        const std::string w = v.host ? "Invite a friend to join" : "Looking for the host";
+        text(dl, right - text_w(20 * s, w), y, 20 * s, w, kDim);
+    }
+}
+
+// Draws the lobby (or the guest's waiting screen) and takes its input; false when neither is on screen.
 bool draw_lobby(float width, float height, ImDrawList* dl, ImVec2 mouse, const std::vector<ImVec2>& clicks,
                 const std::vector<unsigned>& keys) {
     const net::LobbyView v = net::lobby_view();
+    const float s = height / 1080.0f;
+    if (v.guest_wait && !g_open.load()) {
+        // The guest's game is driven behind this (New Game, the difficulty): it covers everything.
+        g_lobby_shown = true;
+        dl->AddRectFilled(ImVec2(0, 0), ImVec2(width, height), IM_COL32(6, 5, 4, 255));
+        const float cx = width * 0.5f, cy = height * 0.45f;
+        const double t = ImGui::GetTime();
+        for (int i = 0; i < 12; ++i) {
+            const float a = static_cast<float>(t * 2.0 + i * 0.5236);
+            const float alpha = 0.25f + 0.75f * static_cast<float>((i + static_cast<int>(t * 8)) % 12) / 11.0f;
+            dl->AddCircleFilled(ImVec2(cx + std::cos(a) * 26 * s, cy - 120 * s + std::sin(a) * 26 * s), 3.2f * s,
+                                IM_COL32(232, 200, 130, static_cast<int>(alpha * 255)));
+        }
+        const std::string title = "Waiting for " + v.partner_name;
+        text(dl, cx - text_w(42 * s, title, true) * 0.5f, cy - 40 * s, 42 * s, title, kGold, true);
+        text(dl, cx - text_w(24 * s, v.wait_line) * 0.5f, cy + 30 * s, 24 * s, v.wait_line, kText);
+        const std::string note = "Please wait. Your game follows the host's on its own.";
+        text(dl, cx - text_w(19 * s, note) * 0.5f, cy + 80 * s, 19 * s, note, kDim);
+        draw_party(dl, width, height, v);
+        return true;
+    }
     g_lobby_shown = v.show && !g_open.load();
     if (!v.show || g_open.load()) return false;
-    const float s = height / 1080.0f;
-    auto items = lobby_items(v);
-    const int n = static_cast<int>(items.size());
-    if (g_lobby_sel >= n) g_lobby_sel = 0;
+    static bool choosing_before = false;
+    if (v.choosing != choosing_before) g_lobby_sel = 0;
+    choosing_before = v.choosing;
+    std::vector<Card> cards;
+    std::string header;
+    const bool counting = v.countdown >= 0;
+    if (v.choosing) {
+        header = "How does your co-op journey begin?";
+        if (v.worlds_on) {
+            // user 2026-11-06: continuing first (greyed until there is a co-op save), then solo progress, then a new save
+            cards.push_back({Emblem::Continue, "Continue Our Co-op Save",
+                             v.can_continue ? "Where the two of you left off." : "Not yet: you have no co-op save together.",
+                             v.can_continue, [] { net::lobby_choose(net::LobbyPlan::ContinueCoop); }});
+            cards.push_back({Emblem::FromSolo, "Start From My Solo Progress", v.partner_name + " joins your story where you are.",
+                             true, [] { net::lobby_choose(net::LobbyPlan::FromSolo); }});
+            cards.push_back({Emblem::NewSave, "New Co-op Save", "Both of you begin the story. You choose the difficulty.", true,
+                             [] { net::lobby_choose(net::LobbyPlan::NewSave); }});
+        } else {
+            cards.push_back({Emblem::Continue, "Play Together", "Each of you in your own save (co-op saves are off).", true,
+                             [] { net::lobby_choose(net::LobbyPlan::ContinueCoop); }});
+        }
+    } else if (v.host) {
+        header = counting ? std::format("Starting together in {}...", std::max(1, v.countdown)) : "Select how to play.";
+        cards.push_back({Emblem::Solo, "Start Solo", "Your own saves, as without the mod.", !counting, [] { net::lobby_dismiss(); }});
+        cards.push_back({Emblem::Invite, "Invite Friends", "Steam's invite list: your friend joins your party.", !counting,
+                         [] { input::trigger(input::Action::Invite); }});
+        cards.push_back({Emblem::Coop, "Start Co-op",
+                         v.connected ? "Begin the journey with " + v.partner_name + "." : "Invite a friend first.",
+                         v.connected && !counting && v.plan == net::LobbyPlan::None, [] { net::lobby_start_coop(); }});
+        cards.push_back({Emblem::Settings, "Co-op Settings", "", !counting, [] { coop_page_toggle(); }});
+    } else {
+        header = v.connected ? "You are in " + v.partner_name + "'s party." : "Select how to play.";
+        cards.push_back({Emblem::Solo, "Start Solo", "Your own saves, as without the mod.", true, [] { net::lobby_dismiss(); }});
+        cards.push_back({Emblem::Coop, v.connected ? "Waiting for " + v.partner_name : "Join a Friend",
+                         v.connected ? v.partner_name + " starts the co-op journey." : "Accept their Steam invite.", false, nullptr});
+        cards.push_back({Emblem::Invite, "Leave the Party", "", v.connected, [] { input::trigger(input::Action::Leave); }});
+        cards.push_back({Emblem::Settings, "Co-op Settings", "", true, [] { coop_page_toggle(); }});
+    }
+    const int n = static_cast<int>(cards.size());
+    if (g_lobby_sel >= n || !cards[g_lobby_sel].enabled) {
+        for (int i = 0; i < n; ++i) {
+            if (cards[i].enabled) {
+                g_lobby_sel = i;
+                break;
+            }
+        }
+    }
     // input
     static uint16_t pad_before = 0;
     const uint16_t pad = input::pad_buttons();
@@ -274,112 +440,67 @@ bool draw_lobby(float width, float height, ImDrawList* dl, ImVec2 mouse, const s
     auto move = [&](int d) {
         for (int i = 0; i < n; ++i) {
             g_lobby_sel = (g_lobby_sel + d + n) % n;
-            if (items[g_lobby_sel].enabled) break;
+            if (cards[g_lobby_sel].enabled) break;
         }
     };
     auto act = [&](int i) {
-        if (i >= 0 && i < n && items[i].enabled && items[i].act) {
-            log::info("Co-op lobby: {}", items[i].label);
-            items[i].act();
+        if (i >= 0 && i < n && cards[i].enabled && cards[i].act) {
+            log::info("Co-op lobby: {}", cards[i].title);
+            cards[i].act();
         }
     };
+    auto back = [&] {
+        if (v.choosing) net::lobby_choose(net::LobbyPlan::None);
+        else net::lobby_dismiss();
+    };
     for (unsigned k : keys) {
-        if (k == VK_UP) move(-1);
-        else if (k == VK_DOWN) move(1);
+        if (k == VK_UP || k == 'W') move(-1);
+        else if (k == VK_DOWN || k == 'S') move(1);
         else if (k == VK_RETURN || k == VK_SPACE) act(g_lobby_sel);
-        else if (k == VK_ESCAPE || k == VK_BACK) net::lobby_dismiss();
+        else if (k == VK_ESCAPE || k == VK_BACK) back();
     }
     if (pressed & input::kPadUp) move(-1);
     if (pressed & input::kPadDown) move(1);
     if (pressed & input::kPadA) act(g_lobby_sel);
-    if (pressed & input::kPadB) net::lobby_dismiss();
-    const float x0 = 130 * s, y0 = 360 * s, item_h = 64 * s, item_size = 34 * s;
-    for (int i = 0; i < n; ++i) {
-        const float y = y0 + i * item_h;
-        const float w = text_w(item_size, items[i].label) + 60 * s;
-        const bool over = inside(mouse, x0 - 30 * s, y - 8 * s, x0 + w, y + item_h - 14 * s);
-        if (over && items[i].enabled && input::method() == input::Method::Keyboard) g_lobby_sel = i;
-        for (const ImVec2& c : clicks) {
-            if (inside(c, x0 - 30 * s, y - 8 * s, x0 + w, y + item_h - 14 * s)) act(i);
-        }
-    }
-    // drawing: a dark side over the title's left, the menu, the party, the countdown
-    dl->AddRectFilledMultiColor(ImVec2(0, 0), ImVec2(width * 0.5f, height), IM_COL32(6, 5, 4, 236), IM_COL32(6, 5, 4, 0),
-                                IM_COL32(6, 5, 4, 0), IM_COL32(6, 5, 4, 236));
-    text(dl, x0, 200 * s, 54 * s, "Seamless Co-op", kGold, true);
-    text(dl, x0 + 2 * s, 268 * s, 24 * s,
-         v.host ? "Crimson Desert, together. You host." : "Crimson Desert, together. You join your friend's world.", kDim);
-    dl->AddLine(ImVec2(x0, 318 * s), ImVec2(x0 + 520 * s, 318 * s), kRule, 1.0f);
-    for (int i = 0; i < n; ++i) {
-        const LobbyItem& it = items[i];
-        const float y = y0 + i * item_h;
-        const bool sel = i == g_lobby_sel && it.enabled;
-        const ImU32 c = !it.enabled ? IM_COL32(150, 144, 134, 120) : sel ? kGold : kText;
-        if (sel) {
-            dl->AddRectFilledMultiColor(ImVec2(x0 - 30 * s, y - 6 * s), ImVec2(x0 + 560 * s, y + item_h - 16 * s),
-                                        IM_COL32(232, 200, 130, 40), IM_COL32(232, 200, 130, 0),
-                                        IM_COL32(232, 200, 130, 0), IM_COL32(232, 200, 130, 40));
-            const float cy = y + item_h * 0.32f;
-            dl->AddQuadFilled(ImVec2(x0 - 16 * s, cy - 6 * s), ImVec2(x0 - 10 * s, cy), ImVec2(x0 - 16 * s, cy + 6 * s),
-                              ImVec2(x0 - 22 * s, cy), kGold);
-        }
-        const float tw = text(dl, x0, y, item_size, it.label, c);
-        if (it.chosen) text(dl, x0 + tw + 18 * s, y + 6 * s, 22 * s, v.host ? "chosen" : "ready", kGold);
-    }
-    wrap(dl, x0, y0 + n * item_h + 24 * s, 560 * s, 23 * s, v.status, kDim);
-    if (!v.worlds_on) {
-        wrap(dl, x0, y0 + n * item_h + 90 * s, 560 * s, 20 * s,
-             "Co-op saves are off: you play in your own saves. Turn them on in Co-op Settings > Saves & Story for a "
-             "separate save with each friend.", IM_COL32(150, 144, 134, 255));
-    }
-    // the party, top right (under the game's version)
+    if (pressed & input::kPadB) back();
+    // drawing: the title darkened, the dialog, the party, key hints
+    dl->AddRectFilled(ImVec2(0, 0), ImVec2(width, height), IM_COL32(6, 5, 4, 120));
     {
-        const float right = width - 70 * s, top = 92 * s, size = 26 * s;
-        const std::string head = "Party";
-        text(dl, right - text_w(size, head, true), top, size, head, kGold, true);
-        dl->AddLine(ImVec2(right - 330 * s, top + 40 * s), ImVec2(right, top + 40 * s), kRule, 1.0f);
-        struct Member {
-            std::string name, tag;
-            ImU32 colour;
-        };
-        std::vector<Member> members;
-        members.push_back({v.own_name, v.host ? "Host" : (v.we_ready ? "Guest, ready" : "Guest"), kText});
-        if (v.connected) {
-            members.push_back({v.partner_name, v.host ? (v.partner_ready ? "Guest, ready" : "Guest, not ready") : "Host",
-                               ui::partner_colour()});
-        }
-        float y = top + 56 * s;
-        for (const Member& m : members) {
-            const float tw = text_w(size, m.name);
-            text(dl, right - tw, y, size, m.name, m.colour);
-            const float cx = right - tw - 18 * s, cy = y + size * 0.55f;
-            dl->AddQuadFilled(ImVec2(cx, cy - 6 * s), ImVec2(cx + 6 * s, cy), ImVec2(cx, cy + 6 * s), ImVec2(cx - 6 * s, cy),
-                              m.colour);
-            text(dl, right - text_w(19 * s, m.tag), y + size + 6 * s, 19 * s, m.tag, kDim);
-            y += size + 42 * s;
-        }
-        if (!v.connected) {
-            const std::string w = v.host ? "Waiting for a friend" : "Looking for the host";
-            text(dl, right - text_w(21 * s, w), y, 21 * s, w, kDim);
-        }
+        const std::string mark = "SEAMLESS CO-OP";
+        const float ms = 21 * s;
+        text(dl, width * 0.5f - text_w(ms, mark, true) * 0.5f, 250 * s, ms, mark, kGold, true);
     }
-    // the title's own prompts are not ours while the lobby is up: covered, ours instead
-    dl->AddRectFilledMultiColor(ImVec2(width * 0.45f, height - 110 * s), ImVec2(width, height), IM_COL32(6, 5, 4, 0),
-                                IM_COL32(6, 5, 4, 250), IM_COL32(6, 5, 4, 250), IM_COL32(6, 5, 4, 0));
+    const int over = draw_cards(dl, width, height, header, cards, g_lobby_sel, mouse, 300 * s);
+    if (over >= 0 && cards[over].enabled && input::method() == input::Method::Keyboard) g_lobby_sel = over;
+    for (const ImVec2& c : clicks) {
+        (void)c;
+        if (over >= 0) act(over);
+    }
+    {
+        const float y = 300 * s + 96 * s + n * (92 * s + 14 * s) + 50 * s;
+        text(dl, width * 0.5f - text_w(21 * s, v.status) * 0.5f, y, 21 * s, v.status, kDim);
+    }
+    draw_party(dl, width, height, v);
+    // the title's own prompts (Play, New Game, Load, Exit) are not in play while the lobby is up: hidden
+    dl->AddRectFilledMultiColor(ImVec2(width * 0.30f, height - 120 * s), ImVec2(width * 0.55f, height), IM_COL32(6, 5, 4, 0),
+                                IM_COL32(6, 5, 4, 255), IM_COL32(6, 5, 4, 255), IM_COL32(6, 5, 4, 0));
+    dl->AddRectFilled(ImVec2(width * 0.55f, height - 120 * s), ImVec2(width, height), IM_COL32(6, 5, 4, 255));
+    dl->AddRectFilledMultiColor(ImVec2(0, height - 120 * s), ImVec2(width * 0.2f, height), IM_COL32(6, 5, 4, 255),
+                                IM_COL32(6, 5, 4, 0), IM_COL32(6, 5, 4, 0), IM_COL32(6, 5, 4, 255));
     {
         float right = width - 60 * s;
         const float y = height - 64 * s, size = 20 * s;
         if (input::method() == input::Method::Keyboard) {
-            right = hint(dl, right, y, size, "Esc", "Play Solo");
-            hint(dl, right, y, size, "Enter", "Select");
+            right = hint(dl, right, y, size, "Esc", v.choosing ? "Back" : "Start Solo");
+            right = hint(dl, right, y, size, "Space", "Confirm");
+            hint(dl, right, y, size, "W S", "Move");
         } else {
-            right = hint(dl, right, y, size, "B", "Play Solo");
-            hint(dl, right, y, size, "A", "Select");
+            right = hint(dl, right, y, size, "B", v.choosing ? "Back" : "Start Solo");
+            right = hint(dl, right, y, size, "A", "Confirm");
+            hint(dl, right, y, size, "D-pad", "Move");
         }
     }
-    if (v.countdown >= 0) {
-        ui::title_card(width, height, std::to_string(std::max(1, v.countdown)), "Both games start together", kGold);
-    }
+    if (counting) ui::title_card(width, height, std::to_string(std::max(1, v.countdown)), "Both games start together", kGold);
     return true;
 }
 
@@ -407,7 +528,7 @@ bool coop_page_hook_key(unsigned vk, bool down) {
         // The title lobby: its keys, and the title's own (Play, New Game, Load, Settings, Exit) kept from the game.
         switch (vk) {
             case VK_UP: case VK_DOWN: case VK_LEFT: case VK_RIGHT: case VK_RETURN: case VK_SPACE: case VK_ESCAPE:
-            case VK_BACK: case 'E': case 'Z': case 'F': case 'O':
+            case VK_BACK: case 'E': case 'Z': case 'F': case 'O': case 'W': case 'S':
                 if (down) {
                     std::lock_guard lock(g_in_mutex);
                     if (g_keys.size() < 32) g_keys.push_back(vk);
@@ -470,7 +591,8 @@ void coop_page_draw(float width, float height, const HudData& d, const std::vect
     }
 
     // ---- the tab after the game's "Others", while its menu is open
-    const bool menu = game::ui_menu_open();
+    const bool menu = game::ui_menu_open() && d.local.has_value() && !net::sniffer_world_loading() &&
+                      !net::lobby_view().at_title;
     const float tab_size = 31.0f * sp.s;
     const std::string tab = "Co-op";
     const float tab_w = text_w(tab_size, tab);

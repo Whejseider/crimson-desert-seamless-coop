@@ -595,6 +595,71 @@ bool worlds_lobby_fresh(std::string* why) {
     return true;
 }
 
+bool worlds_lobby_from_solo(std::string* why) {
+    std::lock_guard lock(g_m);
+    if (!g_host || g_partner_key.empty() || g_switching) {
+        if (why) *why = !g_host ? "only the host" : g_partner_key.empty() ? "no friend yet" : "a switch is under way";
+        return false;
+    }
+    // A new co-op save made from our own progress (a copy of our slots; ours are only read). An old one: set aside.
+    const std::wstring w = world_for(g_partner_key);
+    if (save_io::world() == w) save_io::set_world(L"", nullptr);
+    if (save_io::world_exists(w) && !save_io::world_archive(w, why)) return false;
+    g_choice_key = g_partner_key;
+    g_choice = WorldStart::Continue;
+    g_sent = WorldStart::Unknown;
+    g_out_of_world_since = 1;
+    log::info("Co-op worlds: a co-op save with {} from our solo progress", g_partner_name);
+    return true;
+}
+
+void worlds_lobby_guest_new(int difficulty) {
+    if (g_switching.exchange(true)) return;
+    std::thread([difficulty] {
+        // The guest's New Game behind the lobby's "waiting for the host" screen (user 2026-11-06: the guest never sees
+        // setup): New Game (held Z), the agreement if the game shows one (scrolled to its end, accepted; the user's
+        // decision for the guest, FLAGS F25), then the host's difficulty (the dialog lists Easy, Normal, Hard: W to the
+        // top, S down to it) and Confirm.
+        const auto loading = [] { return sniffer_world_loading() || g_in_world.load(); };
+        const auto pick = [difficulty] {
+            for (int i = 0; i < 3; ++i) key('W', 60), Sleep(150);
+            for (int i = 0; i < difficulty; ++i) key('S', 60), Sleep(150);
+            Sleep(200);
+            key(VK_SPACE, 400);
+        };
+        const auto done = [](const std::string& s) {
+            if (!s.empty()) set_status(s);
+            g_switching = false;
+        };
+        if (!wait_front("Joining the host's new game")) return done("Click the game window to join the host's new game.");
+        {
+            std::lock_guard lock(g_m);
+            if (!save_io::world().empty()) g_mark_when_in = save_io::world();
+        }
+        key('Z', 1500);
+        Sleep(7000);
+        if (!loading()) pick();
+        if (!wait_for(loading, 5000)) {
+            // The agreement: scroll it to its end with the mouse wheel over it, then hold Accept; then the difficulty.
+            const HWND wnd = GetForegroundWindow();
+            RECT rc{};
+            if (GetClientRect(wnd, &rc)) {
+                POINT c{rc.right / 2, rc.bottom / 2};
+                ClientToScreen(wnd, &c);
+                SetCursorPos(c.x, c.y);
+            }
+            for (int i = 0; i < 200; ++i) mouse_event(MOUSEEVENTF_WHEEL, 0, 0, static_cast<DWORD>(-WHEEL_DELTA), kOurInput), Sleep(5);
+            Sleep(800);
+            key(VK_SPACE, 1600);
+            Sleep(5000);
+            if (!loading()) pick();
+        }
+        const bool started = wait_for(loading, 15000);
+        log::info("Co-op lobby: the guest's New Game {}", started ? "started" : "did not start (the player can finish it)");
+        done(started ? "" : "Finish the new game's setup (choose the same difficulty as the host).");
+    }).detach();
+}
+
 void worlds_lobby_continue() {
     std::lock_guard lock(g_m);
     if (!g_host || g_partner_key.empty()) return;

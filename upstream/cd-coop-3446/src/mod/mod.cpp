@@ -821,6 +821,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     net::LobbyInput li;
                     li.now_ms = GetTickCount64();
                     li.at_title = out && now - title_since >= 3000;
+                    li.in_world = wi.in_world;
+                    li.loading = net::sniffer_world_loading();
+                    li.run_generation = net::capture_template_generation();
                     li.connected = connected;
                     li.host = wi.host;
                     li.own_name = cfg.player_name;

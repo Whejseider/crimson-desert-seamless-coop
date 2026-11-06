@@ -83,6 +83,11 @@ std::wstring redirect(const wchar_t* p) {
     std::wstring rest(p + at);
     for (auto& c : rest) c = c == L'/' ? L'\\' : c;
     std::lock_guard lock(g_world_mutex);
+    // Two copies on one PC: the options in save\ itself always come from the copy's own scratch world (its windowed
+    // settings), whichever co-op save is active; the account folder from the active one.
+    if (g_whole_folder.load(std::memory_order_relaxed) && !g_home.empty() && (rest.empty() || !iswdigit(rest[0]))) {
+        return g_worlds_root + g_home + L"\\" + rest;
+    }
     return g_world_root + rest;
 }
 

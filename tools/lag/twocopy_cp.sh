@@ -23,6 +23,7 @@ for r in host guest; do cp "$BIN/cdmp.$r.log" $H/$NAME.$r.log 2>/dev/null; cp "$
 cp $REL "$BIN/cdmp.asi"; rm -f "$BIN/cdmp.host.ini" "$BIN/cdmp.guest.ini" "$BIN"/cdmp.host*.log "$BIN"/cdmp.guest*.log "$BIN"/cdmp_lag.*.csv \
   "$BIN/cdmp.host_scores.ini" "$BIN/cdmp.guest_scores.ini"
 for r in host guest; do [ -f "$W/twocopy_$r/.coopplus-test" ] && rm -rf "$W/twocopy_$r"; done
+rm -rf "$W"/with-guestpc* "$W"/with-hostpc*  # the -Worlds test co-op saves (test-only names)
 tasklist | grep -qi CrimsonDesert.exe && echo "WARNING: a CrimsonDesert.exe is still running after the cleanup"
 cmp -s $REL "$BIN/cdmp.asi" || echo "WARNING: the game folder's cdmp.asi is not the release one"
 bash $H/savecheck.sh --restore-ini; bash $H/savecheck.sh --fix | tail -2

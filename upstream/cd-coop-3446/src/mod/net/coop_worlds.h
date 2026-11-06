@@ -81,6 +81,11 @@ struct WorldsLobbyInfo {
 WorldsLobbyInfo worlds_lobby_info();
 // A fresh co-op save with the friend: the old one (if any) set aside (kept as <name>-old-<date>), a new game for both.
 bool worlds_lobby_fresh(std::string* why);
+// The host: a new co-op save made from our own progress (the friend joins our story); an old one set aside.
+bool worlds_lobby_from_solo(std::string* why);
+// The guest: New Game behind the "waiting for the host" screen, the agreement if shown, the host's difficulty
+// (0 Easy, 1 Normal, 2 Hard), Confirm (its own thread; the game window must be in front).
+void worlds_lobby_guest_new(int difficulty);
 // The host: continue the co-op save with the friend (told to the guest).
 void worlds_lobby_continue();
 // At the title: New Game (held Z) or Play (E), as the lobby's start (its own thread; the game window must be in front).

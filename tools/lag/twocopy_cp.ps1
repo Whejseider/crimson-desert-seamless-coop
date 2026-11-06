@@ -5,7 +5,7 @@
 # low-quality settings file; the real save folder is only read (its settings file, as the template). The role inis
 # come from the player's ini snapshot (build\port3479\cdmp.ini.player) with the test settings on top.
 param([string]$Name = 'cp1', [string]$HostVariant = 'coop-test-bandits', [string]$GuestVariant = 'coop-test-bandits',
-      [int]$LoadWait = 75, [int]$Hold = 20, [string]$HostSeq = '', [string]$GuestSeq = '', [switch]$Lobby)
+      [int]$LoadWait = 75, [int]$Hold = 20, [string]$HostSeq = '', [string]$GuestSeq = '', [switch]$Lobby, [string]$TitleSeq = '', [switch]$CoopSaves, [string]$HostLobbySeq = '')
 $ErrorActionPreference = 'Stop'
 $bin = 'D:\SteamLibrary\steamapps\common\Crimson Desert\bin64'
 $here = $PSScriptRoot; $native = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\build\native'
@@ -59,10 +59,14 @@ function Write-RoleIni([string]$role, [string[]]$set) {
     [IO.File]::WriteAllText("$bin\cdmp.$role.ini", ($lines -join "`r`n"), (New-Object Text.UnicodeEncoding($false, $true)))
 }
 $common = @('net.enabled=1', 'net.transport=udp', 'net.peer_host=127.0.0.1', 'net.peer_port=37015', 'coop.enabled=1',
-            'coop.offset_m=0', 'coop.coop_worlds=0', 'general.onboarded=1', 'general.experimental_asked=1',
+            'coop.offset_m=0', 'general.onboarded=1', 'general.experimental_asked=1',
             'sniffer.record=0', 'dev.lag_probe=1')
-Write-RoleIni 'host' ($common + @('net.role=host', 'general.player_name=Host', 'dev.coop_world=twocopy_host'))
-Write-RoleIni 'guest' ($common + @('net.role=guest', 'general.player_name=Guest', 'dev.coop_world=twocopy_guest'))
+# -CoopSaves: co-op saves on (the title lobby's new save / continue); each copy names the other with its own key, so their
+# co-op saves are separate folders (with-guestpc / with-hostpc) under the shared Worlds root.
+$wh = if ($CoopSaves) { @('coop.coop_worlds=1', 'dev.coop_world_partner=guestpc') } else { @('coop.coop_worlds=0') }
+$wg = if ($CoopSaves) { @('coop.coop_worlds=1', 'dev.coop_world_partner=hostpc') } else { @('coop.coop_worlds=0') }
+Write-RoleIni 'host' ($common + $wh + @('net.role=host', 'general.player_name=Host', 'dev.coop_world=twocopy_host'))
+Write-RoleIni 'guest' ($common + $wg + @('net.role=guest', 'general.player_name=Guest', 'dev.coop_world=twocopy_guest'))
 
 Remove-Item "$bin\cdmp.host.log", "$bin\cdmp.guest.log", "$bin\cdmp_lag.host.csv", "$bin\cdmp_lag.guest.csv" -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force "$here\shots" | Out-Null
@@ -89,6 +93,13 @@ function Press-Play([System.Diagnostics.Process]$p) {
 }
 Remove-Item "$here\$Name.pids" -ErrorAction SilentlyContinue
 $h = Start-Copy 'host'; $h = $h | Where-Object { $_ -is [System.Diagnostics.Process] }
+if ($TitleSeq) {
+    # Host only, at the title, in its sandbox (the whole save folder is the scratch world): a sequence of inputs.
+    & (Join-Path $native 'actpid.ps1') -GamePid $h.Id -Seq $TitleSeq | Out-Null
+    Start-Sleep $Hold
+    "done $(Get-Date -Format HH:mm:ss.fff)"
+    exit 0
+}
 if (-not $Lobby) { Press-Play $h; Start-Sleep $LoadWait }
 $g = Start-Copy 'guest'; $g = $g | Where-Object { $_ -is [System.Diagnostics.Process] }
 if ($Lobby) {
@@ -96,12 +107,20 @@ if ($Lobby) {
     # the host starts (Down to Start, Enter), the 3 s countdown, then each game presses Play itself when in front.
     Start-Sleep 12
     $act = Join-Path $native 'actpid.ps1'
-    & $act -GamePid $g.Id -Seq "w:500 shot:$Name-30-guest-lobby k:ENTER:80 w:2500 shot:$Name-31-guest-ready" | Out-Null
-    & $act -GamePid $h.Id -Seq "w:500 shot:$Name-32-host-lobby k:DOWN:80 w:600 k:ENTER:80 w:1200 shot:$Name-33-host-countdown" | Out-Null
-    Start-Sleep 8
-    & $act -GamePid $g.Id -Seq "w:400" | Out-Null
-    Start-Sleep 10
-    & $act -GamePid $h.Id -Seq "w:400" | Out-Null
+    & $act -GamePid $g.Id -Seq "w:500 shot:$Name-30-guest-lobby" | Out-Null
+    $hs = if ($HostLobbySeq) { $HostLobbySeq } else { "w:500 shot:$Name-32-host-lobby k:DOWN:80 w:600 k:ENTER:80 w:1200 shot:$Name-33-host-countdown" }
+    & $act -GamePid $h.Id -Seq $hs | Out-Null
+    if ($HostLobbySeq) {
+        # the host's run enters the world ~15 s after its difficulty: then the guest's game follows (its window in front,
+        # as on its own PC), shots of both along the way
+        Start-Sleep 20
+        & $act -GamePid $g.Id -Seq "w:400 shot:$Name-40-guest-wait w:15000 shot:$Name-41-guest-wait2" | Out-Null
+    } else {
+        Start-Sleep 8
+        & $act -GamePid $g.Id -Seq "w:400" | Out-Null
+        Start-Sleep 10
+        & $act -GamePid $h.Id -Seq "w:400" | Out-Null
+    }
     Start-Sleep $LoadWait
 } else {
     Press-Play $g
