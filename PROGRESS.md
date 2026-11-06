@@ -1244,3 +1244,8 @@ Done in the user's Chrome (signed in as Asher):
   together, movement sync both ways (with remote_interp smoothing, every call resolved), the other player visible,
   menus never pause the world (ui_pause_block). Next: what 0x231DEE0's link is (which component at [comps+0x110]),
   so the guard's scope is understood; then mounts, the scene/sequencer routing and the Co-op+ features.
+  Scope of the hide (04:58): [comps+0x110] is the MercenaryClanActorComponent (0x23143D0 = slot 23 of the
+  Client/Common/ServerMercenaryClanActorComponent vtables; 0x23144B0 / 0x231CF30 / 0x231DEE0 are its helpers):
+  0x231DEE0 hides (Status bit 0x100000) a NON-local actor the clan links, and the other player's Kliff gets linked
+  like a mercenary. The guard touches only non-local 0xA keys (player characters); mercenaries are 0xB NPCs and keep
+  the native hide. See ByJunter's companeros-mercenarios.md for the clan's 2976 side.
