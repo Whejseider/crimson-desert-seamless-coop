@@ -1250,9 +1250,9 @@ uint64_t event_timestamp(const proto::GameEvent& ev) {
 
 #ifdef CDMP_NATIVE_LAYER
 // Co-op+ on the native base (native_layer.h): our sniffer is off there; the native cdmp.asi's sniffer hands us the
-// client's packets (5-byte header + payload, the client's point of view) on its writer thread, and only the
-// observers of what this layer ADDS get them: revive, the party journal, the contests, the kill feed, the activity
-// notices, duel swings, weather. Nothing here sends or injects a game packet.
+// client's packets (5-byte header + payload, the client's point of view) on its writer thread: the server's go through
+// capture_observe_s2c as before (keys, revive, party journal, contests, kill feed, activity notices); of ours only the
+// layer's observers see them (activity, duel swings, weather). Nothing here sends or injects a game packet.
 extern "C" __declspec(dllexport) void coopplus_observe(int c2s, const uint8_t* packet, size_t size) {
     using namespace cdmp::net;
     if (!packet || size < 5) return;
@@ -1261,12 +1261,10 @@ extern "C" __declspec(dllexport) void coopplus_observe(int c2s, const uint8_t* p
         duel_observe_c2s(packet, size);
         weather_observe_c2s(packet, size);
     } else {
-        revive_observe_s2c(packet, size);
-        party_quests_observe_s2c(packet, size);
-        hunt_observe_s2c(packet, size);
-        fishing_observe_s2c(packet, size);
-        kill_feed_observe_s2c(packet, size);
-        activity_observe_s2c(packet, size);
+        // The whole server-side observation, as our own sniffer would: it also learns our user / player keys from
+        // the actor loads (revive_in_place needs capture_own_player_key). The world-simulating observers in it are
+        // inert here: native_layer.h turned their features off (no copies, no relay, no zone, no guest hits).
+        capture_observe_s2c(packet, size);
     }
 }
 #endif

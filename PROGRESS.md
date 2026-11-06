@@ -1398,3 +1398,13 @@ Done in the user's Chrome (signed in as Asher):
   Second bridge direction (built, testing in tc39): the native cdmp.asi exports cdmp_inject_c2s (its
   sniffer_inject_c2s queue) and the layer's sniffer_inject_c2s sends through it in native mode (revive, duel hits,
   give-backs). On the guest that request goes the native way, to the host's server, for user 2's character.
+- 2026-11-06 10:40 Revive on the native base, tc39-tc41: (tc39) the guest pressed ReviveFriend while the host still
+  had 96 HP (it fell 30 s later, 8 m away); (tc40) the harness now waits for the host's Co-op+ status line "hp 0.0/",
+  then walks the guest to where the host lies: it arrived 0.6 m away in seconds, but tapped the key; Co-op+'s
+  revive is a 3 s HOLD within 3 m inside the 30 s bleed-out (coop_revive.cpp kHoldMs / kReachM / kBleedOutMs);
+  (tc41) the camera walker raised a Python traceback and, under ErrorActionPreference Stop, PowerShell turned its
+  stderr into a terminating error that ended the script (the cleanup still ran: SAVES OK); the walkers now run
+  through cmd /c (stderr merged inside cmd) and print their last lines.
+  Found by reading: revive_in_place needs capture_own_player_key, learnt by capture_observe_s2c from the actor
+  loads; the bridge now sends the server's packets through the whole capture_observe_s2c (the world-simulating
+  observers in it are inert: their features are off in native mode). tc42 tests revive with the hold.

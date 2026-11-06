@@ -281,9 +281,9 @@ if ($Fight) {
     # tc33+: the 3479 camera walker (camwalk\walkto.py: camera forward and position read from the copy's memory,
     # CD_PID picks the copy; tc32's packet-log walker stopped at a cliff 70 m short).
     "host walks to the dock at $(Get-Date -Format HH:mm:ss.fff)"
-    $env:CD_PID = "$($h.Id)"; python "$here\camwalk\walkto.py" -10238 -3958 20 2>&1 | Select-Object -Last 2
+    $env:CD_PID = "$($h.Id)"; cmd /c "python ""$here\camwalk\walkto.py"" -10238 -3958 20 2>&1" | Select-Object -Last 3
     "guest walks to the dock at $(Get-Date -Format HH:mm:ss.fff)"
-    $env:CD_PID = "$($gp.Id)"; python "$here\camwalk\walkto.py" -10238 -3958 24 2>&1 | Select-Object -Last 2
+    $env:CD_PID = "$($gp.Id)"; cmd /c "python ""$here\camwalk\walkto.py"" -10238 -3958 24 2>&1" | Select-Object -Last 3
     $env:CD_PID = ''
     try {
         & "$here\actpid.ps1" -GamePid $h.Id -Seq "w:1000 shot:$Name-50-host-at-dock" | Out-Null
@@ -295,17 +295,25 @@ if ($Fight) {
     } catch { "fight step failed: $_" }
     "fight done $(Get-Date -Format HH:mm:ss.fff)"
     if ($CoopPlus) {
-        # Revive (tc39+): the bandits usually bring the host down (tc38: "Guest can revive you (30 s)"); the guest
-        # walks to the host's last position (its packet log) and presses ReviveFriend (Shift+F7) there.
+        # Revive (tc39+): the bandits usually bring the host down (tc38: "Guest can revive you (30 s)"). tc39: the
+        # guest pressed while the host still had 96 HP (it fell 30 s later, 8 m away): first wait for the host's
+        # Co-op+ status line to say hp 0 (60 s at most), then the guest walks to where the host lies (its packet log)
+        # and presses ReviveFriend (Shift+F7) there.
+        $t0 = Get-Date
+        while (((Get-Date) - $t0).TotalSeconds -lt 60) {
+            if (Select-String -Path "$bin\coopplus.host.log" -Pattern 'Local: .* hp 0\.0/' -Quiet) { break }
+            Start-Sleep 1
+        }
+        "host down (or 60 s) at $(Get-Date -Format HH:mm:ss.fff)"
         $hlog = Get-ChildItem "$bin\cdmp_packets.host_*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         $hp = (python "$here\pos.py" $hlog.FullName).Trim()
         "host at $hp; the guest goes to revive at $(Get-Date -Format HH:mm:ss.fff)"
         if ($hp) {
             $xz = $hp.Split(' ')
-            $env:CD_PID = "$($gp.Id)"; python "$here\camwalk\walkto.py" $xz[0] $xz[1] 2.5 2>&1 | Select-Object -Last 2
+            $env:CD_PID = "$($gp.Id)"; cmd /c "python ""$here\camwalk\walkto.py"" $($xz[0]) $($xz[1]) 2.0 2>&1" | Select-Object -Last 3
             $env:CD_PID = ''
             try {
-                & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:500 shot:$Name-54-guest-by-host kd:SHIFT k:F7:150 ku:SHIFT w:6000 shot:$Name-55-guest-revived" | Out-Null
+                & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:300 shot:$Name-54-guest-by-host kd:SHIFT kd:F7 w:3800 ku:F7 ku:SHIFT w:2500 shot:$Name-55-guest-revived" | Out-Null
                 & "$here\actpid.ps1" -GamePid $h.Id -Seq "w:1500 shot:$Name-56-host-after-revive" | Out-Null
             } catch { "revive step failed: $_" }
         }
