@@ -11,6 +11,7 @@
 
 #include "mod/input/actions.h"
 #include "mod/log.h"
+#include "mod/native_layer.h"
 #include "mod/net/coop_revive.h"
 #include "mod/net/guest_hits.h"
 #include "mod/net/loot_twin.h"
@@ -172,6 +173,19 @@ void init(const std::wstring& ini_path, const Config& cfg, float health_2p, floa
     }
     g_items.push_back({"Name over my friend (Ctrl+F8 too)", L"overlay", L"nameplates", on_off(), one_zero(),
                        cfg.overlay_nameplates ? 0 : 1, false, nullptr});
+    if (kNativeLayer) {
+        // On the native base (native_layer.h) the server shares the world: what these chose is its job now (loot,
+        // kills, Focus via the native ui_pause) or no longer exists (co-op saves, story copies).
+        const std::string_view hidden[] = {"EXPERIMENTAL: co-op saves + live quests", "Loot of shared kills",
+                                           "Guest finishes the host's enemies", "Slow motion (Focus) in co-op",
+                                           "Copy my friend's story into my save (guest)", "Let my guest copy my story (host)",
+                                           // party scaling works through the sniffer (VaryHPAck / VaryStatCheatReq): off
+                                           "Tougher enemies with a guest", "  Enemy health with a guest",
+                                           "  Boss health with a guest"};
+        std::erase_if(g_items, [&](const Item& it) {
+            return std::find(std::begin(hidden), std::end(hidden), std::string_view(it.label)) != std::end(hidden);
+        });
+    }
 }
 
 void set_panel_open(bool open) { g_open = open; }
@@ -204,7 +218,9 @@ std::vector<Line> lines() {
                                    it.live ? "" : "  (next start)"),
                        i == g_sel});
     }
-    out.push_back({"Keys: change them under [keys] in cdmp.ini, e.g. Invite=Ctrl+F1 (README)", false});
+    out.push_back({kNativeLayer ? "Keys: change them under [keys] in coopplus.ini, e.g. Invite=Ctrl+F1 (README)"
+                               : "Keys: change them under [keys] in cdmp.ini, e.g. Invite=Ctrl+F1 (README)",
+                  false});
     return out;
 }
 

@@ -1,4 +1,5 @@
 #include "mod/net/party_scaling.h"
+#include "mod/native_layer.h"
 
 #include <atomic>
 #include <cstring>
@@ -152,6 +153,7 @@ void scaling_tick() {
 }
 
 std::string scaling_hud_text() {
+    if (kNativeLayer) return {};  // native_layer.h: scaling needs the sniffer, which is off there
     std::lock_guard lock(g_mutex);
     const float k = multiplier_locked();
     if (k <= 1.0f) return {};

@@ -234,6 +234,16 @@ if ($Walk) {
             & "$here\actpid.ps1" -GamePid $h.Id -Seq "w:500 shot:$Name-60-host-coopplus-hud" | Out-Null
             & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:500 shot:$Name-61-guest-coopplus-hud" | Out-Null
             & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:F8:120 w:2000 shot:$Name-62-host-coopplus-panel k:F8:120 w:800" | Out-Null
+            # tc36+: the layer's own traffic: a ping (Ctrl+F3), a chat line (Shift+F2, "hi", Enter), a challenge
+            # (Shift+F5 opens the picker on the host, Enter sends it, Shift+F5 accepts on the guest).
+            "co-op+ acts at $(Get-Date -Format HH:mm:ss.fff)"
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "kd:CTRL k:F3:120 ku:CTRL w:1500" | Out-Null
+            & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:500 shot:$Name-63-guest-got-ping" | Out-Null
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "kd:SHIFT k:F2:120 ku:SHIFT w:700 k:H:80 k:I:80 w:300 k:ENTER:120 w:1500" | Out-Null
+            & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:500 shot:$Name-64-guest-got-chat" | Out-Null
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "kd:SHIFT k:F5:120 ku:SHIFT w:1500 shot:$Name-65-host-challenge-picker k:ENTER:120 w:1500" | Out-Null
+            & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:500 shot:$Name-66-guest-challenged kd:SHIFT k:F5:120 ku:SHIFT w:3000 shot:$Name-67-guest-accepted" | Out-Null
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "w:1000 shot:$Name-68-host-challenge-on" | Out-Null
         } catch { "co-op+ overlay step failed: $_" }
     }
     if ($Ride) {
