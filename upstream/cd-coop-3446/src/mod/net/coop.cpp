@@ -18,6 +18,7 @@
 #include "common/equip_state.h"
 #include "mod/game/offsets.h"
 #include "mod/net/fast_lane.h"
+#include "mod/net/coop_lobby.h"
 #include "mod/net/puppet_visibility.h"
 #include "mod/net/wire_layout.h"
 #include "mod/net/lag_probe.h"
@@ -212,6 +213,10 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     // Co-op+ co-op worlds: how the host's world with the guest starts (the first session's choice).
     for (auto& m : worlds_take_outgoing()) {
         if (!session_.send_reliable(proto::RelKind::World, m, now_ms)) log::warn("Co-op worlds: a message did not fit");
+    }
+    // Co-op+ (2026-11-06): the title lobby's (ready, start, a fresh save, the difficulty), on the same channel.
+    for (auto& m : lobby_take_outgoing()) {
+        if (!session_.send_reliable(proto::RelKind::World, m, now_ms)) log::warn("Co-op lobby: a message did not fit");
     }
     enemy_tick();
     loot_tick();

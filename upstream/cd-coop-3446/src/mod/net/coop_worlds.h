@@ -15,6 +15,8 @@
 #include <utility>
 #include <vector>
 
+#include "mod/save_io.h"
+
 namespace cdmp::net {
 
 // At start. enabled: [coop] coop_worlds. test_partner: [dev] coop_world_partner, a partner key used for one-PC tests
@@ -64,5 +66,24 @@ std::string worlds_banner();  // "" = none; shown big while the mod drives the g
 uint32_t worlds_switch_epoch();
 // [dev] coop_world_as_host: one-PC tests run as the guest; this makes the worlds side act as the host (the card).
 void worlds_dev_as_host(bool on);
+
+// Co-op+ (2026-11-06): the title lobby (coop_lobby.h). Our co-op save with the friend as it stands.
+struct WorldsLobbyInfo {
+    bool enabled = false;          // co-op saves are on
+    std::string partner_key;
+    bool exists = false;           // a co-op save with this friend (this version's)
+    bool has_saves = false;        // ... that the game has saved into
+    bool new_game_pending = false; // ... whose new game has not started yet
+    bool active = false;           // the game's saves come from it now
+    bool switching = false;        // the mod is driving the title
+    save_io::WorldStart choice = save_io::WorldStart::Unknown;  // the host's choice (as the host made it / told us)
+};
+WorldsLobbyInfo worlds_lobby_info();
+// A fresh co-op save with the friend: the old one (if any) set aside (kept as <name>-old-<date>), a new game for both.
+bool worlds_lobby_fresh(std::string* why);
+// The host: continue the co-op save with the friend (told to the guest).
+void worlds_lobby_continue();
+// At the title: New Game (held Z) or Play (E), as the lobby's start (its own thread; the game window must be in front).
+void worlds_lobby_press(bool new_game);
 
 }  // namespace cdmp::net

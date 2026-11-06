@@ -5,7 +5,7 @@
 # low-quality settings file; the real save folder is only read (its settings file, as the template). The role inis
 # come from the player's ini snapshot (build\port3479\cdmp.ini.player) with the test settings on top.
 param([string]$Name = 'cp1', [string]$HostVariant = 'coop-test-bandits', [string]$GuestVariant = 'coop-test-bandits',
-      [int]$LoadWait = 75, [int]$Hold = 20, [string]$HostSeq = '', [string]$GuestSeq = '')
+      [int]$LoadWait = 75, [int]$Hold = 20, [string]$HostSeq = '', [string]$GuestSeq = '', [switch]$Lobby)
 $ErrorActionPreference = 'Stop'
 $bin = 'D:\SteamLibrary\steamapps\common\Crimson Desert\bin64'
 $here = $PSScriptRoot; $native = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\build\native'
@@ -89,11 +89,24 @@ function Press-Play([System.Diagnostics.Process]$p) {
 }
 Remove-Item "$here\$Name.pids" -ErrorAction SilentlyContinue
 $h = Start-Copy 'host'; $h = $h | Where-Object { $_ -is [System.Diagnostics.Process] }
-Press-Play $h
-Start-Sleep $LoadWait
+if (-not $Lobby) { Press-Play $h; Start-Sleep $LoadWait }
 $g = Start-Copy 'guest'; $g = $g | Where-Object { $_ -is [System.Diagnostics.Process] }
-Press-Play $g
-Start-Sleep $LoadWait
+if ($Lobby) {
+    # The title lobby (net/coop_lobby.h): both at the title, linked. The guest readies up (Enter on its first item),
+    # the host starts (Down to Start, Enter), the 3 s countdown, then each game presses Play itself when in front.
+    Start-Sleep 12
+    $act = Join-Path $native 'actpid.ps1'
+    & $act -GamePid $g.Id -Seq "w:500 shot:$Name-30-guest-lobby k:ENTER:80 w:2500 shot:$Name-31-guest-ready" | Out-Null
+    & $act -GamePid $h.Id -Seq "w:500 shot:$Name-32-host-lobby k:DOWN:80 w:600 k:ENTER:80 w:1200 shot:$Name-33-host-countdown" | Out-Null
+    Start-Sleep 8
+    & $act -GamePid $g.Id -Seq "w:400" | Out-Null
+    Start-Sleep 10
+    & $act -GamePid $h.Id -Seq "w:400" | Out-Null
+    Start-Sleep $LoadWait
+} else {
+    Press-Play $g
+    Start-Sleep $LoadWait
+}
 & $shot -Out "$here\shots\$Name-10-both-loaded.png" | Out-Null
 "linked: host '$((Select-String -Path "$bin\cdmp.host.log" -Pattern 'Co-op: connected|in our world' | Select-Object -First 2 | ForEach-Object { $_.Line.Substring(15) }) -join ' / ')'"
 if ($HostSeq) { "host acts $(Get-Date -Format HH:mm:ss.fff)"; & "$native\actpid.ps1" -GamePid $h.Id -Seq $HostSeq | Out-Null }

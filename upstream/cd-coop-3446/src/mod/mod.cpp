@@ -59,6 +59,7 @@
 #include "mod/net/coop_hideseek.h"
 #include "mod/net/coop_fishing.h"
 #include "mod/net/fast_lane.h"
+#include "mod/net/coop_lobby.h"
 #include "mod/net/lag_probe.h"
 #include "mod/two_copy.h"
 #include "mod/net/coop_race.h"
@@ -811,6 +812,21 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 wi.menu_open = game::ui_menu_open();
                 wi.host = session.role() == ClientSession::Role::Responder;
                 net::worlds_tick(wi);
+                // Co-op+ (2026-11-06): the title lobby. At the title = no character and no loading for 3 s.
+                {
+                    static uint32_t title_since = 0;
+                    const bool out = local.in_game() && !wi.in_world && !net::sniffer_world_loading();
+                    if (!out) title_since = 0;
+                    else if (!title_since) title_since = now ? now : 1;
+                    net::LobbyInput li;
+                    li.now_ms = GetTickCount64();
+                    li.at_title = out && now - title_since >= 3000;
+                    li.connected = connected;
+                    li.host = wi.host;
+                    li.own_name = cfg.player_name;
+                    li.partner_name = session.peer_name();
+                    net::lobby_tick(li);
+                }
                 if (std::string t = net::worlds_take_toast(); !t.empty()) {
                     toast = std::move(t);
                     toast_until = now + 15000;

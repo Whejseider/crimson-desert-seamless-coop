@@ -27,6 +27,7 @@
 
 #include "common/equip_state.h"
 #include "mod/game/actor_lookup.h"
+#include "mod/net/coop_lobby.h"
 #include "mod/game/game_clock.h"
 #include "mod/game/offsets.h"
 #include "mod/game/player_reader.h"
@@ -853,6 +854,7 @@ void capture_emit_activity(std::vector<uint8_t> payload) { emit(proto::EventKind
 void capture_emit_weather(std::vector<uint8_t> payload) { emit(proto::EventKind::Weather, std::move(payload)); }
 
 void capture_observe_c2s(const uint8_t* packet, size_t size) {
+    lobby_observe_c2s(packet, size);       // Co-op+ the lobby: the difficulty our player chose
     quest_live_observe_c2s(packet, size);  // Co-op+ live quests
     aggro_observe_c2s(packet, size);
     enemy_observe_c2s(packet, size);

@@ -13,6 +13,7 @@
 #include "mod/save_io.h"
 #include "mod/net/troc_sniffer.h"
 #include "mod/net/story_sync.h"
+#include "mod/net/coop_lobby.h"
 
 namespace cdmp::net {
 namespace {
@@ -69,6 +70,7 @@ bool at_new_game_start() {
 }
 std::wstring g_mark_when_in;                  // a new-game world switched at the title: marked once the game runs
 constexpr uint8_t kMsgStart = 1;              // World message: u8 kMsgStart | u8 1 new game / 2 continue
+constexpr uint8_t kMsgLobbyFirst = 2;         // 2.. : the title lobby's own messages (coop_lobby.cpp)
 
 std::string narrow(const std::wstring& w) {
     std::string s;
@@ -518,6 +520,10 @@ std::vector<std::vector<uint8_t>> worlds_take_outgoing() {
 }
 
 void worlds_on_message(const std::vector<uint8_t>& bytes) {
+    if (!bytes.empty() && bytes[0] >= kMsgLobbyFirst) {  // Co-op+ (2026-11-06): the title lobby's (coop_lobby.h)
+        lobby_on_message(bytes);
+        return;
+    }
     if (bytes.size() < 2 || bytes[0] != kMsgStart || g_host) return;
     const WorldStart s = bytes[1] == 1 ? WorldStart::NewGame : bytes[1] == 2 ? WorldStart::Continue : WorldStart::Unknown;
     if (s == WorldStart::Unknown) return;
@@ -547,5 +553,85 @@ std::string worlds_take_toast() {
 }
 
 std::wstring worlds_active() { return save_io::world(); }
+
+// ---- Co-op+ (2026-11-06): the title lobby (coop_lobby.h)
+WorldsLobbyInfo worlds_lobby_info() {
+    std::lock_guard lock(g_m);
+    WorldsLobbyInfo i;
+    i.enabled = g_enabled;
+    i.partner_key = g_partner_key;
+    if (g_partner_key.empty()) return i;
+    const std::wstring w = world_for(g_partner_key);
+    i.exists = save_io::world_exists(w) && !save_io::world_is_legacy(w);
+    i.has_saves = i.exists && save_io::world_has_saves(w);
+    i.new_game_pending = i.exists && save_io::world_new_game_pending(w);
+    i.active = !save_io::world().empty() && save_io::world() == w;
+    i.switching = g_switching.load();
+    i.choice = g_host ? (g_choice_key == g_partner_key ? g_choice : WorldStart::Unknown)
+                      : (g_host_said_key == g_partner_key ? g_host_said : WorldStart::Unknown);
+    return i;
+}
+
+bool worlds_lobby_fresh(std::string* why) {
+    std::lock_guard lock(g_m);
+    if (g_partner_key.empty() || g_switching) {
+        if (why) *why = g_partner_key.empty() ? "no friend yet" : "a switch is under way";
+        return false;
+    }
+    const std::wstring w = world_for(g_partner_key);
+    // Out of use first (at the title nothing is being saved), then set aside: kept as <name>-old-<date>, never deleted.
+    if (save_io::world() == w) save_io::set_world(L"", nullptr);
+    if (save_io::world_exists(w) && !save_io::world_archive(w, why)) return false;
+    if (g_host) {
+        g_choice_key = g_partner_key;
+        g_choice = WorldStart::NewGame;
+        g_sent = WorldStart::Unknown;  // told again on the next tick
+    } else {
+        g_host_said_key = g_partner_key;
+        g_host_said = WorldStart::NewGame;
+    }
+    g_out_of_world_since = 1;  // at the title: the next tick makes the new world at once
+    log::info("Co-op worlds: a fresh co-op save with {} (the old one, if any, kept aside)", g_partner_name);
+    return true;
+}
+
+void worlds_lobby_continue() {
+    std::lock_guard lock(g_m);
+    if (!g_host || g_partner_key.empty()) return;
+    g_choice_key = g_partner_key;
+    g_choice = WorldStart::Continue;
+    g_sent = WorldStart::Unknown;
+}
+
+void worlds_lobby_press(bool new_game) {
+    if (g_switching.exchange(true)) return;
+    std::thread([new_game] {
+        const std::string label = save_io::world().empty() ? "your own save" : "your co-op save with " + g_partner_name;
+        const auto done = [](const std::string& s) {
+            if (!s.empty()) set_status(s);
+            g_switching = false;
+        };
+        if (new_game) {
+            for (int attempt = 0; attempt < 3; ++attempt) {
+                if (!wait_front("New game in " + label)) return done("Press New Game (hold Z) to begin.");
+                key('Z', 1500);
+                if (wait_for([] { return sniffer_world_loading() || g_in_world.load(); }, 10000)) break;
+            }
+            log::info("Co-op lobby: New Game pressed in {}", narrow(save_io::world()));
+            {
+                std::lock_guard lock(g_m);
+                if (!save_io::world().empty()) g_mark_when_in = save_io::world();
+            }
+            return done("");
+        }
+        for (int attempt = 0; attempt < 6; ++attempt) {
+            if (!wait_front("Loading " + label)) return done("Press Play (E) to load.");
+            key('E', 80);
+            if (wait_for([] { return sniffer_world_loading() || g_in_world.load(); }, 8000)) break;
+        }
+        log::info("Co-op lobby: Play pressed in {}", narrow(save_io::world().empty() ? L"own saves" : save_io::world()));
+        done("");
+    }).detach();
+}
 
 }  // namespace cdmp::net

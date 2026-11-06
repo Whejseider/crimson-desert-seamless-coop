@@ -147,6 +147,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/coop_fishing.cpp
     src/mod/net/lag_probe.cpp
     src/mod/net/fast_lane.cpp
+    src/mod/net/coop_lobby.cpp
     src/mod/two_copy.cpp
     src/mod/net/coop_race.cpp
     src/mod/net/scoreboard.cpp

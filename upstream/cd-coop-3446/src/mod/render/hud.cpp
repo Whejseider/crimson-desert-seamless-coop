@@ -21,6 +21,7 @@
 #include "mod/input/pad_input.h"
 #include "mod/render/game_ui.h"
 #include "mod/render/coop_page.h"
+#include "mod/net/coop_lobby.h"
 #include "mod/settings_menu.h"
 #include "mod/net/coop_worlds.h"
 #include "mod/net/session_summary.h"
@@ -244,7 +245,12 @@ void hud_draw(float width, float height) {
     // Co-op+ (2026-11-06): F8 / the panel chord open the Co-op page (render/coop_page.h); the old status panel is shown
     // when the page's Status section turns it on.
     if (plates_edge(input::action_down(input::Action::Nameplates, focus))) plates_visible = !plates_visible;
-    else if (panel_edge(input::action_down(input::Action::Panel, focus))) coop_page_toggle();
+    else if (panel_edge(input::action_down(input::Action::Panel, focus))) {
+        // At the title with the lobby closed, F8 brings the lobby back; elsewhere it opens / closes the Co-op page.
+        const net::LobbyView lv = net::lobby_view();
+        if (lv.at_title && !lv.show && !coop_page_open()) net::lobby_reopen();
+        else coop_page_toggle();
+    }
     panel_visible = coop_page_details() && !coop_page_open();
     (void)f8_was_down;
 
