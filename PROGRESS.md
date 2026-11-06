@@ -1340,3 +1340,15 @@ Done in the user's Chrome (signed in as Asher):
   owned by 0x90100000), ObserverMilestone EMITTED user 2's own 2384 through the game's ToTarget + emitter (0.017 ms,
   "IS in user 2's queue"), the guest's load ended normally (LoadingCompleteAck 12 s later). guest_reload_wait_fix
   stays on only as a fallback.
+- 2026-11-06 08:30 Co-op+ LAYER on the native base, step 1 (docs/research/native-coopplus-layer.md, FLAGS F22): the
+  Co-op+ source (upstream/cd-coop-3446) builds a second DLL with -DCDMP_NATIVE_LAYER=ON (build tree
+  build-native-layer): coopplus.asi, files coopplus[.<role>].ini/.log/_scores.ini (CDMP_ROLE as the native base),
+  src/mod/native_layer.h forces OFF after reading the ini: the sniffer, the puppet (no_copy), enemy copies + relay +
+  zone, horse/equipment copies, damage mirror, guest hits, co-op worlds, live quests, story sync, the slow-motion
+  block, the time sync, the stage cinema, its save guard. With the sniffer off the whole old co-op block (puppet
+  hooks, crash guards, horse_diag) is never installed; the co-op link is made ready at once (coop_set_ready) so the
+  layer's own traffic (activities, chat, waypoints, the party frame state) flows. online_guard's compatibility list
+  skips coopplus.asi. The released build (cdmp.asi on the old base) is unchanged.
+  Harness: twocopy.ps1 -CoopPlus copies coopplus.asi, writes coopplus.host/guest.ini (udp to cdmp_peer --mode relay
+  on 37115; the native tunnel is 37015), starts the relay; twocopy.sh removes the DLL, its inis/logs and the relay
+  afterwards (the player's game must never load coopplus.asi) and keeps the logs as <name>.coopplus.<role>.log.
