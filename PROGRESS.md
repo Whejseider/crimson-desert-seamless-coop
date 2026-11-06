@@ -1334,3 +1334,9 @@ Done in the user's Chrome (signed in as Asher):
   (B01005E9 -> 0 at +24 s, B0100472 -> 0 at +37 s); both players' own HP changes reach the other too. Both alive,
   SAVES OK. (Capture analysis: the CDPK .bin files; VaryHPAck payload u32 key, u32 max 1000000, u32 hp.)
   The camera walker (tools/native-port/test/camwalk, CD_PID) works for both copies on 3549.
+  ALSO tc33: observer_stage + observer_milestone WORK on 3549 and the guest's 0x11 unstick did NOT fire. The login
+  trip (E1.T1): user 2 owns its own field, the server sends its own 2384 natively ("native 2322", actor
+  0xA01001CB). The trip into the host's field (E1.T2): ObserverStage saw the observer entry (field key 0x81020001
+  owned by 0x90100000), ObserverMilestone EMITTED user 2's own 2384 through the game's ToTarget + emitter (0.017 ms,
+  "IS in user 2's queue"), the guest's load ended normally (LoadingCompleteAck 12 s later). guest_reload_wait_fix
+  stays on only as a fallback.
