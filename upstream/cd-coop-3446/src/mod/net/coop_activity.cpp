@@ -32,6 +32,7 @@
 #include "mod/net/coop_fishing.h"
 #include "mod/net/scoreboard.h"
 #include "mod/settings_menu.h"
+#include "mod/render/coop_page.h"
 #include "mod/net/aggro_test.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/loot_twin.h"
@@ -278,6 +279,7 @@ LRESULT CALLBACK keyboard_hook(int code, WPARAM wp, LPARAM lp) {
         const auto* k = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lp);
         const bool down = wp == WM_KEYDOWN || wp == WM_SYSKEYDOWN;
         if (k->dwExtraInfo != kOurKey && chat_hook_key(k->vkCode, k->scanCode, down)) return 1;
+        if (k->dwExtraInfo != kOurKey && render::coop_page_hook_key(k->vkCode, down)) return 1;  // the Co-op page
         if (k->dwExtraInfo != kOurKey && settings::hook_key(k->vkCode, down)) return 1;  // Co-op+ (T30)
         if (chat_quick_open() && (k->vkCode == VK_LEFT || k->vkCode == VK_RIGHT)) {
             if (down) chat_quick_step(k->vkCode == VK_LEFT ? -1 : 1);

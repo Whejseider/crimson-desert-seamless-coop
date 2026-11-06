@@ -34,6 +34,15 @@ struct Line {
 // The settings block of the panel.
 std::vector<Line> lines();
 
+// Co-op+ (the Co-op page, render/coop_page.h): the settings of one section, and a change of one of them.
+struct PageRow {
+    std::string label, value, help;
+    bool live = true;  // applied now (else at the next start)
+    int choices = 0;
+};
+std::vector<PageRow> page_rows(const std::string& category);
+void page_change(const std::string& category, int row, int delta);
+
 // Live values the network loop reads (the config is const there).
 bool respawn_at_partner();
 bool net_hud();  // T32: the small ping / loss readout

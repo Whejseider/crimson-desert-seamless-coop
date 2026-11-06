@@ -38,6 +38,48 @@ struct Item {
     bool live = true;                  // applied now (else at the next start)
     std::function<void(int)> apply;
     std::function<int()> current;      // Co-op+: the value lives elsewhere (no ini key: section nullptr)
+    std::string category = "General";  // Co-op+: the Co-op page's section (render/coop_page.h)
+    std::string help;                  // its one-line explanation there
+};
+
+// Co-op+ (the Co-op page): each setting's section and explanation, by its label.
+struct Tag {
+    const char* label;
+    const char* category;
+    const char* help;
+};
+constexpr Tag kTags[] = {
+    {"EXPERIMENTAL: co-op saves + live quests", "Saves & Story",
+     "A separate save for every friend you play with (your own saves are never touched), and quest steps you both "
+     "have finish for both. Off: co-op plays in your own save."},
+    {"Who can join", "Session",
+     "Any Steam friend can join you from Steam (Join Game), or only friends you invite."},
+    {"Loot of shared kills", "Combat & Loot",
+     "Who loots an enemy you fought together: each of you your own drop, only the host, or whoever gets there first."},
+    {"Guest finishes the host's enemies", "Combat & Loot",
+     "Off: the guest's blows stop at 1 HP, so the host lands the final blow (keeps story fights in order)."},
+    {"Tougher enemies with a guest", "Combat & Loot",
+     "Enemies near the host get more health while a guest is in the world."},
+    {"  Enemy health with a guest", "Combat & Loot", "How much more health enemies get with a guest."},
+    {"  Boss health with a guest", "Combat & Loot", "How much more health bosses get with a guest."},
+    {"Revive each other", "Reviving", "Hold the revive button by your fallen friend to bring them back."},
+    {"After a checkpoint revive", "Reviving",
+     "Where you stand after reviving at a checkpoint: there, or back beside your friend."},
+    {"Wait for my friend if I die at a boss", "Reviving",
+     "Falling in a boss fight while your friend still fights: wait for them instead of reviving at once."},
+    {"Weather follows the host", "World", "The guest's sky, rain and time of day follow the host's."},
+    {"Slow motion (Focus) in co-op", "World",
+     "Off: Focus does not slow the world while you play together, so both worlds keep the same speed."},
+    {"Ping and packet loss on screen", "Display", "A small connection readout in the top right corner."},
+    {"My friend's story (scenes, quest names)", "Saves & Story",
+     "Hidden: no spoilers from a friend further in the story (their quest names and story scenes)."},
+    {"Copy my friend's story into my save (guest)", "Saves & Story",
+     "As a guest: take the host's story progress into your co-op save with them."},
+    {"Let my guest copy my story (host)", "Saves & Story", "As the host: let your guest take your story progress."},
+    {"Duel ground (when I place it)", "Challenges", "How large the ring is when you start a duel."},
+    {"Player colours", "Display", "The colours of the host and the guest on name tags, the map and the party frame."},
+    {"My friend's map pin colour", "Display", "The colour of your friend's pin on the map and minimap."},
+    {"Name over my friend (Ctrl+F8 too)", "Display", "Your friend's name and health over their head."},
 };
 
 std::mutex g_mutex;
@@ -173,6 +215,14 @@ void init(const std::wstring& ini_path, const Config& cfg, float health_2p, floa
     }
     g_items.push_back({"Name over my friend (Ctrl+F8 too)", L"overlay", L"nameplates", on_off(), one_zero(),
                        cfg.overlay_nameplates ? 0 : 1, false, nullptr});
+    for (Item& it : g_items) {
+        for (const Tag& t : kTags) {
+            if (std::string_view(it.label) == t.label) {
+                it.category = t.category;
+                it.help = t.help;
+            }
+        }
+    }
     if (kNativeLayer) {
         // On the native base (native_layer.h) the server shares the world: what these chose is its job now (loot,
         // kills, Focus via the native ui_pause) or no longer exists (co-op saves, story copies).
@@ -222,6 +272,34 @@ std::vector<Line> lines() {
                                : "Keys: change them under [keys] in cdmp.ini, e.g. Invite=Ctrl+F1 (README)",
                   false});
     return out;
+}
+
+std::vector<PageRow> page_rows(const std::string& category) {
+    std::vector<PageRow> out;
+    std::lock_guard lock(g_mutex);
+    for (const Item& it : g_items) {
+        if (it.category != category) continue;
+        const int idx = it.current ? it.current() : it.index;
+        std::string label = it.label;
+        while (!label.empty() && label.front() == ' ') label.erase(label.begin());
+        out.push_back({label, it.shown[idx], it.help, it.live, static_cast<int>(it.shown.size())});
+    }
+    return out;
+}
+
+void page_change(const std::string& category, int row, int delta) {
+    int found = -1;
+    {
+        std::lock_guard lock(g_mutex);
+        int r = 0;
+        for (int i = 0; i < static_cast<int>(g_items.size()); ++i) {
+            if (g_items[i].category != category) continue;
+            if (r++ == row) found = i;
+        }
+        if (found < 0) return;
+        g_sel = found;
+    }
+    change(delta);
 }
 
 bool respawn_at_partner() { return g_respawn_partner.load(); }

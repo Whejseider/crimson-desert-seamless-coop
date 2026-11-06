@@ -20,6 +20,7 @@
 #include "mod/input/actions.h"
 #include "mod/input/pad_input.h"
 #include "mod/render/game_ui.h"
+#include "mod/render/coop_page.h"
 #include "mod/settings_menu.h"
 #include "mod/net/coop_worlds.h"
 #include "mod/net/session_summary.h"
@@ -197,6 +198,37 @@ void draw_panel(const HudData& d, const HudOptions& opt, float remote_distance, 
     ImGui::End();
 }
 
+// Co-op+ (the Co-op page's Status section): what the old panel says, as plain lines.
+std::vector<std::string> status_lines(const HudData& d, const HudOptions& opt, const std::vector<std::string>& problems,
+                                      float remote_distance) {
+    std::vector<std::string> out;
+    if (!opt.build_problem.empty()) out.push_back(opt.build_problem);
+    for (const auto& p : problems) out.push_back(p);
+    out.push_back(d.connected ? std::format("Network: connected to '{}' ({:.1f} ms{})", d.peer_name, d.rtt_ms,
+                                            d.loss_pct >= 0 ? std::format(", loss {:.1f} %", d.loss_pct) : "")
+                              : "Network: looking for the other player...");
+    if (!d.peer_problem.empty()) out.push_back(d.peer_problem);
+    if (d.local) {
+        out.push_back(std::format("You: HP {:.0f}/{:.0f}, stamina {:.0f}/{:.0f}", d.local->health, d.local->health_max,
+                                  d.local->stamina, d.local->stamina_max));
+    } else {
+        out.push_back("You: " + d.local_status);
+    }
+    if (d.remote && d.local) {
+        out.push_back(std::format("Other player: HP {:.0f}/{:.0f}, {:.0f} m away", d.remote->health, d.remote->health_max,
+                                  remote_distance));
+    }
+    if (!d.room_code.empty()) out.push_back("Room code: " + d.room_code + (d.room_hosting ? " (tell your friend)" : ""));
+    else if (!d.room_status.empty()) out.push_back("Room code: none (" + d.room_status + ")");
+    if (!d.enemy_zone.empty()) out.push_back(d.enemy_zone);
+    if (!d.scaling.empty()) out.push_back(d.scaling);
+    if (!d.save_notice.empty()) out.push_back(d.save_notice);
+    if (!d.coop_hint.empty()) out.push_back(d.coop_hint);
+    for (const auto& l : d.score_lines) out.push_back(l);
+    out.push_back(std::string("Co-op+ alpha, built on cdmp ") + CDMP_VERSION + " by ByJunter, port by nouzert1");
+    return out;
+}
+
 void hud_draw(float width, float height) {
     static bool panel_visible = false;  // Co-op+: hidden until F8 / chord + X (the game shows no debug boxes)
     static bool plates_visible = true;
@@ -209,8 +241,11 @@ void hud_draw(float width, float height) {
     // F8: the panel. Ctrl+F8 (Co-op+): the nameplate over the other player. Pads: chord + X / chord + A.
     static input::Edge panel_edge, plates_edge;
     const bool focus = GetForegroundWindow() != nullptr;
+    // Co-op+ (2026-11-06): F8 / the panel chord open the Co-op page (render/coop_page.h); the old status panel is shown
+    // when the page's Status section turns it on.
     if (plates_edge(input::action_down(input::Action::Nameplates, focus))) plates_visible = !plates_visible;
-    else if (panel_edge(input::action_down(input::Action::Panel, focus))) panel_visible = !panel_visible;
+    else if (panel_edge(input::action_down(input::Action::Panel, focus))) coop_page_toggle();
+    panel_visible = coop_page_details() && !coop_page_open();
     (void)f8_was_down;
 
     HudData d;
@@ -250,6 +285,13 @@ void hud_draw(float width, float height) {
     // ---- status panel
     float remote_distance = 0;
     if (d.remote && d.local) remote_distance = math::length(math::sub(d.remote->pos, d.local->position));
+    // The Co-op page goes on top of everything, whichever way this function ends.
+    struct PageLast {
+        float w, h;
+        const HudData& d;
+        std::vector<std::string> status;
+        ~PageLast() { coop_page_draw(w, h, d, status); }
+    } page_last{width, height, d, status_lines(d, opt, problems, remote_distance)};
     settings::set_panel_open(panel_visible && opt.build_problem.empty());
     // Co-op+ (T34): host gold / guest blue, or the colour-blind-safe pair (Okabe-Ito orange / sky blue).
     {

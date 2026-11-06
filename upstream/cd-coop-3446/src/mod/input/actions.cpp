@@ -1,5 +1,6 @@
 #include "mod/input/actions.h"
 
+#include <atomic>
 #include <windows.h>
 
 #include <cctype>
@@ -42,7 +43,16 @@ bool key(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
 
 const Binding& binding(Action a) { return kBindings[static_cast<size_t>(a)]; }
 
+namespace {
+std::atomic<uint64_t> g_triggered_until[static_cast<size_t>(Action::Count)];
+}  // namespace
+
+void trigger(Action a) {
+    if (a < Action::Count) g_triggered_until[static_cast<size_t>(a)] = GetTickCount64() + 200;
+}
+
 bool action_down(Action a, bool focused) {
+    if (a < Action::Count && GetTickCount64() < g_triggered_until[static_cast<size_t>(a)].load()) return true;
     const Binding& b = binding(a);
     if (focused && b.vk && key(b.vk) && key(VK_CONTROL) == b.ctrl && (key(VK_SHIFT) == b.shift || (!b.shift && !b.ctrl))) {
         return true;

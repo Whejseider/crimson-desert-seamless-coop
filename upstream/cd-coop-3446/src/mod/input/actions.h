@@ -41,6 +41,10 @@ const Binding& binding(Action a);
 // The action's keyboard keys or pad buttons are down now. `focused`: the game window is in front (keyboard only).
 bool action_down(Action a, bool focused);
 
+// Co-op+ (the Co-op page, render/coop_page.h): the action counts as down for the next 200 ms, as if its keys were
+// pressed (a button on the page that does what a hotkey does). Any thread.
+void trigger(Action a);
+
 // Rising edge helper: one per caller and action.
 class Edge {
 public:
