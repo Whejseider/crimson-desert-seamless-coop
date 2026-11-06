@@ -1249,3 +1249,16 @@ Done in the user's Chrome (signed in as Asher):
   0x231DEE0 hides (Status bit 0x100000) a NON-local actor the clan links, and the other player's Kliff gets linked
   like a mercenary. The guard touches only non-local 0xA keys (player characters); mercenaries are 0xB NPCs and keep
   the native hide. See ByJunter's companeros-mercenarios.md for the clan's 2976 side.
+- 2026-11-06 05:35 Native base: mount_sync, fast_travel and remote_motion ported and unpinned (native 9b49a85,
+  c547362). fast_travel: entry 0x721B90 (edx point, r8d index, r9d actor; 0 = a point), point sender 0xBA5B50
+  called at 0x721FC2, which calls 0xD329F0 (writes opcode 3074 ReloadStageStartReq); ServerSequencerStageManager
+  vtable 0x5EDE980. remote_motion: PointClimbMovementMethod 0x5924730 slot 7 = Enter 0x760A10 (same prologue),
+  control-mode fn 0x976560 (same 212-byte body, table 0x976634), is-local 0x19318C0 (table 0x193190C), the wall-up
+  (2851) sender 0x965C90 called at 0x96426C (site 0x96424B), its enable byte .data 0x71CC470 (zero-filled tail),
+  the client clock bias 0x71BE198 (setPos 0x1386C1C). LAYOUT: the movement controller's active-method byte is
+  mc+0x13C and its method array mc+0x140 (23 methods; 2976 0xF0 / 0xF8), found in 10 `movzx eax,byte [mc+0x13C];
+  cmp al,0x17; mov rcx,[mc+rax*8+0x140]` sites; the wall-up gate's mc+0x168 (2976 +0x120). Unchanged: method+0x18 =
+  CC, CC+8 = actor, mc+0x60/+0x68, the vehicle component's seats/reserves/count. Not re-verified: RideOff's cached
+  horse key method+0xD4 (state lines only).
+  tc28 (-Ride): a tap of H called no horse on 3549 (no request at all); the 3479 horse tests used H / E (Ride) / R
+  with the same save. tc29 holds H 1.5 s. Both copies alive through it, SAVES OK.
