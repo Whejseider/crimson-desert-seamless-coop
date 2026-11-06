@@ -1247,3 +1247,26 @@ uint64_t event_timestamp(const proto::GameEvent& ev) {
 }
 
 }  // namespace cdmp::net
+
+#ifdef CDMP_NATIVE_LAYER
+// Co-op+ on the native base (native_layer.h): our sniffer is off there; the native cdmp.asi's sniffer hands us the
+// client's packets (5-byte header + payload, the client's point of view) on its writer thread, and only the
+// observers of what this layer ADDS get them: revive, the party journal, the contests, the kill feed, the activity
+// notices, duel swings, weather. Nothing here sends or injects a game packet.
+extern "C" __declspec(dllexport) void coopplus_observe(int c2s, const uint8_t* packet, size_t size) {
+    using namespace cdmp::net;
+    if (!packet || size < 5) return;
+    if (c2s) {
+        activity_observe_c2s(packet, size);
+        duel_observe_c2s(packet, size);
+        weather_observe_c2s(packet, size);
+    } else {
+        revive_observe_s2c(packet, size);
+        party_quests_observe_s2c(packet, size);
+        hunt_observe_s2c(packet, size);
+        fishing_observe_s2c(packet, size);
+        kill_feed_observe_s2c(packet, size);
+        activity_observe_s2c(packet, size);
+    }
+}
+#endif

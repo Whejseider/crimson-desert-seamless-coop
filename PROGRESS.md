@@ -1376,3 +1376,17 @@ Done in the user's Chrome (signed in as Asher):
   decide party scaling (the host's server now owns enemy health: the host-side multiplier applies to both players'
   enemies, the guest's does nothing); then each activity (duel, race, fishing, hunt, hide and seek, chat, revive,
   kill feed) in the harness.
+- 2026-11-06 09:40 tc36/tc37 (-CoopPlus acts): over the native world the Co-op+ layer's own features WORK: the
+  quick message "Go here" + map pin (Ctrl+F3 twice), chat ("Chat: we said "hi"" on the host; the guest's screen shows
+  the "Co-op / Host: hi" notice and the chat log "Host: Go here / Host: hi"), the activity notices ("the other player
+  is in a menu" / "left a menu", cutscene start/end), the party frame with the partner's state ("Host - in a menu -
+  8 m"), the challenge picker (Duel, RPS, hunting, race, hide and seek, fishing) and a DUEL: the host sent it, the
+  guest accepted, both logged "Duel: round 1 at (-10361.5, 534.9, -3918.0), radius 20 m" and "fight"; the host's
+  screen shows "Guest accepted: a duel!...", "Duel vs Guest: round 1", the opponent bar and the ring posts. Shots
+  docs/research/native-shots/tc37-64-guest-got-chat.png, tc37-68-host-challenge-on.png. Script lessons: chat cannot
+  open while the quick list is open (8 s); the picker sends with Shift+F5 (not Enter).
+  Packet bridge (built, testing in tc38): the native sniffer forwards every client packet it feeds co-op to
+  coopplus.asi's export coopplus_observe (resolved by module name, SEH-contained); the layer passes them to its own
+  observers only (revive, party journal, contests, kill feed, activity notices, duel swings, weather).
+  Open: duel HITS on the old base came from swings + injected damage (the sniffer, off here): to check how a duel
+  is decided in native mode (the server's PvP rules).
