@@ -56,6 +56,10 @@ child_settle_ms=4000
 child_reannounce=1
 observer_seq_copy=1
 observer_seq_copy_2322=1
+observer_milestone=1
+observer_milestone_send=1
+observer_milestone_reload=1
+observer_milestone_reload_any=1
 guest_own_save=1
 ui_pause_block=1
 remote_interp=1
@@ -223,12 +227,13 @@ if ($Fight) {
     # Combat (tc32+): the bandit save's Bleed Bandits are at Rodbel Fishing Dock (~ -10238, -3958; NOTES/LOG.md
     # 2026-11-01); both walk there (walk_to.py, 20 m short), the host attacks for 15 s, both windows are shot. The
     # packet logs tell whether the bandits' actions / HP changes reach the guest.
-    $hlog = Get-ChildItem "$bin\cdmp_packets.host_*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    $glog = Get-ChildItem "$bin\cdmp_packets.guest_*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    # tc33+: the 3479 camera walker (camwalk\walkto.py: camera forward and position read from the copy's memory,
+    # CD_PID picks the copy; tc32's packet-log walker stopped at a cliff 70 m short).
     "host walks to the dock at $(Get-Date -Format HH:mm:ss.fff)"
-    python "$here\walk_to.py" $h.Id $hlog.FullName -10238 -3958 --stop 20 --max 120
+    $env:CD_PID = "$($h.Id)"; python "$here\camwalk\walkto.py" -10238 -3958 20 2>&1 | Select-Object -Last 2
     "guest walks to the dock at $(Get-Date -Format HH:mm:ss.fff)"
-    python "$here\walk_to.py" $gp.Id $glog.FullName -10238 -3958 --stop 24 --max 120
+    $env:CD_PID = "$($gp.Id)"; python "$here\camwalk\walkto.py" -10238 -3958 24 2>&1 | Select-Object -Last 2
+    $env:CD_PID = ''
     try {
         & "$here\actpid.ps1" -GamePid $h.Id -Seq "w:1000 shot:$Name-50-host-at-dock" | Out-Null
         & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:1000 shot:$Name-51-guest-at-dock" | Out-Null

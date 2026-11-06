@@ -1313,3 +1313,17 @@ Done in the user's Chrome (signed in as Asher):
   its 3066 (3549 3029) serializer 0x2C14B40 called at 0x2E6B225; the scope lookup 0x2BD5700 (2976 0x2961CA0).
   Not finished: the remaining verified regions (the 2144 site differs: lea r9,[r13+0x450]) and observer_stage's
   entry point in MoveFieldCompleteCore (2976 `mov rax,[r13+0x2D0]`, the level entry = +0x2D8 on 3549).
+- 2026-11-06 07:25 tc32 (-Walk -Fight): both alive, SAVES OK; the packet-log walker stopped both players at a cliff
+  ~70 m short of the bandit dock, so no fight happened. The guest still saw the host there (shot
+  tc32-53-guest-sees-fight.png: the host's Kliff with its horned helmet at the cliff) -> visibility holds after
+  long walks. tc33 uses the 3479 camera walker (tools/native-port/test/camwalk: position + camera forward read from
+  the copy's memory, CD_PID picks the copy; the 3527/3549 old-base addresses).
+  observer_stage + observer_milestone PORTED and unpinned (native 20d9050): writers Prepare 0x2CDA580 / Delete
+  0x2CDAB60 / Branch 0x2CDB980 / the 2384 emitter 0x2C142A0, every context point at the SAME offset as on 2976 (all
+  bytes checked); MoveFieldCompleteCore 0x2E6A700 entry 0x2E6B675 `mov rax,[r15+0x2D8]` (the field is R15 on 3549:
+  mov r15,r8 at 0x2E6A72D; 2976 R13, level entry +0x2D0), predecessor 0x2E6B66C `mov rcx,[rdi+0x18]; call
+  0x2A8A410`; ToTarget ctor 0x2D04590 / vtables 0x5EEC840 + base 0x5EEC860 (slots 0x2D04530/0x2D045E0/0x2D04640,
+  0x2D04490); 2340 site 0x2E6A324..0x2E6A372, MoveFieldCompleteCore call 0x2E6A3AB, 3029 site
+  0x2E6B1DE..0x2E6B22A, scope lookup 0x2BD5700 (+0x1A region), scope flush 0x2BD5C80 (+6), realm mark 0x29AAF36;
+  field key +0x2D0, TLS realm 0x1EB. The host ini now has observer_milestone(_send, _reload, _reload_any)=1
+  (ByJunter's), so the server should send user 2 its own 2384 and the guest's 0x11 unstick should stop firing.
