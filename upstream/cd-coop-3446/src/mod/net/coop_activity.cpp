@@ -29,6 +29,7 @@
 #include "mod/net/kill_feed.h"
 #include "mod/net/coop_race.h"
 #include "mod/net/coop_hideseek.h"
+#include "mod/net/coop_fishing.h"
 #include "mod/net/scoreboard.h"
 #include "mod/settings_menu.h"
 #include "mod/net/aggro_test.h"
@@ -51,7 +52,7 @@ constexpr uint16_t kOpStartActionReq = 2202;      // our client also sends the N
 constexpr float kNearM = 100.0f;                   // the user's rule: cutscenes are shared within 100 m
 constexpr uint32_t kSkipTestDelayMs = 6000;
 
-enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22, kKill = 23, kRace = 24, kTitle = 25, kHide = 26 };
+enum Type : uint8_t { kCutsceneOn = 1, kCutsceneOff = 2, kSkip = 3, kGameOn = 4, kGameOff = 5, kVersus = 6, kRps = 10, kChallenge = 11, kDuel = 12, kQuest = 13, kHunt = 14, kMenu = 16, kLooted = 17, kReviveYou = 18, kWanted = 19, kTravel = 20, kEvent = 21, kChat = 22, kKill = 23, kRace = 24, kTitle = 25, kHide = 26, kFish = 27 };
 
 // Co-op+ (T22): world events (reinforcements, bounty hunters, camp and outpost activity) are stages our server starts
 // (PrepareSequencerAck); their fighters are enemies, which the guest already gets as copies near the host. What the
@@ -156,7 +157,7 @@ struct Rps {
 // above making it player against player; the duel runs in the mod. A running series score is kept until either player
 // ends the challenge (Shift+F5 again).
 // Event kChallenge: u8 action | u32 the game's stage key.
-enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3, kGameHunt = 4, kGameRace = 5, kGameHide = 6 };
+enum Game : uint8_t { kNoGame = 0, kGameWrestle = 1, kGameRps = 2, kGameDuel = 3, kGameHunt = 4, kGameRace = 5, kGameHide = 6, kGameFish = 7 };
 enum ChallengeAction : uint8_t { kInvite = 1, kAccept = 2, kDecline = 3, kEnd = 4 };
 enum ChallengeState : uint8_t { kChNone, kChPick, kChSent, kChReceived, kChOn };
 constexpr uint32_t kWrestleStages[] = {16005100, 1001987, 1001988, 1003873, 1003875, 1018693};
@@ -198,6 +199,7 @@ std::string how_to_play(uint32_t stage) {
         case kGameHunt: return "Bring down the most game in 3 minutes: big game counts more!";
         case kGameRace: return "The host's map waypoint is the finish: first within 12 m wins!";
         case kGameHide: return "You count first, your friend hides. Then swap: first to 2 rounds.";
+        case kGameFish: return "Six minutes to catch the most fish: river 1, sea 2, legendary 5.";
         default: return "Both sit at the table and start a match, then mash {Mash}!";
     }
 }
@@ -215,6 +217,7 @@ Game game_of(uint32_t stage) {
     if (stage == kHuntStage) return kGameHunt;
     if (stage == kRaceStage) return kGameRace;
     if (stage == kHideStage) return kGameHide;
+    if (stage == kFishStage) return kGameFish;
     return kNoGame;
 }
 
@@ -348,6 +351,7 @@ std::string activity_minigame_name(uint32_t stage) {
         case kHuntStage: return "a hunting contest";
         case kRaceStage: return "a race to the waypoint";
         case kHideStage: return "hide and seek";
+        case kFishStage: return "a fishing contest";
         default: return "a minigame";
     }
 }
@@ -674,6 +678,7 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
                     c.options.push_back(kHuntStage);
                     c.options.push_back(kRaceStage);  // Co-op+ (T41)
                     c.options.push_back(kHideStage);  // Co-op+ (2026-11-05)
+                    c.options.push_back(kFishStage);
                     // Co-op+ (T42): rematch -- the picker opens on the game played last ({Challenge} twice).
                     for (size_t i = 0; i < c.options.size(); ++i) {
                         if (c.options[i] == g_last_game) c.pick = i;
@@ -720,6 +725,8 @@ void challenge_tick(ActivityTick& out, bool connected, bool focused, std::option
             } else if (c.state == kChOn && game_of(c.stage) == kGameRace) {
                 out.banner = std::format("Race vs {}   you {} - {} {}   (first to 2;  {{Challenge}} stops)", who, c.ours,
                                          c.theirs, who);
+            } else if (c.state == kChOn && game_of(c.stage) == kGameFish) {
+                out.banner = std::format("Fishing contest vs {}: get ready   ({{Challenge}} stops)", who);
             } else if (c.state == kChOn && game_of(c.stage) == kGameHide) {
                 out.banner = std::format("Hide and seek vs {}   you {} - {} {}   (first to 2;  {{Challenge}} stops)", who,
                                          c.ours, c.theirs, who);
@@ -960,6 +967,7 @@ void activity_on_event(const std::vector<uint8_t>& p) {
     if (p[4] == kKill) kill_feed_on_event(p.data() + 5, p.size() - 5); // kill_feed.h
     if (p[4] == kRace) race_on_event(p.data() + 5, p.size() - 5);      // coop_race.h
     if (p[4] == kHide) hideseek_on_event(p.data() + 5, p.size() - 5);  // coop_hideseek.h
+    if (p[4] == kFish) fishing_on_event(p.data() + 5, p.size() - 5);   // coop_fishing.h
     if (p[4] == kTitle) scoreboard_on_event(p.data() + 5, p.size() - 5);  // scoreboard.h
 }
 
@@ -1167,6 +1175,21 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
                                 g_ch.ours, g_ch.theirs, who);
     }
     if (!hs.banner.empty()) out.banner = std::move(hs.banner);
+    // Co-op+ (2026-11-05): the fishing contest (one round; a draw plays another).
+    bool fish_on = false;
+    {
+        std::lock_guard lock(g_mutex);
+        fish_on = g_ch.state == kChOn && game_of(g_ch.stage) == kGameFish;
+    }
+    FishingTick ft = fishing_tick(fish_on, connected, who);
+    if (ft.round_result == 1 || ft.round_result == 2) {
+        std::lock_guard lock(g_mutex);
+        (ft.round_result == 1 ? g_ch.ours : g_ch.theirs) += 1;
+    } else if (ft.round_result == 3) {
+        out.toast = "Fishing contest\nAn even catch: one more round to settle it.";
+    }
+    if (!ft.banner.empty()) out.banner = std::move(ft.banner);
+    if (!ft.toast.empty() && out.toast.empty()) out.toast = std::move(ft.toast);
     // Co-op+ (T43): every round won or lost goes on the lasting scoreboard (the series counters move by one).
     {
         static uint32_t stage = 0;
@@ -1181,7 +1204,8 @@ ActivityTick activity_tick(bool connected, bool host, bool focused, std::optiona
             ours = g_ch.ours, theirs = g_ch.theirs;
             lock.unlock();
             scoreboard_record(who, game == kGameDuel ? "duel" : game == kGameRps ? "rps" : game == kGameHunt ? "hunt"
-                                   : game == kGameRace ? "race" : game == kGameHide ? "hide" : "wrestle", won);
+                                   : game == kGameRace ? "race" : game == kGameHide ? "hide"
+                                   : game == kGameFish ? "fish" : "wrestle", won);
         }
     }
     // Co-op+ (2026-11-05 playtest: challenges "just keep going forever unless you press View + Up"): a challenge is

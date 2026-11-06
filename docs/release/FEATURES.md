@@ -75,6 +75,7 @@ ByJunter and its port by nouzert1.
 | Hunting contest (3 minutes, the most game wins) | Works |
 | Race to the waypoint (first to the host's map waypoint) | Works |
 | NEW: Hide and seek (hide within 100 m, a ring marks the edge; the seeker gets warmer / colder) | Works, needs testing with two players |
+| NEW: Fishing contest (6 minutes; river fish 1, sea fish 2, legendary 5; you see what your friend catches) | Works, needs testing with two players |
 | Arm wrestling with your friend in the opponent's chair | Needs testing |
 | Every challenge is one match and ends with a Victory or Defeat card | Works |
 | Lasting scoreboard per friend and titles ("the Duelist") | Works |

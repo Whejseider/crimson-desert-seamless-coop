@@ -149,8 +149,8 @@ PLAYING TOGETHER
   (pad: Menu/Options or B): yours says "waiting for <name>" until they press too.
 - Time of day and weather follow the host (rain, clouds and wind included).
 - CHALLENGE YOUR FRIEND (Shift+F5, pad: View + D-pad Up):
-  * A choice opens: Duel, Rock-paper-scissors, Hunting contest, Race, Hide and seek, and the
-    arm / hand wrestling table you stand at (if any). Left/Right arrows (pad: D-pad Left/Right) choose,
+  * A choice opens: Duel, Rock-paper-scissors, Hunting contest, Race, Hide and seek, Fishing
+    contest, and the arm / hand wrestling table you stand at (if any). Left/Right arrows (pad: D-pad Left/Right) choose,
     Shift+F5 sends, Shift+F6 cancels.
   * Your friend gets "<name> challenges you to ...": Shift+F5 accepts, Shift+F6
     declines (an invite lapses after a minute).
@@ -183,11 +183,17 @@ PLAYING TOGETHER
     Hot" says how close you are. Get within 4 m to find them. Not found in time: the
     hider wins the round. A hider outside the ring for 10 seconds loses it. Roles swap
     every round.
+  * FISHING CONTEST: six minutes, each of you fishing in your own world; every fish you
+    keep (F on the catch card) scores: river fish 1, sea fish 2, legendary fish 5.
+    Released fish score nothing. Your friend sees what you caught. A draw plays another
+    round. (Fishing in the game: put the rod in the ranged slot with 2, take it out with
+    Ctrl, hold the left button and aim until the marker turns blue, release to cast, press
+    the right button when a fish bites, steer A/D against it and reel with the wheel.)
   * Rock, paper, scissors: press U (scissors), F (paper) or E (rock) - pad X, Y,
     B; both hands show over your characters when both of you have picked; first to
     2 wins the match.
   * Each challenge is one match: duel, race, hunt and hide and seek are first to 2
-    rounds; it ends with a Victory or Defeat card. Shift+F5 stops it early.
+    rounds, the fishing contest one round; it ends with a Victory or Defeat card. Shift+F5 stops it early.
 - WHEN YOU PART WAYS: once your friend has left (and not come back for 20 seconds), a
   "Journey Together" card sums up your session: time together, enemies each of you
   defeated, bosses, revives, challenges won, quest steps finished together and the

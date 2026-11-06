@@ -414,7 +414,7 @@ void hud_draw(float width, float height) {
                             input::connected_pad() == input::Method::Keyboard
                                 ? "{Ping}  Quick messages and map pins          {Chat}  Type a chat line"
                                 : "{Ping}  Quick messages (D-pad Left/Right choose) and map pins",
-                            "{Challenge}  Challenge: duel, race, hide and seek, hunting, rock-paper-scissors, arm wrestling",
+                            "{Challenge}  Challenge: duel, race, hide and seek, hunting, fishing, rock-paper-scissors, arm wrestling",
                             "{ReviveFriend}  Hold by a downed friend to revive          {Resync}  Resync if things look wrong",
                             "Don't save while your friend is in your world: Co-op+ backs your saves up for you."},
                            input::connected_pad() == input::Method::Keyboard

@@ -4,6 +4,7 @@
 
 New (2026-11-05, after the first playtest):
 - Hide and seek, a new challenge: the challenger counts first with eyes closed (45 s) while the friend hides within 100 m (a gold ring on the ground marks the edge, red when you are outside). The seeker has 3 minutes; the hider's name tag, distance and map marker are hidden, and Cold / Warm / Hot tells how close you are. Within 4 m = found. Roles swap every round, first to 2.
+- Fishing contest, a new challenge: six minutes, each player fishes in their own world; every fish kept scores by kind (river 1, sea 2, legendary 5) and the friend sees each catch ("Ana caught a Trout +1"). A draw plays another round.
 - "Journey Together": when your friend leaves, a card sums up the session (time together, enemies each of you defeated, bosses, revives, challenges won, quest steps finished together, distance travelled side by side).
 - Fixed: your friend's marker was missing from the minimap and the map while they were near (within 400 m); it showed only when they were far away.
 

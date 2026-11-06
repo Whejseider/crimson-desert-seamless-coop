@@ -18,7 +18,7 @@ struct GameName {
     const char* plural;
 };
 constexpr GameName kGames[] = {{"duel", "duels"}, {"rps", "rock-paper-scissors"}, {"hunt", "hunts"},
-                               {"race", "races"}, {"hide", "hide and seek"}, {"wrestle", "arm wrestling"}};
+                               {"race", "races"}, {"hide", "hide and seek"}, {"fish", "fishing contests"}, {"wrestle", "arm wrestling"}};
 
 std::mutex g_mutex;
 std::wstring g_path;

@@ -144,6 +144,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/kill_feed.cpp
     src/mod/net/session_summary.cpp
     src/mod/net/coop_hideseek.cpp
+    src/mod/net/coop_fishing.cpp
     src/mod/net/coop_race.cpp
     src/mod/net/scoreboard.cpp
     src/mod/net/weather_sync.cpp

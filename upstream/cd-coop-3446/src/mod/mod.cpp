@@ -54,6 +54,7 @@
 #include "mod/net/kill_feed.h"
 #include "mod/net/session_summary.h"
 #include "mod/net/coop_hideseek.h"
+#include "mod/net/coop_fishing.h"
 #include "mod/net/coop_race.h"
 #include "mod/net/scoreboard.h"
 #include "mod/net/state_audit.h"
@@ -1045,6 +1046,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 hud.duel_title_color = hh.color;
                 hud.duel_title_alpha = hh.alpha;
             }
+            if (const net::FishingHud fh = net::fishing_hud(); !fh.title.empty()) {  // Co-op+ (2026-11-05)
+                hud.duel_title = fh.title;
+                hud.duel_subtitle = fh.subtitle;
+                hud.duel_title_color = fh.color;
+                hud.duel_title_alpha = fh.alpha;
+            }
             if (const net::RaceHud rh = net::race_hud(); !rh.title.empty()) {  // Co-op+ (T41)
                 hud.duel_title = rh.title;
                 hud.duel_subtitle = rh.subtitle;
@@ -1874,6 +1881,7 @@ DWORD WINAPI worker(LPVOID) {
         net::duel_set_test(cfg.dev_duel_test);
         net::summary_set_test(cfg.dev_summary_test);
         net::hideseek_set_test(cfg.dev_hideseek_test);
+        net::fishing_set_test(cfg.dev_fishing_test);
         net::party_quests_set_test(cfg.dev_quest_test);
         net::hunt_set_test(cfg.dev_hunt_test);
         net::sync_set_test(cfg.dev_desync_test);

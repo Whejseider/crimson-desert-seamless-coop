@@ -1021,3 +1021,15 @@ Done in the user's Chrome (signed in as Asher):
   AddItemToInventoryAck 3110: item 29816 Food_Bass_I, stack 1, REASON 0x0D0F (the catch). The size is not in any
   packet. Tools: build/port3460/act.ps1 (input steps), castfight.py (cast until blue, wait for the bite, hook,
   splash-steered fight, frames). The catch signal for the contest: 3110 type 4, reason 0x0D0F, a fish item key.
+- 2026-11-05 20:00 FISHING CONTEST (net/coop_fishing.*, Activity type 27, stage 0xD0E10005, the picker's last
+  entry): one 6-minute round (a draw plays another); fish_observe_s2c counts AddItemToInventoryAck type 4 with the
+  catch reason 0x0D0F and one of the 31 fish items (kFish: river 298xx + Ricefish 1, sea 296xx 2, legendary 295xx +
+  Golden Coelacanth 5); "You caught a Bass +1" / "<friend> caught a Trout +1" toasts, banner with both scores, the
+  big title card, scoreboard "fish". Tests: fish7/fish8 ([dev] challenge_test + fishing_test, round 150 s): picker ->
+  Fishing contest, accepted, rounds 1-3 drew 0-0 -> next round each time; the bot hooked fish but lost them ("The
+  fishing line snapped because of poor control"; the echo copy beside us also stands in the line's way: the one
+  landed fish was without the echo peer); the recorded catch replayed (dev script s2c 3110, scripts/fishcatch.txt)
+  -> "Fishing: we kept Bass (item 29816)", toast, banner "You 1 (1 fish)", round 4 ends 1 - 0 -> "Victory /
+  Fishing contest vs Your friend 1 - 0". SAVES OK each run. LESSON: never edit a bash script while it runs (the
+  fish6 cleanup broke mid-file; cleaned up by hand: SAVES OK, ini, release asi). hold_session.sh now archives the
+  packet recordings in build/port3479/recordings instead of deleting them.

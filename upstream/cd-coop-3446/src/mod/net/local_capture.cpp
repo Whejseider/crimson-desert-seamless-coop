@@ -4,6 +4,7 @@
 #include "mod/net/party_quests.h"
 #include "mod/net/quest_live.h"
 #include "mod/net/coop_hunt.h"
+#include "mod/net/coop_fishing.h"
 #include "mod/net/kill_feed.h"
 #include "mod/net/coop_race.h"
 #include "mod/net/wire_layout.h"
@@ -519,6 +520,7 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     party_quests_observe_s2c(packet, size);  // Co-op+ party journal
     quest_live_observe_s2c(packet, size);    // Co-op+ live quests
     hunt_observe_s2c(packet, size);
+    fishing_observe_s2c(packet, size);       // Co-op+ fishing contest: our catches
     kill_feed_observe_s2c(packet, size);     // Co-op+ (T36): the kill feed          // Co-op+ hunting contest: our kills
     activity_observe_s2c(packet, size);      // Co-op+ (T16): we became wanted
     uint16_t op = 0;
