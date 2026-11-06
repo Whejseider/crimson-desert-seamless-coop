@@ -1222,3 +1222,16 @@ Done in the user's Chrome (signed in as Asher):
   with 2976 opcode bytes), recorded traces (replay), expected log text, and 5 fixture-driven crashes (hold_scene_order,
   scene_level_share, seq_copy, user2_shops: 0xC0000005; npc_probe_client / user2_road exit 1).
   LESSON (again): python inside a bash heredoc loses backslashes ('\r', '\'); write such code with Write/Edit.
+- 2026-11-06 04:35 Native base, tc25/tc26: ROOT CAUSE of the invisible other player. Both copies: the other player's
+  character is logged in (u16 +0x5E = 0x10, +0xCF = 1, the 2976 values), placed right, moving, but its MODEL ALPHA is
+  0.00 because its Status flag word [Status+0x3B8] holds 0x100000 (bit 20). 3549 layout: Status = [[actor+0x68]+0x20]
+  (vtable ClientStatusActorComponent 0x591A710), flags are two u64 at +0x3B8 / +0x3C0 (2976: u32 +0x390 / +0x394);
+  slot 79 (0x6E99D0, 2976 vf80 0x6293A0) writes alpha [[[comps+0x40] CC +0xE8]+0x100] = flags ? 0.0 : 1.0 for actor
+  types 1 and 3..9. The only writer is the setter 0x18CC450 (2976 0x1795490): (Status, bits, set, fade, second word).
+  Bit 2 (CC vf18 body .xpdata 0x94AF5C0, set at load) is cleared at the end of the login as expected (guest:
+  0x100004 -> 0x100000); bit 20 is set by 0x22153B8 (fn 0x22150C0) or 0x231E018 (fn 0x231DEE0: a NON-local actor
+  linked to another actor's [comps+0x110] component, checked with vf178) and never cleared for the other player.
+  Also: remote_interp resolves every call now (tc24: set pos 401/401, update pos 5776/5776; the set-pos hook runs on
+  the client's packet thread). FIX (tc27): a mid hook at the setter's entry (7 bytes) strips bit 0x100000 from any SET
+  aimed at the other player's character (key class 0xA, local mark actor+0x96 == 0) and adds it to any CLEAR on it,
+  so the game's own next flag change shows the model natively; logs the caller of each change.

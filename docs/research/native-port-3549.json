@@ -527,5 +527,35 @@
   "0x55BEE78",
   "0x594D930",
   "RTTI .?AVClientSequencerPlayDataActorComponent@pa@@"
+ ],
+ "remote_interp.kPosBuffer": [
+  "0x3D0",
+  "0x430",
+  "UpdateInterpolation 0x976320 lea rbx,[rcx+0x430]; cmp byte [rbx],1; live layout probe on both copies: buf-0x430 = mc, [mc+0x60] = CC, [CC+0xC8] == mc, [mc+0x68] = actor"
+ ],
+ "remote_interp.kRotBuffer": [
+  "0x488",
+  "0x4E8",
+  "0x965AE0 mov byte [rbx+0x4e8],1; count +0x4F8"
+ ],
+ "mount_sync.kHoldUpdate": [
+  "0x88E6A0",
+  "0x976320",
+  "MovementController_UpdateInterpolation (same prologue, kHoldEntry)"
+ ],
+ "Status.flags": [
+  "+0x390|+0x394 (u32)",
+  "+0x3B8|+0x3C0 (u64)",
+  "ClientStatusActorComponent vtable 0x591A710 slot 79 0x6E99D0 (2976 vf80 0x6293A0): threshold 0x80, actor type switch, alpha [[CC+0xE8]]+0x100 = flags ? 0.0 : 1.0"
+ ],
+ "actor.login_state": [
+  "u16 +0x5E 0x10, +0xCF 1",
+  "same",
+  "live dump of the remote character on both copies (tc25)"
+ ],
+ "mount_sync.vehicle_component": [
+  "seats +0x48, reserves +0x88, count +0xC8, actor +0x08",
+  "same",
+  "CommonVehicle vf53 0x23FD080: [r15+rcx*4+0x48], inc byte [r15+0xC8], [r15+rcx*4+0x88]"
  ]
 }
