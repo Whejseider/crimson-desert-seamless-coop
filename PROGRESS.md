@@ -1037,3 +1037,11 @@ Done in the user's Chrome (signed in as Asher):
   cloned to upstream/cdmp-native (branch coopplus-3549, git-ignored until vendored), builds unchanged, 84/84 tests.
   Scope measured: 481 game addresses for build 2976; 38 found uniquely in 3549 by their byte heads. Plan and
   numbers: docs/research/native-port-plan.md (two-copy testing, core-first port, then the Co-op+ layer on top).
+- 2026-11-05 21:00 Native port, session2 core table (offsets_s2.h): 28 of 30 addresses found in 3549 with evidence
+  (docs/research/native-port-3549.json; tools in tools/native-port/): vtables by RTTI (7), functions by heads +
+  vtable slots + neighbours (SessionSend 0x161ACC0, NwSession ctor 0x161A4A0 whose prologue changed, server
+  OnRecvPacket 0x29AB7F0 via the run loop 0x29AAF80, allocators 0x4B00AA0/0x4B00B68, queue push 0x3A7A30, net loop
+  pump 0x3A5464), globals by region shift + the instructions that use them (ServerNet 0x71BE3E0 stored by the server
+  module init, ServerActorLookup 0x71BE3F8, ClientNet 0x71BDED0, _tls_index 0x70D5D50 from the PE TLS directory).
+  Left for a live check: the ServerActorManager slot, the title's Play read. Struct fields of NwSession unchanged.
+  ByJunter (via the user) stopped working on it and asked us to continue; questions sent to him.
