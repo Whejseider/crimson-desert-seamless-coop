@@ -1271,3 +1271,16 @@ Done in the user's Chrome (signed in as Asher):
   weather (05:55): 3549's SyncWeatherStateReq (2689) sender is in .xpdata (0x9D91970, `mov ecx,0xA81` at 0x9D91AF5),
   the protected section: never hooked, so the 2976 route (find X from that sender) is closed. Next idea: the weather
   system X from a .xtext reader of the same globals; or sync through the packets the clients already send (2689).
+- 2026-11-06 06:10 tc29 (mount_sync, fast_travel, remote_motion unpinned; -Walk -Ride): both alive, SAVES OK.
+  INSTALLED on 3549: MountSync on both (vf53 / thunk / RideOff thunk / vf54 / RideOn+RideOff Enter / the three
+  handlers / the gate / the riding action request all hooked); RemoteMotion (PointClimb::Enter hook, wall-up byte
+  0x71CC470 0 -> 1, the dismount probe tracking the other player); GuestFastTravel (probe). Their log texts still
+  print the 2976 addresses (cosmetic).
+  NOT WORKING YET: (1) the horse: H (tap, or held 1.5 s) sent no FrameEventCallMercenaryReq with the guest in the
+  world (tc30 tries H with the host alone). (2) HorseFollow: every MoveActorAck is "bad size": on 3549 its payload is
+  239 bytes AND reorganised (captured, cdmp_packets.host_20261106-033517.bin): key 0x00, pos 0x04, quat 0x10, scale
+  0x20, the parent u64 (all ones = none) at 0x44 (2976 0x8C), world quat ~0xB8 / pos 0xC4, a u32 at 0xD4 (ts?).
+  The rider fields need a capture of a MOUNTED player (parent = horse) before horse_follow's layout can be ported.
+  (3) user2_funnels refused its fast-travel funnel: "the 2283 handler's vf48 call 0x2A5F7F9 and its call 0x2896120
+  ... not the expected code" (the server's ReloadStageStartReq handler; to port).
+  The packet capture format (CDPK) and reader: upstream tools/scripts/analyze_capture.py.
