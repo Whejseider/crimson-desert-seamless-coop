@@ -103,9 +103,16 @@ friends, then the host presses Ctrl+F1 to invite.
   goes away (the user deletes it; Claude never deletes messages), not relabeled.
 
 ## 2026-11-06 update 0.1.0-alpha+f3517194 (game 1.0.0.3576)
-- #download-here: new post with both zips typed in the message box (sending it was blocked by the permission check;
-  the user sends it). Text: "Download: Seamless Co-op+ 0.1.0-alpha+f3517194 (game 1.0.0.3576)" / NEW: works with
-  today's game update; hide and seek, fishing contest, Journey Together, minimap marker nearby, enemies take turns on
-  your friend again / which zip / same zip for both, game 1.0.0.3576, settings kept / GitHub latest / Defender, GPL.
-- Still to do: pin it (the user removes the a82c1b48 post), #announcements, #features message 1 and #how-to-install
-  version text 1.0.0.3549 -> 1.0.0.3576.
+- #download-here: new post with both zips (msg 1568316537499156713): works with today's game update; hide and seek,
+  fishing contest, Journey Together, minimap marker nearby, enemies take turns on your friend again. Pinned; the
+  a82c1b48 post unpinned (not deleted; the user removes old posts). The first Enter was denied by the permission
+  check; sent after the user said "You finish Discord".
+- #announcements: "Update 0.1.0-alpha+f3517194: works with today's game update (1.0.0.3576)".
+- #features message 1: 1.0.0.3549 -> 1.0.0.3576. Message 2: "NEW: Hide and seek" and "NEW: Fishing contest" lines
+  after arm wrestling (Needs testing); "NEW:" dropped from the one-match line (docs/release/discord-features.txt).
+- #how-to-install: 1.0.0.3549 -> 1.0.0.3576.
+- Editing method that works for small changes (no full retype): hover the message (computer hover on a ref), click
+  its Edit button by aria-label in JS, set a DOM Range over the text in the editor, then computer type the new text
+  (real key events), Enter. Pin / unpin: use the Pinned Messages panel's own Unpin button; the hover-menu refs can
+  shift to the neighbouring message (one unpin dialog came up for the NEW post: cancelled). JS .click() on a menu item
+  opens the confirm dialog late; check the dialog's text names the right build before confirming.

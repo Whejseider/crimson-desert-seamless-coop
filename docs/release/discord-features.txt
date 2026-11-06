@@ -55,7 +55,9 @@ Two-player co-op (Steam, game 1.0.0.3576). Each of you keeps your own save; your
 - Hunting contest (3 minutes, the most game wins): `Works`
 - Race to the waypoint (first to the host's map waypoint): `Works`
 - Arm wrestling with your friend in the opponent's chair: `Needs testing`
-- NEW: every challenge is one match (first to 2) and ends with Victory or Defeat: `Works`
+- NEW: Hide and seek (within 100 m; Cold / Warm / Hot): `Needs testing`
+- NEW: Fishing contest (6 minutes, you see each catch): `Needs testing`
+- Every challenge is one match (first to 2) and ends with Victory or Defeat: `Works`
 - Lasting scoreboard per friend and titles ("the Duelist"): `Works`
 - Quick rematch: `Works`
 

@@ -1497,6 +1497,6 @@ Done in the user's Chrome (signed in as Asher):
   started a fishing contest by mistake). The test kit (29 scripts) now restores the f3517194 asi.
   GitHub ashersheets-jpg/crimson-desert-coop-playtest v0.1.0-alpha-f3517194 (Latest; uploads' sha256 match:
   35479fd6... player zip, 2a224c3c... mod-manager; README + FEATURES pushed; notes dist/notes-f3517194.md).
-  Discord: the new download post (both zips attached) was typed in #download-here, but pressing Enter was denied by
-  the permission classifier; the draft waits there for the user. Not done: pin it, the announcement, #features
-  message 1 and #how-to-install "1.0.0.3549" -> "1.0.0.3576" (texts in docs/release/discord-*.txt are current).
+  Discord (after the user's "You finish Discord", 12:30-12:45): download post with both zips sent and pinned, the
+  a82c1b48 post unpinned (not deleted), announcement posted, #features 1 (version) and 2 (hide and seek, fishing)
+  and #how-to-install (version) edited. Details and the editing method: docs/release/discord-server-posts.md.
