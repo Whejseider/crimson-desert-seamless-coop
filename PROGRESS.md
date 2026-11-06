@@ -1268,3 +1268,6 @@ Done in the user's Chrome (signed in as Asher):
   moved. No RTTI name for the system class (2976 vtable 0x5D51268). Next attempt: from the 2976 getter vf60
   `mov rax,[rcx+0x60]; ret` and the client path [[[slot]+0x38]+0x38] (the 2560 handler 0x9ADF20 on 2976:
   find its 3549 handler via the TrocTr vtable slot 2 method, then the X it reads).
+  weather (05:55): 3549's SyncWeatherStateReq (2689) sender is in .xpdata (0x9D91970, `mov ecx,0xA81` at 0x9D91AF5),
+  the protected section: never hooked, so the 2976 route (find X from that sender) is closed. Next idea: the weather
+  system X from a .xtext reader of the same globals; or sync through the packets the clients already send (2689).
