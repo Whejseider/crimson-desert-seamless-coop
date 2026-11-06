@@ -38,3 +38,27 @@ time/weather and the far-away friend in the old base.
    consent and save-safety rules); drop what the shared world makes unnecessary (puppets, enemy relay, loot twins,
    live quest copying, co-op worlds).
 5. Ask ByJunter (he is in the Discord): is he porting it himself, which modules are essential, any 2976 mapping.
+
+## ByJunter's notes (2026-11-05, relayed by the user)
+- ~530 hardcoded RVAs across 60 files; he would use signature scans from day one (porting is the biggest cost).
+  Our plan: port by hand to 3549 now, then move the ported addresses behind a signature/AOB resolver so the next
+  game patch is a re-scan, not a re-port.
+- Denuvo: much of the logic lives in the mutated section (.xtls on 2976, .xpdata on 3549). Read it, never hook it.
+  Hook function entries in the normal code section (with .pdata), or safetyhook mid hooks there.
+- One new user per field: ServerField::AddActor rejects a second new user per field, so field_share is required
+  for the guest to enter the host's field.
+- NPC controllers: NPCs spawned for the guest's requests (schedules, road travellers, carts) were controlled by the
+  host's client and stood still; they must be assigned to the guest's client, a whole family / caravan at once.
+- Host scenes on the guest: cutscenes and stages took over the guest's camera, UI, controls (guest_seq_foreign_*);
+  doors needed the guest's scene level shared (scene_level_share).
+- Overlay: inline hooks only (Streamline calls Present directly), installed late (WorldSystem + visible window).
+- Never identify entities across PCs by address: actor keys. Always clean builds (a stale object once read the
+  config at wrong offsets). Two copies on one PC: scripts/launch-2inst.ps1.
+- Unsolved upstream: shops, enemies with carts, some dead zones far from the host, destroyed props not respawning.
+
+## 3549 findings so far (layout changes, not only addresses)
+- TransformSync: FieldMover at TS+0x508 (2976: +0x4F0); FieldTime still TS+0x450, actor TS+8.
+- FieldMover: field FM+0x10 and key copy FM+8 unchanged; the busy counter is FM+0x4A (2976: +0x5A).
+- ServerField: owner +0x180, open +0x4A, lock +0x18 unchanged; key +0x2D0 (2976: +0x2C8); level entry +0x2D8
+  (2976: +0x2D0).
+- Inlined on 3549: FieldMover::SyncFieldTimeOnMove (clock_gate now a mid hook on its owner check).

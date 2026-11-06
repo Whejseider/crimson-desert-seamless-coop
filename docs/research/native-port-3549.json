@@ -152,5 +152,135 @@
   "0x65DC3E",
   "0x72B3F8",
   "the same [WorldSystem+0x88] read (mov rcx,[WorldSystem]; mov rcx,[rcx+0x88]) at +0xA8 of 0x72B350 (2976: +0xAE of Play), followed by a save-manager call 0x19B2E80; the check only needs +0x88"
+ ],
+ "kReporter": [
+  "0x1317D40",
+  "0x14F75E0",
+  "the function holding the only sentry_scope_attach_filew call (IAT) and a sentry_uuid_is_nil call; head identical; 3 callers"
+ ],
+ "kLoading": [
+  "0x219D7F0",
+  "0x236B6B0",
+  "function of the unique kLoadingFlagCmp hit, same +0x3B; same prologue except the three home slots (+8/+0x10/+0x18 instead of +0x10/+0x18/+0x20), same argument moves"
+ ],
+ "kLoadingFlagCmp": [
+  "0x219D82B",
+  "0x236B6EB",
+  "unique byte match (cmp [rbp+0x50],r12b; je); jump displacement re-read"
+ ],
+ "kGetter": [
+  "0x20E55A0",
+  "0x22A8F70",
+  "unique head; reads the server FieldTime 0x6EAB9B8 at +0x71 (2976: GetCurrentFieldTime)"
+ ],
+ "kWorldTime": [
+  "0x6A6D238",
+  "0x6EAB9B8",
+  "the server FieldTime: client FieldTime 0x6EAB998 + 0x20 as on 2976; read live ticking in np1"
+ ],
+ "kTravel": [
+  "0x2BC0A30",
+  null,
+  "INLINED on 3549 into 0x2E61990 (no function to hook): replaced by a mid hook on its owner check, see kTravelOwnerCmp"
+ ],
+ "kTravelOwnerCmp": [
+  "0x2BC0A78",
+  "0x2E61FB8",
+  "cmp [rdi+0x180],eax; jne 0x2E620A1 inside 0x2E61990, eax = [[[[r15]+8]+0xA0]+0x60] (the user key), then the publish to the FieldTime globals 0x6EAB9B8/0x6EAB998 (TLS byte +0x1EB picks); clock_gate.cpp now a mid hook here, resumes at 0x2E620BC for user 2"
+ ],
+ "kTravelGetterCall": [
+  "0x2BC0CC7",
+  "0x2E620A1",
+  "mov rbx,[r15]; getter 0x22A8F70(field); SetFieldTime 0x2370570(TS, ft); both ways meet here"
+ ],
+ "kLobbyLoad": [
+  "0x2B7F4D0",
+  "0x2E1F600",
+  "ServerLobbyActorComponent vtable slot 10 (+0x50); same ABI (r12=rdx res, r15=rcx comp, [r9] data); body larger (frame 0x310)"
+ ],
+ "kLobbyVtable": [
+  "0x5B2BE58",
+  "0x5EF3450",
+  "RTTI .?AVServerLobbyActorComponent@pa@@"
+ ],
+ "kLobbyConstant": [
+  "0x2B7F66C",
+  "0x2E1FA1B",
+  "movabs rax,0x7FFF..; mov [rbp-0x40],rax inside the lobby load (14 bytes now)"
+ ],
+ "kLobbyAddCall": [
+  "0x2B7F6DB",
+  "0x2E1FA7B",
+  "the call right after with r8 = &number ([rbp-0x40]) -> 0x230D130 (adds the entry)"
+ ],
+ "kClearLobbySite": [
+  "0x2C3E0FF",
+  "0x2EE1E62",
+  "unique 12-byte match"
+ ],
+ "kClearListSite": [
+  "0x2C3E126",
+  "0x2EE1E89",
+  "kClearLobbySite + 0x27 as on 2976: mov rcx,[rbx+0x18]"
+ ],
+ "kStatusVtable": [
+  "0x5B203F0",
+  "0x5EE7610",
+  "RTTI"
+ ],
+ "kStatusLoad": [
+  "0x293FE70",
+  "0x2BAFA40",
+  "slot 10"
+ ],
+ "kLoginMgrSite": [
+  "0x2777A18",
+  "0x29AF7D8",
+  "mov rcx,[kLoginMgrSlot]; mov rcx,[rcx] (one of 8 such sites)"
+ ],
+ "kLoginMgrSlot": [
+  "0x6D696A8",
+  "0x71BE408",
+  "2976 slot + the .data shift 0x454D60 (ServerActorLookup + 0x10 on both builds)"
+ ],
+ "kFindByNoScan": [
+  "0x2A84066",
+  "0x2D12B56",
+  "unique 17-byte match"
+ ],
+ "kFindByNoRead": [
+  "0x2A84090",
+  "0x2D12B80",
+  "unique; +0x2A after the scan as on 2976"
+ ],
+ "kLoad": [
+  "0x20688A0",
+  "0x2225250",
+  "unique 49-byte head"
+ ],
+ "kPhases": [
+  "0x2941020",
+  "0x2BB0D60",
+  "the only function with its body start (mov r14,[rcx+8]; mov rdi,[r14+0x78] after mov r15,rdx); same arg homing, frame 0x80; called from .xtls"
+ ],
+ "kAcquireField": [
+  "0x2B07790",
+  "0x2DA08E0",
+  "the only AcquireField-head candidate that writes the owner key [field+0x180]; same ABI (r9 = out, [out+0x24] info key), out filled at +8/+0x10/+0x18/+0x20 as on 2976; calls TryAddRef"
+ ],
+ "kEnterField": [
+  "0x2BC04F0",
+  "0x2E625B0",
+  "FieldMover::EnterField: calls the AddActor thunk 0x2D95880 (-> .xpdata 0xE55CCC0, which pushes {user,1} on field+0x2A8); called by the travel code as (FM, res, field)"
+ ],
+ "kTryAddRef": [
+  "0x14343A0",
+  "0x1617950",
+  "head identical; called by AcquireField 0x2DA0B2E"
+ ],
+ "kVecPush": [
+  "0x40B5B0",
+  "0x4A2500",
+  "the push AddActor (.xpdata 0xE55CDD0) calls on field+0x2A8 with a 16-byte {user, 1}; head identical but r15 for r14"
  ]
 }

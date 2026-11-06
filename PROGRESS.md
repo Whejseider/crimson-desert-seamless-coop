@@ -1062,3 +1062,15 @@ Done in the user's Chrome (signed in as Asher):
   slot refresh test made build-relative (84/84). Harness: tools/native-port/test/probe.{sh,ps1}.
   Next: the ~33 addresses of the join modules (report_guard, clock_gate, identity_fix, field_share, guest_save_host,
   world_anchor, guest.cpp), then the two-copy join.
+- 2026-11-05 22:20 Native port, join modules (native repo commits 5f438af..cef5d66): report_guard (Sentry reporter
+  0x14F75E0 via its sentry_* imports), clock_gate (FieldMover::SyncFieldTimeOnMove is INLINED on 3549 into
+  0x2E61990: the gate is now a mid hook on its owner check 0x2E61FB8 that copies the field time into user 2's
+  character and resumes after the game's SetFieldTime), identity_fix + identity_probe's shared hooks (lobby load =
+  ServerLobbyActorComponent vf 0x50, Status, login manager, LoadComponentsFromFile, phases), field_share
+  (AcquireField 0x2DA08E0, EnterField 0x2E625B0, TryAddRef, the vector push AddActor itself uses). STRUCT LAYOUTS
+  CHANGED on 3549, found in code incl. the Denuvo section (read only): FieldMover at TS+0x508 (was 0x4F0), its busy
+  / moving fields -0x10, ServerField key/users/level entry +8. Checked live (run np2): the host's field found through
+  TS+0x518, owner = host key, users 1, user actors 1 -> 2, TS vtable ServerTransformSync. SAVES OK.
+  ByJunter's answers (via the user) in docs/research/native-port-plan.md: the core module list (kit 39 inis), use
+  signature scans (planned after this hand port), field_share is required (AddActor rejects a 2nd new user).
+  FLAGS F19: the 2976 exe from the user's own Steam would speed the rest up a lot.
