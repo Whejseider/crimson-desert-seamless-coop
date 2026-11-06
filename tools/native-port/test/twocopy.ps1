@@ -5,7 +5,7 @@
 #  - guest: the guest role sends the whole save folder to ...\CD\save_cdmp_guest, which this script fills with a test
 #    slot and a windowed settings file. The real save folder is only read (its settings file, as the template).
 param([string]$Name = 'tc1', [string]$HostVariant = 'coop-test-bandits', [string]$GuestVariant = 'rps',
-      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk, [switch]$Ride)
+      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk, [switch]$Ride, [switch]$Fight)
 $ErrorActionPreference = 'Stop'
 $bin = 'D:\SteamLibrary\steamapps\common\Crimson Desert\bin64'
 $here = $PSScriptRoot; $saves = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\build\test-saves'
@@ -64,6 +64,9 @@ mount_seat=1
 mount_relink=1
 ride_filter=1
 ride_dismount=native
+remote_climb=1
+wallup_send=1
+dismount_probe=1
 horse_follow=1
 horse_follow_reverse=1
 user2_fast_travel=1
@@ -97,6 +100,7 @@ guest_update_guard=1
 guest_actor_diag=1
 guest_reload_wait_fix=1
 guest_own_save=1
+guest_seq_route=1
 ui_pause_block=1
 remote_interp=1
 mount_sync=1
@@ -104,6 +108,9 @@ mount_seat=1
 mount_relink=1
 ride_filter=1
 ride_dismount=native
+remote_climb=1
+wallup_send=1
+dismount_probe=1
 guest_fast_travel_veto=probe
 '@
 
@@ -152,6 +159,14 @@ $h = $h | Where-Object { $_ -is [System.Diagnostics.Process] }
 & "$here\keyspid.ps1" -GamePid $h.Id -Keys E | Out-Null
 Start-Sleep $LoadWait
 & $shot -Out "$here\shots\$Name-10-host-loaded.png" | Out-Null
+if ($Ride) {
+    # tc30: H alone sent no FrameEventCallMercenaryReq either; tc31+: the F1 wheel (hold F1, cursor on the horse slot at
+    # the bottom, release), as the 3479 dragon tests summoned Blackstar.
+    try {
+        "host alone calls its horse at $(Get-Date -Format HH:mm:ss.fff)"
+        & "$here\actpid.ps1" -GamePid $h.Id -Seq "kd:F1 w:1500 shot:$Name-11-wheel at:956:790 w:700 shot:$Name-12-wheel-horse ku:F1 w:12000 shot:$Name-13-host-alone-horse" | Out-Null
+    } catch { "solo horse step failed: $_" }
+}
 
 $gp = Start-Copy 'guest' ''
 $gp = $gp | Where-Object { $_ -is [System.Diagnostics.Process] }
@@ -179,17 +194,18 @@ if ($Walk) {
     } catch { "walk step failed: $_" }
     "walks done $(Get-Date -Format HH:mm:ss.fff)"
     if ($Ride) {
-        # Mounts (tc28+): the host calls its horse (H, the default key), mounts (F), rides forward and dismounts (F);
+        # Mounts (tc29+): the host calls its horse (H held 1.5 s: a tap did nothing on 3549 in tc28), mounts (E, the
+        # "Ride" prompt), rides forward and dismounts (R) (keys from the 3479 horse tests, NOTES/LOG.md D30);
         # the guest's window is shot while the host rides. MountSync / HorseFollow lines in both logs.
         try {
             "host calls its horse at $(Get-Date -Format HH:mm:ss.fff)"
-            & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:H:150 w:12000 shot:$Name-38-host-horse k:F:150 w:5000 shot:$Name-39-host-mounted" | Out-Null
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "kd:F1 w:1500 at:956:790 w:700 ku:F1 w:12000 shot:$Name-38-host-horse k:E:150 w:5000 shot:$Name-39-host-mounted" | Out-Null
             & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:2500 shot:$Name-40-guest-sees-mounted" | Out-Null
             "host rides at $(Get-Date -Format HH:mm:ss.fff)"
             & "$here\actpid.ps1" -GamePid $h.Id -Seq "kd:W w:5000 ku:W w:2000 shot:$Name-41-host-rode" | Out-Null
             & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:2500 shot:$Name-42-guest-sees-rider" | Out-Null
             "host dismounts at $(Get-Date -Format HH:mm:ss.fff)"
-            & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:F:150 w:4000 shot:$Name-43-host-dismounted" | Out-Null
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:R:150 w:4000 shot:$Name-43-host-dismounted" | Out-Null
             & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:2500 shot:$Name-44-guest-sees-dismounted" | Out-Null
         } catch { "ride step failed: $_" }
         "ride done $(Get-Date -Format HH:mm:ss.fff)"
@@ -202,6 +218,26 @@ if ($Walk) {
     Start-Sleep 6
     & "$here\keyspid.ps1" -GamePid $h.Id -Keys ESC | Out-Null
     "host ESC closed at $(Get-Date -Format HH:mm:ss.fff)"
+}
+if ($Fight) {
+    # Combat (tc32+): the bandit save's Bleed Bandits are at Rodbel Fishing Dock (~ -10238, -3958; NOTES/LOG.md
+    # 2026-11-01); both walk there (walk_to.py, 20 m short), the host attacks for 15 s, both windows are shot. The
+    # packet logs tell whether the bandits' actions / HP changes reach the guest.
+    $hlog = Get-ChildItem "$bin\cdmp_packets.host_*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    $glog = Get-ChildItem "$bin\cdmp_packets.guest_*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    "host walks to the dock at $(Get-Date -Format HH:mm:ss.fff)"
+    python "$here\walk_to.py" $h.Id $hlog.FullName -10238 -3958 --stop 20 --max 120
+    "guest walks to the dock at $(Get-Date -Format HH:mm:ss.fff)"
+    python "$here\walk_to.py" $gp.Id $glog.FullName -10238 -3958 --stop 24 --max 120
+    try {
+        & "$here\actpid.ps1" -GamePid $h.Id -Seq "w:1000 shot:$Name-50-host-at-dock" | Out-Null
+        & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:1000 shot:$Name-51-guest-at-dock" | Out-Null
+        "host attacks at $(Get-Date -Format HH:mm:ss.fff)"
+        $seq = (1..30 | ForEach-Object { 'click:L:80 w:400' }) -join ' '
+        & "$here\actpid.ps1" -GamePid $h.Id -Seq "$seq shot:$Name-52-host-fought" | Out-Null
+        & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:1500 shot:$Name-53-guest-sees-fight" | Out-Null
+    } catch { "fight step failed: $_" }
+    "fight done $(Get-Date -Format HH:mm:ss.fff)"
 }
 & "$here\keyspid.ps1" -GamePid $h.Id -Keys SPACE | Out-Null
 Start-Sleep 3

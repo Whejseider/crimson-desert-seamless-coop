@@ -1298,3 +1298,18 @@ Done in the user's Chrome (signed in as Asher):
   user2_funnels F3 (user 2's fast travel on the server): the 3549 ReloadStageStartReq server handler is 0x2CED5E0
   (TrocTr vtable 0x5EE8E58 slot 2), its first vf48 at 0x2CED87B (return 0x2CED885), apply fn 0x2AF3A40 (2976
   0x2896120); the second vf48 site (2976 0x2BC4C49 in 0x2BC4950) is NOT found yet -> not ported.
+- 2026-11-06 06:55 tc31: guest_seq_route all four points ON (2380, 2920, 2292, 2384; none refused). Horse: holding
+  F1 opens NO wheel on 3549 either (shots tc31-11/-12), so neither 3479 way of calling a mount works in this build
+  through simulated keys; FLAGS F21 updated (asks the user how they call the horse now). Next run (tc32): COMBAT at
+  the bandit camp (Rodbel Fishing Dock ~(-10238, -3958), the bandit save's start is ~110 m west): both walk there,
+  the host attacks 15 s; the harness gained -Fight.
+  observer_milestone / observer_stage (the server sending user 2 ITS OWN 2384, which would retire the 0x11
+  unstick): 3549 addresses found so far: writers Prepare 0x2CDA580 (op store 0x2CDA72F), Delete 0x2CDAB60
+  (0x2CDACAC), Branch 0x2CDB980 (0x2CDBB36), the 2384 emitter 0x2C142A0 (op store 0x2C14397; same TLS +0x250 /
+  +0x2B0 / +0x2B8 layout), its only caller 0x2ADB304 in 0x2ADB090 (2976 0x287F1D4 in 0x287EF60) with the same
+  ToTarget recipe at 0x2ADB2C4; ToTargetSendTargetFinder vtable 0x5EEC840 (slots 0x2D04530 / 0x2D045E0 / 0x2D04640),
+  base ISendTargetFinder 0x5EEC860 (slot 0 0x2D04490), its constructor 0x2D04590 (identical logic); the 2144 (3549
+  2340) serializer 0x2C146A0 called at 0x2E6A36D in 0x2E69D70; MoveFieldCompleteCore 0x2E6A700 (2976 0x2BC7670),
+  its 3066 (3549 3029) serializer 0x2C14B40 called at 0x2E6B225; the scope lookup 0x2BD5700 (2976 0x2961CA0).
+  Not finished: the remaining verified regions (the 2144 site differs: lea r9,[r13+0x450]) and observer_stage's
+  entry point in MoveFieldCompleteCore (2976 `mov rax,[r13+0x2D0]`, the level entry = +0x2D8 on 3549).
