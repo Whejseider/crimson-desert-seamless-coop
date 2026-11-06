@@ -16,6 +16,8 @@ First two-player playtest fixes (2026-11-05):
 - The other player is drawn with less delay (playout 300 to 150 ms).
 - Challenges are one match each (duel, race, hunt: first to two rounds; rock-paper-scissors and arm wrestling: one match) and end with a Victory or Defeat card.
 
+Game 1.0.0.3576 (2026-11-06): Steam updated the game again, and this time its code moved. Every address the mod uses was mapped again from both versions of the game (docs/research/port-3576.md); offline checks pass, and co-op, live quests, the Focus block, far-apart partners, the opt-in card, duels and death with revive were verified live on one PC. Fixed on the way: the hook that lets enemies take turns attacking your friend sat on the wrong game function since 1.0.0.3527 (enemies could lose interest in your friend early); it is on the right one now.
+
 Game 1.0.0.3549 (2026-11-04): Steam updated the game again. No game address moved (docs/research/port-3549.md); offline checks pass and co-op, live quests, the Focus block, far-apart partners and the opt-in card were verified live on one PC. Fixed on the way: loading screens took about 50 s longer since the slow-motion block (each received message was checked with a slow memory query), and a hook that needed a second try could leave your friend's horse switched off for the session.
 
 No slow motion in co-op (2026-11-04, playtester poll): while a co-op session is up, Focus no longer slows the world. Focus is a "special mode" (101) the game's in-process server switches on; the mod does not pass that switch to the client, so the ability still triggers but time keeps its normal speed and both worlds stay in step. Alone, nothing changes. F8 > Settings "Slow motion (Focus) in co-op" ([coop] block_slowmo) turns it back on.

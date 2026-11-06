@@ -34,7 +34,7 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3549;
+namespace off = game::build_3576;
 
 enum class Dir : uint8_t { ClientToServer = 1, ServerToClient = 2 };
 

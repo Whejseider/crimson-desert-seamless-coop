@@ -1408,3 +1408,18 @@ Done in the user's Chrome (signed in as Asher):
   Found by reading: revive_in_place needs capture_own_player_key, learnt by capture_observe_s2c from the actor
   loads; the bridge now sends the server's packets through the whole capture_observe_s2c (the world-simulating
   observers in it are inert: their features are off in native mode). tc42 tests revive with the hold.
+- 2026-11-06 ~06:00 tc42-tc44 ran on a NEW GAME BUILD: Steam updated the game to 1.0.0.3576 (PE 0x6AED2E85) at 05:53
+  during the native tests (the camera walker read garbage: its globals moved). tc44 stopped, cleanup ran (SAVES OK,
+  release asi back). The released Co-op+ (a82c1b48, for 3549) is off for players on 3576. Exe archived.
+- 2026-11-06 06:20-07:25 PORT of the released Co-op+ to 1.0.0.3576 (details: docs/research/port-3576.md, tools in
+  build/port3576). The code MOVED this time (+0x250 .. +0xD50, vtables ~+0x2100, data +0x2000 .. +0x2220); every value
+  mapped from both exes (map_all.py), opcodes unchanged (1175/1175). The 227 template copies are matched by their ORDER
+  (the 64th / 66th copy in both builds), not by nearest bytes nor by callee (both wrong).
+  FOUND (pre-existing since 3527): the aggro "CheckAIBattleType" hook sat on AICondition_IsKeepAggro's slot 1 (both
+  are bare jmp stubs, so the head check matched); now from the RTTI. verify-port: ALL OFFLINE CHECKS PASSED.
+  Live, one PC, scratch world, SAVES OK each: session/partner (p76b), aggro hooked, Focus block (fb76 4/4), live
+  quests both ways (ls76), far apart and back (far76), opt-in card (opt76b), duel 10/10 HIT (du76), death +
+  checkpoint revive with HUD back (dt76). Harness: the scratch world holds only the test save now (the player's
+  Nov 5 slot2 is newer inside the save, so Play loaded it in p76a); optin_test resets the player's answered opt-in;
+  walkto.py picks its globals by the game's PE stamp. Installer / README / release texts say 3576.
+  Not released (needs the user's OK).

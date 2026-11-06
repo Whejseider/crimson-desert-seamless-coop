@@ -23,7 +23,7 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3549;
+namespace off = game::build_3576;
 
 constexpr uint32_t kPuppetPlayer = 0xA010F001;
 // Co-op+: message numbers for game 1.0.0.3460, read from the live Troc table (every
@@ -37,10 +37,10 @@ constexpr uint16_t kOpDoFrameEventReq = 3030;
 // CommonTargetActorComponent's vtable (and ServerTargetActorComponent's), head unchanged; IsTargetable keeps
 // its 0x30B0 gap below it, head unchanged, 52 callers, the only one there reading actor+0x96 ("local
 // character"); CheckAIBattleType is slot 1 of AICondition_CheckAIBattleType's vtable (0x5C76508).
-constexpr uintptr_t kIsTargetable = 0x23E8580;    // (target comp, actor* candidate, u8 mode); 3479: 0x23E4C40
+constexpr uintptr_t kIsTargetable = 0x23E92D0;    // (target comp, actor* candidate, u8 mode); 3549: 0x23E8580
 constexpr uint8_t kIsTargetableHead[] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74,
                                          0x24, 0x18, 0x48, 0x89, 0x7C, 0x24, 0x20, 0x55};
-constexpr uintptr_t kSetCurrentTarget = 0x23EBE00;  // (comp, int* res, u32 target, u64* seq, ...); 3479: 0x23E84C0
+constexpr uintptr_t kSetCurrentTarget = 0x23ECB50;  // (comp, int* res, u32 target, u64* seq, ...); 3479: 0x23E84C0
 constexpr uint8_t kSetCurrentTargetHead[] = {0x48, 0x8B, 0xC4, 0x4C, 0x89, 0x48, 0x20, 0x44,
                                              0x89, 0x40, 0x18, 0x48, 0x89, 0x50, 0x10, 0x55};
 
@@ -54,8 +54,12 @@ constexpr uint8_t kSetCurrentTargetHead[] = {0x48, 0x8B, 0xC4, 0x4C, 0x89, 0x48,
 // Co-op+ (3549): the entry did not move (the vtable slot 0x5C7CAD8 still holds it), but its jmp target did
 // (3527 -> 0xD0B4BD0, 3549 -> 0xD047F30): the copy protection is re-laid out on every game build, so these five
 // bytes must be re-read on each port (build/port3549/dis2.py, vtref.py). 3527: E9 6B 2F BF 0A.
-constexpr uintptr_t kCheckAIBattleType = 0x24C1C60;  // 3479: 0x24BE2F0 (slot 1 of the vtable, now 0x5C7CAD0)
-constexpr uint8_t kCheckAIBattleTypeHead[] = {0xE9, 0xCB, 0x62, 0xB8, 0x0A};
+// Co-op+ (3576): 3527 and 3549 hooked the WRONG function here. 0x24C1C60 is slot 1 of AICondition_IsKeepAggro
+// (vtable 0x5C7CAD0), not of CheckAIBattleType (0x5C7CA60, slot 1 0x24C1D80): both entries are a bare 5-byte jmp
+// into the protection, so a head match proves nothing. Now taken from the RTTI: AICondition_CheckAIBattleType
+// vtable 0x5C7CF78, slot 1 (build/port3576/hist.py checks every archived build).
+constexpr uintptr_t kCheckAIBattleType = 0x24C2B50;  // 3479: 0x24BE2F0 (RTTI-checked on 3479 and 3576)
+constexpr uint8_t kCheckAIBattleTypeHead[] = {0xE9, 0xDB, 0x8A, 0xBA, 0x0A};
 
 SafetyHookInline g_is_targetable;
 SafetyHookInline g_battle_type;

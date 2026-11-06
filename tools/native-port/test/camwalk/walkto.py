@@ -6,8 +6,11 @@ import ctypes, math, os, struct, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from live import BASE, rd, q
 
-STATIC_POS = 0x71CD0B0  # 3527 (3479: 0x71C5DF0): XY floats (+0), Z float (+8)
-CAMERA_SLOT, CAMERA_BLOCK, CAM_FWD = 0x70DA028, 0x430, 0x90  # 3527
+# Per game build, from the running game's PE timestamp (2026-11-06: 1.0.0.3576 moved both; 3527 and 3549 share theirs).
+_BUILDS = {0x6AED2E85: (0x71CF140, 0x70DC130)}  # 3576 (build/port3576/map_3576.json)
+_pe = struct.unpack('<I', rd(BASE + struct.unpack('<I', rd(BASE + 0x3C, 4))[0] + 8, 4))[0]
+STATIC_POS, CAMERA_SLOT = _BUILDS.get(_pe, (0x71CD0B0, 0x70DA028))  # XY floats (+0), Z (+8); 3527/3549 (3479: 0x71C5DF0)
+CAMERA_BLOCK, CAM_FWD = 0x430, 0x90
 u32 = ctypes.windll.user32
 KEYUP, MOVE = 2, 1
 

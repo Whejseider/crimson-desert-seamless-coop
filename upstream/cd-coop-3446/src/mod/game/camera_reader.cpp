@@ -9,7 +9,7 @@
 #include "mod/game/safe_memory.h"
 
 namespace cdmp::game {
-namespace off = build_3549;
+namespace off = build_3576;
 using proto::Vec3;
 
 namespace {

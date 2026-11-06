@@ -39,7 +39,7 @@ std::string narrow(const std::wstring& w) {
 
 bool first_instance() {
     wchar_t name[64];
-    swprintf_s(name, L"Local\cdmp_coopplus_%lu", GetCurrentProcessId());
+    swprintf_s(name, L"Local\\cdmp_coopplus_%lu", GetCurrentProcessId());
     CreateMutexW(nullptr, FALSE, name);  // kept for the life of the process
     return GetLastError() != ERROR_ALREADY_EXISTS;
 }

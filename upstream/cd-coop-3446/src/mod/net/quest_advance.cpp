@@ -17,24 +17,24 @@
 
 namespace cdmp::net {
 namespace {
-namespace off = game::build_3549;
+namespace off = game::build_3576;
 
 // exe+0x1C3F0F0(manager, u32* mission id, ctx, u8 state, changes*): the server queues a mission state change.
 // Called for every mission while a save loads, so the manager is known before anyone needs it.
-constexpr uintptr_t kSetMissionState = 0x1C3F0F0;
+constexpr uintptr_t kSetMissionState = 0x1C3FD30;  // 3549: 0x1C3F0F0
 constexpr uint8_t kSetMissionStateHead[16] = {0x48, 0x89, 0x5C, 0x24, 0x18, 0x44, 0x88, 0x4C,
                                               0x24, 0x20, 0x48, 0x89, 0x54, 0x24, 0x10, 0x55};
 // exe+0x2B95BE0: the quest advancement routine (quest_advance.h).
-constexpr uintptr_t kAdvance = 0x2B95BE0;
+constexpr uintptr_t kAdvance = 0x2B96850;  // 3549: 0x2B95BE0
 constexpr uint8_t kAdvanceHead[16] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x55, 0x56, 0x57,
                                       0x41, 0x54, 0x41, 0x55, 0x41, 0x56, 0x41, 0x57};
 // MissionTriggerInOutReq's handler (runs on the quest server's thread).
-constexpr uintptr_t kTriggerHandler = 0x2EEE800;
+constexpr uintptr_t kTriggerHandler = 0x2EEF470;  // 3549: 0x2EEE800
 constexpr uint8_t kTriggerHandlerHead[16] = {0x48, 0x89, 0x5C, 0x24, 0x08, 0x48, 0x89, 0x74,
                                              0x24, 0x10, 0x48, 0x89, 0x7C, 0x24, 0x18, 0x4C};
 // The mission static data table (exe+0x4DBA40 reads it): [+0x08] u32 count, [+0x58] info* per index (null until
 // loaded); info +0x08 = the mission key (as in UpdateMissionListAck).
-constexpr uintptr_t kMissionTable = 0x71C1940;
+constexpr uintptr_t kMissionTable = 0x71C3B60;  // 3549: 0x71C1940
 constexpr uint64_t kRequestMs = 10000;
 
 using AdvanceFn = void*(__fastcall*)(void* manager, uint32_t* result, uint16_t* index, uint64_t* time, uint8_t flag);
