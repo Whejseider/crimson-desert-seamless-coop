@@ -1284,3 +1284,17 @@ Done in the user's Chrome (signed in as Asher):
   (3) user2_funnels refused its fast-travel funnel: "the 2283 handler's vf48 call 0x2A5F7F9 and its call 0x2896120
   ... not the expected code" (the server's ReloadStageStartReq handler; to port).
   The packet capture format (CDPK) and reader: upstream tools/scripts/analyze_capture.py.
+- 2026-11-06 06:30 Native base, tc30 (guest_seq_route=1 on the guest): GUEST_SEQ_ROUTE WORKS on 3549. Hooked:
+  PrepareSequencerAck 2380 (0xD33D2E), StageBranchStateAck 2920 (0xD35854), PlayAllPreLoadSequencerAck 2384
+  (0xC9CB9B); DeleteSequencerAck 2292 refused (my patch length: its first instruction movzx ecx,byte [rbp+0x80] is
+  already 7 bytes, so the hook patches 7, not 11; fixed). Live: the host's 2384 copy (actor 0xA0100001) was ROUTED to
+  that character's own ClientSequencerStageManager X on the guest (load byte 1 -> 2). The guest's own load still
+  needs the unstick (fired at 03:45:42, the routed copy came 03:46:05): the server never sends user 2 ITS OWN
+  2384, and the 0x11 state waits on the guest's own manager (open: which host-side piece makes the server send it).
+  METHOD for the handler points (2661/2981): where 3549 reuses the wrapper register before the point, read r8's home
+  slot ([rsp+0x18] at entry = rbp + (pushes + frame) + 0x18).
+  Horse: H with the host ALONE calls no horse either (tc30) -> not a co-op problem. tc31 tries the F1 wheel (the 3479
+  dragon tests summoned Blackstar from it; the horse is the bottom slot). FLAGS F21 asks the user.
+  user2_funnels F3 (user 2's fast travel on the server): the 3549 ReloadStageStartReq server handler is 0x2CED5E0
+  (TrocTr vtable 0x5EE8E58 slot 2), its first vf48 at 0x2CED87B (return 0x2CED885), apply fn 0x2AF3A40 (2976
+  0x2896120); the second vf48 site (2976 0x2BC4C49 in 0x2BC4950) is NOT found yet -> not ported.
