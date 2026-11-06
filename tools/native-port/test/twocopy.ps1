@@ -5,7 +5,7 @@
 #  - guest: the guest role sends the whole save folder to ...\CD\save_cdmp_guest, which this script fills with a test
 #    slot and a windowed settings file. The real save folder is only read (its settings file, as the template).
 param([string]$Name = 'tc1', [string]$HostVariant = 'coop-test-bandits', [string]$GuestVariant = 'rps',
-      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60)
+      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk)
 $ErrorActionPreference = 'Stop'
 $bin = 'D:\SteamLibrary\steamapps\common\Crimson Desert\bin64'
 $here = $PSScriptRoot; $saves = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\build\test-saves'
@@ -56,6 +56,9 @@ child_settle_ms=4000
 child_reannounce=1
 observer_seq_copy=1
 observer_seq_copy_2322=1
+guest_own_save=1
+ui_pause_block=1
+remote_interp=1
 '@
 Write-Ini "$bin\cdmp.guest.ini" @'
 [general]
@@ -85,6 +88,9 @@ guest_remote_update_guard=1
 guest_update_guard=1
 guest_actor_diag=1
 guest_reload_wait_fix=1
+guest_own_save=1
+ui_pause_block=1
+remote_interp=1
 '@
 
 # The windowed settings (template: the player's own file, read only).
@@ -112,6 +118,7 @@ New-Item -ItemType Directory -Force "$here\shots" | Out-Null
 $env:SteamAppId = '3321460'; $env:SteamGameId = '3321460'
 function Start-Copy([string]$role, [string]$add) {
     $env:CDMP_ROLE = $role; $env:CDMP_SANDBOX_ADD = $add
+    $env:CDMP_SANDBOX_ONLY = $(if ($role -eq 'host') { "$acct\slot103" } else { '' })
     $p = Start-Process "$bin\CrimsonDesert.exe" -ArgumentList 'PlatformServiceType=Steam' -WorkingDirectory $bin -PassThru
     Add-Content "$here\$Name.pids" $p.Id
     "$role pid=$($p.Id)"
@@ -143,6 +150,29 @@ if (-not (Select-String -Path "$bin\cdmp.guest.log" -Pattern 'LoginCharacterToFi
 }
 Start-Sleep $JoinWait
 & $shot -Out "$here\shots\$Name-30-guest-joined.png" | Out-Null
+if ($Walk) {
+    # Movement sync (tc23+): both spawn on one spot facing the same way (same save). The guest walks ahead (4 s of W)
+    # and the host's window is shot (the guest should stand ahead of its camera); then the host walks 7 s (past the
+    # guest) and the guest's window is shot. The packet logs give each side's positions (sent Req / received Ack).
+    # (tc22: walk_to.py's steering wandered at 12 m; straight walks need no steering.)
+    try {
+        "guest walks at $(Get-Date -Format HH:mm:ss.fff)"
+        & "$here\actpid.ps1" -GamePid $gp.Id -Seq "kd:W w:4000 ku:W w:1500 shot:$Name-33-guest-walked" | Out-Null
+        & "$here\actpid.ps1" -GamePid $h.Id -Seq "w:2500 shot:$Name-34-host-sees-guest" | Out-Null
+        "host walks at $(Get-Date -Format HH:mm:ss.fff)"
+        & "$here\actpid.ps1" -GamePid $h.Id -Seq "kd:W w:7000 ku:W w:1500 shot:$Name-35-host-walked" | Out-Null
+        & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:2500 shot:$Name-36-guest-sees-host" | Out-Null
+    } catch { "walk step failed: $_" }
+    "walks done $(Get-Date -Format HH:mm:ss.fff)"
+    # UI pause block: the host opens its menu for 12 s; its world (and the guest's) must keep running.
+    "host ESC at $(Get-Date -Format HH:mm:ss.fff)"
+    & "$here\keyspid.ps1" -GamePid $h.Id -Keys ESC | Out-Null
+    Start-Sleep 6
+    & $shot -Out "$here\shots\$Name-37-host-menu.png" | Out-Null
+    Start-Sleep 6
+    & "$here\keyspid.ps1" -GamePid $h.Id -Keys ESC | Out-Null
+    "host ESC closed at $(Get-Date -Format HH:mm:ss.fff)"
+}
 & "$here\keyspid.ps1" -GamePid $h.Id -Keys SPACE | Out-Null
 Start-Sleep 3
 & $shot -Out "$here\shots\$Name-31-host.png" | Out-Null

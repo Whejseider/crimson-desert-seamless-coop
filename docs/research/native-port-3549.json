@@ -392,5 +392,140 @@
   "0x6A82C80",
   "0x6EC2378",
   "offsets_s2.h value"
+ ],
+ "kNotifyAppear": [
+  "0x2B000C0",
+  "0x2D96BB0",
+  "same prologue (args now r14=rdx sessions, r12=r8 keys, was rsi/r15); its 2 callers in one function 0x2D8ED90 as on 2976; reads [r14]/[r14+8] and [r12]/[r12+8]"
+ ],
+ "kNotifyReadSessions": [
+  "0x2B001B7",
+  "0x2D96CBC",
+  "mov rbx,[r14]; mov eax,[r14+8] (2976: [rsi])"
+ ],
+ "kNotifyReadKeys": [
+  "0x2B0021D",
+  "0x2D96D27",
+  "mov rax,[r12]; mov [rbp-0x10],rax; mov eax,[r12+8] (2976: [r15])"
+ ],
+ "kNotifyFindCall": [
+  "0x2B00233",
+  "0x2D96D3F",
+  "the call after the keys read (keys -> actors), +0x18 (2976 +0x16)"
+ ],
+ "kCallerNewObservers": [
+  "0x2AF90EB",
+  "0x2D8F38B",
+  "first of NotifyAppear's 2 callers in 0x2D8ED90 (order as on 2976)"
+ ],
+ "kCallerMovingUser": [
+  "0x2AF92D1",
+  "0x2D8F58C",
+  "second caller"
+ ],
+ "kStartAction": [
+  "0x296CAA0",
+  "0x2BE08C0",
+  "TrocTrStartActionReq vf2 (RTTI vtable 0x5EEC638 +0x10); head identical"
+ ],
+ "kStartActionVtable": [
+  "0x5B251D8",
+  "0x5EEC638",
+  "RTTI .?AVTrocTrStartActionReq@pa@@"
+ ],
+ "kRestoreWrite": [
+  "0x2328890",
+  "0x251905A",
+  "mov rax,[r15+0x40]; mov byte [rax+0x30],1: the same write with r15 (2976 r14); one of 2 such byte stores, the other at +0x28"
+ ],
+ "kStateSite": [
+  "0x7798D0",
+  "0x855AE4",
+  "movzx esi,byte [r13+0x15C] (2976: r14d,[rdi]) at +0xE4 of the field-change state machine 0x855A00 (2976 0x7797F0 +0xE0); P = r13 now"
+ ],
+ "kWaitSite": [
+  "0x779ED0",
+  "0x856130",
+  "the wait loop: mov rdx,[rdi+0x78]; mov edx,[rdx]; mov rcx,[rsi+8]; call Find (2976: [rsi+0x78], [r14+8])"
+ ],
+ "kFind": [
+  "0x464290",
+  "0x5099D0",
+  "as guest_actor_diag"
+ ],
+ "kWaitHead": [
+  "0x779E8B",
+  "0x8560E5",
+  "mov rsi,[r13+0xB8]; lea rbx,[rsi+0x10]; lock vf1; mov rdi,[rsi+8]; count [rdi+0x80] (registers renamed, offsets unchanged)"
+ ],
+ "kWaitLoop": [
+  "0x779ED0",
+  "0x856130",
+  "see guest_actor_diag kWaitSite"
+ ],
+ "kWaitRemove": [
+  "0x779EF7",
+  "0x856157",
+  "the swap-remove of the front key, [rdi+0x80]/[rdi+0x78]"
+ ],
+ "kReady": [
+  "0x4FE240",
+  "0x5B3420",
+  "vf1D8, unique 20-byte match"
+ ],
+ "kLoadSlot": [
+  "0x186F570",
+  "0x19B09D0",
+  "same prologue (frame 0x1B0); 2 callers in .xtext = UserLogin 0x2EBB21B and the 3093 lobby 0x2EE1F31 (beside the ported ClearLobby site), 1 in .xpdata"
+ ],
+ "kSave": [
+  "0x186E450",
+  "0x19AF6D0",
+  "same register-homing prologue as 2976 (frame 0x4C8 vs 0x288); called only from .xpdata (2 sites)"
+ ],
+ "kFlush": [
+  "0x1871930",
+  "0x19B3020",
+  "unique 43-byte match; caller 0x2B5C0FA (logout phase)"
+ ],
+ "kGetOrCreate": [
+  "0x2355EC0",
+  "0x2548E40",
+  "the jmp thunk AddFile's caller 0x2549480 calls right before AddFile with (store, name, r8b 1)"
+ ],
+ "kAddFile": [
+  "0x235B100",
+  "0x254E2D0",
+  "unique 26-byte match"
+ ],
+ "guest_seq_route.kP2322": [
+  "0xB87A67",
+  "0xC9CB9B",
+  "handler 0xC9C9B0 = vtable TrocTrPlayAllPreLoadSequencerAck 0x5998E98 slot 2; mov byte [rax+0x259],2 after vf48 [rbp-0x48]; lookup 0xC9CB0A found [rbp+8] actor [rbp]; R14 raw from 0xC9C9D8"
+ ],
+ "guest_seq_route.handler2661": [
+  "0xC05BC0",
+  "0xD33880",
+  "TrocTrPrepareSequencerAck vtable 0x5996058 slot 2; point = 0xD33D2E cmp r14b,4 ; je (6 bytes, kind in R14B not BL); vf48 0xD33D24 [rbp-0x28]; R12 is overwritten at 0xD33CD5: the wrapper is [rbp+0x100] (prologue mov [rsp+0x18],r8), actor stored [wrapper] at 0xD33CC5; NOT ported yet"
+ ],
+ "guest_seq_route.handler2981": [
+  "0xC073B0",
+  "0xD35330",
+  "TrocTrStageBranchStateAck vtable 0x5995E18 slot 2; candidate point 0xD35854 lea rcx,[rbp-0x80]; mov [rsp+0x30],rcx after vf48 0xD3584A; no mov r15,r8 / mov [r15],rdi: wrapper register differs; NOT ported yet"
+ ],
+ "guest_seq_route.handler2810": [
+  "0xC06340",
+  "0xD33FA0",
+  "TrocTrDeleteSequencerAck vtable 0x5995E98 slot 2; vf48 0xD3421B; the 2976 point pattern (movzx ecx,[rbp+x]; mov [rsp+0x20],cl) not found; NOT ported yet"
+ ],
+ "guest_seq_route.handler2524": [
+  "0xC07D00",
+  "0xD35F10",
+  "TrocTrStageOnBranchEventAck vtable 0x5995E58 slot 2; candidate point 0xD363D0 lea rcx,[rbp+x]; mov [rsp+0x28],rcx after vf48 0xD363C6; actor store mov [r15],rbx 0xD36366; NOT ported yet"
+ ],
+ "guest_seq_route.kVtSeqPlayComp": [
+  "0x55BEE78",
+  "0x594D930",
+  "RTTI .?AVClientSequencerPlayDataActorComponent@pa@@"
  ]
 }

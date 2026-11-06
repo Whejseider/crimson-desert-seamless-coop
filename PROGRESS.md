@@ -1150,3 +1150,61 @@ Done in the user's Chrome (signed in as Asher):
   First walks: the guest walked 130 m to Muckroot Ranch (tc18), then climbed Hillside Manor's roof on the straight
   line (tc19) -> avoidance added (no jumping). LESSON: the native packet logs (cdmp_packets.<role>_*.log) are the
   easiest live position source; MoveFieldAck's record holds the spawn position at +25.
+- 2026-11-06 02:40 Native base: the two characters SPAWN TOGETHER (tc21). The "316 m apart" of tc17 was not a server
+  rule: the host's Continue loaded the newest slot in its sandbox, slot2 (a copy of the player's own character),
+  not the test slot103 the guest uses. Fix: save_hooks' new CDMP_SANDBOX_ONLY=<account>\slotNNN removes every other
+  slot folder from the SANDBOX copy only (refuses anything outside the sandbox; the real folder is never written);
+  twocopy.ps1 sets it for the host. tc21: both MoveFieldAck spawn records (+25) at (-10349.4, 535.5, -3919.7),
+  distance 0 m, Nas River; each copy received the other character's MoveActorAck (host A0100001 on the guest,
+  guest A01001C5 on the host); SAVES OK; both alive. LESSON: when a two-copy result looks like a game rule, first
+  check which slot each copy actually loaded (Session2 guest save probe: "slot 103 -> pass 103 (the host)").
+  ui_pause ported (native ec45ddc): scale global 0x389FB30, the two UI-update calls 0xBDE82C / 0xBDE8C6
+  (E8 FF 12 CC 02 / E8 65 12 CC 02, returns +5), trivial vf 0x7002A0 (C5 FA 10 05 A8 FB A3 05 C3), frame clock
+  from FrameClock_NowMs 0x15F9B20: local 0x70D9E3D, base 0x70D9E60, frac 0x70D9E70 (remote_motion uses the same
+  base/frac and delay global 0x71081C8; its other points are still unported, it stays pinned).
+- 2026-11-06 03:10 Native base, MOVEMENT SYNC guest -> host WORKS (tc22, ui_pause_block=1 + remote_interp=1 on both):
+  the guest's character (A01001AB) sent 6658 MoveActorReq; the host's client received 6558 MoveActorAck for it,
+  last position identical (-10299.3, 537.9, -3921.4). Host -> guest not exercised (the run stopped before the host
+  walked: actpid's `shot:` step splits on ':' so a C:\ path broke it, and the harness runs with
+  ErrorActionPreference Stop). Fixed: `shot:NAME` -> build/native/shots/NAME.png; the walk steps are in try/catch;
+  the walk is now straight W presses (walk_to.py's steering wandered at a 12 m target).
+  UiPause installs on both copies once the player is in the world and goes LIVE at user 2's login ("menus no longer
+  pause the world"). RemoteInterp installs its 4 hooks but resolves nothing: "no CC" on every call -> the movement
+  controller's layout around its buffers moved in 3549 (2976: buf = mc+0x3D0 / +0x488, [mc+0x60] = CC with
+  [CC+0xC8] == mc, [mc+0x68] = actor). The set/update functions are reached only through script bindings
+  (lea r9,[rip+fn] at 0xD626DC.. / 0xD62911..), so the offsets come from a live probe (remote_interp layout_probe,
+  log only, 3 probes). The four sites all have the buffer in RDI on 3549 too.
+  Also found: observer_seq_copy's trip works on 3549 (user 2's MoveFieldAck into the host's field = OBSERVER trip);
+  the host's PlayAllPreLoadSequencerAck (3549 opcode 2384) is sent to user 2 30 s after its 2144 (user 2's own
+  never comes); the guest drops it until guest_seq_route is ported. guest_seq_route's 2322 point is ported in the
+  source (handler 0xC9C9B0, point 0xC9CB9B, field [rbp-0x48], lookup found [rbp+8] / actor [rbp]; vtables
+  ClientSequencerStageManager 0x59572E0, ClientSequencerPlayDataActorComponent 0x594D930) but the module stays
+  pinned until its other points are ported or verified to refuse cleanly. hold_scene_order's MoveFieldAck /
+  LoadingFieldDataAck record size is now 0x38 (a live 3549 MoveFieldAck is 73 = 17 + 56).
+  LESSON: ctest's "Tests failed (N)" from build.ps1 is ctest's exit code, not the count; the count is the
+  "x tests failed out of 84" line (33 = the known 2976 opcode fixtures).
+- 2026-11-06 03:50 Native base, tc23 (two copies, straight walks + host menu): three features verified on 3549.
+  1. MOVEMENT SYNC BOTH WAYS: the host's 650 own MoveActorReq -> 648 MoveActorAck on the guest, the guest's 375 ->
+     373 on the host; each side's last received position equals the sender's last sent (-10364.8, 534.4, -3917.8)
+     and (-10357.9, 535.4, -3918.8).
+  2. UI PAUSE BLOCK (ui_pause_block=1): the host's ESC menu asked for UI timeScale 0; blocked for 1449 frames, the
+     game clock ran +5018 ms in 5015 ms of wall time, back to 1 when the menu closed (shot tc23-37: the inventory
+     open over a live world). Goes LIVE at user 2's login on both copies.
+  3. Each client HAS the other player's character with a movement controller (RemoteInterp layout probe, both sides):
+     3549 layout = buffer mc+0x430 (2976 0x3D0), rotation mc+0x4E8 (2976 0x488), [mc+0x60] = CC, [CC+0xC8] == mc,
+     [mc+0x68] = actor (unchanged). Confirmed statically too: UpdateInterpolation (2976 0x88E6A0) is 0x976320
+     (`lea rbx,[rcx+0x430]; cmp byte [rbx],1`), the rotation script setter 0x965AE0 writes [rbx+0x4E8]=1 and count
+     +0x4F8. Fixed: remote_interp kPosBuffer/kRotBuffer, mount_sync kMcEmptyFlag, remote_motion kInterpPosBuffer.
+  OPEN: neither window SHOWS the other player (shots tc23-34 / tc23-36, zoomed): the actor exists and gets the
+  positions, so the next run logs where the remote actor stands on each client (RemoteInterp [remote character],
+  every 10 s: TransformSync [[actor+0x68]+0x1A0] +0xB4 / +0xC0, unchanged in 0x5AC810).
+  Mount port, addresses found (not applied yet; the module is layout-heavy): handlers via TrocTr vtable slot 2
+  (2120 InteractionPreemptionStepSuccessAck 0xCD89E0, 2794 InteractionDoStepSuccessAck 0xCD94B0, 2552
+  StartActionAck 0xC64250; prologue bytes equal), CommonVehicleActorComponent vtable 0x5CEFC28 vf53 0x23FD080
+  (kEntry7 equal), ClientVehicleActorComponent 0x5944B90 vf53 thunk 0xB4D8D0 (E9 7B 20 D5 08) / vf54 0xB4D8F0
+  (kVf54 equal), the RideOff thunk 0x23FDCC0 (E9 5B 2A 94 0A, right after vf54 as on 2976), RideOn::Enter 0x74FBB0 /
+  RideOff::Enter 0x750B80 (RideOn/RideOffMovementMethod vtable slot 7, kRideEnter equal), the action request
+  0xB4DD20 (2 callers, one at vf54's end), the hold update 0x976320, the gate call site 0x948E66 (-> 0x251A350, a
+  real function on 3549, not a thunk; return 0x948E73), net-or 0x207A756.
+  METHOD that worked: a Troc message's handler = slot 2 of the vtable of `.?AVTrocTr<Name>@pa@@` (vt49.vtable +
+  slot); a movement method's Enter = slot 7 of its vtable.
