@@ -1135,3 +1135,18 @@ Done in the user's Chrome (signed in as Asher):
   - Packet-only host modules worth enabling (no addresses): observer_seq_copy(+_2322).
   Next: get the two characters together (they spawn apart), movement sync (remote_interp/remote_motion), then the
   scene/NPC modules and guest_seq_route; then the Co-op+ features on top.
+- 2026-11-06 02:05 Native base: GUEST'S OWN SAVE works on 3549 (tc17): guest_save_host ported (LoadSlot 0x19B09D0,
+  SavePlayerToSlot 0x19AF6D0, FlushPendingSaveData 0x19B3020, GetOrCreateSlot thunk 0x2548E40, AddFile 0x254E2D0;
+  call sites UserLogin 0x2EBB21B / 3093 lobby 0x2EE1F31 / 3093 character .xpdata 0xE3CCACF, autosave .xpdata
+  0xB7F1385, 2910 .xpdata 0xE37C231, logout phase 0x2B5C0FA, flush timer .xpdata 0xE6FC3C8 (found by scanning BOTH
+  .xtext and .xpdata for E8 rel32); error globals in 2976's pattern: busy 0x7149DF4 = save fail 0x7149DF0 + 4,
+  invalid 0x7149A24 = absent 0x7149940 + 0xE4). Live: the guest uploads its slot (SAVE_OFFER, SHA-256 verified,
+  staged), the host remaps user 2's three LoadSlot calls to slot204 in its sandbox, "user 2 plays YOUR save".
+  LEARNED: the guest still spawns ~316 m from the host even with the same save: both clients pass field 3 at
+  (0,1000,0) and then field 1; the server places user 2 elsewhere (an occupied-spawn rule?). Players meet by
+  travelling, as ByJunter's testers did. For tests: build/native/walk_to.py walks a copy to a point (holds W,
+  heading from its own MoveActorReq rows: actor u32 @0, position 3 floats @4, quaternion @16; steering gain adapts;
+  avoidance when stalled), pos.py reads a copy's last own position; twocopy.ps1 -Walk walks the guest to the host.
+  First walks: the guest walked 130 m to Muckroot Ranch (tc18), then climbed Hillside Manor's roof on the straight
+  line (tc19) -> avoidance added (no jumping). LESSON: the native packet logs (cdmp_packets.<role>_*.log) are the
+  easiest live position source; MoveFieldAck's record holds the spawn position at +25.
