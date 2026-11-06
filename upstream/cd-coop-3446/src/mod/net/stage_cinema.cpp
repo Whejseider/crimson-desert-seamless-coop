@@ -161,7 +161,7 @@ void cinema_set_spoiler_guard(bool on) { g_spoiler_guard = on; }
 void cinema_set_test(bool on) { g_test = on; }
 
 void cinema_observe_s2c(const uint8_t* packet, size_t size) {
-    if (size < 5 + 13) return;
+    if (size < 5 + 12) return;  // DeleteSequencerAck is 12 bytes (fix from Plitos, 2026-11-07)
     const uint16_t op = rd<uint16_t>(packet);
     const uint8_t* p = packet + 5;
     const size_t n = size - 5;
@@ -176,7 +176,7 @@ void cinema_observe_s2c(const uint8_t* packet, size_t size) {
         s.prepare.assign(p, p + n);
     } else if (op == kOpDeleteSequencerAck && n >= 12) {
         g_stages.erase(rd<uint64_t>(p + 4));
-    } else if (op == kOpStageBranchStateAck || op == kOpStageOnBranchEventAck) {
+    } else if ((op == kOpStageBranchStateAck || op == kOpStageOnBranchEventAck) && n >= 13) {
         auto it = g_stages.find(rd<uint64_t>(p + 5));
         if (it == g_stages.end()) return;
         (op == kOpStageBranchStateAck ? it->second.branch : it->second.on_branch).assign(p, p + n);

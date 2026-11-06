@@ -13,6 +13,8 @@
 #include "mod/game/offsets.h"
 #include "mod/game/safe_memory.h"
 #include "mod/log.h"
+#include "mod/net/coop_worlds.h"
+#include "mod/net/quest_live.h"
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::net {
@@ -42,6 +44,8 @@ using AdvanceFn = void*(__fastcall*)(void* manager, uint32_t* result, uint16_t* 
 struct Request {
     uint32_t key;
     uint64_t at;
+    bool checked;
+    uint32_t world_epoch;  // Plitos: a request from before a co-op world switch is never applied in the new one
 };
 
 uintptr_t g_base = 0;
@@ -76,18 +80,20 @@ int mission_index(uint32_t key) {
 }
 
 void on_trigger(safetyhook::Context&) {
-    std::vector<uint32_t> keys;
+    std::vector<std::pair<uint32_t, bool>> keys;
     {
         std::lock_guard lock(g_m);
         if (g_queue.empty()) return;
         const uint64_t now = GetTickCount64();
+        const uint32_t epoch = worlds_switch_epoch();
         for (const auto& r : g_queue) {
-            if (now - r.at <= kRequestMs) keys.push_back(r.key);
+            if (r.world_epoch == epoch && now - r.at <= kRequestMs) keys.emplace_back(r.key, r.checked);
         }
         g_queue.clear();
     }
     const uintptr_t mgr = g_manager.load();
-    for (uint32_t key : keys) {
+    for (const auto& [key, checked] : keys) {
+        if (checked && !quest_live_can_advance(key)) continue;  // re-checked just before: still under way here, in the world
         const int idx = mission_index(key);
         if (!mgr || idx < 0) {
             log::warn("Live quests: step {:08X} not advanced (quest data not found here)", key);
@@ -121,11 +127,11 @@ bool quest_advance_install() {
 
 bool quest_advance_ready() { return g_trigger_hook && g_manager.load() != 0; }
 
-void quest_advance_request(uint32_t mission_key) {
+void quest_advance_request(uint32_t mission_key, bool checked) {
     {
         std::lock_guard lock(g_m);
         if (g_queue.size() >= 32) return;
-        g_queue.push_back(Request{mission_key, GetTickCount64()});
+        g_queue.push_back(Request{mission_key, GetTickCount64(), checked, worlds_switch_epoch()});
     }
     // A harmless trigger (mission 0) so the server's handler runs soon.
     std::vector<uint8_t> pkt(5 + 9, 0);

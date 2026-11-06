@@ -3,13 +3,16 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <sstream>
 #include <thread>
 #include <vector>
 
+#include "mod/game/actor_lookup.h"
 #include "mod/log.h"
 #include "mod/net/local_capture.h"
 #include "mod/net/remote_puppet.h"
@@ -26,7 +29,7 @@ namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch, GSnap, GDiff, PtrScan, WatchStatus, Key, ClockScan } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch, GSnap, GDiff, PtrScan, WatchStatus, Key, ClockScan, RideHorse } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -67,6 +70,75 @@ std::vector<uint8_t> make_c2s(uint16_t op, const std::vector<uint8_t>& payload) 
     std::memcpy(pkt.data() + 3, &len, 2);
     if (!payload.empty()) std::memcpy(pkt.data() + 5, payload.data(), payload.size());
     return pkt;
+}
+
+void key_tap(BYTE vk, uint32_t hold_ms) {
+    const auto scan = static_cast<BYTE>(MapVirtualKeyW(vk, MAPVK_VK_TO_VSC));
+    keybd_event(vk, scan, 0, 0);
+    Sleep(hold_ms);
+    keybd_event(vk, scan, KEYEVENTF_KEYUP, 0);
+}
+
+float flat_distance(const proto::Vec3& a, const proto::Vec3& b) {
+    const float dx = a.x - b.x, dz = a.z - b.z;
+    return std::sqrt(dx * dx + dz * dz);
+}
+
+// Co-op+ test kit (user 2026-11-06: "the horse walks up nearby: look around, find it, walk to it and get on"). After
+// the script called the horse (a key step before this one), wait until our horse is in the world and has stopped
+// coming, step to its side (a teleport ~1.8 m from it, on our side), press the mount key and check our Moves now name
+// the horse as their parent. Up to 3 tries, each from where the horse stands then. Logs "ridehorse: MOUNTED" or why not.
+void ride_horse(uint32_t timeout_s, BYTE mount_vk) {
+    const uint64_t until = GetTickCount64() + uint64_t{timeout_s} * 1000;
+    const uint32_t own = capture_own_player_key();
+    uint32_t horse = 0;
+    proto::Vec3 last{};
+    int still = 0, logged = 0;
+    while (GetTickCount64() < until) {  // 1. find it, wait until it stands (it walks up after the call)
+        horse = capture_horse_present();
+        const auto me = game::actor_world_position(own);
+        const auto at = horse ? game::actor_world_position(horse) : std::nullopt;
+        if (at && me) {
+            const float moved = flat_distance(*at, last), away = flat_distance(*at, *me);
+            last = *at;
+            still = moved < 0.15f ? still + 1 : 0;  // 4 x 250 ms almost still
+            if (logged++ % 4 == 0) {
+                log::info("Dev script: ridehorse: horse 0x{:08X} {:.1f} m away, moving {:.2f} m / 250 ms", horse, away,
+                          moved);
+            }
+            if (still >= 4 && away < 80.0f) break;
+        } else if (logged++ % 8 == 0) {
+            log::info("Dev script: ridehorse: no horse of ours in the world yet (template {}, us {})",
+                      horse ? "yes" : "no", me ? "found" : "not found");
+        }
+        Sleep(250);
+    }
+    if (!horse) {
+        log::warn("Dev script: ridehorse: NO HORSE (it never came; was it called?)");
+        return;
+    }
+    for (int attempt = 1; attempt <= 3; ++attempt) {  // 2. go to it and get on
+        const auto me = game::actor_world_position(own);
+        const auto at = game::actor_world_position(horse);
+        if (!me || !at) break;
+        const float away = flat_distance(*at, *me);
+        if (away > 2.5f) {
+            const float k = 1.8f / std::max(away, 0.01f);
+            const float x = at->x + (me->x - at->x) * k, z = at->z + (me->z - at->z) * k;
+            const bool ok = revive_teleport_to(x, at->y + 0.2f, z);
+            log::info("Dev script: ridehorse: try {}: stepping next to the horse ({:.1f} m away){}", attempt, away,
+                      ok ? "" : " (teleport NOT done)");
+            Sleep(1500);
+        }
+        key_tap(mount_vk, 120);
+        for (int i = 0; i < 40 && !capture_riding(); ++i) Sleep(100);  // the mount animation takes ~2 s
+        if (capture_riding()) {
+            log::info("Dev script: ridehorse: MOUNTED (try {})", attempt);
+            return;
+        }
+        log::info("Dev script: ridehorse: try {}: not riding after key 0x{:02X}", attempt, mount_vk);
+    }
+    log::warn("Dev script: ridehorse: NOT MOUNTED after 3 tries");
 }
 
 }  // namespace
@@ -172,6 +244,14 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
         if (kind == "fwatch") {  // fwatch <hits>: hardware write watch on the first four left
             in >> st.wait_ms;
             st.kind = Step::FWatch;
+            steps.push_back(st);
+            continue;
+        }
+        if (kind == "ridehorse") {  // ridehorse [timeout s] [hex mount vk]: find our called horse, go to it, get on
+            st.kind = Step::RideHorse;
+            std::string vk;
+            if (!(in >> st.wait_ms)) st.wait_ms = 30;
+            st.addr = (in >> vk) ? static_cast<uintptr_t>(std::stoull(vk, nullptr, 16)) : 0x45;  // E (Ride on 3479)
             steps.push_back(st);
             continue;
         }
@@ -338,6 +418,8 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
                 Sleep(st.wait_ms ? st.wait_ms : 60);
                 keybd_event(vk, scan, KEYEVENTF_KEYUP, 0);
                 log::info("Dev script: key 0x{:02X} ({} ms)", vk, st.wait_ms);
+            } else if (st.kind == Step::RideHorse) {
+                ride_horse(std::min<uint32_t>(st.wait_ms, 120), static_cast<BYTE>(st.addr));
             } else if (st.kind == Step::WatchStatus) {
                 dev_watch_status(static_cast<int>(st.addr), static_cast<int>(st.to[0]), static_cast<int>(st.to[1]));
             } else if (st.kind == Step::PtrScan) {

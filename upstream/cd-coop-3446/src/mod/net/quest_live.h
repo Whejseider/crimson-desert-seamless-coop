@@ -36,6 +36,9 @@ void quest_live_tick(bool connected, const std::string& partner_name, uint64_t n
 void quest_live_on_message(const std::vector<uint8_t>& bytes);
 // [coop] live_quests (set by quest_live_configure).
 bool quest_live_enabled();
+// Quest thread, just before a partner's step is advanced here (from Plitos's patch): live quests on, connected, in
+// the world, not loading, and that step still under way in our game.
+bool quest_live_can_advance(uint32_t mission);
 // [dev] live_quests_any_world (one-PC tests: no co-op world, no opt-in).
 bool quest_live_dev_any_world();
 std::vector<std::vector<uint8_t>> quest_live_take_outgoing();

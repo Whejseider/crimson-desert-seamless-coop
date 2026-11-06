@@ -48,6 +48,8 @@ uint32_t capture_template_generation();
 // Our horse's key if its template is captured and it is in the world now
 // (what capture_spawn_info would send), else 0.
 uint32_t capture_horse_present();
+// Co-op+ test kit: our own Moves name our horse as their parent (we ride it now; any thread).
+bool capture_riding();
 
 // Co-op+: Ctrl+F3 "ping": our position goes to the other player (EventKind::Waypoint, flag 2).
 void capture_emit_ping(float x, float y, float z);

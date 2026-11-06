@@ -20,6 +20,7 @@ bool quest_advance_install();
 // True once the quest manager is known (after a save has loaded).
 bool quest_advance_ready();
 // Queue the step with this mission key; dropped if the server has not run it within 10 s.
-void quest_advance_request(uint32_t mission_key);
+// `checked` (live quests): re-checked on the quest thread with quest_live_can_advance; false only for the dev script.
+void quest_advance_request(uint32_t mission_key, bool checked = true);
 
 }  // namespace cdmp::net

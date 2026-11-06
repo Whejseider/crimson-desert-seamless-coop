@@ -98,7 +98,7 @@ void quest_events_install() {
 
 void quest_events_request_advance(uint32_t mission_key) {
     log::info("QuestEvents: advance {:08X} requested (no check that it is under way: dev only)", mission_key);
-    quest_advance_request(mission_key);
+    quest_advance_request(mission_key, false);
 }
 
 }  // namespace cdmp::net

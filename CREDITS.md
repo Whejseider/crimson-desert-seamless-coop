@@ -17,5 +17,9 @@ See docs/mod-permissions.md for links and permission status. Inventory Expander 
 Free Gliding (Khione95), Infinite Stamina (PhorgeForge), Master Looter, Outfit Loadouts (lucsOli), Live Transmog
 (tkhquang).
 
+## Playtesters and contributed fixes
+Plitos: playtest reports and a patch on 0.1.0-alpha+f3517194; its quest-advance re-check (world epoch, step still
+under way) and the 12-byte DeleteSequencerAck fix are merged. Borque: playtest reports.
+
 Crimson Desert and Pearl Abyss are trademarks of Pearl Abyss Corp. This project is not affiliated with or endorsed by
 Pearl Abyss and contains no game files. Steam is a trademark of Valve Corporation.

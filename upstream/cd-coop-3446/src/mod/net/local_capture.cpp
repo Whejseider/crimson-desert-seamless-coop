@@ -149,7 +149,7 @@ uint32_t g_own_horse = 0;           // copy of g_horse_key for the writer thread
 // Horse movement: it sends its own Moves only ~1/s, so while nobody rides it
 // we send moves built from its transform in memory (as for the player).
 Bytes g_horse_last_move;            // its last own MoveActorReq (template)
-uint64_t g_ridden_until_ms = 0;     // the rider's Moves carry it until then
+std::atomic<uint64_t> g_ridden_until_ms{0};  // the rider's Moves carry it until then (any thread reads it)
 float g_horse_sent_pos[3] = {NAN, NAN, NAN};
 uint64_t g_horse_last_synth_ms = 0;
 Bytes g_last_move;                  // last real MoveActorReq payload (template for synth)
@@ -1161,6 +1161,8 @@ std::optional<proto::SpawnInfo> capture_spawn_info(const proto::Vec3& pos, const
 }
 
 uint32_t capture_template_generation() { return g_generation.load(); }
+
+bool capture_riding() { return steady_ms() < g_ridden_until_ms.load(); }
 
 uint32_t capture_horse_present() {
     std::lock_guard lock(g_mutex);

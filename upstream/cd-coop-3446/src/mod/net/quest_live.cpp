@@ -298,6 +298,13 @@ bool quest_live_enabled() {
     return g_enabled;
 }
 
+bool quest_live_can_advance(uint32_t mission) {
+    std::lock_guard lock(g_m);
+    if (!g_enabled || !g_connected || !in_world() || g_loading) return false;
+    const auto state = g_state.find(mission);
+    return state != g_state.end() && state->second == kUnderWay;
+}
+
 std::vector<std::vector<uint8_t>> quest_live_take_outgoing() {
     std::lock_guard lock(g_m);
     std::vector<std::vector<uint8_t>> out(g_out.begin(), g_out.end());

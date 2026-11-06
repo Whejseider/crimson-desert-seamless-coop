@@ -1559,3 +1559,32 @@ Done in the user's Chrome (signed in as Asher):
 - 2026-11-06 17:55 PLAYTESTER REPORT (Borque): could not talk to Oongka in the first missions; some crashes; did not
   understand how to start (asks for a video). TODO: the Oongka talk in a new co-op save (the copy beside him?), their
   cdmp.log / Diagnose output for the crashes; a short "how to start" video or card (the title lobby answers most of it).
+
+- 2026-11-07 00:50 Plitos's patch (CrimsonDesert-Coop-Radmin-3576-F351A182, on our f3517194) reviewed: Radmin/direct
+  IP transport (binds the 26.x address, drops datagrams not from peer_host, protocol 13, game restart after Leave),
+  a fixed co-op world made fresh at startup with a queued story copy (backup first, refuses a host with fewer
+  missions), quest sync reduced to "waiting for X" texts when native progress is on, cutscene skip vote / shared
+  fast-forward by synthetic Esc/Space, tavern arm-wrestling diagnostics (our versus off in that step), horse slot 1,
+  save_io hardening, an installer that backs up both save sets. Likely cause of his own playtest breaks: his
+  quest_live sees connected=false whenever no player snapshot arrives (cutscenes, minigames, loading) and clears the
+  pending steps. MERGED NOW (small, safe): quest_advance drops requests from before a co-op world switch (epoch) and
+  re-checks on the quest thread that the step is still under way, connected, in the world, not loading
+  (quest_live_can_advance; the dev "advance" step skips the check); stage_cinema handles the 12-byte DeleteSequencerAck
+  (min size 13 -> 12, branch acks need 13). Worth merging later, with changes: direct-IP transport (peer filter on the
+  fast lane too, no journey layer), the story backup + "fewer missions" guard in our lobby's flow, save_io hardening.
+  Not taken: his quest sync and cutscene layer (they give up shared progress / trap Esc). Built, unit tests pass.
+- 2026-11-07 00:55 Test kit: dev script step `ridehorse [timeout s] [hex mount vk, default E]`: after a call-horse key
+  step, waits until our horse (capture_horse_present) is in the world and stands still, steps ~1.8 m from it (a
+  teleport on our side), presses the mount key and checks our Moves name the horse as parent (capture_riding); 3
+  tries; logs "ridehorse: MOUNTED" or why not. The call key on 3576 is still F21 (H called nothing on 3549). Built,
+  not run (Steam closed).
+- 2026-11-07 00:55 Checked before building: boss / enemy health by party size already exists and is on by default
+  (party_scaling, [scaling], bosses from scaling.toml, curve up to 4 players). Shared XP stays BLOCKED (BLOCKED.md T10:
+  KillCheatReq gives no XP; the lead, VaryStatCheatReq to 1 HP + our collision on the guest's twin, needs the twin's HP
+  and a collision from up to 400 m away, so a live test comes first). Trading stays BLOCKED (T18: no request that adds
+  an item found). Guest save button: in our design each player saves their OWN copy of the co-op world (the guest's
+  progress lives only there), so hiding the guest's save would lose it; only meaningful on the native base.
+- 2026-11-07 01:00 PLAYTESTER (Borque): both crashes came right after accepting the friend's Steam invite before a
+  save was loaded; after loading his save first, joining worked. So: the Join path at the title / from Steam's launch
+  (+connect_lobby, Kind::Join -> apply_role_settings while at the title, co-op world switch). TODO: two-copy repro
+  (guest at the title accepts a join), and his cdmp.log from the game's bin64 folder.
