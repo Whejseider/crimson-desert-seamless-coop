@@ -1262,3 +1262,9 @@ Done in the user's Chrome (signed in as Asher):
   horse key method+0xD4 (state lines only).
   tc28 (-Ride): a tap of H called no horse on 3549 (no request at all); the 3479 horse tests used H / E (Ride) / R
   with the same save. tc29 holds H 1.5 s. Both copies alive through it, SAVES OK.
+  weather_sync (parked, 05:45): its 3549 points are NOT found yet. The 2976 update 0x3DC4730's 18-byte prologue
+  matches only 0x969B40 on 3549, which is another function (no X+0x31 test, no +0x124/+0x128 accumulators); no
+  function with both `[X+0x31]` and float writes to +0x124/+0x128 exists on 3549, so the weather system's fields
+  moved. No RTTI name for the system class (2976 vtable 0x5D51268). Next attempt: from the 2976 getter vf60
+  `mov rax,[rcx+0x60]; ret` and the client path [[[slot]+0x38]+0x38] (the 2560 handler 0x9ADF20 on 2976:
+  find its 3549 handler via the TrocTr vtable slot 2 method, then the X it reads).
