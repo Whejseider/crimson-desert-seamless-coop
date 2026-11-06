@@ -1045,3 +1045,10 @@ Done in the user's Chrome (signed in as Asher):
   module init, ServerActorLookup 0x71BE3F8, ClientNet 0x71BDED0, _tls_index 0x70D5D50 from the PE TLS directory).
   Left for a live check: the ServerActorManager slot, the title's Play read. Struct fields of NwSession unchanged.
   ByJunter (via the user) stopped working on it and asked us to continue; questions sent to him.
+- 2026-11-05 21:30 Native port, build wiring: game/offsets.h (23 values + head arrays re-read from 3549) and
+  session2/offsets_s2.h ported (tools/native-port/apply_port.py re-reads each constant's byte arrays at the new
+  address; only displacement bytes differ). Every session2 module whose addresses are not ported yet compares
+  against kPeTimestampUnported (2976), so on 3549 it stays off by its own build check
+  (tools/native-port/pin_unported.py; PORTED = offsets_s2.h, server.cpp). Safety added to the native base: the HOST
+  role now redirects saves into cdmp_save_sandbox at start-up (the game ends if the redirect fails), and
+  CDMP_SANDBOX_ADD copies a test slot into the sandbox only. Builds clean (native repo commit 15173f6, local).
