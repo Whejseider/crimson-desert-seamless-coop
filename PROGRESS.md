@@ -1235,3 +1235,12 @@ Done in the user's Chrome (signed in as Asher):
   the client's packet thread). FIX (tc27): a mid hook at the setter's entry (7 bytes) strips bit 0x100000 from any SET
   aimed at the other player's character (key class 0xA, local mark actor+0x96 == 0) and adds it to any CLEAR on it,
   so the game's own next flag change shows the model natively; logs the caller of each change.
+- 2026-11-06 04:55 Native base, tc27: THE TWO PLAYERS SEE EACH OTHER on 1.0.0.3549 (shots
+  docs/research/native-shots/tc27-34-host-sees-guest.png: the guest's character ahead of the host's camera after its
+  walk; tc27-36-guest-sees-host.png: the host's character walked past the guest). The visibility guard stripped bit
+  0x100000 once on each copy, both times from exe+0x231E01D (the call at 0x231E018 in 0x231DEE0); afterwards the other
+  player's Status flags 0x0 and model alpha 1.00 on both; the login bit 2 still clears natively (guest: 0x4 -> 0x0).
+  Both copies alive, SAVES OK. Verified on 3549 so far: two copies on one PC, join with the guest's own save, spawn
+  together, movement sync both ways (with remote_interp smoothing, every call resolved), the other player visible,
+  menus never pause the world (ui_pause_block). Next: what 0x231DEE0's link is (which component at [comps+0x110]),
+  so the guard's scope is understood; then mounts, the scene/sequencer routing and the Co-op+ features.
