@@ -1366,3 +1366,13 @@ Done in the user's Chrome (signed in as Asher):
   folder's cdmp.asi is not the release one. (3) A first-chance fault in guest_seq_route's guarded read (address
   0xFFFF...) showed up in Co-op+'s crash log: harmless, now skipped before the read.
   LESSON: in PowerShell never reuse a parameter's name in any case for a loop variable.
+- 2026-11-06 09:15 tc35 (-CoopPlus, no relay): THE CO-OP+ LAYER WORKS ON THE NATIVE BASE. The two coopplus.asi
+  linked directly (host udp 37115, "connected to peer 'Guest'" 25 ms after the guest's start); on the host's screen
+  the Co-op+ party frame shows "Guest" with its HP bar and distance (8 m) over the native world, and F8 opens the
+  Co-op+ panel with live link data ("connected to 'Guest' (5.2 ms) loss 0.0%", both HP / stamina, the distance,
+  enemy health x1.5 for 2 players). Shots docs/research/native-shots/tc35-60-host-coopplus-hud.png, -62-...panel.png.
+  Both alive, SAVES OK, cleanup clean. To do in native mode: hide the panel options the native world makes
+  meaningless (co-op saves / live quests, story copy, guest finishes the host's enemies, loot of shared kills);
+  decide party scaling (the host's server now owns enemy health: the host-side multiplier applies to both players'
+  enemies, the guest's does nothing); then each activity (duel, race, fishing, hunt, hide and seek, chat, revive,
+  kill feed) in the harness.
