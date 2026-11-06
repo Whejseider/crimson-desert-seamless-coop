@@ -1074,3 +1074,19 @@ Done in the user's Chrome (signed in as Asher):
   ByJunter's answers (via the user) in docs/research/native-port-plan.md: the core module list (kit 39 inis), use
   signature scans (planned after this hand port), field_share is required (AddActor rejects a 2nd new user).
   FLAGS F19: the 2976 exe from the user's own Steam would speed the rest up a lot.
+- 2026-11-05 23:00 Native port, first TWO-COPY run (tc1, host + guest on this PC, harness
+  tools/native-port/test/twocopy.{sh,ps1}): both copies start, the host loads into the world, the guest reaches its
+  title (its saves in save_cdmp_guest, the host's in the sandbox); SAVES OK. Option D stayed off on both sides for
+  two reasons, both fixed since (native commits a4cbe4f, 7f33727):
+  1. the "real code" safety check only accepted 2976's section name .rsrc; 3549's code section is .xtext (and the
+     Denuvo one .xpdata), code end 0x5595000;
+  2. the game RENUMBERED its packet opcodes: only 36 of 1108 shared messages kept their id. The 3549 table is read
+     from the exe itself (tools/native-port/troc49.py: the static initialisers' vtable stores into the Troc
+     instances -> RTTI name + opcode; 1175 messages, docs/research/troc-messages-3549.csv; checked against what we saw
+     live: AddItemToInventoryAck 3110, InteractionDoStepReq 3073). The source was rewritten by message name in
+     one-shot passes (opmap / oplit / oplit2 / opmulti: ~980 constants and literals, every literal only where its
+     line names the message or sits in opcode syntax, never twice). 33 unit tests still carry 2976 opcode fixtures
+     (to migrate file by file; a blind pass also hit millisecond values, so it was reverted).
+  Also ported: user2_funnels (rank permit, ExecuteTroc, field vf40/vf48, owner character, loot/dead, FindUser) with a
+  new matcher (tools/native-port/fuzzy.py: rel32 / RIP displacements wildcarded), guest.cpp's framework mode.
+  Next: the second two-copy run (lower graphics in both test copies per the user), then user2_stages.
