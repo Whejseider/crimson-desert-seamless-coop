@@ -5,7 +5,7 @@
 #  - guest: the guest role sends the whole save folder to ...\CD\save_cdmp_guest, which this script fills with a test
 #    slot and a windowed settings file. The real save folder is only read (its settings file, as the template).
 param([string]$Name = 'tc1', [string]$HostVariant = 'coop-test-bandits', [string]$GuestVariant = 'rps',
-      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk)
+      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk, [switch]$Ride)
 $ErrorActionPreference = 'Stop'
 $bin = 'D:\SteamLibrary\steamapps\common\Crimson Desert\bin64'
 $here = $PSScriptRoot; $saves = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\build\test-saves'
@@ -59,6 +59,14 @@ observer_seq_copy_2322=1
 guest_own_save=1
 ui_pause_block=1
 remote_interp=1
+mount_sync=1
+mount_seat=1
+mount_relink=1
+ride_filter=1
+ride_dismount=native
+horse_follow=1
+horse_follow_reverse=1
+user2_fast_travel=1
 '@
 Write-Ini "$bin\cdmp.guest.ini" @'
 [general]
@@ -91,6 +99,12 @@ guest_reload_wait_fix=1
 guest_own_save=1
 ui_pause_block=1
 remote_interp=1
+mount_sync=1
+mount_seat=1
+mount_relink=1
+ride_filter=1
+ride_dismount=native
+guest_fast_travel_veto=probe
 '@
 
 # The windowed settings (template: the player's own file, read only).
@@ -164,6 +178,22 @@ if ($Walk) {
         & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:2500 shot:$Name-36-guest-sees-host" | Out-Null
     } catch { "walk step failed: $_" }
     "walks done $(Get-Date -Format HH:mm:ss.fff)"
+    if ($Ride) {
+        # Mounts (tc28+): the host calls its horse (H, the default key), mounts (F), rides forward and dismounts (F);
+        # the guest's window is shot while the host rides. MountSync / HorseFollow lines in both logs.
+        try {
+            "host calls its horse at $(Get-Date -Format HH:mm:ss.fff)"
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:H:150 w:12000 shot:$Name-38-host-horse k:F:150 w:5000 shot:$Name-39-host-mounted" | Out-Null
+            & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:2500 shot:$Name-40-guest-sees-mounted" | Out-Null
+            "host rides at $(Get-Date -Format HH:mm:ss.fff)"
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "kd:W w:5000 ku:W w:2000 shot:$Name-41-host-rode" | Out-Null
+            & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:2500 shot:$Name-42-guest-sees-rider" | Out-Null
+            "host dismounts at $(Get-Date -Format HH:mm:ss.fff)"
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:F:150 w:4000 shot:$Name-43-host-dismounted" | Out-Null
+            & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:2500 shot:$Name-44-guest-sees-dismounted" | Out-Null
+        } catch { "ride step failed: $_" }
+        "ride done $(Get-Date -Format HH:mm:ss.fff)"
+    }
     # UI pause block: the host opens its menu for 12 s; its world (and the guest's) must keep running.
     "host ESC at $(Get-Date -Format HH:mm:ss.fff)"
     & "$here\keyspid.ps1" -GamePid $h.Id -Keys ESC | Out-Null

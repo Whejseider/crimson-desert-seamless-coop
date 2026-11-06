@@ -6,7 +6,7 @@
 import glob, os, re
 
 ROOT = 'C:/Users/asher/CrimsonDesert-SeamlessCoop/upstream/cdmp-native/src/mod/'
-PORTED = {'offsets_s2.h', 'server.cpp', 'guest.cpp', 'user2_funnels.cpp', 'child_hold.cpp', 'guest_actor_diag.cpp', 'guest_s3.cpp', 'guest_reload_wait.cpp', 'remote_interp.cpp', 'ui_pause.cpp'}  # session2 files whose addresses are ported to 3549
+PORTED = {'offsets_s2.h', 'server.cpp', 'guest.cpp', 'user2_funnels.cpp', 'child_hold.cpp', 'guest_actor_diag.cpp', 'guest_s3.cpp', 'guest_reload_wait.cpp', 'remote_interp.cpp', 'ui_pause.cpp', 'mount_sync.cpp', 'fast_travel.cpp'}  # session2 files whose addresses are ported to 3549
 # Files with their own local kPeTimestamp (still 2976): pinned by definition, left as they are.
 OWN_CONSTANT = {'scene_level_share.cpp', 'scene_level_share_logic.h'}
 
