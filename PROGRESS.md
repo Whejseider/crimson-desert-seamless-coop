@@ -1208,3 +1208,17 @@ Done in the user's Chrome (signed in as Asher):
   real function on 3549, not a thunk; return 0x948E73), net-or 0x207A756.
   METHOD that worked: a Troc message's handler = slot 2 of the vtable of `.?AVTrocTr<Name>@pa@@` (vt49.vtable +
   slot); a movement method's Enter = slot 7 of its vtable.
+- 2026-11-06 04:05 Native base, tc24: WHY THE OTHER PLAYER IS NOT SEEN, narrowed. Each client's actor for the other
+  player stands where that player is and follows it (RemoteInterp [remote character], every 10 s): on the host the
+  guest's 0xA01001DD TransformSync local (-349.5, 535.5, -919.6) sector (-10, -3) = world (-10349.5, -3919.6), then
+  (-10357.9, -3918.8) after the guest's walk; on the guest the host's 0xA0100001 the same, then (-10364.9, -3917.9).
+  Positions reach the actor's transform; the actor is simply not DRAWN (shots tc24-34 / -36: the spot 8 m ahead of the
+  camera is empty). Next run dumps the remote character's header bytes beside a visible NPC's (login state on 2976:
+  u16 +0x5E 8 -> 0x10, +0xCF 1; copias-grupo-invisibles.md: actors left in state 8 are never drawn).
+  Unit-test fixtures: tools/native-port/fixfails.py maps 2976 opcode literals to 3549 ONLY on lines a test reports
+  failing and only where the line is unchanged since a base commit (--base 12fff5f in the native repo: a 3549 number
+  is often also some other 2976 opcode, so a second pass over a mapped line would map it again; caught before
+  applying). One pass: 58 lines, 33 -> 29 failing tests. The rest need real work: raw packet fixtures (hex payloads
+  with 2976 opcode bytes), recorded traces (replay), expected log text, and 5 fixture-driven crashes (hold_scene_order,
+  scene_level_share, seq_copy, user2_shops: 0xC0000005; npc_probe_client / user2_road exit 1).
+  LESSON (again): python inside a bash heredoc loses backslashes ('\r', '\'); write such code with Write/Edit.
