@@ -1090,3 +1090,15 @@ Done in the user's Chrome (signed in as Asher):
   Also ported: user2_funnels (rank permit, ExecuteTroc, field vf40/vf48, owner character, loot/dead, FindUser) with a
   new matcher (tools/native-port/fuzzy.py: rel32 / RIP displacements wildcarded), guest.cpp's framework mode.
   Next: the second two-copy run (lower graphics in both test copies per the user), then user2_stages.
+- 2026-11-05 23:30 NATIVE BASE: TWO PLAYERS IN ONE SHARED WORLD ON 3549 (two-copy runs tc2..tc4, the user's OK).
+  tc2: the guest's tunnel connects and its LoginUserToFieldServerReq reaches the host's server, but C2 identity
+  logged it out ("lobby loaded off the server thread"): the TLS server-realm byte is +0x1EB on 3549 (2976 +0x1EC;
+  ServerRunThread 0x29AAF36 sets it) and the allocator test byte +0x1FE (2976 +0x1FD; 807 uses). tc3: login goes
+  through, user 2's lobby gets its own characterNo, then "Status unreadable": Status keeps characterNo at +0x90 on 3549
+  (2976 +0x70; FindByCharacterNo 0x2D12B95; its byte check now covers that read). tc4 (both copies on the same test
+  save): identity invariant ok, user 2 loads its own field, then TRAVELS TO THE HOST'S LEVEL AND IS GIVEN THE HOST'S
+  FIELD (E3b H1/H2: "users 2, user actors 3"), clock gate keeps the host's world clock. ~10 s later the guest game
+  exits by itself (no dump, no event, log simply stops); the host carries on and logs user 2 out after 15 s.
+  Likely the guest-side guards are missing: child hold (NotifyAppear), the character-update containment, the guest
+  layer/update guards and crash dump are in modules still pinned to 2976. SAVES OK every run.
+  Next: port those guards (child_hold, guest_actor_diag, guest_s3, the CC update), then rerun with exit codes.

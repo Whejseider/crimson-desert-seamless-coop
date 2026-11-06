@@ -128,3 +128,5 @@ Start-Sleep 3
 Start-Sleep $Hold
 & $shot -Out "$here\shots\$Name-40-later.png" | Out-Null
 "host alive=$(-not $h.HasExited) guest alive=$(-not $gp.HasExited)"
+if ($gp.HasExited) { "guest exit code 0x{0:X8} at {1}" -f $gp.ExitCode, $gp.ExitTime }
+if ($h.HasExited) { "host exit code 0x{0:X8} at {1}" -f $h.ExitCode, $h.ExitTime }
