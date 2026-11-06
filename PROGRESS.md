@@ -1008,3 +1008,16 @@ Done in the user's Chrome (signed in as Asher):
   The test save has no rod in the bag; make_rod_save.py put one in (bag slot 7): the inventory shows "Fishing Rod,
   Tool" but "Cannot be equipped" (client-side: no EquipItemReq is sent). The dock's NPC fishermen equip 11001
   (EquipItemOnlyAck), so the key is right. Next: the activated Mining Drill record turned into the rod (fishing2).
+- 2026-11-05 19:40 FISHING SESSION RECORDED (bot-driven, test save fishing2/3 = the bandits save with the activated
+  Mining Drill record turned into FishingRod 11001: a rod record made from a material record showed "Cannot be
+  equipped"; a tool record with the tool fields works). How fishing works on PC (Default preset): Equipment Quick
+  Slot = 2 (the rod sits in the ranged slot), Ctrl takes it out, HOLD left button = aim (a marker steered by the
+  camera; RED = no fish spot, BLUE = fishable), RELEASE = cast; our client then summons a fish at the bait
+  (GimmickExecuteSummonCharacterFrameEventReq 2969; the summoner only fires after arriving from outside the area);
+  the bite = InteractionDoStepReq 3073 on the fish (the prompts vanish, a white splash); RIGHT button hooks it
+  (CatchActionResultAck 2308, a fight stage 0x31D/0x31F starts); the fight: steer A/D away from the splashes, reel
+  with the mouse wheel when calm (reeling all the time loses the fish); landed -> a card "Bass 58.4 cm / New size
+  record!  Keep F / Release T"; F -> CatchActionResultAck (B_EnemyCatch_00) + ReleaseCatchResultAck 2237 +
+  AddItemToInventoryAck 3110: item 29816 Food_Bass_I, stack 1, REASON 0x0D0F (the catch). The size is not in any
+  packet. Tools: build/port3460/act.ps1 (input steps), castfight.py (cast until blue, wait for the bite, hook,
+  splash-steered fight, frames). The catch signal for the contest: 3110 type 4, reason 0x0D0F, a fish item key.
