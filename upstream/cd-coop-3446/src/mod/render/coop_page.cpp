@@ -16,6 +16,7 @@
 #include "mod/game/ui_state.h"
 #include "mod/input/actions.h"
 #include "mod/input/pad_input.h"
+#include "mod/input/game_input_block.h"
 #include "mod/log.h"
 #include "mod/render/game_ui.h"
 #include "mod/render/hud.h"
@@ -463,12 +464,28 @@ bool draw_lobby(float width, float height, ImDrawList* dl, ImVec2 mouse, const s
     if (pressed & input::kPadDown) move(1);
     if (pressed & input::kPadA) act(g_lobby_sel);
     if (pressed & input::kPadB) back();
-    // drawing: the title darkened, the dialog, the party, key hints
-    dl->AddRectFilled(ImVec2(0, 0), ImVec2(width, height), IM_COL32(6, 5, 4, 120));
+    // drawing: our own screen in place of the game's title (opaque), the wordmark, the dialog, the party, key hints
+    dl->AddRectFilled(ImVec2(0, 0), ImVec2(width, height), IM_COL32(7, 6, 5, 255));
+    dl->AddRectFilledMultiColor(ImVec2(0, height * 0.18f), ImVec2(width, height * 0.82f), IM_COL32(20, 16, 12, 255),
+                                IM_COL32(20, 16, 12, 255), IM_COL32(7, 6, 5, 255), IM_COL32(7, 6, 5, 255));
     {
-        const std::string mark = "SEAMLESS CO-OP";
-        const float ms = 21 * s;
-        text(dl, width * 0.5f - text_w(ms, mark, true) * 0.5f, 250 * s, ms, mark, kGold, true);
+        // letter-spaced capitals, the way the game sets its own name
+        const auto spaced = [](const std::string& w) {
+            std::string out;
+            for (size_t i = 0; i < w.size(); ++i) out += (i ? " " : "") + std::string(1, w[i]);
+            return out;
+        };
+        const std::string name = spaced("CRIMSON") + "      " + spaced("DESERT");
+        const float ns = 46 * s;
+        text(dl, width * 0.5f - text_w(ns, name) * 0.5f, 150 * s, ns, name, IM_COL32(214, 190, 142, 255));
+        const std::string mark = "SEAMLESS  CO-OP";
+        const float ms = 20 * s;
+        const float mw = text_w(ms, mark, true);
+        text(dl, width * 0.5f - mw * 0.5f, 226 * s, ms, mark, kGold, true);
+        for (const float side : {-1.0f, 1.0f}) {
+            const float x0 = width * 0.5f + side * (mw * 0.5f + 24 * s), x1 = x0 + side * 150 * s;
+            dl->AddLine(ImVec2(x0, 238 * s), ImVec2(x1, 238 * s), IM_COL32(205, 195, 175, 120), 1.0f);
+        }
     }
     const int over = draw_cards(dl, width, height, header, cards, g_lobby_sel, mouse, 300 * s);
     if (over >= 0 && cards[over].enabled && input::method() == input::Method::Keyboard) g_lobby_sel = over;
@@ -579,7 +596,12 @@ void coop_page_draw(float width, float height, const HudData& d, const std::vect
         g_keys.clear();
     }
 
-    // ---- the title lobby (before anyone plays)
+    // ---- the title lobby (before anyone plays). It stands in for the game's title: while it (or the guest's waiting
+    // screen) is up the game takes no input of its own (game_input_block.h), except while the mod presses its keys.
+    {
+        const net::LobbyView lv = net::lobby_view();
+        input::set_game_input_blocked((lv.show || lv.guest_wait) && !lv.driving);
+    }
     if (!g_open.load() && draw_lobby(width, height, dl, mouse, clicks, keys)) return;
     // ---- a different difficulty from the friend's (net/coop_lobby.h)
     if (!g_open.load()) {

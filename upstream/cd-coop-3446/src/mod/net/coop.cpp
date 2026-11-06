@@ -651,6 +651,12 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
 bool CoopLink::on_hot_event(const proto::GameEvent& ev, uint32_t now_ms) {
     if (!accepts(ev.kind)) return false;  // the network loop says why
     ++events_in_;
+    if (ev.kind == proto::EventKind::EnemyAct || ev.kind == proto::EventKind::EnemyPos) {
+        // The other player's enemies: on the same clock as their own events (as on_event does it).
+        std::lock_guard feed_lock(feed_mutex_);
+        if (const auto offset = clock_.offset()) enemy_on_event(ev, ts_shift(*offset), hold_for(0));
+        return true;
+    }
     feed_puppet(ev, now_ms);
     return true;
 }

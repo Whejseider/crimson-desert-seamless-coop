@@ -1,3 +1,4 @@
+#include "mod/net/fast_lane.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/wire_layout.h"
 
@@ -139,6 +140,14 @@ std::map<uint32_t, Bytes> g_last_hp;  // world NPC key -> its last VaryHPAck pay
 // and its record type: a copy must not name any of them.
 std::map<uint32_t, uint8_t> g_known;
 std::deque<proto::GameEvent> g_out_events;  // actions of copied enemies
+
+// Co-op+ low latency (2026-11-06): an action of a copied enemy goes out from the fast lane at once (fast_lane.h); the
+// queue (sent by the network loop's enemy_host_tick) only when the lane cannot take it. g_mutex held.
+void queue_enemy_act(std::vector<uint8_t> msg) {
+    proto::GameEvent ev{proto::EventKind::EnemyAct, std::move(msg)};
+    if (fast_lane_send(ev)) return;
+    if (g_out_events.size() < 512) g_out_events.push_back(std::move(ev));
+}
 struct Sampled {
     proto::Vec3 pos{};
     uint64_t ms = 0;
@@ -200,6 +209,10 @@ std::atomic<bool> g_copies_allowed{false};  // Co-op+: [dev] enemy_copies (enemy
 std::atomic<bool> g_zone_copy_test{false};  // [dev] zone_copy_test (enemy_relay.h)
 std::atomic<bool> g_keep_origin{false};     // Co-op+: [dev] enemy_keep_origin (enemy_relay.h)
 // kNoVariant is declared in enemy_relay.h: loot_twin enforces it too.
+// Co-op+ low latency (2026-11-06): the receiving side (copies loaded here, copies waiting to load, their state) is fed
+// from two threads now, the fast lane (the other player's enemy actions and positions, fast_lane.h) and the network loop
+// (spawns, removals, states, the tick). Each receiving entry point holds this.
+std::recursive_mutex g_recv_mutex;
 std::map<uint32_t, bool> g_copies;          // copy keys loaded here
 std::map<uint32_t, uint32_t> g_copy_variant;  // copy key -> its enemy variant (load +0x18), or kNoVariant
 std::map<uint32_t, uint64_t> g_report_due;  // copy key -> when to log where it is
@@ -1196,8 +1209,8 @@ void enemy_observe_s2c(const uint8_t* packet, size_t size) {
         msg.insert(msg.end(), body.begin(), body.end());
         if (op == kOpVaryHPAck || op == kOpNotifyHandleDeadAck) {
             g_outgoing.emplace_back(proto::RelKind::EnemyState, std::move(msg));
-        } else if (g_out_events.size() < 512) {
-            g_out_events.push_back({proto::EventKind::EnemyAct, std::move(msg)});
+        } else {
+            queue_enemy_act(std::move(msg));
         }
         return;
     }
@@ -1301,7 +1314,7 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size) {
         if (action) calm_pose_locked(body, key);
         if (map_message_locked(op, body, sent->second)) {
             std::copy(body.begin(), body.end(), ev.begin() + 2);
-            if (g_out_events.size() < 512) g_out_events.push_back({proto::EventKind::EnemyAct, std::move(ev)});
+            queue_enemy_act(std::move(ev));
         }
     }
     if (!action || !g_loads.count(key)) return;
@@ -1896,9 +1909,13 @@ void note_removed(uint32_t copy) {
 
 }  // namespace
 
-bool enemy_copy_loaded(uint32_t copy) { return g_copies.count(copy) != 0; }
+bool enemy_copy_loaded(uint32_t copy) {
+    std::lock_guard recv_lock(g_recv_mutex);
+    return g_copies.count(copy) != 0;
+}
 
 void enemy_on_event(const proto::GameEvent& ev, int64_t ts_shift_ms, uint64_t delay_ms) {
+    std::lock_guard recv_lock(g_recv_mutex);
     if (ev.payload.size() < 4) return;
     if (ev.kind == proto::EventKind::EnemyPos) {
         if (ev.payload.size() != proto::kEnemyPosEventSize) return;
@@ -1970,11 +1987,13 @@ size_t enemy_copies_present() {
 }
 
 std::vector<uint32_t> enemy_take_looted_originals() {
+    std::lock_guard recv_lock(g_recv_mutex);
     std::lock_guard lock(g_mutex);
     return std::exchange(g_looted_originals, {});
 }
 
 void enemy_partner_looted_copy(uint32_t copy) {
+    std::lock_guard recv_lock(g_recv_mutex);
     uint32_t native = 0;
     {
         std::lock_guard lock(g_mutex);
@@ -2021,6 +2040,7 @@ void remove_copy_now(uint32_t copy) {
 }  // namespace
 
 void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
+    std::lock_guard recv_lock(g_recv_mutex);
     if (bytes.size() < 12) return;
     if (!g_copies_allowed) {
         static bool told_off = false;
@@ -2089,6 +2109,7 @@ void enemy_on_spawn(const std::vector<uint8_t>& bytes) {
 void enemy_kept_corpses_tick();
 
 void enemy_tick() {
+    std::lock_guard recv_lock(g_recv_mutex);
     load_waiting();
     enemy_kept_corpses_tick();
     const uint64_t t = now_ms();
@@ -2103,6 +2124,7 @@ void enemy_tick() {
 }
 
 void enemy_on_state(const std::vector<uint8_t>& bytes, uint64_t delay_ms) {
+    std::lock_guard recv_lock(g_recv_mutex);
     if (bytes.size() < 6) return;
     uint16_t op = 0;
     std::memcpy(&op, bytes.data(), 2);
@@ -2147,6 +2169,7 @@ void enemy_on_state(const std::vector<uint8_t>& bytes, uint64_t delay_ms) {
 }
 
 void enemy_reset_partner() {
+    std::lock_guard recv_lock(g_recv_mutex);
     loot_reset();
     size_t sent = 0, copies = g_copies.size();
     {
@@ -2180,6 +2203,7 @@ void enemy_reset_partner() {
 }
 
 void enemy_drop_copies_here() {
+    std::lock_guard recv_lock(g_recv_mutex);
     const size_t n = g_copies.size() + g_waiting.size();
     std::vector<uint32_t> copies;
     for (const auto& [copy, loaded] : g_copies) copies.push_back(copy);
@@ -2204,6 +2228,7 @@ void enemy_drop_copies_here() {
 
 
 void enemy_on_remove(const std::vector<uint8_t>& bytes) {
+    std::lock_guard recv_lock(g_recv_mutex);
     for (size_t i = 0; i + 4 <= bytes.size(); i += 4) {
         const uint32_t copy = u32_at(bytes.data() + i);
         std::erase_if(g_waiting, [&](const WaitingCopy& w) { return w.copy == copy; });

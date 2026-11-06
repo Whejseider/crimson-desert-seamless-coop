@@ -1546,3 +1546,16 @@ Done in the user's Chrome (signed in as Asher):
   vs $worlds); python heredocs eat backslashes ("\a" -> BEL): write edit scripts to files.
   Not yet: two real PCs (Steam invite / join through the lobby), the guest arriving exactly at the first cutscene (it
   follows ~15 s after the host's run enters), a release.
+- 2026-11-06 17:50 PLAYTESTER REPORT (Plitos, via the user): progress broke when one player's cutscene ended earlier
+  than the other's; the starting quest's arm wrestling at the tavern broke too. They fixed both in their own copy (with
+  Codex) by a joint check and synchronisation of cutscenes and a joint speed-up; separate save files worked and the
+  original was kept. They played an offline copy over RadminVPN (UDP), not Steam. TODO: cutscene end sync (stage_cinema
+  / live quests hold until both finished), the tavern arm wrestling in the opening quest; ask for their patch (GPL).
+- 2026-11-06 17:40 Geonode's CDCO (GPL-3.0) is a fork of our 0364c3f0 / a82c1b48 releases plus a Tauri launcher (host/
+  join and settings outside the game, written to the ini, then steam://rungameid; nothing automated at the title) and an
+  experimental in-world panel made of the game's own modal UI (CommonModalOpen hook, its own uibinary/css served via the
+  resource loader). Barber (Khione, 9.1.36): look stored in the save as list indexes into its own data; both players
+  need the identical Barber; gender/race/height chosen at game start (probably not on our copy); no API.
+- 2026-11-06 17:55 PLAYTESTER REPORT (Borque): could not talk to Oongka in the first missions; some crashes; did not
+  understand how to start (asks for a video). TODO: the Oongka talk in a new co-op save (the copy beside him?), their
+  cdmp.log / Diagnose output for the crashes; a short "how to start" video or card (the title lobby answers most of it).

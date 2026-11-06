@@ -94,7 +94,9 @@ void run() {
 
 bool fast_lane_hot(proto::EventKind kind) {
     using K = proto::EventKind;
-    return kind == K::Move || kind == K::StartAction || kind == K::Rotate || kind == K::WallUp || kind == K::Docking;
+    // ... and their enemies' actions and positions (the copies of the host's enemies a guest sees, in step with them)
+    return kind == K::Move || kind == K::StartAction || kind == K::Rotate || kind == K::WallUp || kind == K::Docking ||
+           kind == K::EnemyAct || kind == K::EnemyPos;
 }
 
 void fast_lane_start(Transport& transport, std::function<void(proto::GameEvent)> send_event) {

@@ -162,6 +162,7 @@ add_library(cdmp_mod SHARED
     src/mod/render/hud.cpp
     src/mod/render/game_ui.cpp
     src/mod/render/coop_page.cpp
+    src/mod/input/game_input_block.cpp
     src/mod/input/pad_input.cpp
     src/mod/input/actions.cpp
 )

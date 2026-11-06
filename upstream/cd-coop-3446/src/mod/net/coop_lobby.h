@@ -40,6 +40,7 @@ struct LobbyView {
     bool at_title = false;        // at the title (shown or dismissed)
     bool choosing = false;        // host: Start Co-op's question is open
     bool guest_wait = false;      // guest: the "waiting for the host" screen covers the game
+    bool driving = false;         // the mod is pressing the title's keys itself (the game must take them)
     std::string wait_line;        // what that screen says under its title
     bool host = true;
     bool connected = false;

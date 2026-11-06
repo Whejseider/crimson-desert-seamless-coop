@@ -162,6 +162,7 @@ LobbyView lobby_view() {
     v.choosing = g_choosing;
     v.countdown = g_go_at ? static_cast<int>((g_go_at - std::min(g_go_at, now_ms()) + 999) / 1000) : -1;
     v.guest_wait = !g_in.host && g_phase == Phase::GuestWait;
+    v.driving = w.switching;
     v.show = g_in.at_title && !g_dismissed && g_phase != Phase::HostSetup && !v.guest_wait;
     const std::string& f = v.partner_name;
     if (v.guest_wait) {

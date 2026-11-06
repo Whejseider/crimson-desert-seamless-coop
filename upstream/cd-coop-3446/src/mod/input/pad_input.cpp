@@ -1,4 +1,5 @@
 #include "mod/input/pad_input.h"
+#include "mod/input/game_input_block.h"
 
 #include <windows.h>
 #include <hidsdi.h>
@@ -305,6 +306,7 @@ void input_start() {
     static std::once_flag once;
     std::call_once(once, [] {
         install_xinput_hook();
+        game_input_block_install();  // Co-op+: our screens that stand in for the game's (render/coop_page.cpp)
         std::thread(poll_loop).detach();
     });
 }
