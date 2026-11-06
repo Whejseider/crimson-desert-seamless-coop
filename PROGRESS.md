@@ -1486,3 +1486,17 @@ Done in the user's Chrome (signed in as Asher):
   tc51-56). REVIVE ON THE NATIVE BASE: DONE (kill through the injection bridge, revive, HUD kept).
   Harness note: in tc51 a game "Do you want to exit the game?" dialog was open from the fight onward (a stray Esc
   of the menu step; tc49 had none): the host's attacks then do nothing. Not the mod.
+- 2026-11-06 11:55-12:20 RELEASED 0.1.0-alpha+f3517194 for game 1.0.0.3576 (user: "go ahead and push the update for
+  people who want to play"). Repackaged from HEAD (fcc6e968 was older; the later commits only add native-mode code):
+  unit tests pass, test-install-fake 13/13 PASS, Defender clean on both zips. Installed in the game (asi 84585e42...,
+  player's ini kept, saves backed up by the installer). Checks with this exact asi in the scratch world, SAVES OK each:
+  rel76 session (build F3517194, 1.0.0.3576 offsets, 1175 opcodes, packet hooks +0x3A6310/+0x3A66A0, CheckAIBattleType
+  hooked, partner copy visible; only the usual game-clock WRN); hs76b hide and seek (count, friend hidden from the
+  minimap, found, shown again); fish76 fishing contest (round on, replayed catch "we kept Bass (item 29816)").
+  hideseek_test.sh: the picker needs TWO Lefts since fishing became the last entry (LEFTS=1 picks fishing; hs76 had
+  started a fishing contest by mistake). The test kit (29 scripts) now restores the f3517194 asi.
+  GitHub ashersheets-jpg/crimson-desert-coop-playtest v0.1.0-alpha-f3517194 (Latest; uploads' sha256 match:
+  35479fd6... player zip, 2a224c3c... mod-manager; README + FEATURES pushed; notes dist/notes-f3517194.md).
+  Discord: the new download post (both zips attached) was typed in #download-here, but pressing Enter was denied by
+  the permission classifier; the draft waits there for the user. Not done: pin it, the announcement, #features
+  message 1 and #how-to-install "1.0.0.3549" -> "1.0.0.3576" (texts in docs/release/discord-*.txt are current).

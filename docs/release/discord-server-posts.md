@@ -101,3 +101,11 @@ friends, then the host presses Ctrl+F1 to invite.
 - 2026-11-05 later: the user deleted the seven older download posts (7a880b02 .. 0364c3f0) from #download-here
   themselves; only the a82c1b48 post remains (plus the "pinned a message" notices). Future releases: the old post
   goes away (the user deletes it; Claude never deletes messages), not relabeled.
+
+## 2026-11-06 update 0.1.0-alpha+f3517194 (game 1.0.0.3576)
+- #download-here: new post with both zips typed in the message box (sending it was blocked by the permission check;
+  the user sends it). Text: "Download: Seamless Co-op+ 0.1.0-alpha+f3517194 (game 1.0.0.3576)" / NEW: works with
+  today's game update; hide and seek, fishing contest, Journey Together, minimap marker nearby, enemies take turns on
+  your friend again / which zip / same zip for both, game 1.0.0.3576, settings kept / GitHub latest / Defender, GPL.
+- Still to do: pin it (the user removes the a82c1b48 post), #announcements, #features message 1 and #how-to-install
+  version text 1.0.0.3549 -> 1.0.0.3576.
