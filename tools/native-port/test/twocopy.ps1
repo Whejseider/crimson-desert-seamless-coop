@@ -69,6 +69,9 @@ enabled=1
 guest=1
 save_guard=redirect
 guest_mode=remote
+guest_crash_dump=1
+guest_layer_guard=1
+guest_remote_update_guard=1
 '@
 
 # The windowed settings (template: the player's own file, read only).
@@ -120,6 +123,11 @@ $gp = Start-Copy 'guest' ''
 $gp = $gp | Where-Object { $_ -is [System.Diagnostics.Process] }
 & $shot -Out "$here\shots\$Name-20-guest-title.png" | Out-Null
 & "$here\keyspid.ps1" -GamePid $gp.Id -Keys E | Out-Null
+Start-Sleep 10
+# A second press if the first only refreshed the slot list (tc7): harmless once the load has started.
+if (-not (Select-String -Path "$bin\cdmp.guest.log" -Pattern 'LoginCharacterToFieldServerReq' -Quiet)) {
+    & "$here\keyspid.ps1" -GamePid $gp.Id -Keys E | Out-Null
+}
 Start-Sleep $JoinWait
 & $shot -Out "$here\shots\$Name-30-guest-joined.png" | Out-Null
 & "$here\keyspid.ps1" -GamePid $h.Id -Keys SPACE | Out-Null

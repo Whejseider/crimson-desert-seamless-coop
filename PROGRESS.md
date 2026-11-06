@@ -1102,3 +1102,18 @@ Done in the user's Chrome (signed in as Asher):
   Likely the guest-side guards are missing: child hold (NotifyAppear), the character-update containment, the guest
   layer/update guards and crash dump are in modules still pinned to 2976. SAVES OK every run.
   Next: port those guards (child_hold, guest_actor_diag, guest_s3, the CC update), then rerun with exit codes.
+- 2026-11-06 00:15 Native base, two-copy runs tc5..tc9 (the user's OK): ported child_hold (NotifyAppear 0x2D96BB0,
+  StartActionReq vf2 0x2BE08C0, its callers), HorseDiag's client character-control functions (update 0x944E70, post
+  0x946060, restore 0x949B40: the only triple with 2976's spacing), the guest layer guard + remote update guard
+  (guest_actor_diag) and the guest crash capture (guest_s3; now armed at once and logging each first-chance access
+  violation site immediately, first in the handler list). Crashes found and fixed:
+  - tc6/tc8: null read at exe+0x91CC5E3 (.xpdata) 5 s after the guest enters the host's field = ByJunter's documented
+    field-change crash (p8-cierre-campo.md: the guest client looks up the field owner's user, the host, and finds none).
+    His fix (user 2's MoveFieldAck names user 2 as the owner) was skipped on 3549: MoveFieldAck records are 0x38
+    bytes now (live: 73 = 17 + 56; owner still @9). Fixed; tc9 log: "user 2's copy names user 2".
+  - tc9: the guest now lives ~10 s in the shared field, then a null read at exe+0x7F6876 (func 0x7F66A0, normal code):
+    an actor's component [table+idx*8+0x88] has [+0x10] = 0. Probably the area of guest_s3's update guard (the
+    CharacterControl null-action consumer / StartAction points, 2976 0x232D5C0 / 0x863530 / 0x48B120 / 0x48AD40),
+    not ported yet. Next: port those points and identify 0x7F66A0's actor (the capture logs rcx).
+  tc7 showed the guest's Continue sometimes needs a second press: the harness now presses again after 10 s.
+  SAVES OK in every run; the player's ini and the release asi restored each time.
