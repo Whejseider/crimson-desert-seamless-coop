@@ -1352,3 +1352,17 @@ Done in the user's Chrome (signed in as Asher):
   Harness: twocopy.ps1 -CoopPlus copies coopplus.asi, writes coopplus.host/guest.ini (udp to cdmp_peer --mode relay
   on 37115; the native tunnel is 37015), starts the relay; twocopy.sh removes the DLL, its inis/logs and the relay
   afterwards (the player's game must never load coopplus.asi) and keeps the logs as <name>.coopplus.<role>.log.
+- 2026-11-06 08:55 tc34 (-CoopPlus): coopplus.asi LOADS next to the native cdmp.asi on both copies: its native
+  layer line, overlay hooks (Streamline's swap chain, ExecuteCommandLists), the link ready without the sniffer;
+  the two Co-op+ instances linked (host "connected to peer 'Guest'") and the native session ran normally (both
+  alive, SAVES OK). Problems found and fixed: (1) Co-op+'s UDP host binds peer_port itself (its guest connects to
+  it): the cdmp_peer relay I had started on the same port kept the host from binding for 6 minutes (no relay now);
+  "WSA error 0" because the error is read after closesocket. (2) HARNESS BUG: `$name` in the -CoopPlus loop
+  overwrote the test's `$Name` (PowerShell variables ignore case) -> no tc34.pids -> the cleanup could not close
+  the two copies, so the release cdmp.asi could not be copied back while they ran. Closed them by hand (only the
+  two started at 05:00/05:02), put the release cdmp.asi back (checksum = release), removed the coopplus files,
+  player ini restored, SAVES OK. twocopy.sh now (a) closes every CrimsonDesert started after the test began when
+  the pids file is missing, (b) warns when a copy still runs, when coopplus.asi is still there, or when the game
+  folder's cdmp.asi is not the release one. (3) A first-chance fault in guest_seq_route's guarded read (address
+  0xFFFF...) showed up in Co-op+'s crash log: harmless, now skipped before the read.
+  LESSON: in PowerShell never reuse a parameter's name in any case for a loop variable.

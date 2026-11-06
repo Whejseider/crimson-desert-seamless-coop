@@ -120,15 +120,16 @@ guest_fast_travel_veto=probe
 
 if ($CoopPlus) {
     # The Co-op+ layer (docs/research/native-coopplus-layer.md): coopplus.asi next to the native cdmp.asi, its
-    # per-role inis (CDMP_ROLE picks coopplus.<role>.ini), linked through cdmp_peer in relay mode on port 37115 (the
-    # native tunnel uses 37015). twocopy.sh removes the DLL, the inis and the relay afterwards.
+    # per-role inis (CDMP_ROLE picks coopplus.<role>.ini); its host listens on udp 37115 (the native tunnel uses
+    # 37015). twocopy.sh removes the DLL and the inis afterwards.
     $layer = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\upstream\cd-coop-3446\build-native-layer\bin\RelWithDebInfo\coopplus.asi'
     Copy-Item $layer "$bin\coopplus.asi" -Force
     foreach ($r in 'host', 'guest') {
-        $name = $(if ($r -eq 'host') { 'Host' } else { 'Guest' })
+        # NOT $name: PowerShell variables ignore case, $name would overwrite the test's $Name (tc34).
+        $who = $(if ($r -eq 'host') { 'Host' } else { 'Guest' })
         Write-Ini "$bin\coopplus.$r.ini" @"
 [general]
-player_name=$name
+player_name=$who
 onboarded=1
 experimental_asked=1
 [net]
@@ -143,9 +144,9 @@ enabled=1
 enabled=1
 "@
     }
-    $peer = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\upstream\cd-coop-3446\build\bin\RelWithDebInfo\cdmp_peer.exe'
-    Start-Process $peer -ArgumentList '--port', '37115', '--mode', 'relay' -WindowStyle Hidden
-    "co-op+ layer: coopplus.asi + relay on 37115"
+    # No relay: Co-op+'s host binds peer_port itself and its guest connects to it (tc34: a relay on the same port kept
+    # the host from binding until the relay quit).
+    "co-op+ layer: coopplus.asi, host on udp 37115"
 }
 
 # The windowed settings (template: the player's own file, read only).
@@ -227,6 +228,14 @@ if ($Walk) {
         & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:2500 shot:$Name-36-guest-sees-host" | Out-Null
     } catch { "walk step failed: $_" }
     "walks done $(Get-Date -Format HH:mm:ss.fff)"
+    if ($CoopPlus) {
+        # The Co-op+ layer's overlay: the party frame is on screen while linked; F8 opens its settings panel.
+        try {
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "w:500 shot:$Name-60-host-coopplus-hud" | Out-Null
+            & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:500 shot:$Name-61-guest-coopplus-hud" | Out-Null
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:F8:120 w:2000 shot:$Name-62-host-coopplus-panel k:F8:120 w:800" | Out-Null
+        } catch { "co-op+ overlay step failed: $_" }
+    }
     if ($Ride) {
         # Mounts (tc29+): the host calls its horse (H held 1.5 s: a tap did nothing on 3549 in tc28), mounts (E, the
         # "Ride" prompt), rides forward and dismounts (R) (keys from the 3479 horse tests, NOTES/LOG.md D30);
