@@ -1423,6 +1423,40 @@ Done in the user's Chrome (signed in as Asher):
   Nov 5 slot2 is newer inside the save, so Play loaded it in p76a); optin_test resets the player's answered opt-in;
   walkto.py picks its globals by the game's PE stamp. Installer / README / release texts say 3576.
   Not released (needs the user's OK).
-- 2026-11-06 07:35 Release candidate 0.1.0-alpha+fcc6e968 for 1.0.0.3576 PACKAGED (not published): unit tests pass,
+- 2026-11-06 07:25 Release candidate 0.1.0-alpha+fcc6e968 for 1.0.0.3576 PACKAGED (not published): unit tests pass,
   test-install-fake all 13 steps PASS, Defender clean on both zips. Waiting for the user's OK (FLAGS F24). The game
   folder keeps the released a82c1b48 (off on 3576) until then.
+- 2026-11-06 07:30-07:50 NATIVE PORT 3549 -> 3576 (upstream/cdmp-native b724145, local only per F23; bundle
+  refreshed in build/native-backup). Tools (tools/native-port): scan3576.py takes every hex literal in the CODE part
+  of lines the 3549 port added since ByJunter's base 3cbb03c (1002) and maps it with build/port3576/portmap.py;
+  judge3576.py accepts a code match only when its shift agrees with the unique neighbours (several hits: the one at
+  the neighbours' shift); filt3576.py drops literals already present in the base file (742: ByJunter's 2976 values on
+  lines the port touched for opcodes, e.g. owner_fanout_writers.h, whose addresses were NEVER ported: keep in mind);
+  apply3576.py rewrote 298 literals in 33 files; heads3576.py re-read 41 byte arrays at the new addresses (91 the
+  same, 0 not found). Hand-mapped (OVERRIDES): protected 5-byte jmp stubs through the vtable slot (RTTI name) or the
+  callers that reach them (stubs.py in build/port3576): vehicle vf53/vf54, RideOff thunk, save refresh-slots,
+  owner-user stub, GetOrCreateSlot, ServerStatus vf10; is-local fn +0xC40 and its jump table; the mode-fn jump
+  table +0x370; two identical funnels +0xC70; kCodeEnd 0x5595000 -> 0x5597000 (section table). Unit tests: the same
+  29 fixture failures as on 3549; optd_slot_refresh hardcodes the stub's protection target (3576: 0xB8AB410).
+  Lesson: a protection stub's jmp target changes every build; tests should not pin it.
+- 2026-11-06 07:50-08:05 tc45 (first native two-copy run on 3576): nearly every hook REFUSED. Two causes:
+  (1) the guards found "the real code" by SECTION NAME (.rsrc on 2976, .xtext on 3549); 3576 renamed them again
+  (.text1 = code at 0x1000; ".rsrc" is now a small other section; Denuvo is ".tls$"). The section layout is the same
+  in all three builds, so in_real_code and the code/Denuvo lists now use the section at rva 0x1000 plus Denuvo's
+  per-build name (guest_actor_diag_logic.h is_real_code_section / is_denuvo_name). (2) two more build stamps outside
+  game/offsets.h (session2/offsets_s2.h, scene_level_share_logic.h) still said 3549: option D was off.
+  Lesson for the next update: grep every "kPeTimestamp =" and never trust section names.
+- 2026-11-06 08:05-08:20 tc46 (-Walk -Fight -CoopPlus) on 3576: every ported hook installs (mount_sync all true,
+  ui_pause, remote_motion with 18 forced climbs, observer_stage/milestone with OUR 2322, guest_seq_route), both
+  copies see each other with the Co-op+ party frame (shots tc46-34 / -36), walkers work again (3576 globals by PE
+  stamp), and the layer's chat, quick message, ping and a full 2-round DUEL (guest won 2-0) work through the bridge.
+  Revive not reached (the guest's walker fell 8 m on the way). Two misses of the mapping, fixed: (1) byte lists
+  written INLINE in struct initialisers ({addr, {bytes}}): remote_interp's four delay reads (inline3576.py);
+  (2) guest_save_host's callers that sit INSIDE the protection (above 0x7A41000, outside scan3576's range):
+  found again by scanning every executable section for E8 to each target (build/port3576/dcalls.py), one-to-one
+  in both builds, same order. The "GuestS3 first-chance AV at cdmp.asi+..." line also shows on 3549 runs (a
+  diagnostic logging guarded reads): not new.
+- 2026-11-06 08:20-08:30 tc47 on 3576: the ERR/WRN set of both copies now equals tc38's on 3549 (only the known
+  first-chance diagnostic line differs); RemoteInterp ON (4 mid hooks, the other player alpha 1.00); SAVES OK.
+  Revive still untested on 3576 (the host's walker got stuck, so the host never fell). Native repo ec4681c, bundle
+  refreshed.
