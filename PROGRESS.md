@@ -1760,3 +1760,20 @@ Done in the user's Chrome (signed in as Asher):
     playback; the same record's +0x28 -> +0x66 frame number the DoFrameEvent check uses): a re-sent enemy copy with
     no current action reached a code path the action-layer guards do not cover. One crash in 5 similar runs, at 90 %
     memory. Next: reproduce, then a guard (not mid-function blind).
+- 2026-11-07 10:00 PLAYED TEST 2 (xs3, the user as guest; SAVES OK, no crash this time). WORKS: kill counts (guest's
+  kills "we took down", hidden twins "not our kill"), guest-kill XP (host: "the other player's kill (kind 54104)
+  finished here: 15 experience granted", guest: "the partner gained 15; granted here"), 50 guest blows / 46 applied.
+  The user saw: (1) bandits that did not fight back at first; (2) a "joined the host's world" popup, then "all the
+  bandits respawned and fought back"; (3) some bandits with "unlimited health"; (4) little damage taken as guest;
+  (5) the host's blows stagger bandits more than the guest's. Causes from the logs:
+  - (2) a FALSE RESYNC: the guest kept 5 dead copies for loot; the sync digest counted them (5 here, 0 sent) -> after 3
+    digests "resync: leaving and joining again" -> link lost -> zone OFF -> all 24 hidden natives given back at once
+    (some already killed as twins) + the host's respawned bandits as copies = doubled, natively fighting enemies.
+    FIXED: enemy_copies_present skips g_kept_corpses.
+  - (1)/(4) the host's enemies TARGET the guest's copy ("now targets the other player's copy", reason 0x18) but never
+    ATTACK it: CheckAIBattleType "copy 0 (made to attack 0) | attack slots on the copy 2" all session; no "our enemy hit
+    the other player's copy" line in any run, no "the other player's enemy hit us" on the guest. The guest takes no
+    damage from the host's enemies (copia-objetivo-sin-ataques.md; the attack-slot fix does not work on 3576). OPEN.
+  - (3) likely the doubled natives / copies after the false resync. Re-check after the fix.
+  - (5) the guest's blows are applied as HP loss (VaryStatCheatReq) plus a hit reaction only when one was learnt for
+    that attack ("no reaction learnt yet"): fewer staggers than native blows. OPEN.

@@ -1980,9 +1980,18 @@ size_t enemy_copies_sent() {
     return g_sent.size();
 }
 
+namespace {
+std::map<uint32_t, uint64_t> g_kept_corpses;  // copy -> when its removal came (dead copies kept for our loot)
+}  // namespace
+
 size_t enemy_copies_present() {
     size_t n = g_waiting.size();
-    for (const auto& [copy, loaded] : g_copies) n += game::find_actor(copy).has_value();
+    // Co-op+ (2026-11-07, played test xs3): a corpse kept for our loot is no copy the other player still sends; counted,
+    // it made the digests differ (5 here, 0 sent) and forced a resync that gave back all our hidden enemies at once.
+    for (const auto& [copy, loaded] : g_copies) {
+        if (g_kept_corpses.count(copy)) continue;
+        n += game::find_actor(copy).has_value();
+    }
     return n;
 }
 
@@ -2025,7 +2034,6 @@ namespace {
 // kLootKeepMs (the sender's removal waits; 7 Oct night: the host's respawn
 // took 3 corpses before the guest could loot them).
 constexpr uint64_t kLootKeepMs = 120000;
-std::map<uint32_t, uint64_t> g_kept_corpses;  // copy -> when its removal came
 
 void remove_copy_now(uint32_t copy) {
     g_kept_corpses.erase(copy);
