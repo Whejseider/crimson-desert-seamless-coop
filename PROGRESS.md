@@ -1621,3 +1621,10 @@ Done in the user's Chrome (signed in as Asher):
   2.4 s into the H hold in hk5. Open: whether the call needs something this save lacks (horse too far, a story flag) or
   the hold must come through another input path; the simulated pad may not count without a real pad at startup. The
   kit's walk-to-it fallback got stuck on rocks over 300 m. Asked the user what they see when they call.
+- 2026-11-07 02:55 HORSE CALL, more (user: "Kliff does nothing on screen, the horse runs in from behind; it can take a
+  while"): hk7 held H the way a keyboard does (key-down repeated every 33 ms for 3 s) with the recording on: horse did
+  not move in 60 s, no Call/Vehicle/Summon message recorded. hk8/hk9 (-Solo, ONE copy, co-op off; hk9 network on so the
+  horse's position is logged): same, the horse stood at (-10666.2, -3701.0) for 2 min and walking there got stuck. So
+  not the mod: either this test save's horse cannot be called (it never moves at all, not even idling) or the game
+  does not take a simulated hold for this action. Next: a sandbox copy of a save where the user's call works (asked).
+  Harness: -Solo (host copy alone) added; horse_kit.ps1 tries the repeating hold first.
