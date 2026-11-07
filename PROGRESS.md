@@ -1612,3 +1612,12 @@ Done in the user's Chrome (signed in as Asher):
   the friend's IP (transport level, so the fast lane is covered too), co-op save key "direct-<ip>", Steam name if
   Steam runs (8 s wait) else the ini's. Guide: docs/direct-play.md. Not taken from his patch: protocol 13 / journey
   string (ours stays independent), the 26/8-only rule.
+- 2026-11-07 02:30 HORSE CALL (user: "I hold up on the d pad or hold H"): hk5 held H 3 s, then d-pad up 2.5 s through the
+  mod's simulated pad (dev script `pad 0001 2500`, Ctrl+Shift+F6); hk6 the same with the packet recording on
+  (build/port3527/rec/cdmp_packets_20261106-191835.*). The horse (0xB0100002, wyvern test save, ~300 m away, idle) never
+  moved; the recording has NO call message at all (no FrameEventCallMercenaryReq 2643, CallSpecialVehicleByQuickSlotReq
+  3036, CallVehicleMercenaryAck 2720, nothing named Call/Vehicle/Summon) and our player started no action during the
+  hold (only its idle every ~15 s). So the game ignored the simulated hold; only a brief "menu" pause (~0.2 s) showed
+  2.4 s into the H hold in hk5. Open: whether the call needs something this save lacks (horse too far, a story flag) or
+  the hold must come through another input path; the simulated pad may not count without a real pad at startup. The
+  kit's walk-to-it fallback got stuck on rocks over 300 m. Asked the user what they see when they call.
