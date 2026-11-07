@@ -108,6 +108,11 @@ $lines = $lines | ForEach-Object {
             'block_slowmo=1'
             break
         }
+        # Co-op+ (2026-11-07): the guest's blows stagger the host's enemies (3576 restriction layout, built-in reaction
+        # templates; st5: 7/7 guest hits staggered). On by default in the code too.
+        '^; The stagger reaction on those blows' { '; The stagger reaction on those blows (1 = they stagger the enemy as your own blows do).'; break }
+        '^; into the other player''s enemy, which its AI' { '; 0 = damage only, no hit reaction.'; break }
+        '^guest_hit_stagger=0$' { 'guest_hit_stagger=1'; break }
         default { $_ }
     }
 }
