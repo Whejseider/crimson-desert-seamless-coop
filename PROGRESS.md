@@ -1864,3 +1864,8 @@ Done in the user's Chrome (signed in as Asher):
   never shown); (2) horse_diag: guard for the game bug at exe+0x2519762 (action playback reads [rec+0x28] before its own
   `if (rec)`; crash xs2): at 0x251975D with rec 0 the frame word is set to 0 and the reads skipped (0x262BAD0, called
   next, handles rec 0 itself); installed only on the exact 18 bytes.
+- 2026-11-07 16:35 User: "I want the most in depth [decomp] that you can get". Plan: the base pass (running) is kept;
+  then build/tools/deep_analysis.ps1 on the same database: (1) DeepPass.java -- every analyzer on, including
+  Decompiler Parameter ID (real parameters/types) and the Aggressive Instruction Finder, thorough sub-options, full
+  re-analysis; (2) Ghidra's RecoverClassesFromRTTIScript (C++ classes, methods in their classes, inheritance);
+  (3) ExportIndex; (4) ExportAllC (every function's C). Each step a separate headless run (a failure keeps the rest).
