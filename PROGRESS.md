@@ -1791,3 +1791,17 @@ Done in the user's Chrome (signed in as Asher):
     it is loaded and alive ([coop] copy_in_battle=1, aggro_keep_copy_in_battle). ag4: CheckAIBattleType on the copy
     12808 times, made to attack 5527, 11 enemy blows on the copy relayed, the guest took all 11.
   - Test harness: bait_kit.ps1 (-HostScript), walks the guest (second PID) then the host into the camp.
+- 2026-11-07 12:50 GUEST STAGGER FIXED. Measured first (user asked): played test xs3, 0 of the guest's 46 blows had any
+  reaction ("no reaction learnt yet"). Three causes: [coop] guest_hit_stagger=0 by default; reactions were only copied
+  from the HOST's own blows (session-only), none yet; and on 3576 ApplyActionRestrictionAck is 69 B with instance
+  +0x1C / source +0x41 (2976: 77 B, +0x24, +0x49), so no stagger was ever learnt, not even from the host. Fixed: the
+  3576 layout; built-in templates from the user's recorded sword hit (kDefaultAta 219 B, kDefaultAar 69 B,
+  kDefaultBuff 77 B buff 0x452) used until learnt, for the measured staggering attacks (kSeedStaggers); stagger on by
+  default (code and ini template; existing installs keep their ini value). Test st5 (dev "guesthit 0F357AC7 14" x8 on
+  the guest: a GuestHit as from a real blow, because the simulated mouse clicks and E did not make the guest attack in
+  st1-st3): 7 applied, all "+ stagger"; no crash; SAVES OK.
+- 2026-11-07 12:50 Kill XP learnt per enemy kind is kept across sessions (<game>/bin64/cdmp_kill_xp.txt, "kind amount"
+  per line), so the 15 default only applies to a kind the host never killed. Built, not run live yet.
+- 2026-11-07 12:50 Disk cleanup (user's OK): deleted the old packet archive (22 GB), test screenshots (6.6 GB), game
+  folder recordings (6.9 GB), old exes (3479/3527/3549), old release builds and symbols (kept f3517194), installers;
+  C: 50 -> 83 GB free. Kept: source, test saves, the f3517194 release, the bow recording, Ghidra, the real co-op world.

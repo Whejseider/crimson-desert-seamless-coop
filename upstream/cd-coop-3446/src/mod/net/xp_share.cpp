@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <atomic>
+#include <cstdio>
 #include <cstring>
 #include <deque>
 #include <map>
@@ -35,6 +36,8 @@ uint32_t g_last_kill_variant = 0;
 uint64_t g_last_kill_at = 0;
 uint32_t g_our_key = 521;               // the skill-point bar our kills fill (521 Kliff, 522 Oongka, 523 Damiane)
 constexpr uint64_t kDefaultKillXp = 15;
+std::wstring g_file;      // <game folder>cdmp_kill_xp.txt ("" until xp_share_load)
+bool g_learnt_dirty = false;
 std::vector<std::vector<uint8_t>> g_out;
 uint64_t g_sent = 0, g_granted = 0, g_dropped = 0;
 
@@ -68,6 +71,7 @@ void xp_share_observe_s2c(const uint8_t* packet, size_t size) {
     if (g_last_kill_variant && now - g_last_kill_at <= 500) {  // this gain is that natural kill's
         if (g_learnt.emplace(g_last_kill_variant, amount).second) {
             log::info("XP: an enemy of kind {} gives {} experience (learnt from our kill)", g_last_kill_variant, amount);
+            g_learnt_dirty = true;
         }
         g_last_kill_variant = 0;
     }
@@ -128,7 +132,34 @@ void xp_share_partner_finished(uint32_t variant) {
               learnt ? "learnt for that kind" : "default", ok ? "" : " - NOT queued");
 }
 
+void xp_share_load(const std::wstring& dir) {
+    std::lock_guard lock(g_m);
+    g_file = dir + L"cdmp_kill_xp.txt";
+    FILE* f = _wfopen(g_file.c_str(), L"r");
+    if (!f) return;
+    unsigned long variant = 0;
+    unsigned long long amount = 0;
+    size_t n = 0;
+    while (fscanf(f, "%lu %llu", &variant, &amount) == 2) {
+        if (variant && amount && amount <= 100000) g_learnt[static_cast<uint32_t>(variant)] = amount, ++n;
+    }
+    fclose(f);
+    log::info("XP: {} enemy kinds' kill experience known from earlier sessions", n);
+}
+
 void xp_share_tick(bool linked) {
+    {
+        std::lock_guard lock(g_m);  // the learnt amounts to disk (a new kind was learnt)
+        if (g_learnt_dirty && !g_file.empty()) {
+            g_learnt_dirty = false;
+            const std::wstring tmp = g_file + L".tmp";
+            if (FILE* f = _wfopen(tmp.c_str(), L"w")) {
+                for (const auto& [v, a] : g_learnt) fprintf(f, "%u %llu\n", v, static_cast<unsigned long long>(a));
+                fclose(f);
+                MoveFileExW(tmp.c_str(), g_file.c_str(), MOVEFILE_REPLACE_EXISTING);
+            }
+        }
+    }
     std::deque<Gain> todo;
     {
         std::lock_guard lock(g_m);

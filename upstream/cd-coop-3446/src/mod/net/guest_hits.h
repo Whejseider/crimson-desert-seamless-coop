@@ -51,6 +51,9 @@ bool guest_hits_we_hit(uint32_t key, uint64_t within_ms);
 // Co-op+ (2026-11-07, the user's "Journey together" showed the guest's kills as the host's): the mod finished this
 // enemy of ours for the OTHER player (their lethal blow; our server names us as the killer) within `within_ms`.
 bool guest_hits_finished_for_partner(uint32_t key, uint64_t within_ms);
+// [dev] script "guesthit": a GuestHit as a real blow of ours with attack hash:frame on the nearest copy of the other
+// player's enemies (for testing the host's damage and stagger without simulated attack input). False if none is near.
+bool guest_hits_dev_hit(uint32_t hash, uint32_t frame);
 
 // Sniffer writer thread.
 void guest_hits_observe_c2s(const uint8_t* packet, size_t size);

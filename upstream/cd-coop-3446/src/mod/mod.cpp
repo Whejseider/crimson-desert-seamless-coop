@@ -1739,6 +1739,7 @@ DWORD WINAPI late_init(LPVOID param) {
         // Combat values learnt in earlier sessions, and kept from now on
         // (cdmp_learnt.txt; learnt also while playing alone).
         net::learnt_load(init->dir);
+        net::xp_share_load(init->dir);  // Co-op+: kill experience per enemy kind (xp_share.h)
         CloseHandle(CreateThread(
             nullptr, 0,
             [](LPVOID p) -> DWORD {

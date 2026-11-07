@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace cdmp::net {
@@ -35,5 +36,8 @@ void xp_share_on_message(const std::vector<uint8_t>& bytes);
 // 15 (the Tier_2 amount, the commonest). Sniffer thread.
 void xp_share_note_our_kill(uint32_t variant);              // a natural kill of ours (learns the amount)
 void xp_share_partner_finished(uint32_t variant);           // the other player's kill, finished here
+// The learnt amounts are kept across sessions in <dir>cdmp_kill_xp.txt ("enemy kind amount" per line), so the default
+// only applies to a kind never killed here. Late init (the game folder); written by xp_share_tick when one is learnt.
+void xp_share_load(const std::wstring& dir);
 
 }  // namespace cdmp::net

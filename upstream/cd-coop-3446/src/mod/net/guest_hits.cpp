@@ -632,6 +632,29 @@ void guest_hits_observe_s2c(const uint8_t* packet, size_t size) {
     }
 }
 
+bool guest_hits_dev_hit(uint32_t hash, uint32_t frame) {
+    const auto me = game::actor_world_position(capture_own_player_key());
+    if (!me) return false;
+    uint32_t best = 0;
+    float best_d = 150.0f;
+    for (uint32_t k = 0xB01F0001; k < 0xB01F0080; ++k) {
+        if (!is_enemy_copy_key(k)) continue;
+        const auto at = game::actor_world_position(k);
+        if (!at) continue;
+        const float dx = at->x - me->x, dz = at->z - me->z, d = std::sqrt(dx * dx + dz * dz);
+        if (d < best_d) best_d = d, best = k;
+    }
+    if (!best) return false;
+    Bytes ev(kGuestHitSize);
+    std::memcpy(ev.data(), &best, 4);
+    std::memcpy(ev.data() + 4, &hash, 4);
+    std::memcpy(ev.data() + 8, &frame, 4);
+    std::lock_guard lock(g_mutex);
+    if (g_out.size() < 64) g_out.push_back({proto::EventKind::GuestHit, std::move(ev)});
+    log::info("Piece 4: [dev] a blow {:08X}/{} on the copy 0x{:08X} ({:.1f} m)", hash, frame, best, best_d);
+    return true;
+}
+
 std::vector<proto::GameEvent> guest_hits_take_events() {
     std::vector<proto::GameEvent> due;
     {
