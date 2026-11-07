@@ -1805,3 +1805,11 @@ Done in the user's Chrome (signed in as Asher):
 - 2026-11-07 12:50 Disk cleanup (user's OK): deleted the old packet archive (22 GB), test screenshots (6.6 GB), game
   folder recordings (6.9 GB), old exes (3479/3527/3549), old release builds and symbols (kept f3517194), installers;
   C: 50 -> 83 GB free. Kept: source, test saves, the f3517194 release, the bow recording, Ghidra, the real co-op world.
+- 2026-11-07 13:30 RELEASE CANDIDATE 0.1.0-alpha+c606602d (NOT published; waiting for the user's OK). The packaged
+  cdmp.ini ships guest_hit_stagger=1. FOUND: an update keeps the player's old cdmp.ini, so updaters would have kept
+  the old shipped 0; the installer now switches exactly the old shipped block (the "0 is safer" comment + =0) to 1,
+  once, and says so (a player could not have picked 0 under that text: it was the default). LESSON: in .NET (?m) mode
+  `$` does not match before "\r\n" (the first try missed; a lookahead `(?=\r?$)` fixed it). test-install-fake now
+  checks that migration: 14/14 PASS. Defender: no threats on the three zips. CHANGELOG entry for everything since
+  f3517194. Mod code identical to fd3f8f1 (the live-tested build). Notes + Discord text: dist/notes-c606602d.md.
+  Removed the superseded candidates 2020f177 / 357cdef8 / 1b4608d2 from dist.
