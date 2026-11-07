@@ -117,6 +117,8 @@ constexpr Site kCcTick = {0x9451E0, {0x48, 0x89, 0x5C, 0x24, 0x10, 0x55, 0x56, 0
 // check on one path. Both crashes had L0 AND L1 with a chart and no action; the tick guard only looks at the MAIN
 // layer, so once L0 got its action L1 crashed here. For copies only: while any layer has a chart and no current
 // action, this function is skipped (its events wait: the count is not cleared), not the whole tick.
+// CORRECTION (2026-11-07, full index): exe+0xA12E4E is NOT in this function but in exe+0xA12C00 (called by the CC
+// tick); see copy_tick_would_fault(). This guard stays (it keeps waiting events from a copy without actions).
 constexpr uint8_t kActionEventsHead[16] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74,
                                            0x24, 0x18, 0x48, 0x89, 0x7C, 0x24, 0x20, 0x55};
 
@@ -355,7 +357,48 @@ void on_playback_frame(safetyhook::Context& ctx) {
     if (n <= 5 || n % 500 == 0) log::info("HorseDiag: an action playback with no record skipped its frame read ({})", n);
 }
 
+// Co-op+ (2026-11-07, full Ghidra index + Borque's crash at exe+0xA12E4E reading 0x115 WITH the events guard working):
+// that address is not in 0xA128C0 (the events function guarded below) but in exe+0xA12C00, which the CC tick calls
+// (0x9451E0 -> 0xA12C00). Its loop over layers 0 and 1, once per layer start: layer = [cc+0x88+8i]; if its flag byte
+// [layer+0x108] has no bit 2, and either bit 1 or the layer's queued entry ([cc+0x80] + i*0x78: int != 0 and the
+// three shorts at +0x20/+0x22/+0x24 != -1) is set, it sets bit 2 and reads [action+0x115] with action = [layer+0x10]
+// -- no null check. The chart is not looked at, so the "chart and no action" test missed it, and the tick guard only
+// looked at the MAIN layer. True exactly when that read would hit a null action (for copies).
+bool copy_tick_would_fault(uintptr_t cc) {
+    uint32_t key = 0;
+    if (!read_key(cc, key) || !is_copy(key)) return false;
+    uintptr_t entries = 0;
+    if (!game::safe_read(cc + 0x80, &entries, 8)) return false;
+    for (int i = 0; i < 2; ++i) {
+        uintptr_t layer = 0, action = 0;
+        uint8_t flags = 0;
+        if (!game::safe_read(cc + 0x88 + 8ull * i, &layer, 8) || !layer) return true;  // the game reads [layer] too
+        if (!game::safe_read(layer + 0x108, &flags, 1)) return false;
+        if (flags & 2) continue;
+        if (!(flags & 1)) {
+            if (!entries) continue;
+            struct Entry {
+                int32_t n;
+                uint8_t pad[0x1C];
+                int16_t a, b, c;
+            } e{};
+            if (!game::safe_read(entries + 0x78ull * i, &e, sizeof e)) return false;
+            if (e.n == 0 || e.a == -1 || e.b == -1 || e.c == -1) continue;
+        }
+        if (!game::safe_read(layer + 0x10, &action, 8)) return false;
+        if (!action) return true;
+    }
+    return false;
+}
+std::atomic<uint64_t> g_skipped_tick_layer{0};
+
 void on_cc_tick(safetyhook::Context& ctx) {
+    if (g_contain && !copy_main_layer_empty(ctx.rcx) && copy_tick_would_fault(ctx.rcx)) {
+        const uint64_t n = ++g_skipped_tick_layer;
+        if (n <= 5 || n % 500 == 0) log::info("HorseDiag: a copy's tick waits: a starting layer has no action yet ({})", n);
+        ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
+        return;
+    }
     if (g_contain && copy_main_layer_empty(ctx.rcx)) {
         g_skipped_tick.fetch_add(1, std::memory_order_relaxed);
         ctx.rip = reinterpret_cast<uintptr_t>(g_ret);

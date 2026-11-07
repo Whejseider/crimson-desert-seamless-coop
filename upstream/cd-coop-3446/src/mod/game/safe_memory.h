@@ -26,4 +26,11 @@ std::optional<uintptr_t> read_ptr(uintptr_t addr);
 // True if the object at `obj` starts with the expected vtable pointer.
 bool has_vtable(uintptr_t obj, uintptr_t expected_vtable);
 
+// Co-op+ (2026-11-07): totals since start -- VirtualQuery calls made, reads answered from the per-thread range cache,
+// copies that faulted. Logged with the network loop's timing.
+struct SafeReadStats {
+    uint64_t queries = 0, hits = 0, faults = 0;
+};
+SafeReadStats safe_read_stats();
+
 }  // namespace cdmp::game

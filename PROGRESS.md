@@ -1914,3 +1914,24 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
 - Borque's crash: exe+0xA12E4E reading 0x115 again (thread 20044), with the action-events guard installed and working
   (5500+ waits). 1.4 s after the enemy copy 0xB01F0008 was reloaded "with no action": a race -- the guard's check and
   the game's read are on different moments; a copy reload in between leaves the action null.
+- 2026-11-07 14:15-14:35 FPS FIX built and measured (two copies, bandits save, same settings as hz1; Ghidra's class
+  recovery running in both measured runs):
+  1. game::safe_read (safe_memory.cpp): no VirtualQuery per read any more -- a per-thread cache of 32 ranges already
+     found committed + readable (1 s life); the copy stays under __try (a range freed since: caught, forgotten); a
+     guard page met anyway gets its guard back. New line every 10 s: "Timing: guarded reads, 10 s: N from the range
+     cache, M VirtualQuery calls, K faulted". fps1: ~1,000,000 reads per 10 s from the cache, ~3,200 VirtualQuery,
+     0 faults (the old build made ~1,000,000 VirtualQuery calls per 10 s, many on the game's own animation threads:
+     the HorseDiag guards read the CC of every character every frame).
+  2. Enemy relay: watch_hidden() (a test aid: two actor lookups per known enemy every 2 s, log only) runs only with
+     [dev] enemy_relay (as Plitos' C606D401 did).
+  3. Crash guard: exe+0xA12E4E (Borque's crash) is in exe+0xA12C00, called by the CC tick 0x9451E0 -- NOT in
+     0xA128C0 where the earlier guard sits (the full index showed it). copy_tick_would_fault() mirrors the game's own
+     condition in that loop (layers 0-1: flag byte +0x108 without bit 2, bit 1 or the layer's queued entry
+     [cc+0x80]+i*0x78 valid, current action [layer+0x10] null) and skips that copy's tick only then. Did not fire in
+     fps1 (no false waits).
+  Results, the focused copy late in the session: old build (control ctrl1, same conditions) host 21-26 fps, network
+  loop 94-100 ms of work per loop; new build (fps1) host 92-94 fps, guest 90-96 fps, loop ~2 ms (coop-update 70 ms
+  -> 0.0). hz1 (old build, this morning) had the host at 30-44. The unfocused copy is now ~13 fps (old: 25-67): one
+  GPU for two games -- the focused copy no longer starves itself, so it takes most of it (total ~105 vs ~90 frames
+  a second); not an issue with one game per PC. fps1's lag line (136 ms) was measured on that background copy;
+  ctrl1's 56 ms. SAVES OK both. No WRN/ERR in fps1; player, horse and enemy copies loaded.

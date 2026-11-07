@@ -597,6 +597,14 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             }
             log::info("Timing: network loop sections (p50/p95 ms): before-coop, coop-1, coop-2-rest, rate, state, "
                       "player-block, activity, weather, summary, sync, resync, coop-update:{}", parts);
+            // Co-op+ (2026-11-07, FPS): guarded reads in the last 10 s, all threads (safe_memory.cpp).
+            {
+                static game::SafeReadStats last{};
+                const game::SafeReadStats s = game::safe_read_stats();
+                log::info("Timing: guarded reads, 10 s: {} from the range cache, {} VirtualQuery calls, {} faulted",
+                          s.hits - last.hits, s.queries - last.queries, s.faults - last.faults);
+                last = s;
+            }
             loop_wait_us.clear();
             loop_rest_us.clear();
         }
@@ -2239,6 +2247,7 @@ DWORD WINAPI worker(LPVOID) {
         }
         if (in_game && cfg.coop_enabled) {
             net::enemy_set_auto(cfg.coop_enemy_auto && !cfg.coop_suppress_lab);
+            net::enemy_set_watch_hidden(cfg.dev_enemy_relay);
             net::guest_hits_set_finish_arrow(cfg.coop_finish_arrow);
             net::puppet_set_rope_lookup(cfg.dev_rope_piece_lookup);
             net::puppet_minimap_set_enemy_offset(cfg.coop_enemy_minimap_icon);

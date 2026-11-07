@@ -58,6 +58,8 @@ void enemy_test_loop(void* stop);
 // [coop] enemy_auto: the copies go out on their own (Ctrl+F7 still toggles).
 // Call before enemy_test_loop starts.
 void enemy_set_auto(bool on);
+// Co-op+ (2026-11-07): the hidden-flag watch (a test aid) runs only when on ([dev] enemy_relay).
+void enemy_set_watch_hidden(bool on);
 // Co-op, every loop: a partner is connected and the game is ready. Copies are
 // only made then (nothing would take them).
 void enemy_set_linked(bool on);

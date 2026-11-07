@@ -1327,6 +1327,7 @@ void enemy_observe_c2s(const uint8_t* packet, size_t size) {
 // actors within 60 m whose Status+0x390 has bit 2 (the flag that hid the
 // originals: model alpha 0) are logged when they get or lose it.
 std::map<uint32_t, uint32_t> g_hidden_seen;  // key -> its +0x390 when logged
+std::atomic<bool> g_watch_hidden{false};
 
 void watch_hidden() {
     const auto me = my_position();
@@ -1373,6 +1374,7 @@ void watch_hidden() {
 }
 
 void enemy_set_auto(bool on) { g_auto = on; }
+void enemy_set_watch_hidden(bool on) { g_watch_hidden = on; }
 void enemy_set_linked(bool on) { g_linked = on; }
 
 namespace {
@@ -1480,7 +1482,9 @@ void enemy_test_loop(void* stop) {
             last_auto = now;
             auto_tick();
         }
-        if (now - last_watch >= 2000) {
+        // Co-op+ (2026-11-07, FPS): a test aid (two actor lookups per known enemy every 2 s, log lines only); with
+        // [dev] enemy_relay only (Plitos' C606D401 did the same).
+        if (g_watch_hidden.load(std::memory_order_relaxed) && now - last_watch >= 2000) {
             last_watch = now;
             watch_hidden();
         }
