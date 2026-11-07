@@ -2,6 +2,18 @@
 
 ## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 
+Since 0.1.0-alpha+f3517194 (2026-11-06 / 07, game 1.0.0.3576; tested with two copies of the game on one PC, sandbox saves only):
+- Shared experience: every skill-point gain one player gets is given to the other too, through the game's own experience routine, anywhere on the map (no distance limit). Kills the guest finishes on the host's enemies now give experience to both (the amount each enemy kind gives is learnt from your own kills and kept in cdmp_kill_xp.txt; 15 until a kind has been seen).
+- The host's enemies fight the guest: they target and attack the guest's character (they ignored it on 1.0.0.3576), and the guest's game no longer crashes when enemy copies load in a camp.
+- The guest's blows stagger the host's enemies like the host's own blows ([coop] guest_hit_stagger, now 1; an update from an older zip turns it on).
+- Kill counts: the "Journey Together" card credits the guest's kills to the guest (they counted for the host).
+- Fixed: a false "out of sync" could bring back every hidden enemy at once (dead enemies kept for looting were counted).
+- Prologue: co-op waits while either player is still in the opening tutorial and starts by itself the first time that player rides a horse (after the prologue); a banner says so. [coop] prologue_missions / solo_prologue.
+- Co-op main menu at the title: Start Solo / Invite Friends / Start Co-op, the party with a crown on the host, and the host's choice of Continue Our Co-op Save / Start From My Solo Progress / New Co-op Save (the guest follows on the host's difficulty). A Co-op tab in the game's Start menu holds every co-op setting with its explanation.
+- Lower latency: your friend is drawn about 50 ms after the network (was about 350 ms), smoothly.
+- Direct play without Steam (Radmin VPN, LAN, any VPN): [net] transport=direct, see DIRECT PLAY in README.txt. Asked for by a playtester so they need not patch each release.
+- From a playtester's patch (Plitos, merged): a quest step from before a co-op save switch is no longer applied, live quest steps are checked again before they run, and malformed cutscene messages are ignored.
+
 New (2026-11-05, after the first playtest):
 - Hide and seek, a new challenge: the challenger counts first with eyes closed (45 s) while the friend hides within 100 m (a gold ring on the ground marks the edge, red when you are outside). The seeker has 3 minutes; the hider's name tag, distance and map marker are hidden, and Cold / Warm / Hot tells how close you are. Within 4 m = found. Roles swap every round, first to 2.
 - Fishing contest, a new challenge: six minutes, each player fishes in their own world; every fish kept scores by kind (river 1, sea 2, legendary 5) and the friend sees each catch ("Ana caught a Trout +1"). A draw plays another round.
