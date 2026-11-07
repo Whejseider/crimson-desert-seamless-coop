@@ -1869,3 +1869,18 @@ Done in the user's Chrome (signed in as Asher):
   Decompiler Parameter ID (real parameters/types) and the Aggressive Instruction Finder, thorough sub-options, full
   re-analysis; (2) Ghidra's RecoverClassesFromRTTIScript (C++ classes, methods in their classes, inheritance);
   (3) ExportIndex; (4) ExportAllC (every function's C). Each step a separate headless run (a failure keeps the rest).
+- 2026-11-07 08:15 THE FIRST FULL GHIDRA RUN FAILED: java.lang.OutOfMemoryError after 222 min (20 GB heap; in the
+  Address Table analyzer's address-set subtract), and headless saves nothing on a failed import, so all of it was
+  lost. Cause: the exe's `.tls$` section (RVA 0x7A44000, 0xBDE1F34 = 190 MB, RWX) is the protector's code (junk flow
+  into non-existing memory, the "More than 100 address segments" warning); the game's own code is `.text1` (85 MB).
+  Fix: build/tools/scripts/StripProtected.java removes `.tls$` in a separate import run (saved before any analysis),
+  then the analysis runs on the saved import with a 24 GB heap (full_analysis.ps1 v2); build/tools/run_all.ps1 chains
+  base -> deep steps unattended. Restarted 08:25.
+- 2026-11-07 08:16-08:22 LIVE TEST hz1 (two copies, bandits save, this build): THE FRIEND'S HORSE NOW APPEARS. Both
+  copies: "Puppet: horse prepared ... loaded with its first action" -> "copy 0xB010F002 made visible"; the warning
+  "the other player's horse is not a plain mount load (slot 1)" that every earlier run had is gone (the kind-4 check).
+  "HorseDiag: action-playback guard installed" in both (the 18 bytes match on 3576; it did not need to act). No ERR /
+  WRN, SAVES OK, lag 54 ms screen-to-copy.
+- 0x2E05550 (thought to be the add-item worker) is an item exchange / conversion: its bag add is 0x29EA7C0 with 200-byte
+  item records from 0x25FED70 and a long commit chain (docs/research/reverse-engineering-3576.md, Items). Gifting not
+  built: too many unnamed steps before the full index.

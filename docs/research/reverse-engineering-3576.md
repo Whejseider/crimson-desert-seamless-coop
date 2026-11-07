@@ -120,6 +120,18 @@ must be found again: the method section says how.
   RemoveItemToInventoryAck (2421 = 0x975, at 0x2C75FA3). Its 5 callers: 0x29EBBC0, 0x2B5D900, 0x2DF04A0,
   **0x2E05550**(obj, int* err, ?, u32, u16, u32, u32, u64 -- the shape of an add-to-inventory worker), 0x2E0DC70.
   Tool: build/port3479/opwriters.py (who writes an opcode), callers2.py (E8 callers).
+- 0x2E05550 read in full (build/decomp/items5.c): NOT a plain add. It is an **exchange / conversion** worker:
+  `(obj, int* err, ?, u32, u16 recipe, u32 from_key, u32 to_key, u32 times)`. It looks the u16 up in the table at
+  [0x71CF2F0] (hash buckets of 0x100 bytes, entries `{.., u16 id @+4, u16 index @+6}`), maps both item keys to
+  indices with 0x3D7E10 (the item hash map), checks the two rates (+0x28 of the recipe record from 0x0AD2BD0, max 0x28
+  per step), then for each step: builds the new items as 200-byte item records (0x25FED70(record, &index, count),
+  pushed by 0x2600090), removes the cost with 0x29ECDE0(bag+0x80, ...) and **adds with
+  0x29EA7C0(bag, &err, ?, &records, 1, expire_time, flags, ..., 5, 0, 1, 1, 0)**, commits with 0x29EAD70 /
+  0x29ECF00 / 0x29F10C0 / 0x29ED3D0 / 0x29EB3A0 / 0x29ED4F0 / 0x29EBA00 / 0x29EDAA0 / 0x29EC0F0, then tells the
+  client: 0x2C75FE0 (removed), 0x2C75730 (added), 0x2C89CA0 (minus-item list). So the bag's core add is
+  **0x29EA7C0** (bag = the object at +0x2E8 of the worker's own frame, `lStack_2e8`, from 0x2E5D430 on the server
+  thread's [tls+0x250]). Giving an item would mean building records with 0x25FED70 and the whole commit chain: too
+  many unnamed steps to do safely without the full index; NOT built.
 - Other handlers read on the way (same +0x21 gate): SpawnItemToGroundByCheatReq 0x2C8B360 (`u32 | u64 | u16 | item
   value struct` -> 0x2EE98D0 -> 0x2DD9600), PushEntitlementItemReq 0x2C98040 (`u16 | u32` -> 0x2B3D920 on
   [comps + 0x168]), TransferItemReq 0x2C96A10 (`u16 | u16 | u16 | u16` -> 0x2EEB9A0 -> 0x2D6D410 on [comps + 0x38]),
