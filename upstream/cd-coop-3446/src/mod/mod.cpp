@@ -1088,6 +1088,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             }
             loop_section(10);
             coop->update(pos, rot, now);
+            if (host && linked) net::aggro_keep_copy_in_battle(cfg.coop_copy_in_battle);  // Co-op+ (aggro_test.h)
             loop_section(11);
         }
 

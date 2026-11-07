@@ -1777,3 +1777,17 @@ Done in the user's Chrome (signed in as Asher):
   - (3) likely the doubled natives / copies after the false resync. Re-check after the fix.
   - (5) the guest's blows are applied as HP loss (VaryStatCheatReq) plus a hit reaction only when one was learnt for
     that attack ("no reaction learnt yet"): fewer staggers than native blows. OPEN.
+- 2026-11-07 11:10 ENEMIES ATTACK THE GUEST + GUEST CRASH FIXED (two copies, ag1-ag4, bait test: [dev] attack_probe,
+  Ctrl+F10 bait, guest and host walk into the bandit camp; SAVES OK each):
+  - Guest crash (xs2? / xs3 / ag3, exe+0xA12E4E reading 0x115): exe+0xA128C0 processes a character's queued animation
+    events ([rcx] = its CC); it reads each layer's current action [layer+0x10] -> +0x111/+0x115 with no null check on
+    one path. The enemy copies came with L0 AND L1 holding a chart and no action; the tick guard only checked the MAIN
+    layer. horse_diag: on_action_events skips that function for copies while any of layers 0-3 has a chart and no
+    current action (events wait). ag4: guard fired at the copies' load on both sides, NO crash (ag3 crashed there).
+  - Enemies never attacked the guest's copy: (1) CheckAIBattleType's context keeps its target at +0x268/+0x270 on
+    3576 (2976: +0x260/+0x268) and the asking enemy is reached via a handle (exe+0x192EF10, released exe+0x1618660 tag
+    0x5AC58E0): the F5 override never recognised the copy ("copy 0"); fixed. (2) with the copy targeted the AI never
+    even asked (ag2: 0 calls); the copy's battle byte (CommonTarget +0x90 -> +0x164) is now kept at 1 on the host while
+    it is loaded and alive ([coop] copy_in_battle=1, aggro_keep_copy_in_battle). ag4: CheckAIBattleType on the copy
+    12808 times, made to attack 5527, 11 enemy blows on the copy relayed, the guest took all 11.
+  - Test harness: bait_kit.ps1 (-HostScript), walks the guest (second PID) then the host into the camp.

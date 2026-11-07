@@ -65,6 +65,19 @@ SafetyHookInline g_is_targetable;
 SafetyHookInline g_battle_type;
 std::atomic<int> g_copy_slots{0};  // enemies attacking the copy at once; 0 = the game decides
 constexpr uint64_t kTurnMs = 4000;  // how long a pair of enemies keeps its turn on the copy
+// Co-op+ (2026-11-07, Ghidra on 3576: CheckAIBattleType's body .xtls 0xD06B630): the condition context keeps its
+// target at +0x268 with the "valid" byte at +0x270 (2976: +0x260 / +0x268), and the enemy asking is found through a
+// handle: exe+0x192EF10([[[obj_ia+0x68]]+8], &out) -> out+8 = the actor; the handle is released with exe+0x1618660
+// after writing the tag exe+0x5AC58E0 at out+0 (as the game does). With the old offsets the copy was never seen
+// ("copy 0 ... others 1376", played test xs3): the host's enemies targeted the guest's copy but never attacked it.
+constexpr uintptr_t kCtxTarget = 0x268, kCtxTargetValid = 0x270;
+constexpr uintptr_t kHandleToActor = 0x192EF10, kHandleRelease = 0x1618660, kHandleReleaseTag = 0x5AC58E0;
+using HandleToActorFn = void*(__fastcall*)(uintptr_t handle, void* out);
+using HandleReleaseFn = void(__fastcall*)(void* out);
+uintptr_t exe_base() {
+    static const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    return base;
+}
 std::atomic<uint64_t> g_bt_copy{0}, g_bt_copy_wait{0}, g_bt_overridden{0}, g_bt_other{0};
 SafetyHookMid g_set_target;
 std::atomic<uint64_t> g_puppet_candidate{0}, g_player_candidate{0};
@@ -140,13 +153,21 @@ bool copy_dead_at(uintptr_t actor) {
 // Only reads, guarded; no C++ objects here (SEH).
 int copy_battle_state(uintptr_t obj_ia, uintptr_t ctx, int slots) {
     __try {
-        if (!*reinterpret_cast<const uint8_t*>(ctx + 0x268)) return -1;
-        const uintptr_t target = *reinterpret_cast<const uintptr_t*>(ctx + 0x260);
+        if (!*reinterpret_cast<const uint8_t*>(ctx + kCtxTargetValid)) return -1;
+        const uintptr_t target = *reinterpret_cast<const uintptr_t*>(ctx + kCtxTarget);
         if (!target || *reinterpret_cast<const uint32_t*>(target + off::kActor_Key) != kPuppetPlayer) return -1;
-        // The enemy asking: [[[obj_ia+0x68]]+8].
+        // The enemy asking: the actor behind the handle [[[obj_ia+0x68]]+8] (as the game finds it).
         const uintptr_t a = *reinterpret_cast<const uintptr_t*>(obj_ia + 0x68);
         const uintptr_t b = a ? *reinterpret_cast<const uintptr_t*>(a) : 0;
-        const uintptr_t enemy = b ? *reinterpret_cast<const uintptr_t*>(b + 8) : 0;
+        const uintptr_t handle = b ? *reinterpret_cast<const uintptr_t*>(b + 8) : 0;
+        if (!handle) return -1;
+        alignas(16) uint8_t out[0x30] = {};
+        reinterpret_cast<HandleToActorFn>(exe_base() + kHandleToActor)(handle, out);
+        uintptr_t enemy = 0;
+        std::memcpy(&enemy, out + 8, 8);
+        const uintptr_t tag = exe_base() + kHandleReleaseTag;
+        std::memcpy(out, &tag, 8);
+        reinterpret_cast<HandleReleaseFn>(exe_base() + kHandleRelease)(out);
         if (!enemy) return -1;
         const uint32_t enemy_key = *reinterpret_cast<const uint32_t*>(enemy + off::kActor_Key);
         if (!keys::is_game_world_key(enemy_key)) return -1;
@@ -194,7 +215,8 @@ uint8_t cond_param(uintptr_t cond) {
 
 uintptr_t ctx_target(uintptr_t ctx) {
     __try {
-        return *reinterpret_cast<const uint8_t*>(ctx + 0x268) ? *reinterpret_cast<const uintptr_t*>(ctx + 0x260) : 0;
+        return *reinterpret_cast<const uint8_t*>(ctx + kCtxTargetValid) ? *reinterpret_cast<const uintptr_t*>(ctx + kCtxTarget)
+                                                                        : 0;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return 0;
     }
@@ -519,6 +541,34 @@ bool aggro_request_target_on_copy(uint32_t enemy) {
 
 void aggro_set_partner_in_menu(bool on) { g_partner_menu = on; }
 void aggro_set_copy_never_target(bool on) { g_never_target = on; }
+
+namespace {
+std::atomic<uint64_t> g_battle_writes{0};
+// Guarded: the copy's CommonTarget component's battle byte to 1 (the copy's own data only).
+bool set_copy_battle(uintptr_t copy) {
+    __try {
+        const uintptr_t comps = *reinterpret_cast<const uintptr_t*>(copy + off::kActor_ComponentTable);
+        const uintptr_t c = comps ? *reinterpret_cast<const uintptr_t*>(comps + 0x90) : 0;
+        if (!c) return false;
+        auto* b = reinterpret_cast<uint8_t*>(c + 0x164);
+        if (*b == 1) return false;
+        *b = 1;
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+}  // namespace
+
+void aggro_keep_copy_in_battle(bool on) {
+    if (!on) return;
+    const auto copy = game::find_actor(kPuppetPlayer);
+    if (!copy || !copy_state_normal(*copy)) return;
+    if (set_copy_battle(*copy)) {
+        const uint64_t n = ++g_battle_writes;
+        if (n <= 5 || n % 200 == 0) log::info("Aggro: the other player's copy set in battle ({} so far)", n);
+    }
+}
 
 void aggro_set_copy_targetable(bool on) {
     g_force = on;

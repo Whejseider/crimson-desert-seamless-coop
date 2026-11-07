@@ -46,6 +46,11 @@ std::string aggro_battle_type_stats();
 bool aggro_request_target_on_copy(uint32_t enemy);
 // True while the other player's copy is loaded and dead (Status +0x273).
 bool aggro_copy_dead();
+// Co-op+ (2026-11-07): host, network thread, every loop: while the other player's copy is loaded and alive and
+// enemies target it, its battle-state byte (CommonTarget component +0x164, the game only sets it for characters this
+// game controls) is kept at 1, so the enemies' AI enters its battle branch against the copy (on 3576 the copy was
+// targeted but the AI never even asked CheckAIBattleType about it). [coop] copy_in_battle (default 1).
+void aggro_keep_copy_in_battle(bool on);
 // Sniffer writer thread: every client->server packet (header included).
 void aggro_observe_c2s(const uint8_t* packet, size_t size);
 // Dev hotkey loop (Ctrl+F5). Blocks until `stop` (a HANDLE) is signalled.

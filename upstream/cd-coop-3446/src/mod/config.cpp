@@ -295,6 +295,7 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_coop_world_as_host = read_uint(ini_path, L"dev", L"coop_world_as_host", 0) != 0;
     c.coop_live_quests = read_uint(ini_path, L"coop", L"live_quests", 1) != 0;
     c.coop_solo_prologue = read_uint(ini_path, L"coop", L"solo_prologue", 1) != 0;
+    c.coop_copy_in_battle = read_uint(ini_path, L"coop", L"copy_in_battle", 1) != 0;
     c.coop_shared_xp = read_uint(ini_path, L"coop", L"shared_xp", 1) != 0;  // xp_share.h: on (sandbox gx2)
     c.coop_prologue_missions = std::min(read_uint(ini_path, L"coop", L"prologue_missions", 60), 2000u);
     c.coop_block_slowmo = read_uint(ini_path, L"coop", L"block_slowmo", 1) != 0;

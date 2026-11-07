@@ -111,6 +111,15 @@ constexpr Site kPending = {0x23326E0, {0x74, 0x51, 0x4C, 0x89, 0x3F, 0x44, 0x38,
 // action, null). Same containment rule, for the copies it was written for (horse and enemies).
 constexpr Site kCcTick = {0x9451E0, {0x48, 0x89, 0x5C, 0x24, 0x10, 0x55, 0x56, 0x57, 0x41, 0x54, 0x41, 0x55,
                                      0x41, 0x56, 0x41, 0x57}, "CC tick"};
+// Co-op+ (2026-11-07, 3576, Ghidra + three guest crashes: xs3, ag3 at exe+0xA12E4E reading 0x115, after an enemy
+// copy "came with no action"): exe+0xA128C0(rcx) processes a character's queued animation events; [rcx] is its CC.
+// It walks the CC's layers and reads each layer's current action [layer+0x10] -> +0x111 / +0x115 without a null
+// check on one path. Both crashes had L0 AND L1 with a chart and no action; the tick guard only looks at the MAIN
+// layer, so once L0 got its action L1 crashed here. For copies only: while any layer has a chart and no current
+// action, this function is skipped (its events wait: the count is not cleared), not the whole tick.
+constexpr uint8_t kActionEventsHead[16] = {0x48, 0x89, 0x5C, 0x24, 0x10, 0x48, 0x89, 0x74,
+                                           0x24, 0x18, 0x48, 0x89, 0x7C, 0x24, 0x20, 0x55};
+
 // Co-op+ (3479): the per-frame animation/movement update the CC calls on its +0xC8 object
 // (exe+0x945402 -> 0x975B60(obj, frame time); obj+0x60 = the CC). For a copy with a chart and no
 // action it reaches 0x976590, which dereferences the missing action (exe+0x976921: the second
@@ -301,6 +310,30 @@ bool copy_main_layer_empty(uintptr_t cc) {
     return !cur || !play;
 }
 
+// Any of a copy's first four layers with a chart (+0x110) and no current action (+0x10). Guarded reads.
+bool copy_layer_waiting(uintptr_t cc) {
+    uint32_t key = 0;
+    if (!read_key(cc, key) || !is_copy(key)) return false;
+    for (int i = 0; i < 4; ++i) {
+        uintptr_t layer = 0, chart = 0, cur = 0;
+        if (!game::safe_read(cc + 0x88 + 8ull * i, &layer, 8) || !layer) continue;
+        if (!game::safe_read(layer + 0x110, &chart, 8) || !game::safe_read(layer + 0x10, &cur, 8)) return false;
+        if (chart && !cur) return true;
+    }
+    return false;
+}
+
+std::atomic<uint64_t> g_skipped_events{0};
+SafetyHookMid g_events_hook;
+void on_action_events(safetyhook::Context& ctx) {
+    uintptr_t cc = 0;
+    if (g_contain && game::safe_read(ctx.rcx, &cc, 8) && cc && copy_layer_waiting(cc)) {
+        const uint64_t n = ++g_skipped_events;
+        if (n <= 5 || n % 500 == 0) log::info("HorseDiag: a copy's animation events wait: a layer has no action yet ({})", n);
+        ctx.rip = reinterpret_cast<uintptr_t>(g_ret);
+    }
+}
+
 void on_cc_tick(safetyhook::Context& ctx) {
     if (g_contain && copy_main_layer_empty(ctx.rcx)) {
         g_skipped_tick.fetch_add(1, std::memory_order_relaxed);
@@ -449,6 +482,15 @@ bool horse_diag_install(bool contain) {
     // Optional (not part of the all-or-nothing set above): without it a fresh character's copy can still crash.
     if (contain && !g_sample_hook && !hook(kLayerSample, g_sample_hook, on_layer_sample)) {
         log::warn("HorseDiag: layer-sample guard not installed (a brand-new game's copy may crash)");
+    }
+    // Co-op+ (2026-11-07): the animation-events guard (copy_layer_waiting; optional like the sample guard).
+    if (contain && !g_events_hook) {
+        const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+        uint8_t head[sizeof kActionEventsHead] = {};
+        if (game::safe_read(base + 0xA128C0, head, sizeof head) && std::memcmp(head, kActionEventsHead, sizeof head) == 0) {
+            g_events_hook = safetyhook::create_mid(reinterpret_cast<void*>(base + 0xA128C0), on_action_events);
+        }
+        log::info("HorseDiag: animation-events guard {}", g_events_hook ? "installed" : "NOT installed (code not as expected)");
     }
     g_contain = contain;
     log::info("HorseDiag: installed (containment {})", g_contain ? "on" : "off");
