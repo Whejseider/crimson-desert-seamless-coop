@@ -50,9 +50,14 @@ Check 'install: version note for another game version' ($o -match 'this mod was 
 # A player edits the settings; an update must keep them.
 $ini = Join-Path $bin 'cdmp.ini'
 $text = [IO.File]::ReadAllText($ini, [Text.Encoding]::Unicode) -replace 'join=friends', 'join=invite'
+# ... and it came from an older zip, which shipped the guest's stagger off under the old comment (the update turns it on).
+$text = [regex]::Replace($text, '(?m)^; The stagger reaction on those blows.*\r?\n; 0 = damage only.*\r?\nguest_hit_stagger=1',
+    "; The stagger reaction on those blows. 0 is safer: it injects a hit reaction`r`n; into the other player's enemy, which its AI may not expect.`r`nguest_hit_stagger=0")
+if ($text -notmatch 'guest_hit_stagger=0') { Check 'update: an older ini made for the stagger test' $false }
 [IO.File]::WriteAllText($ini, $text, (New-Object Text.UnicodeEncoding($false, $true)))
 $o = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $kit 'install.ps1') -GameDir $bin -SaveDir $saves -BackupRoot $backups -NoPause 2>&1 | Out-String
 Check 'update: player settings kept, new defaults as cdmp.ini.new' (([IO.File]::ReadAllText($ini, [Text.Encoding]::Unicode) -match 'join=invite') -and (Test-Path "$ini.new"))
+Check 'update: an older zip''s guest_hit_stagger=0 turned on, once' (([IO.File]::ReadAllText($ini, [Text.Encoding]::Unicode) -match '(?m)^guest_hit_stagger=1') -and ($o -match 'Turned on: the guest'))
 
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $kit 'vanilla.ps1') -GameDir $bin -Mode on -NoPause | Out-Null
 Check 'vanilla on: cdmp.asi parked' ((Test-Path (Join-Path $bin 'cdmp.asi.off')) -and -not (Test-Path (Join-Path $bin 'cdmp.asi')))
