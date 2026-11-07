@@ -1712,3 +1712,15 @@ Done in the user's Chrome (signed in as Asher):
   ft2: the arrow 0xF653A168 (1.5 m before, +1.2 m: the upstream M1 kill, +15 XP): NO CreateProjectileAck at all
   (probably needs a bow equipped). So the finishing blow itself must be found first (a projectile that deals damage
   for an unarmed / sword player), then the type-4 hit report can be injected for the hidden native.
+- 2026-11-07 07:40 SHARED XP, bow recording with the user (bow1, sandbox copy of the user's save; rec/
+  cdmp_packets_20261106-235658.*): a real arrow = CreateProjectileFromFrameEventReq 2644 (236 B, from the bow's action
+  frame event) -> CreateProjectileAck with a real projectile (0x0ED8D272 | 0x000F4F01 | data 0x0BB2BA9B | homing target)
+  -> OnHitProjectileReq 2860 (u32 player | u32 arrow n | u32 owner | u32 target | vec3 point) + DoFrameEventReq (04,
+  1335 B) -> AttackTargetAck + VaryHPAck (damage) -> death -> AddSubLevelExperienceAck (sub-level 521, +15). Both kills
+  +15. The collision projectile's CreateProjectileAck is all zeros (a dummy: buff, no damage). ft3: AttackByCollisionReq
+  with the arrow's key 0x0ED8D272 gets NO answer (refused, like 0xF653A168): the collision request only takes collision
+  keys, so it cannot make a damaging projectile. NOTE: the same collision on a visible bandit at 1 HP did not kill it
+  either (ft1), so the host-side "guest lethal blow -> normal kill with XP" (guest_hits, T17) should be re-checked live.
+  Routes left: (a) the guest's OWN real hits on a copy rewritten to also hit its hidden twin (DoFrameEventReq target
+  rewrite; the upstream "option A"): real damage, real kill, XP for kills the guest takes part in; (b) nothing found
+  yet for kills the guest has no part in.
