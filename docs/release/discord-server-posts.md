@@ -116,3 +116,14 @@ friends, then the host presses Ctrl+F1 to invite.
   (real key events), Enter. Pin / unpin: use the Pinned Messages panel's own Unpin button; the hover-menu refs can
   shift to the neighbouring message (one unpin dialog came up for the NEW post: cancelled). JS .click() on a menu item
   opens the confirm dialog late; check the dialog's text names the right build before confirming.
+
+## 2026-11-07 update 0.1.0-alpha+c606602d (shared XP, enemies fight the guest, co-op menu)
+- #download-here: new post with both zips and the GitHub latest link, pinned. The f3517194 post is still pinned:
+  the unpin click was refused by the permission check (the user unpins / removes it).
+- #announcements: "Update 0.1.0-alpha+c606602d: shared XP, enemies fight the guest, and a co-op menu"
+  (docs/release/discord-update-c606602d.txt).
+- #features message 1: two NEW lines under Joining and sessions (co-op menu, direct play), inserted with a DOM
+  Range after the heading. Message 2: retyped whole (ctrl+a, Delete, line by line with shift+Enter): NEW enemies
+  fight the guest / stagger, NEW shared experience (was "XP for the guest: Not yet"), old NEW tags dropped, spoiler
+  line shortened to stay under 2000 characters (1998). Text: docs/release/discord-features.txt.
+- The old Chrome tab's renderer was frozen (JS timed out); a new tab worked.

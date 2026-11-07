@@ -1813,3 +1813,12 @@ Done in the user's Chrome (signed in as Asher):
   checks that migration: 14/14 PASS. Defender: no threats on the three zips. CHANGELOG entry for everything since
   f3517194. Mod code identical to fd3f8f1 (the live-tested build). Notes + Discord text: dist/notes-c606602d.md.
   Removed the superseded candidates 2020f177 / 357cdef8 / 1b4608d2 from dist.
+- 2026-11-07 13:45-14:15 RELEASED 0.1.0-alpha+c606602d (user: "Yes, publish it"). Before upload, a two-copy session
+  with this exact asi (rel77: linked, the guest's character arrived, no ERR/WRN, SAVES OK; short walk: lag sample
+  too small to compare). The test kit now restores the c606602d asi (the game folder has it; the player's ini kept).
+  GitHub ashersheets-jpg/crimson-desert-coop-playtest v0.1.0-alpha-c606602d, Latest; uploads' sha256 match
+  (590baf57... player zip, 085b95eb... mod-manager); FEATURES.md and README pushed (co-op menu, shared XP, enemies
+  fight the guest, stagger, prologue, lag, direct play). publish-playtest.ps1 fixed twice: git's CRLF warning on
+  stderr stopped it (ErrorActionPreference Stop) and Windows PowerShell 5.1 split --notes at embedded quotes (now
+  --notes-file). Discord: download post pinned, announcement, #features 1 and 2 edited
+  (docs/release/discord-server-posts.md). NOT done: unpinning the f3517194 post (refused by the permission check).
