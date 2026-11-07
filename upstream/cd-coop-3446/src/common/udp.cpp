@@ -73,6 +73,10 @@ void cleanup() {
 UdpSocket::~UdpSocket() { close(); }
 
 bool UdpSocket::open(uint16_t port, bool loopback_only) {
+    return open_at(htonl(loopback_only ? INADDR_LOOPBACK : INADDR_ANY), port);
+}
+
+bool UdpSocket::open_at(uint32_t local_ip, uint16_t port) {
     close();
     SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (s == INVALID_SOCKET) return false;
@@ -87,7 +91,7 @@ bool UdpSocket::open(uint16_t port, bool loopback_only) {
 
     sockaddr_in sa{};
     sa.sin_family = AF_INET;
-    sa.sin_addr.s_addr = htonl(loopback_only ? INADDR_LOOPBACK : INADDR_ANY);
+    sa.sin_addr.s_addr = local_ip;
     sa.sin_port = htons(port);
     if (bind(s, reinterpret_cast<sockaddr*>(&sa), sizeof sa) == SOCKET_ERROR) {
         closesocket(s);

@@ -655,6 +655,11 @@ bool CoopLink::on_hot_event(const proto::GameEvent& ev, uint32_t now_ms) {
         // The other player's enemies: on the same clock as their own events (as on_event does it).
         std::lock_guard feed_lock(feed_mutex_);
         if (const auto offset = clock_.offset()) enemy_on_event(ev, ts_shift(*offset), hold_for(0));
+        static std::atomic<uint64_t> fast_enemy{0};
+        if (const uint64_t n = ++fast_enemy; n == 1 || n == 100 || n % 2000 == 0) {
+            log::info("Fast lane: {} enemy events applied as they arrived (latest: {})", n,
+                      ev.kind == proto::EventKind::EnemyAct ? "an action" : "a position");
+        }
         return true;
     }
     feed_puppet(ev, now_ms);

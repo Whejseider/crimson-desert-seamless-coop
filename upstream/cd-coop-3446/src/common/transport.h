@@ -4,6 +4,7 @@
 // forwarding; src/mod/net/steam_transport.h). Datagrams are at most
 // proto::kMaxPacketSize bytes, unreliable and unordered on both.
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -58,23 +59,44 @@ public:
         loopback_only_ = loopback_only;
         return true;
     }
+    // Co-op+ direct play (Radmin VPN, LAN, any VPN): bound to one local address, and every datagram that does not come
+    // from `only_ip` (the friend's address, network byte order) is dropped unread.
+    bool open_direct(const Endpoint& local, uint32_t only_ip) {
+        if (!sock_.open_at(local.ip, local.port)) return false;
+        loopback_only_ = local.is_loopback();
+        local_ = local;
+        only_ip_ = only_ip;
+        return true;
+    }
     bool send(const PeerAddr& to, std::span<const uint8_t> data) override {
         return to.kind == PeerAddr::Kind::Udp && sock_.send_to(to.endpoint(), data);
     }
     std::optional<size_t> recv(PeerAddr& from, std::span<uint8_t> buf, int timeout_ms) override {
         Endpoint ep;
         auto n = sock_.recv_from(ep, buf, timeout_ms);
+        if (n && only_ip_ && ep.ip != only_ip_) {
+            ++dropped_;
+            return std::nullopt;  // not our friend: never read
+        }
         if (n) from = PeerAddr::udp(ep);
         return n;
     }
     std::string status() const override {
+        if (only_ip_) {
+            return "direct udp " + Endpoint{local_.ip, sock_.local_port()}.str() + " (only from " +
+                   Endpoint{only_ip_, 0}.str().substr(0, Endpoint{only_ip_, 0}.str().rfind(':')) + ")";
+        }
         return "udp port " + std::to_string(sock_.local_port()) +
                (loopback_only_ ? " (loopback only)" : " (all interfaces)");
     }
+    uint64_t dropped() const { return dropped_; }
 
 private:
     UdpSocket sock_;
     bool loopback_only_ = true;
+    Endpoint local_{};
+    uint32_t only_ip_ = 0;
+    std::atomic<uint64_t> dropped_{0};
 };
 
 }  // namespace cdmp::net

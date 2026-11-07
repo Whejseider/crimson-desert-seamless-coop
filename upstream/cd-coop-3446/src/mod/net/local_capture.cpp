@@ -801,7 +801,12 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     }
 
     std::lock_guard lock(g_mutex);
-    if (keys::is_class(key, keys::kClassUser) && payload[0x0D] == off::kLoadKindMount) {
+    // The kind byte follows the mount's slot in the user's container: the horse in slot 2 is kind 5, the STARTER horse
+    // in slot 1 is kind 4 (3576 two-copy run hk3: 0xB0100002 kind 4; Plitos found the slot-1 horse from the copy's
+    // side, remote_puppet kFirstMountSlot).
+    if (keys::is_class(key, keys::kClassUser) &&
+        (payload[0x0D] == off::kLoadKindMount || payload[0x0D] == off::kLoadKindMount - 1) &&
+        !keys::is_class(u32_at(payload, 0x0E), keys::kClassPlayer)) {
         g_horse_key = u32_at(payload, 0x0E);
         g_horse = std::move(payload);
         log::info("Capture: horse template (horse 0x{:08X}, {} bytes)", g_horse_key, g_horse.size());
@@ -809,7 +814,14 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     }
     if (keys::is_class(key, keys::kClassUser)) {
         const uint32_t actor = u32_at(payload, 0x0E);
-        if (!keys::is_class(actor, keys::kClassPlayer)) return;  // horse, mercenaries: also user-owned
+        if (!keys::is_class(actor, keys::kClassPlayer)) {  // horse, mercenaries: also user-owned
+            static int logged = 0;  // Co-op+ (3576 horse check): which user-owned loads come, and their kind byte
+            if (logged++ < 12) {
+                log::info("Capture: user-owned load of 0x{:08X}, kind {} (a mount is kind {}), {} bytes", actor,
+                          payload[0x0D], off::kLoadKindMount, payload.size());
+            }
+            return;
+        }
         // The first load of a session is a default character parked at
         // (0, 1000, 0) (apariencia-estado-coop.md §3): not the player's look.
         if (payload.size() > off::kLoadPositionFromEnd) {
@@ -929,6 +941,9 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
         uint32_t parent = 0;
         std::memcpy(&parent, payload.data() + wire::kMoveParent, 4);
         if (parent == g_own_horse) {
+            if (steady_ms() >= g_ridden_until_ms.load()) {  // Co-op+ test kit: each mount once in the log
+                log::info("Capture: riding our horse 0x{:08X} (our moves name it as their parent)", g_own_horse);
+            }
             g_ridden_until_ms = steady_ms() + 200;
             std::memcpy(g_horse_sent_pos, payload.data() + wire::kMoveWorldPos, sizeof g_horse_sent_pos);
         }

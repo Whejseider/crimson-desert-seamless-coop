@@ -119,6 +119,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/steam_transport.cpp
     src/mod/net/room_code.cpp
     src/mod/net/steam_join.cpp
+    src/mod/net/direct_ip.cpp
     src/mod/net/party_scaling.cpp
     src/mod/net/save_guard.cpp
     src/mod/net/story_sync.cpp

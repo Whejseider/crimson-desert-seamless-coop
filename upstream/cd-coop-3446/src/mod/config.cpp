@@ -18,7 +18,8 @@ constexpr wchar_t kDefaultIni[] =
     L"\r\n"
     L"[net]\r\n"
     L"enabled=1\r\n"
-    L"; steam = play with a Steam friend; udp = tests on this PC only (cdmp_peer.exe)\r\n"
+    L"; steam = play with a Steam friend; direct = straight to a friend over Radmin VPN / LAN / any VPN\r\n"
+    L";   (peer_host = your FRIEND's VPN address on both PCs, role = host or guest); udp = tests on this PC\r\n"
     L"transport=udp\r\n"
     L"; guest connects to the host or to cdmp_peer; host waits for one player\r\n"
     L"; auto (Steam only): host your own world, and become a guest when you accept a\r\n"
@@ -186,7 +187,12 @@ Config load_config(const std::wstring& ini_path) {
     c.peer_host = narrow(read_string(ini_path, L"net", L"peer_host", c.peer_host));
     c.peer_port = static_cast<uint16_t>(read_uint(ini_path, L"net", L"peer_port", c.peer_port));
     c.send_rate_hz = std::clamp(read_uint(ini_path, L"net", L"send_rate_hz", c.send_rate_hz), 1u, 60u);
-    c.net_transport_steam = read_string(ini_path, L"net", L"transport", "udp") == L"steam";
+    {
+        const std::wstring transport = read_string(ini_path, L"net", L"transport", "udp");
+        c.net_transport_steam = transport == L"steam";
+        c.net_transport_direct = transport == L"direct" || transport == L"radmin" || transport == L"lan";
+        c.bind_host = narrow(read_string(ini_path, L"net", L"bind_host", ""));
+    }
     {
         const std::wstring role = read_string(ini_path, L"net", L"role", "guest");
         c.net_role_auto = role == L"auto";
@@ -247,6 +253,8 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_versus_test = read_uint(ini_path, L"dev", L"versus_test", 0);
     c.dev_seat_test = read_uint(ini_path, L"dev", L"seat_test", 0) != 0;
     c.dev_scaling_as_host = read_uint(ini_path, L"dev", L"scaling_as_host", 0) != 0;
+    c.dev_join_switch_s = read_uint(ini_path, L"dev", L"join_switch_s", 0);
+    c.dev_join_switch_port = static_cast<uint16_t>(read_uint(ini_path, L"dev", L"join_switch_port", 0));
     c.dev_quest_events_log = read_uint(ini_path, L"dev", L"quest_events_log", 0) != 0;
     c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
     c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;

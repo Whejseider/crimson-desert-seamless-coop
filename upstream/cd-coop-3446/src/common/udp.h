@@ -38,6 +38,9 @@ public:
     // port 0 = ephemeral. loopback_only keeps the socket off the LAN and
     // avoids the Windows firewall prompt during single-PC development.
     bool open(uint16_t port, bool loopback_only);
+    // Bound to one local address (network byte order; 0 = all interfaces): direct play binds only the VPN / LAN
+    // adapter that reaches the friend (Co-op+, transport=direct).
+    bool open_at(uint32_t local_ip, uint16_t port);
     void close();
     bool is_open() const;
     uint16_t local_port() const;

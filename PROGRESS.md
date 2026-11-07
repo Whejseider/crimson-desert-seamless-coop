@@ -1588,3 +1588,27 @@ Done in the user's Chrome (signed in as Asher):
   save was loaded; after loading his save first, joining worked. So: the Join path at the title / from Steam's launch
   (+connect_lobby, Kind::Join -> apply_role_settings while at the title, co-op world switch). TODO: two-copy repro
   (guest at the title accepts a join), and his cdmp.log from the game's bin64 folder.
+- 2026-11-07 01:50 Live (Steam started with the user's OK; two copies on this PC, SAVES OK every run):
+  - cpm1: STANDALONE MENU input block PASSES: with the co-op menu over the title, the host pressed the title's own keys
+    (E Play, Z New Game, O Options, F, E again); the title never reacted (no load, no dialog, shots cpm1-31/-32).
+    (Its start step pressed the old menu order and only selected Invite Friends: harness fixed.)
+  - cpm2: Start Co-op -> Play Together -> 3 s countdown -> input back -> each game pressed Play -> both in one world.
+  - ENEMY FAST LANE PASSES (cpm2): "Fast lane: 100 enemy events applied as they arrived"; the host's bandit copies exist
+    in the guest's game (113-118 m away).
+  - Borque's crash, not reproduced: cpj1 ([dev] join_switch_s: a copy hosting at the title turns into the guest 30 s
+    later, as an accepted invite does): no crash, joined, played. cps1 (a copy started with Steam's
+    "+connect_lobby <id>", transport=steam, role=auto as in the release): no crash in 90 s. Left: a real invite between
+    two Steam accounts. Asked for his cdmp.log and the Windows "Application Error" entry (faulting module).
+  - hk1-hk4 HORSE: on 3576 the starter horse loads with kind 4 (slot 1), the mod only knew kind 5 (slot 2), so it never
+    saw the horse ("Capture: horse template" missing in every 3576 run). Fixed: kind 4 or 5 (not a player), and the
+    horse copy accepts slot 1 (Plitos's kFirstMountSlot = 1). hk4: "horse template (0xB0100002)" and its position every
+    5 s. H (tap or 1.5 s hold) does NOT call it on 3576; the kit then walked toward it (300 m) and got stuck on rocks.
+    Kit ready (build/port3527/horse_kit.ps1, -HostScript): call, watch it come, walk there for real (walkto.py, now
+    per PID with CDMP_PID), E, "Capture: riding our horse" confirms. Needs the call key (FLAGS F21).
+  - hk3 DIRECT PLAY over loopback: both copies transport=direct, connected, joined, played.
+- 2026-11-07 01:50 DIRECT PLAY built in (Plitos: integrate Radmin so he need not patch each release): [net]
+  transport=direct (radmin, lan), role host/guest, peer_host = the friend's address on both sides, bind_host optional.
+  Binds only the adapter whose subnet holds the friend (else the Radmin 26.x adapter), drops every datagram not from
+  the friend's IP (transport level, so the fast lane is covered too), co-op save key "direct-<ip>", Steam name if
+  Steam runs (8 s wait) else the ini's. Guide: docs/direct-play.md. Not taken from his patch: protocol 13 / journey
+  string (ours stays independent), the 26/8-only rule.

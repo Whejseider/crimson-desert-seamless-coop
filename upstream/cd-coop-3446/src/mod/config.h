@@ -18,6 +18,10 @@ struct Config {
     // [net] transport=udp|steam, role=guest|host. A guest connects to the host
     // (or to cdmp_peer); a host waits for one player.
     bool net_transport_steam = false;
+    // Co-op+ [net] transport=direct (also radmin / lan): UDP straight to the friend over a VPN or LAN (direct_ip.h).
+    // peer_host = the friend's address on both sides; bind_host = our own (empty: the adapter that reaches the friend).
+    bool net_transport_direct = false;
+    std::string bind_host;
     bool net_role_host = false;
     // [net] role=auto (Co-op+): start as the host of our own world; a Steam invite
     // or "Join Game" switches to guest, and leaving switches back.
@@ -76,6 +80,11 @@ struct Config {
     std::string dev_tp_to;  // Co-op+ dev: "x,y,z" -> Ctrl+Shift+F4 teleports there instead ([dev] tp_to)
     int32_t dev_tp_offset_m = 30;  // Co-op+ dev: Ctrl+Shift+F4 teleports this far east ([dev] tp_offset_m)
     uint32_t dev_boss_hp = 0;       // Co-op+ dev: enemies with this many max HP count as bosses ([dev] boss_hp)
+    // Co-op+ dev (Borque's crash: a Steam invite accepted before a save was loaded): a HOST turns into a guest this
+    // many seconds after its network started, as an accepted invite does (Kind::Join), once; 0 = off. As a guest it
+    // then talks to join_switch_port (UDP; 0 = peer_port).
+    uint32_t dev_join_switch_s = 0;
+    uint16_t dev_join_switch_port = 0;
     bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
     int dev_challenge_test = 0;      // Co-op+ dev: a simulated friend accepts our challenges ([dev] challenge_test)
     bool dev_duel_test = false;      // Co-op+ dev: one-PC duel with the echo peer (coop_duel.h)

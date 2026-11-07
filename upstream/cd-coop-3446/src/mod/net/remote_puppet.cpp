@@ -50,8 +50,9 @@ constexpr uint32_t kPuppetBody = 0xB010F001;
 // sender's party list inside the horse packet.
 constexpr uint32_t kPuppetHorse = 0xB010F002;
 constexpr uint32_t kPuppetHorseParty = 0xB010F003;
-// Slots of a user's child container that hold its mounts (2 = horse, 3 = other mounts).
-constexpr uint8_t kFirstMountSlot = 2, kLastMountSlot = 7;
+// Slots of a user's child container that hold its mounts (2 = horse, 3 = other mounts; slot 0 is the rider). The
+// starter horse comes in slot 1 (Plitos's patch, 2026-11-07; our 3576 capture: its load kind is 4, one below slot 2's).
+constexpr uint8_t kFirstMountSlot = 1, kLastMountSlot = 7;
 
 // The character number in the player's load packets (user +0x17/+0x43, body
 // +0x1839/+0x1865). The client keeps ONE equipment-list cache keyed by it and
