@@ -1703,3 +1703,12 @@ Done in the user's Chrome (signed in as Asher):
   listed targets: NO visibility or distance check seen. Plan: after our AttackByCollisionReq the server makes our
   projectile (CreateProjectileAck); inject a type-1 DoFrameEventReq naming the hidden native (at 1 HP) before our
   client removes the projectile. Needed: a real type-1 report recorded (a host-side collision kill on a visible enemy).
+- 2026-11-07 07:10 SHARED XP, projectile route, first live checks (one copy, bandit save, recordings in
+  build/port3527/rec): ft1: VaryStatCheatReq mode 0, delta -62 on a visible bandit 0xB010006D: HP 63 -> 1 (VaryHPAck
+  exact). Then AttackByCollisionReq with 0xF2EE2678: server CreateProjectileAck; OUR CLIENT sent the hit report
+  itself: DoFrameEventReq first byte 04, 1335 B, attacker + point + target entries (kFrameEventFixed / target entries
+  at the end, as wire_layout.h) -> PostProcessAttackResult_AttackTargetAck + OnPostBuffDamagedAck + ApplyBuffAck
+  0x3FF on the bandit, but NO HP change, no death, no XP: that collision projectile applies a buff, not damage.
+  ft2: the arrow 0xF653A168 (1.5 m before, +1.2 m: the upstream M1 kill, +15 XP): NO CreateProjectileAck at all
+  (probably needs a bow equipped). So the finishing blow itself must be found first (a projectile that deals damage
+  for an unarmed / sword player), then the type-4 hit report can be injected for the hidden native.
