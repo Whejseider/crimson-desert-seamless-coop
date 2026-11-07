@@ -132,6 +132,24 @@ must be found again: the method section says how.
   **0x29EA7C0** (bag = the object at +0x2E8 of the worker's own frame, `lStack_2e8`, from 0x2E5D430 on the server
   thread's [tls+0x250]). Giving an item would mean building records with 0x25FED70 and the whole commit chain: too
   many unnamed steps to do safely without the full index; NOT built.
+- The bag's ITEM TRANSACTION (build/decomp/items6.c; callers of 0x29EA7C0 found with callers2.py: 0x29B6B30,
+  0x29F0F30, 0x29F3070, 0x2DF04A0, 0x2E05550, 0x2E3E4D0, 0x2EA5350, 0x2EB5ED0). Every game action that moves items
+  is the same 4-phase transaction on a pooled object (0x2E5D430 on the server thread's [tls+0x250]):
+  1. **stage**: 0x29EA7C0(tx_add, &err, owner, &records, mode, expire, flag, flag, reason u16, 0, f, f, f) stores
+     its arguments at tx+0x10/0x20/0x68..0x7F and runs 0x29EA980 per 200-byte record (0x19 qwords); 0x29ECDE0(tx+0x80
+     = tx_remove, ...) stages the cost. Reasons seen: 5 (exchange), 0x18 / 0x13 (0x29F3070, a move between two
+     containers: tx+0x40 remove, tx+0xA8 add), 7 sets tx+0x7B.
+  2. **check**: 0x29EAD70 / 0x29ECF00 / 0x29F10C0 / 0x29ED3D0 / 0x29EB3A0 (space, weight, ownership; first error
+     wins; the errors are the global ints at 0x714AE30.., 0x712E07C, 0x714B3C8).
+  3. **commit**: 0x29ED4F0 (remove) then 0x29EBA00 (add); on failure the object's +0x50 owner gets error 0xD.
+  4. **finish**: 0x29ED860 / 0x29EBBC0 / 0x29EDDF0 / 0x29EC330 / 0x29EA640 / 0x29ECB60, then the client is told:
+     0x2C75FE0 (removed), 0x2C75730 (AddItemToInventoryAck 3110), 0x2C89CA0 (MinusItemDataListAck).
+  0x29F0F30 = "add these, remove those" in one call (both bags' +0xA0 must match). Item records: 0x25FED70(record,
+  &item_index, count) builds one (257 callers), 0x2600090 copies, 0x2600340 destroys; item key -> index 0x3D7E10.
+  CONCLUSION for T18 / T45 / T26: a gift is possible in principle (stage an add of one record with the game's own
+  transaction, check, commit, finish, notify) but means driving ~15 unnamed internal calls with guessed flag
+  meanings on the player's real save; a wrong flag can lose or duplicate items in a save. Not built in this pass;
+  the next step would be one transaction in a scratch world, read back from the save.
 - Other handlers read on the way (same +0x21 gate): SpawnItemToGroundByCheatReq 0x2C8B360 (`u32 | u64 | u16 | item
   value struct` -> 0x2EE98D0 -> 0x2DD9600), PushEntitlementItemReq 0x2C98040 (`u16 | u32` -> 0x2B3D920 on
   [comps + 0x168]), TransferItemReq 0x2C96A10 (`u16 | u16 | u16 | u16` -> 0x2EEB9A0 -> 0x2D6D410 on [comps + 0x38]),
