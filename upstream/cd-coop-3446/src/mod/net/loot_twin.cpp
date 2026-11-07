@@ -154,18 +154,21 @@ bool send_kill(uint32_t twin) {
     return sniffer_inject_c2s(make_packet(kOpKillCheatReq, b));
 }
 
-// Co-op+ shared XP: our hidden enemy dies by our blow (a normal kill: the experience is ours). Its HP goes to 0 (it is
-// left "fatal"; its real HP is not known here) and our player's collision lands on it at once; if it still lives,
+// Co-op+ shared XP: our hidden enemy dies by our blow (a normal kill: the experience is ours). Its HP is set to 1
+// and our player's collision lands on it at once; if it still lives,
 // loot_tick's KillCheatReq ends it (no XP then).
 bool send_xp_kill(uint32_t victim, const proto::Vec3& at) {
     const uint32_t own = capture_own_player_key();
     const auto me = game::actor_world_position(own);
     if (!own || !me) return false;
+    // Mode 1 = SET (docs/research/pendiente-recompensas-progreso.md T3): HP to exactly 1. Never 0: a 0-HP enemy goes
+    // "fatal" and its death then gives no KillActor (motive 15), which is why HP-to-0 gave no XP (xp4).
     Bytes vary(15, 0);
-    const int32_t delta = -100000000;
+    const int32_t one = 1;
     std::memcpy(vary.data(), &victim, 4);
     std::memcpy(vary.data() + 4, &kStatHP, 4);
-    std::memcpy(vary.data() + 9, &delta, 4);
+    vary[8] = 1;
+    std::memcpy(vary.data() + 9, &one, 4);
     bool ok = sniffer_inject_c2s(make_packet(kOpVaryStatCheatReq, vary));
     const float dx = at.x - me->x, dz = at.z - me->z;
     const float len = std::sqrt(dx * dx + dz * dz) + 1e-4f;

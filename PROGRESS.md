@@ -1680,3 +1680,12 @@ Done in the user's Chrome (signed in as Asher):
   the user either. So: do not test H again. A simulated call needs a pad hold of Up plus the right stick down (the
   mod's dev pad press only sets buttons today; a stick axis would have to be added), or a person calls it
   (horse_kit.ps1 -KitCalls manual).
+- 2026-11-07 05:50 SHARED XP, why it fails (xp5, guest recording rec/cdmp_packets_20261106-232348.*): the guest's
+  VaryStatCheatReq mode 1 value 1 took the hidden bandit 0xB010006D from 63.9 to 63.0 HP (VaryHPAck: hp x1000 at +8,
+  the old value at +0x18): mode 1 is NOT "set to"; HP is in each VaryHPAck, so an exact delta is possible. The
+  AttackByCollisionReq became a PROJECTILE of our player (CreateProjectileAck) that OUR CLIENT flies and judges
+  (OnTimerProjectileReq, OnAirFinishProjectileReq, RemoveProjectileReq: hit nothing): the client decides what a
+  projectile hits, and the hidden native is not in the guest's client. That is why the same blow works on the host
+  (the enemy is drawn there). Upstream research: no request grants sub-level XP (skill points; KillActor; 10/15/25,
+  elite 140, boss 1000; needs Mission_Intro_Abyss_Tutorial done). Way left: give the hidden native back to the guest's
+  client for a moment (at the copy's corpse, below 1 HP after an exact VaryStat) so our projectile can hit it.
