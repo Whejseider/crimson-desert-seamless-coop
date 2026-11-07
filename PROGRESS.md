@@ -1931,6 +1931,12 @@ Done in the user's Chrome (signed in as Asher):
     (0364c3f) for its PDB: the stack's return address is in puppet_visibility's g_watch.clear() (under its mutex),
     but the crash address itself lands in a destructor funclet, so the rebuild's layout is not exact; no conclusion.
     197 later logs: no crash inside the mod.
+- 2026-11-07 18:55 RELEASE CANDIDATE 0.1.0-alpha+4effc5c0 PACKAGED, NOT PUBLISHED (publishing needs the user's OK):
+  dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+4effc5c0.zip (+ mod-manager zip, private symbols zip); unit and
+  roomcodec tests pass. Over 096d9c3f: the FPS fix (c0858a8), the A12E4E guard where it really is, the enemy
+  hidden-flag watch off by default, horse copies of kind 4 or 5 in any mount slot (ba41644), the starter horse and
+  the exe+0x2519762 guard (588df1b). Not live-tested: a slot 2/3 horse (calling a horse needs a person: dev pad
+  presses do not reach the game) and the cutscene copy on 3576.
 
 ## Bug reports 2026-11-07 (user: "Frame drops seem to be a rather big issue now")
 Reports kept in build/reports/ (not in git): borque-2026-11-07_13-28-50 (Borque's CoopPlus report: build 096D9C3F,
