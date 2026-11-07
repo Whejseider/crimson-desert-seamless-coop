@@ -1740,3 +1740,11 @@ Done in the user's Chrome (signed in as Asher):
   the solo prologue holds. [coop] shared_xp=1 by default; the loot-twin XP route is retired. xs1: host +15 and guest
   +25 (dev grantxp, twice each): each side granted the other's amount, no echo, totals equal. SAVES OK.
   Not yet checked live: a real kill on one side (the ack is the same; the dev grant stands in for it).
+- 2026-11-07 09:00 PLAYED TEST (xs2, two copies; the user played the GUEST and killed a bandit copy): the guest's
+  blows reached the host's enemy 0xB0100073 (Piece 4, lethal at 1 HP); host: "survived the finishing collision:
+  KillCheatReq" -> killed with NO XP for anyone (the collision 0xF2EE2678 deals no damage on 3576, as ft1 showed), so
+  guest kills give no XP to share. FIX NEEDED: when the guest finishes a host enemy, the host grants the kill's XP
+  itself (quest_advance_grant_xp, tier amount) and xp_share passes it on. Then the guest's game CRASHED 1.5 s later,
+  40 ms after two newly re-sent enemy copies (0xB01F0006/7, "1 actions", placed by a Move) were injected:
+  exe+0x2519762 reading 0x28 (stack exe+0x56759A0, 0x468C36D, 0x3E4433). Memory at 90 % (2.8 of 31 GB free, page file
+  1.5 GB free) with two games on one PC. Open: copy-load crash vs memory pressure. SAVES OK.
