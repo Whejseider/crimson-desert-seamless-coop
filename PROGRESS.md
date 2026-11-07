@@ -1895,3 +1895,22 @@ Done in the user's Chrome (signed in as Asher):
   end() threw "Transaction not found" over it. Fixed: FlatProgramAPI end(true) at the start / start() at the end, and
   each slice catches its own exception (logged with its stack, "FAILED <exc>" in the progress file, pass goes on).
   Restarted 11:00 from slice 23.
+
+## Bug reports 2026-11-07 (user: "Frame drops seem to be a rather big issue now")
+Reports kept in build/reports/ (not in git): borque-2026-11-07_13-28-50 (Borque's CoopPlus report: build 096D9C3F,
+Steam, Hernand plains) and plitos-C606D401-FPS-Test (Plitos' "C606D401 | FPS fix" test build on c606602d: a
+200 KB patch with many features; its FPS parts: packet replay 16 packets / 2 ms per real packet, the enemy relay's
+watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overlay skips its draw instead of waiting).
+- Borque, FPS from the overlay's present counter (presents per 5 s): ~90 fps solo; the session starts 13:10:34 and
+  by 13:11:34 the game runs 27 fps, ~25 for minutes, 3-4 fps 13:24-13:26, 55 after. Our network loop at the same
+  time: normally ~1000 loops / 10 s (6 ms waiting for input, 3 ms work); from 13:11:30 ~30 loops / 10 s, 300-450 ms
+  of work each, "waiting for input" 0 -- busy all the time. Its sections grew together: coop-update 0 -> ~180 ms,
+  state (local.sample + HUD) 0 -> ~60 ms, activity 3 -> ~40 ms; already while our own player was still loading (no
+  copies yet). Borque's "+150 latency" is this: rtt 300+ ms because the loop runs every ~330 ms.
+- Lead: every game::safe_read calls VirtualQuery (231 call sites). VirtualQuery takes the process's address-space
+  lock that every VirtualAlloc/VirtualFree of the game's threads takes too; while the game streams the world, our
+  reads and its allocations wait on each other (slowmo.cpp's note: one VirtualQuery per packet made a load arrive
+  ~50 s late). A loop that reads more each second makes the game's frames wait more: both sides slow.
+- Borque's crash: exe+0xA12E4E reading 0x115 again (thread 20044), with the action-events guard installed and working
+  (5500+ waits). 1.4 s after the enemy copy 0xB01F0008 was reloaded "with no action": a race -- the guard's check and
+  the game's read are on different moments; a copy reload in between leaves the action null.
