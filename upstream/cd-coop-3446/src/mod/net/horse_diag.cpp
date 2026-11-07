@@ -334,6 +334,27 @@ void on_action_events(safetyhook::Context& ctx) {
     }
 }
 
+// Co-op+ (2026-11-07, the decomp pass; guest crash xs2 at exe+0x2519762 reading 0x28): in the action playback
+// exe+0x2518850 the game copies an action record's frame number, [[rec + 0x28] + 0x66], into the playback slot BEFORE
+// its own `if (rec != 0)` three instructions later -- a game bug that a copy whose record is not there yet (a re-sent
+// enemy copy) reaches. At exe+0x251975D (`mov rax, [rsp+0x48]` = rec): with rec 0 the slot's frame word [r14 + 0x38]
+// is set to 0 and the two loads are skipped (to exe+0x251976F); with a record, nothing changes. For any actor: the
+// path only differs where the game would crash.
+constexpr uint8_t kPlaybackFrameCode[18] = {0x48, 0x8B, 0x44, 0x24, 0x48, 0x48, 0x8B, 0x48, 0x28,
+                                            0x0F, 0xB7, 0x41, 0x66, 0x66, 0x41, 0x89, 0x46, 0x38};
+std::atomic<uint64_t> g_null_records{0};
+SafetyHookMid g_playback_hook;
+uintptr_t g_playback_resume = 0;
+void on_playback_frame(safetyhook::Context& ctx) {
+    uintptr_t rec = 0;
+    if (!game::safe_read(ctx.rsp + 0x48, &rec, 8) || rec) return;
+    uint16_t zero = 0;
+    std::memcpy(reinterpret_cast<void*>(ctx.r14 + 0x38), &zero, sizeof zero);
+    ctx.rip = g_playback_resume;
+    const uint64_t n = ++g_null_records;
+    if (n <= 5 || n % 500 == 0) log::info("HorseDiag: an action playback with no record skipped its frame read ({})", n);
+}
+
 void on_cc_tick(safetyhook::Context& ctx) {
     if (g_contain && copy_main_layer_empty(ctx.rcx)) {
         g_skipped_tick.fetch_add(1, std::memory_order_relaxed);
@@ -491,6 +512,16 @@ bool horse_diag_install(bool contain) {
             g_events_hook = safetyhook::create_mid(reinterpret_cast<void*>(base + 0xA128C0), on_action_events);
         }
         log::info("HorseDiag: animation-events guard {}", g_events_hook ? "installed" : "NOT installed (code not as expected)");
+    }
+    // Co-op+ (2026-11-07): the action-playback null-record guard (on_playback_frame), only on these exact bytes.
+    if (contain && !g_playback_hook) {
+        const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+        uint8_t code[sizeof kPlaybackFrameCode] = {};
+        if (game::safe_read(base + 0x251975D, code, sizeof code) && std::memcmp(code, kPlaybackFrameCode, sizeof code) == 0) {
+            g_playback_resume = base + 0x251976F;
+            g_playback_hook = safetyhook::create_mid(reinterpret_cast<void*>(base + 0x251975D), on_playback_frame);
+        }
+        log::info("HorseDiag: action-playback guard {}", g_playback_hook ? "installed" : "NOT installed (code not as expected)");
     }
     g_contain = contain;
     log::info("HorseDiag: installed (containment {})", g_contain ? "on" : "off");

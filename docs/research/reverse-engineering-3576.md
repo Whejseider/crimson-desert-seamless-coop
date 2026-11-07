@@ -113,8 +113,13 @@ must be found again: the method section says how.
   -> error); owner = [inventory + 8]; locks [owner + 8]; **0x22FE820**(inventory, key, count, INT64_MAX) changes the
   count; then 0x2C89CA0(owner, msg, 2 if count > 0 else 1, ...) sends the client its inventory update; *err = 0.
   On an error the handler sends message 0x3F5 (1013, an error notice) with the code.
-  -> A server-thread call of 0x2E08220 (the XP grant's mid-hook, quest_advance.cpp) adds (count > 0) or removes
-  (count < 0) a chosen item in that player's own save, with the game's own client update.
+  CORRECTION (same day): the message 0x2C89CA0 sends is 0xBB6 = 2998 = **MinusItemDataListAck**, and 0x22FE820 only
+  keeps a `{u32 key, i64 count}` tally at inventory+0xF8 (removed at <= 0). So AddMinusItemReq edits a "minus item"
+  list, NOT the bag; it does not give or take a real item. (Not tested live; nothing built on it.)
+- The real bag notifier: **0x2C75730** writes both AddItemToInventoryAck (3110 = 0xC26, at 0x2C758FB) and
+  RemoveItemToInventoryAck (2421 = 0x975, at 0x2C75FA3). Its 5 callers: 0x29EBBC0, 0x2B5D900, 0x2DF04A0,
+  **0x2E05550**(obj, int* err, ?, u32, u16, u32, u32, u64 -- the shape of an add-to-inventory worker), 0x2E0DC70.
+  Tool: build/port3479/opwriters.py (who writes an opcode), callers2.py (E8 callers).
 - Other handlers read on the way (same +0x21 gate): SpawnItemToGroundByCheatReq 0x2C8B360 (`u32 | u64 | u16 | item
   value struct` -> 0x2EE98D0 -> 0x2DD9600), PushEntitlementItemReq 0x2C98040 (`u16 | u32` -> 0x2B3D920 on
   [comps + 0x168]), TransferItemReq 0x2C96A10 (`u16 | u16 | u16 | u16` -> 0x2EEB9A0 -> 0x2D6D410 on [comps + 0x38]),

@@ -1855,3 +1855,12 @@ Done in the user's Chrome (signed in as Asher):
   nothing) -- the reason AddMinusItemReq "got no answer" in T18. Its worker 0x2E08220(inventory [[user+0x68]+0xB8],
   &err, item key, count) adds or removes a chosen item with the game's own client update: callable on the server thread
   like the XP grant. Unblocks T18 gifting, T45 stash, T26 penalties.
+- 2026-11-07 16:20 CORRECTION to the item finding: 0x2E08220's message is 0xBB6 = MinusItemDataListAck and the tally
+  it changes (inventory+0xF8) is a "minus item" list, not the bag -- AddMinusItemReq would not move real items. The
+  real bag notifier is 0x2C75730 (writes AddItemToInventoryAck 3110 and RemoveItemToInventoryAck 2421); its caller
+  0x2E05550 looks like the add worker; to be confirmed with the full index. Two fixes built (not yet live-tested, the
+  analysis holds the RAM): (1) remote_puppet: the starter horse (slot 1) loads as kind 4, the copy check demanded 5
+  ("the other player's horse is not a plain mount load (slot 1)" in every two-copy run: the friend's starter horse was
+  never shown); (2) horse_diag: guard for the game bug at exe+0x2519762 (action playback reads [rec+0x28] before its own
+  `if (rec)`; crash xs2): at 0x251975D with rec 0 the frame word is set to 0 and the reads skipped (0x262BAD0, called
+  next, handles rec 0 itself); installed only on the exact 18 bytes.

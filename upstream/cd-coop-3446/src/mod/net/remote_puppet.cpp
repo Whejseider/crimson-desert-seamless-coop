@@ -1037,8 +1037,11 @@ bool spawn_horse(const proto::SpawnInfo& info, uint64_t now) {
     const auto chain = record_chain(horse);
     const bool mount_slot = chain && chain->size() == 2 && (*chain)[1].index >= kFirstMountSlot &&
                             (*chain)[1].index <= kLastMountSlot;
+    // The load kind follows the slot: the STARTER horse in slot 1 is kind 4, other mounts kind 5 (local_capture.cpp,
+    // 3576 run hk3). Requiring 5 refused every starter horse ("not a plain mount load (slot 1)" in all two-copy runs).
+    const uint8_t mount_kind = chain && chain->size() == 2 && (*chain)[1].index == 1 ? 4 : 5;
     if (!chain || chain->size() != 2 || (*chain)[0].type != 0 || (*chain)[0].key != kPuppetUser || !mount_slot ||
-        !head_is((*chain)[1], 5, kPuppetHorse, kPuppetUser, (*chain)[1].index) || names_our_player(horse)) {
+        !head_is((*chain)[1], mount_kind, kPuppetHorse, kPuppetUser, (*chain)[1].index) || names_our_player(horse)) {
         log::warn("Puppet: the other player's horse is not a plain mount load{}; not loaded",
                   chain && chain->size() == 2 ? std::format(" (slot {})", (*chain)[1].index) : std::string());
         return false;
