@@ -13,6 +13,7 @@
 #include "mod/save_io.h"
 #include "mod/net/troc_sniffer.h"
 #include "mod/net/story_sync.h"
+#include "mod/net/prologue_hold.h"
 #include "mod/net/coop_lobby.h"
 
 namespace cdmp::net {
@@ -520,6 +521,10 @@ std::vector<std::vector<uint8_t>> worlds_take_outgoing() {
 }
 
 void worlds_on_message(const std::vector<uint8_t>& bytes) {
+    if (!bytes.empty() && bytes[0] == kMsgPrologue) {  // Co-op+ (2026-11-07): the other player's prologue state
+        prologue_on_message(bytes);
+        return;
+    }
     if (!bytes.empty() && bytes[0] >= kMsgLobbyFirst) {  // Co-op+ (2026-11-06): the title lobby's (coop_lobby.h)
         lobby_on_message(bytes);
         return;

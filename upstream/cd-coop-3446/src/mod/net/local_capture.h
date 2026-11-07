@@ -50,6 +50,9 @@ uint32_t capture_template_generation();
 uint32_t capture_horse_present();
 // Co-op+ test kit: our own Moves name our horse as their parent (we ride it now; any thread).
 bool capture_riding();
+// Co-op+ (prologue_hold.h): our Moves have named one parent (a horse, ours or someone's; riding along) for at least
+// `ms` without a break, and still do. `parent`: what carries us.
+bool capture_carried_for(uint64_t ms, uint32_t* parent);
 
 // Co-op+: Ctrl+F3 "ping": our position goes to the other player (EventKind::Waypoint, flag 2).
 void capture_emit_ping(float x, float y, float z);

@@ -294,6 +294,8 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_hideseek_test = static_cast<int>(read_uint(ini_path, L"dev", L"hideseek_test", 0));
     c.dev_coop_world_as_host = read_uint(ini_path, L"dev", L"coop_world_as_host", 0) != 0;
     c.coop_live_quests = read_uint(ini_path, L"coop", L"live_quests", 1) != 0;
+    c.coop_solo_prologue = read_uint(ini_path, L"coop", L"solo_prologue", 1) != 0;
+    c.coop_prologue_missions = std::min(read_uint(ini_path, L"coop", L"prologue_missions", 60), 2000u);
     c.coop_block_slowmo = read_uint(ini_path, L"coop", L"block_slowmo", 1) != 0;
     c.dev_block_slowmo_always = read_uint(ini_path, L"dev", L"block_slowmo_always", 0) != 0;
     c.dev_stat_log = read_uint(ini_path, L"dev", L"stat_log", 0) != 0;

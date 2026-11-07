@@ -149,6 +149,9 @@ uint32_t g_own_horse = 0;           // copy of g_horse_key for the writer thread
 // Horse movement: it sends its own Moves only ~1/s, so while nobody rides it
 // we send moves built from its transform in memory (as for the player).
 Bytes g_horse_last_move;            // its last own MoveActorReq (template)
+// Co-op+ (prologue_hold.h): anything our Moves name as their parent (a horse, ours or not; riding along), since when.
+std::atomic<uint32_t> g_ride_parent{0};
+std::atomic<uint64_t> g_ride_since{0}, g_ride_last{0};
 std::atomic<uint64_t> g_ridden_until_ms{0};  // the rider's Moves carry it until then (any thread reads it)
 float g_horse_sent_pos[3] = {NAN, NAN, NAN};
 uint64_t g_horse_last_synth_ms = 0;
@@ -948,6 +951,18 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
             std::memcpy(g_horse_sent_pos, payload.data() + wire::kMoveWorldPos, sizeof g_horse_sent_pos);
         }
     }
+    if (kind == proto::EventKind::Move && !on_foot(payload)) {  // Co-op+: carried by something (prologue_hold.h)
+        uint32_t parent = 0;
+        std::memcpy(&parent, payload.data() + wire::kMoveParent, 4);
+        const uint64_t t = steady_ms();
+        if (parent != g_ride_parent.load() || t - g_ride_last.load() > 1000) {
+            g_ride_parent = parent;
+            g_ride_since = t;
+            log::info("Capture: our moves name 0x{:08X} as their parent (riding{})", parent,
+                      parent == g_own_horse ? " our own horse" : "");
+        }
+        g_ride_last = t;
+    }
     if (kind == proto::EventKind::Move) {
         g_last_move = payload;
         g_last_move_ms = steady_ms();
@@ -1176,6 +1191,13 @@ std::optional<proto::SpawnInfo> capture_spawn_info(const proto::Vec3& pos, const
 }
 
 uint32_t capture_template_generation() { return g_generation.load(); }
+
+bool capture_carried_for(uint64_t ms, uint32_t* parent) {
+    const uint64_t t = steady_ms(), last = g_ride_last.load(), since = g_ride_since.load();
+    if (!last || t - last > 500 || t - since < ms) return false;
+    if (parent) *parent = g_ride_parent.load();
+    return true;
+}
 
 bool capture_riding() { return steady_ms() < g_ridden_until_ms.load(); }
 

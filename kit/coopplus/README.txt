@@ -81,6 +81,9 @@ QUICK START (the first time, about 2 minutes)
    - Start From My Solo Progress: your friend joins your story where you are.
    - New Co-op Save: both begin the story; the host picks the difficulty, the friend
      sees "waiting for the host" while the mod sets their game up the same way.
+   A NEW GAME starts with the prologue (the opening tutorial). Each of you plays it on
+   your own: it breaks when played together. You can still chat; co-op starts by
+   itself once the prologue is behind you (at the latest on your first ride).
    (With co-op saves off in the settings there is one choice: "Play Together", each in
    their own save.)
 5. Both games start together. Play alone instead: "Start Solo" (or Esc).

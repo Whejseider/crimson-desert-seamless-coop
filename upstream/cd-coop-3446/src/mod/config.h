@@ -183,6 +183,10 @@ struct Config {
     bool dev_coop_world_as_host = false;  // Co-op+ dev: the co-op worlds side acts as the host (first-session card)
     // Co-op+: quest steps follow between the players live, while both are in a co-op world (quest_live.h).
     bool coop_live_quests = true;
+    // Co-op+ (2026-11-07, prologue_hold.h): [coop] solo_prologue: the opening tutorial is played solo; co-op waits
+    // while a save has fewer than prologue_missions completed missions.
+    bool coop_solo_prologue = true;
+    uint32_t coop_prologue_missions = 60;
     // Co-op+: abilities' slow motion (Focus...) does not slow the world while a co-op session is up (net/slowmo.h).
     bool coop_block_slowmo = true;
     bool dev_block_slowmo_always = false;

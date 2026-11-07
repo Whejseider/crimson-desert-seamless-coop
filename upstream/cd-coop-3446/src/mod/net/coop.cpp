@@ -32,6 +32,7 @@
 #include "mod/net/puppet_minimap.h"
 #include "mod/net/remote_puppet.h"
 #include "mod/net/time_sync.h"
+#include "mod/net/prologue_hold.h"
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::net {
@@ -199,8 +200,9 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     };
     send_out();
     const auto work_from = std::chrono::steady_clock::now();
-    enemy_set_linked(connected && g_ready);
-    update_enemy_zone(connected && g_ready, local_pos, now_ms);
+    const bool prologue = prologue_held();  // Co-op+ (prologue_hold.h): enemies, time and the copy wait
+    enemy_set_linked(connected && g_ready && !prologue);
+    update_enemy_zone(connected && g_ready && !prologue, local_pos, now_ms);
     if (!connected || !g_ready) return;
     // Co-op+ story sync: one message at a time, while the reliable channel has room.
     for (auto& m : story_take_outgoing(session_.reliable_pending())) {
@@ -218,6 +220,9 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     for (auto& m : lobby_take_outgoing()) {
         if (!session_.send_reliable(proto::RelKind::World, m, now_ms)) log::warn("Co-op lobby: a message did not fit");
     }
+    for (auto& m : prologue_take_outgoing()) {  // Co-op+: our prologue state (prologue_hold.h)
+        if (!session_.send_reliable(proto::RelKind::World, m, now_ms)) log::warn("Prologue: a message did not fit");
+    }
     enemy_tick();
     loot_tick();
     // Enemy messages wait in the relay while the reliable channel is backed up
@@ -232,7 +237,7 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     for (auto& ev : enemy_host_tick()) session_.send_event(std::move(ev), now_ms);
     for (auto& ev : hits_take_events()) session_.send_event(std::move(ev), now_ms);
     for (auto& ev : guest_hits_take_events()) session_.send_event(std::move(ev), now_ms);
-    if (local_in_world_) {
+    if (local_in_world_ && !prologue) {
         if (auto ev = time_sync_tick(now_ms)) session_.send_event(std::move(*ev), now_ms);
     }
     send_out();  // what came in meanwhile
@@ -315,6 +320,22 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
         }
     }
 
+    // Co-op+ (prologue_hold.h): while either of us plays the prologue, their character is not in our world (as if
+    // far apart); loaded again where they are once both prologues are done.
+    if (prologue && !held_) {
+        held_ = true;
+        log::info("Co-op: the prologue is played solo; the other player's character waits until it is done");
+        if (puppet_spawned()) remove_puppet(now_ms);
+    } else if (!prologue && held_) {
+        held_ = false;
+        log::info("Co-op: both prologues done; loading the other player's character ({} of their events set aside)",
+                  held_dropped_);
+        if (!puppet_spawned() && last_spawn_ && !remote_spawn_) {
+            remote_spawn_ = last_spawn_;
+            if (const auto& rs = session_.remote_state()) remote_spawn_->pos = rs->pos;
+        }
+    }
+
     // Co-op+: the other player far away (another region). The game has not loaded the ground there and cannot draw
     // them on it: their character stood frozen next to us instead (2026-11-04, a partner 15 km away; the frame said
     // "2 m"). So it is taken away beyond kFarM and loaded again where they are once they are within kNearM (the gap
@@ -392,7 +413,7 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     }
 
     // Load the other player once we are in the world ourselves.
-    if (remote_spawn_ && local_pos && !loading && !g_no_copy && !far_ &&
+    if (remote_spawn_ && local_pos && !loading && !g_no_copy && !far_ && !held_ &&
         static_cast<int32_t>(now_ms - spawn_not_before_ms_) >= 0) {
         if (puppet_spawned()) {
             remove_puppet(now_ms);
@@ -582,6 +603,15 @@ bool CoopLink::accepts(proto::RelKind kind) const {
 }
 
 void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
+    if (prologue_held()) {  // Co-op+ (prologue_hold.h): only the map pin and chat-like activity pass
+        const bool pass = ev.kind == proto::EventKind::Waypoint ||
+                          (ev.kind == proto::EventKind::Activity && ev.payload.size() > 4 &&
+                           prologue_activity_allowed(ev.payload[4]));
+        if (!pass) {
+            ++held_dropped_;
+            return;
+        }
+    }
     if (!accepts(ev.kind)) {
         if (refused_by_role_++ % 500 == 0) {
             log::warn("Co-op: the other player sent something only the other role sends (kind {}); ignored "
@@ -650,6 +680,10 @@ void CoopLink::on_event(const proto::GameEvent& ev, uint32_t now_ms) {
 
 bool CoopLink::on_hot_event(const proto::GameEvent& ev, uint32_t now_ms) {
     if (!accepts(ev.kind)) return false;  // the network loop says why
+    if (prologue_held()) {  // Co-op+ (prologue_hold.h): movement and enemies wait; handled = dropped
+        ++held_dropped_;
+        return true;
+    }
     ++events_in_;
     if (ev.kind == proto::EventKind::EnemyAct || ev.kind == proto::EventKind::EnemyPos) {
         // The other player's enemies: on the same clock as their own events (as on_event does it).
@@ -741,6 +775,13 @@ void CoopLink::predict_after(const proto::GameEvent& ev, int64_t shift, uint64_t
 }
 
 void CoopLink::on_reliable(const ReliableChannel::Message& msg, uint32_t now_ms) {
+    // Co-op+ (prologue_hold.h): while co-op waits, only their character (kept for later), its removal and the
+    // session's own messages (lobby, co-op saves, prologue) pass.
+    if (prologue_held() && msg.kind != proto::RelKind::Spawn && msg.kind != proto::RelKind::Despawn &&
+        msg.kind != proto::RelKind::World) {
+        ++held_dropped_;
+        return;
+    }
     if (!accepts(msg.kind)) {
         if (refused_by_role_++ % 500 == 0) {
             log::warn("Co-op: the other player sent a message only the other role sends (kind {}); ignored "

@@ -24,12 +24,13 @@
 #include "mod/net/coop_hunt.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/troc_sniffer.h"
+#include "mod/net/prologue_hold.h"
 
 namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch, GSnap, GDiff, PtrScan, WatchStatus, Key, ClockScan, RideHorse } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch, GSnap, GDiff, PtrScan, WatchStatus, Key, ClockScan, RideHorse, PrologueDone } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -247,6 +248,11 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "prologuedone") {  // prologuedone: as the Co-op page's "My prologue is done" (prologue_hold.h)
+            st.kind = Step::PrologueDone;
+            steps.push_back(st);
+            continue;
+        }
         if (kind == "ridehorse") {  // ridehorse [timeout s] [hex mount vk]: find our called horse, go to it, get on
             st.kind = Step::RideHorse;
             std::string vk;
@@ -418,6 +424,9 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
                 Sleep(st.wait_ms ? st.wait_ms : 60);
                 keybd_event(vk, scan, KEYEVENTF_KEYUP, 0);
                 log::info("Dev script: key 0x{:02X} ({} ms)", vk, st.wait_ms);
+            } else if (st.kind == Step::PrologueDone) {
+                prologue_done_now();
+                log::info("Dev script: prologue done");
             } else if (st.kind == Step::RideHorse) {
                 ride_horse(std::min<uint32_t>(st.wait_ms, 120), static_cast<BYTE>(st.addr));
             } else if (st.kind == Step::WatchStatus) {

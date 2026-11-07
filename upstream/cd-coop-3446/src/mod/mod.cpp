@@ -82,6 +82,7 @@
 #include "mod/net/room_code.h"
 #include "mod/net/steam_join.h"
 #include "mod/net/direct_ip.h"
+#include "mod/net/prologue_hold.h"
 #include "mod/net/time_sync.h"
 #include "mod/net/troc_sniffer.h"
 #include "mod/render/dx12_hook.h"
@@ -759,6 +760,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
         const uint32_t now = now_ms();
         session.tick(now);
         const bool connected = session.state() == ClientSession::State::Connected;
+        // Co-op+ (prologue_hold.h): while either of us plays the prologue, what reaches into the games waits (the link,
+        // chat, the party frame and the lobby stay).
+        const bool linked = connected && !net::prologue_held();
         net::fast_lane_set_peer(peer, connected);
         net::RevivePrompt revive_prompt = net::RevivePrompt::None;
         if (host && was_connected && !connected && peer) {
@@ -823,19 +827,19 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             // Co-op+ party scaling: the host's enemies get tougher while a guest is in.
             // [dev] scaling_as_host: one-PC test of party scaling (the echo session runs as guest).
             const bool scale_host = host || cfg.dev_scaling_as_host;
-            net::scaling_set_party(scale_host && connected ? 2 : 1, scale_host);
+            net::scaling_set_party(scale_host && linked ? 2 : 1, scale_host);
             net::scaling_tick();
             // Co-op+ save safety: a backup when a session starts, a warning on saves during it.
             net::save_guard_set_connected(connected, session.peer_name());
             // Co-op+ story sync: who we are linked to, and its notices.
-            net::story_set_link(connected, session.role() == ClientSession::Role::Responder, session.peer_name(), now);
+            net::story_set_link(linked, session.role() == ClientSession::Role::Responder, session.peer_name(), now);
             if (std::string t = local.snapshot() ? net::story_take_toast() : std::string(); !t.empty()) {
                 toast = std::move(t);
                 toast_until = now + 25000;  // a few sentences, sometimes right after a loading screen
             }
             // Co-op+ live quests: the partner's finished quest steps go into our game (quest_live.h).
-            net::quest_live_tick(connected, session.peer_name(), now);
-            net::slowmo_set_connected(connected);
+            net::quest_live_tick(linked, session.peer_name(), now);
+            net::slowmo_set_connected(linked);
             if (std::string t = local.snapshot() ? net::quest_live_take_toast() : std::string(); !t.empty()) {
                 toast = std::move(t);
                 toast_until = now + 8000;
@@ -882,6 +886,16 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     li.own_name = cfg.player_name;
                     li.partner_name = session.peer_name();
                     net::lobby_tick(li);
+                    // Co-op+ (2026-11-07): the prologue is played solo (prologue_hold.h).
+                    net::PrologueInput pi;
+                    pi.now_ms = li.now_ms;
+                    pi.connected = connected;
+                    pi.in_world = wi.in_world;
+                    pi.generation = li.run_generation;
+                    pi.new_save_run = net::lobby_view().plan == net::LobbyPlan::NewSave;
+                    if (uint32_t carrier = 0; net::capture_carried_for(5000, &carrier)) pi.riding = carrier ? carrier : 1;
+                    pi.partner_name = session.peer_name();
+                    net::prologue_tick(pi);
                 }
                 if (std::string t = net::worlds_take_toast(); !t.empty()) {
                     toast = std::move(t);
@@ -939,7 +953,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 script_was_down = script_down;
                 // Co-op+: Ctrl+F4 takes us to the other player (alive, not in a menu, 1 m beside them).
                 static bool go_was_down = false;
-                const bool go_down = connected && input::action_down(input::Action::GoToFriend, game_has_focus());
+                const bool go_down = linked && input::action_down(input::Action::GoToFriend, game_has_focus());
                 if (go_down && !go_was_down && net::hideseek_active()) {
                     toast = "Hide and seek\nNo shortcuts to your friend during the game";
                     toast_until = now + 4000;
@@ -971,13 +985,13 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 net::hits_note_own_health(s.health, s.health_max);  // duel hits need our HP (player_hits.h)
                 // Co-op+: our own revive choices when the game's death screen stays away (revive_prompt.h).
                 std::optional<float> partner_hp;
-                if (connected) {
+                if (linked) {
                     if (const auto& rs = session.remote_state()) partner_hp = rs->health;
                     if (cfg.dev_partner_alive) partner_hp = 100.0f;  // one-PC test of the boss-fight wait
                 }
                 revive_prompt = cfg.dev_no_revive_prompt  // research: the game's own death input only
                                     ? net::RevivePrompt::None
-                                    : net::revive_prompt_tick(connected, s.health, s.health_max, partner_hp,
+                                    : net::revive_prompt_tick(linked, s.health, s.health_max, partner_hp,
                                                               game_has_focus(), now);
                 // Co-op+ (T26): [coop] respawn_at=partner -- a revive that put us back at the checkpoint (more than
                 // 50 m from where we fell) is followed by the hop to the other player, once we stand again.
@@ -993,7 +1007,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                         up_at = 0;
                         const float dx = s.position.x - died_at.x, dz = s.position.z - died_at.z;
                         const auto& rs = session.remote_state();
-                        if (settings::respawn_at_partner() && connected && rs && rs->health > 0 && dx * dx + dz * dz > 50.0f * 50.0f) {
+                        if (settings::respawn_at_partner() && linked && rs && rs->health > 0 && dx * dx + dz * dz > 50.0f * 50.0f) {
                             net::revive_teleport_to(rs->pos.x + 1.0f, rs->pos.y + 0.5f, rs->pos.z);
                             toast = "Co-op\nBack to " + session.peer_name();
                             toast_until = now + 4000;
@@ -1004,18 +1018,18 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 // Co-op+ (T15): reviving each other.
                 {
                     std::optional<net::ReviveRemote> rr;
-                    if (connected) {
+                    if (linked) {
                         if (const auto& rs = session.remote_state()) {
                             rr = net::ReviveRemote{rs->health, rs->health_max, rs->pos};
                         }
                     }
-                    const auto rv = net::revive_partner_tick(connected, s.health, s.health_max, s.position, rr,
+                    const auto rv = net::revive_partner_tick(linked, s.health, s.health_max, s.position, rr,
                                                              session.peer_name(), game_has_focus(), now);
                     revive_line = rv.line;
                     // Co-op+ (T19): summon / party travel.
                     std::optional<proto::Vec3> partner_at;
                     if (rr) partner_at = rr->pos;
-                    const auto tr = net::travel_tick(connected, s.position, partner_at, session.peer_name(),
+                    const auto tr = net::travel_tick(linked, s.position, partner_at, session.peer_name(),
                                                      game_has_focus(), now);
                     travel_line = tr.line;
                     if (!tr.toast.empty()) {
@@ -1033,34 +1047,35 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             // also when our position is not readable (in a minigame the player snapshot goes away).
             {
                 std::optional<std::array<float, 3>> partner_pos, own_pos;
-                if (connected) {
+                if (linked) {
                     if (const auto& rs = session.remote_state()) partner_pos = std::array<float, 3>{rs->pos.x, rs->pos.y, rs->pos.z};
                 }
                 if (pos) own_pos = std::array<float, 3>{pos->x, pos->y, pos->z};
-                auto act = net::activity_tick(connected, host, game_has_focus(), own_pos, partner_pos, session.peer_name(), now);
+                auto act = net::activity_tick(linked, host, game_has_focus(), own_pos, partner_pos, session.peer_name(), now);
                 loop_section(6);
                 activity_banner = std::move(act.banner);
+                if (std::string pl = net::prologue_line(); !pl.empty()) activity_banner = std::move(pl);  // prologue_hold.h
                 if (!act.toast.empty()) {
                     toast = std::move(act.toast);
                     toast_until = now + 6000;
                 }
-                net::weather_tick(connected, host, own_pos.has_value(), own_pos, now);  // Co-op+: weather_sync.h
+                net::weather_tick(linked, host, own_pos.has_value(), own_pos, now);  // Co-op+: weather_sync.h
                 loop_section(7);
                 net::summary_tick(connected, session.peer_name(), own_pos, partner_pos, now);  // Co-op+: session_summary.h
                 loop_section(8);
                 // Co-op+ (T06): digests; a resync (Shift+F8 / View + RB, or the digests out of step) drops the
                 // session and joins again: everything of the other player is removed here and sent again.
-                net::sync_tick(connected, now);
+                net::sync_tick(linked, now);
                 loop_section(9);
                 static input::Edge resync_key;
                 static uint32_t last_auto_resync = 0;
                 std::string why = net::sync_take_resync();
                 const bool manual = resync_key(input::action_down(input::Action::Resync, game_has_focus()));
-                if (connected && !why.empty() && last_auto_resync && now - last_auto_resync < 120000) {
+                if (linked && !why.empty() && last_auto_resync && now - last_auto_resync < 120000) {
                     log::info("Sync: out of step ({}), but resynced less than 2 minutes ago; waiting", why);
                     why.clear();
                 }
-                if (connected && (manual || !why.empty())) {
+                if (linked && (manual || !why.empty())) {
                     if (!manual) last_auto_resync = now;
                     log::info("Sync: resync ({}): leaving and joining again", manual ? "asked for" : why);
                     toast = manual ? std::format("Co-op\nResynchronising with {}...", session.peer_name())
@@ -1982,6 +1997,7 @@ DWORD WINAPI worker(LPVOID) {
             net::story_configure(cfg.coop_share_story, cfg.dev_story_slot);
             net::story_startup();
             net::quest_live_configure(cfg.coop_live_quests, cfg.dev_live_quests_any_world);
+            net::prologue_configure(cfg.coop_solo_prologue, cfg.coop_prologue_missions);  // Co-op+ (2026-11-07)
             net::slowmo_configure(cfg.coop_block_slowmo, cfg.dev_block_slowmo_always);
             game::set_stat_log(cfg.dev_stat_log);
         }

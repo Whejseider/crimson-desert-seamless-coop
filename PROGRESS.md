@@ -1641,3 +1641,19 @@ Done in the user's Chrome (signed in as Asher):
 - 2026-11-07 03:40 Player README (kit/coopplus/README.txt): QUICK START for the co-op menu (invite, accept, Start
   Co-op and its three choices, Start Solo, "Diagnose Co-op+" for crashes) for Borque's "how to start"; a DIRECT PLAY
   section (Radmin / LAN settings).
+- 2026-11-07 04:30 SOLO PROLOGUE (user chose "co-op after the prologue" after Borque: as host, after the first dialog
+  with Oongka neither player could talk to Marius, the camp horses could be ridden out, a new save had no Oongka; and
+  Plitos's cutscene-end break). net/prologue_hold.{h,cpp}: while either player is in the prologue, co-op works as if
+  far apart: no partner character, no shared cutscenes / skip vote, minigames, duels, live quests, story copy, time,
+  weather, enemies, revive, travel, resync (mod.cpp: `linked = connected && !prologue_held()` for those; CoopLink
+  drops incoming gameplay events / reliable kinds except Spawn (kept), Despawn, World; Activity passes only menu,
+  notices, chat, kill feed, titles). Chat, the party frame, lobby and map pins stay. "In the prologue": the newest save
+  in the save folder in use has < [coop] prologue_missions (60) completed missions, or no save yet, or a New Co-op Save
+  run until its saves say otherwise; read on each load and every 30 s; held until the first read of the game.
+  AUTOMATIC end (user: no button; "one of the first things you do after the prologue is ride into town with an old
+  man", no riding in the prologue): riding anything for 5 s (our Moves name a parent; capture_carried_for). States
+  exchanged as RelKind::World type 7. [coop] solo_prologue=0 turns it off. The party frame says why co-op waits.
+  Tests (two copies, SAVES OK): pr1 guest forced into the prologue (threshold 1000): both held, no copy either side,
+  57 / 40 partner events set aside; dev "prologuedone" -> both copies loaded within 15 ms. pr2 (normal saves): held
+  ~50 ms for the first save read, then normal. NOT tested live: the ride trigger (no ride possible in the test saves
+  yet; see the horse call) and the 60-mission threshold (no prologue save; each read is logged for tuning).
