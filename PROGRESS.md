@@ -1675,3 +1675,8 @@ Done in the user's Chrome (signed in as Asher):
   ride trigger fired ("we have ridden 0xB0100003 for 5 s ... our prologue is done"). SAVES OK. The simulated H hold
   is still ignored by the game (hk4-hk10), so the call itself needs a person (or a real input path); horse_kit
   -KitCalls manual waits 3 minutes for it.
+- 2026-11-07 05:20 HOW TO CALL THE HORSE on 1.0.0.3576 (the user, after hk11): HOLD D-PAD UP (opens the mount
+  wheel) and push the RIGHT STICK straight DOWN to pick the horse mount; it then runs in from behind. H did NOT work for
+  the user either. So: do not test H again. A simulated call needs a pad hold of Up plus the right stick down (the
+  mod's dev pad press only sets buttons today; a stick axis would have to be added), or a person calls it
+  (horse_kit.ps1 -KitCalls manual).
