@@ -36,7 +36,7 @@ Copy-Item (Join-Path $root 'docs\release\playtest-repo-README.md') (Join-Path $t
 Copy-Item (Join-Path $root 'docs\release\FEATURES.md') (Join-Path $tmp 'FEATURES.md') -Force
 Push-Location $tmp
 try {
-    & git add README.md FEATURES.md
+    & git -c core.autocrlf=false add README.md FEATURES.md  # (a CRLF warning on stderr would stop the script)
     & git diff --cached --quiet
     if ($LASTEXITCODE -ne 0) {
         & git commit -q -m "README and feature list for $tag"
@@ -52,7 +52,11 @@ if (-not $Notes) {
 }
 $files = @($zip.FullName)
 if (Test-Path $manager) { $files += $manager }
-& gh release create $tag @files --repo $Repo --title "Co-op+ playtest $version" --notes $Notes --latest
+# Notes through a file: Windows PowerShell 5.1 splits a native argument at embedded double quotes.
+$notesFile = Join-Path ([IO.Path]::GetTempPath()) ('coopplus-notes-' + [guid]::NewGuid().ToString('N') + '.md')
+[IO.File]::WriteAllText($notesFile, $Notes, (New-Object Text.UTF8Encoding($false)))
+& gh release create $tag @files --repo $Repo --title "Co-op+ playtest $version" --notes-file $notesFile --latest
+Remove-Item $notesFile -ErrorAction SilentlyContinue
 if ($LASTEXITCODE -ne 0) { throw 'release failed' }
 Write-Host "Published: https://github.com/$Repo/releases/tag/$tag"
 Write-Host "Always-newest link for Discord: https://github.com/$Repo/releases/latest"
