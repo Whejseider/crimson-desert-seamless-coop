@@ -368,14 +368,22 @@ IS IT SAFE? (ANTI-CHEAT, ACCOUNTS, CROSS-SAVE)
 
 DIRECT PLAY (Radmin VPN, LAN, any VPN; no Steam invite)
 -------------------------------------------------------
-Both players join the same Radmin VPN network (or LAN) and tell each other their
-address (Radmin shows it, 26.x.x.x). Then in bin64\cdmp.ini, under [net]:
+Steam invites stay the normal way. Without Steam (or when invites fail):
+1. Both players join the same Radmin VPN network (or the same LAN).
+2. Host: in the Co-op menu pick "Radmin VPN / Direct IP", then "Host". An invite is
+   copied for you (it looks like coopplus1/26.x.x.x:37015/...). Paste it to your
+   friend (Discord, any chat). Allow the game on the network if Windows asks.
+3. Friend: copy the invite, then in the Co-op menu pick "Radmin VPN / Direct IP",
+   then "Join". You land in the host's party; the host starts co-op as usual.
+Each invite holds a random secret that changes on every Host, so only the person
+you sent it to can join. The mod listens only on the VPN / LAN adapter.
+"Back to Steam Invite" (or Leave) returns to Steam. Instead of an invite, a bare
+address works too if both copy each other's (Radmin's Copy IP) before Host / Join.
+Fixed setup without the menu, in bin64\cdmp.ini under [net]:
     transport=direct
     role=host            (the friend: role=guest)
     peer_host=<your FRIEND's address>
     peer_port=37015      (the same on both)
-Start the game; allow it on the network if Windows asks. The mod listens only on the
-adapter that reaches your friend and ignores anything not sent from their address.
 
 
 AFTER A GAME UPDATE

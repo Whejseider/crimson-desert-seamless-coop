@@ -255,6 +255,7 @@ Config load_config(const std::wstring& ini_path) {
     c.dev_scaling_as_host = read_uint(ini_path, L"dev", L"scaling_as_host", 0) != 0;
     c.dev_join_switch_s = read_uint(ini_path, L"dev", L"join_switch_s", 0);
     c.dev_join_switch_port = static_cast<uint16_t>(read_uint(ini_path, L"dev", L"join_switch_port", 0));
+    c.dev_direct_loopback = read_uint(ini_path, L"dev", L"direct_loopback", 0) != 0;
     c.dev_quest_events_log = read_uint(ini_path, L"dev", L"quest_events_log", 0) != 0;
     c.dev_load_trace = static_cast<int>(std::min(read_uint(ini_path, L"dev", L"load_trace", 0), 1u));
     c.coop_enabled = read_uint(ini_path, L"coop", L"enabled", 0) != 0;

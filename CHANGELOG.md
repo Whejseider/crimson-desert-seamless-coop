@@ -2,6 +2,8 @@
 
 ## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 
+Radmin VPN / Direct IP in the co-op menu (2026-11-07, Plitos's handoff): Host copies an invite (coopplus1/<address>:37015/<secret>), the friend copies it and presses Join; a random secret, new on every Host, lets only the invited player in. Steam invites stay the default; Back to Steam Invite or Leave returns to them. The ini setup still works.
+
 Since 0.1.0-alpha+f3517194 (2026-11-06 / 07, game 1.0.0.3576; tested with two copies of the game on one PC, sandbox saves only):
 - Shared experience: every skill-point gain one player gets is given to the other too, through the game's own experience routine, anywhere on the map (no distance limit). Kills the guest finishes on the host's enemies now give experience to both (the amount each enemy kind gives is learnt from your own kills and kept in cdmp_kill_xp.txt; 15 until a kind has been seen).
 - The host's enemies fight the guest: they target and attack the guest's character (they ignored it on 1.0.0.3576), and the guest's game no longer crashes when enemy copies load in a camp.

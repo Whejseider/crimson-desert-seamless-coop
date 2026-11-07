@@ -22,6 +22,7 @@
 #include "mod/render/hud.h"
 #include "mod/settings_menu.h"
 #include "mod/net/coop_lobby.h"
+#include "mod/net/direct_ip.h"
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::render {
@@ -41,6 +42,11 @@ constexpr int kSectionCount = static_cast<int>(std::size(kSections));
 std::atomic<bool> g_open{false}, g_details{false};
 std::atomic<bool> g_lobby_shown{false};  // the title lobby is on screen (its keys and clicks are ours)
 int g_lobby_sel = 0;
+// Co-op+ (2026-11-07, Plitos's handoff): the lobby's "Radmin VPN / Direct IP" page (Host, Join) is open; its last
+// message; the invite already put on the clipboard (copied once per new invite).
+bool g_direct_page = false;
+std::string g_direct_note;
+std::string g_direct_copied;
 std::atomic<HWND> g_hwnd{nullptr};
 
 // Input that the hook threads take for the page, read by the render thread.
@@ -227,7 +233,7 @@ bool inside(const ImVec2& p, float l, float t, float r, float b) { return p.x >=
 // ---- the title lobby (net/coop_lobby.h): the co-op main menu before anyone plays, in the look of the game's own
 // dialogs (its difficulty choice): a centred band with light rules, a header line, option cards with an emblem on the
 // left, the chosen one framed in gold.
-enum class Emblem { Solo, Invite, Coop, Settings, NewSave, FromSolo, Continue };
+enum class Emblem { Solo, Invite, Coop, Settings, NewSave, FromSolo, Continue, Direct };
 
 void draw_emblem(ImDrawList* dl, float cx, float cy, float r, Emblem e, ImU32 c) {
     // a diamond plate with a symbol, like the difficulty cards' crests
@@ -266,6 +272,11 @@ void draw_emblem(ImDrawList* dl, float cx, float cy, float r, Emblem e, ImU32 c)
             break;
         case Emblem::Continue:
             dl->AddTriangleFilled(ImVec2(cx - s * 0.45f, cy - s * 0.6f), ImVec2(cx + s * 0.6f, cy), ImVec2(cx - s * 0.45f, cy + s * 0.6f), c);
+            break;
+        case Emblem::Direct:  // two linked nodes: a straight line between two PCs
+            dl->AddCircle(ImVec2(cx - s * 0.55f, cy + s * 0.35f), s * 0.28f, c, 10, w);
+            dl->AddCircle(ImVec2(cx + s * 0.55f, cy - s * 0.35f), s * 0.28f, c, 10, w);
+            dl->AddLine(ImVec2(cx - s * 0.33f, cy + s * 0.2f), ImVec2(cx + s * 0.33f, cy - s * 0.2f), c, w);
             break;
     }
 }
@@ -385,13 +396,64 @@ bool draw_lobby(float width, float height, ImDrawList* dl, ImVec2 mouse, const s
     }
     g_lobby_shown = v.show && !g_open.load();
     if (!v.show || g_open.load()) return false;
-    static bool choosing_before = false;
-    if (v.choosing != choosing_before) g_lobby_sel = 0;
+    static bool choosing_before = false, direct_before = false;
+    if (v.choosing != choosing_before || g_direct_page != direct_before) g_lobby_sel = 0;
     choosing_before = v.choosing;
+    direct_before = g_direct_page;
     std::vector<Card> cards;
     std::string header;
     const bool counting = v.countdown >= 0;
-    if (v.choosing) {
+    // Radmin VPN / Direct IP: a new invite goes to the clipboard once, as soon as the network has it.
+    const net::DirectState ds = net::direct_state();
+    if (ds.active && ds.host && !ds.invite.empty() && ds.invite != g_direct_copied) {
+        g_direct_copied = ds.invite;
+        g_direct_note = net::direct_clipboard_set(ds.invite)
+            ? "Invite copied. Paste it to your friend (Discord, chat): they copy it and press Join."
+            : "Your invite: " + ds.invite + " (copying it failed: write it down for your friend)";
+        log::info("Co-op lobby: invite {} on the clipboard", ds.invite.substr(0, ds.invite.rfind('/')) + "/...");
+    }
+    if (!ds.error.empty() && g_direct_note != ds.error && !ds.active) g_direct_note = ds.error;
+    if (g_direct_page && v.choosing) g_direct_page = false;
+    if (g_direct_page) {
+        header = "Radmin VPN / Direct IP";
+        cards.push_back({Emblem::Coop, "Host", "Your friend joins you with an invite (copied for you).", !counting, [] {
+                             net::DirectRequest r;
+                             r.kind = net::DirectRequest::Kind::Host;
+                             r.target.port = 37015;
+                             r.target.token = net::direct_new_token();
+                             // A bare address on the clipboard (Radmin's Copy IP of the guest) is let in too.
+                             if (const auto t = net::direct_invite_parse(net::direct_clipboard_get()); t && !t->token) {
+                                 r.peer_ip = t->ip;
+                             }
+                             g_direct_copied.clear();
+                             g_direct_note = "Hosting on Radmin VPN / Direct IP...";
+                             net::direct_request(r);
+                         }});
+        cards.push_back({Emblem::Direct, "Join", "Copy your friend's invite (or address), then press Join.", !counting, [] {
+                             const std::string clip = net::direct_clipboard_get();
+                             const auto t = net::direct_invite_parse(clip);
+                             if (!t) {
+                                 g_direct_note = "Nothing to join on the clipboard: copy your friend's invite first.";
+                                 return;
+                             }
+                             net::DirectRequest r;
+                             r.kind = net::DirectRequest::Kind::Join;
+                             r.target = *t;
+                             g_direct_note = "Joining " + net::direct_dotted(t->ip) +
+                                             (t->token ? " with the invite..." : " (the host must have your address)...");
+                             net::direct_request(r);
+                         }});
+        if (ds.active) {
+            cards.push_back({Emblem::Invite, "Back to Steam Invite", "Leave the direct connection.", !counting, [] {
+                                 net::DirectRequest r;
+                                 r.kind = net::DirectRequest::Kind::Steam;
+                                 g_direct_note.clear();
+                                 g_direct_copied.clear();
+                                 net::direct_request(r);
+                             }});
+        }
+        cards.push_back({Emblem::Solo, "Back", "", true, [] { g_direct_page = false; }});
+    } else if (v.choosing) {
         header = "How does your co-op journey begin?";
         if (v.worlds_on) {
             // user 2026-11-06: continuing first (greyed until there is a co-op save), then solo progress, then a new save
@@ -409,8 +471,19 @@ bool draw_lobby(float width, float height, ImDrawList* dl, ImVec2 mouse, const s
     } else if (v.host) {
         header = counting ? std::format("Starting together in {}...", std::max(1, v.countdown)) : "Select how to play.";
         cards.push_back({Emblem::Solo, "Start Solo", "Your own saves, as without the mod.", !counting, [] { net::lobby_dismiss(); }});
-        cards.push_back({Emblem::Invite, "Invite Friends", "Steam's invite list: your friend joins your party.", !counting,
-                         [] { input::trigger(input::Action::Invite); }});
+        if (ds.active && ds.host && !ds.invite.empty()) {
+            cards.push_back({Emblem::Invite, "Copy Invite", "Radmin VPN / Direct IP: send it to your friend.", !counting, [] {
+                                 const net::DirectState d = net::direct_state();
+                                 g_direct_note = net::direct_clipboard_set(d.invite) ? "Invite copied again." : "Your invite: " + d.invite;
+                             }});
+        } else {
+            cards.push_back({Emblem::Invite, "Invite Friends", "Steam's invite list: your friend joins your party.", !counting,
+                             [] { input::trigger(input::Action::Invite); }});
+        }
+        cards.push_back({Emblem::Direct, "Radmin VPN / Direct IP",
+                         ds.active ? "On: " + ds.address + (ds.host ? " (hosting)" : " (joined)")
+                                   : "No Steam invite: Host or Join over Radmin VPN or a LAN.",
+                         !counting, [] { g_direct_page = true; }});
         cards.push_back({Emblem::Coop, "Start Co-op",
                          v.connected ? "Begin the journey with " + v.partner_name + "." : "Invite a friend first.",
                          v.connected && !counting && v.plan == net::LobbyPlan::None, [] { net::lobby_start_coop(); }});
@@ -420,7 +493,12 @@ bool draw_lobby(float width, float height, ImDrawList* dl, ImVec2 mouse, const s
         cards.push_back({Emblem::Solo, "Start Solo", "Your own saves, as without the mod.", true, [] { net::lobby_dismiss(); }});
         cards.push_back({Emblem::Coop, v.connected ? "Waiting for " + v.partner_name : "Join a Friend",
                          v.connected ? v.partner_name + " starts the co-op journey." : "Accept their Steam invite.", false, nullptr});
-        cards.push_back({Emblem::Invite, "Leave the Party", "", v.connected, [] { input::trigger(input::Action::Leave); }});
+        cards.push_back({Emblem::Invite, v.connected || !ds.active ? "Leave the Party" : "Stop Joining", "",
+                         v.connected || ds.active, [] { input::trigger(input::Action::Leave); }});
+        if (!v.connected) {
+            cards.push_back({Emblem::Direct, "Radmin VPN / Direct IP", "No Steam invite: Host or Join over Radmin VPN or a LAN.",
+                             true, [] { g_direct_page = true; }});
+        }
         cards.push_back({Emblem::Settings, "Co-op Settings", "", true, [] { coop_page_toggle(); }});
     }
     const int n = static_cast<int>(cards.size());
@@ -451,7 +529,8 @@ bool draw_lobby(float width, float height, ImDrawList* dl, ImVec2 mouse, const s
         }
     };
     auto back = [&] {
-        if (v.choosing) net::lobby_choose(net::LobbyPlan::None);
+        if (g_direct_page) g_direct_page = false;
+        else if (v.choosing) net::lobby_choose(net::LobbyPlan::None);
         else net::lobby_dismiss();
     };
     for (unsigned k : keys) {
@@ -488,14 +567,28 @@ bool draw_lobby(float width, float height, ImDrawList* dl, ImVec2 mouse, const s
         }
     }
     const int over = draw_cards(dl, width, height, header, cards, g_lobby_sel, mouse, 300 * s);
-    if (over >= 0 && cards[over].enabled && input::method() == input::Method::Keyboard) g_lobby_sel = over;
+    // The mouse picks the card under it only when it moves (a resting mouse over a card snapped the highlight back
+    // every frame, so W / S did nothing: found in the two-copy test of the Radmin page, 2026-11-07).
+    static ImVec2 mouse_before(-1, -1);
+    const bool mouse_moved = std::abs(mouse.x - mouse_before.x) + std::abs(mouse.y - mouse_before.y) > 2.0f;
+    mouse_before = mouse;
+    if (over >= 0 && mouse_moved && cards[over].enabled && input::method() == input::Method::Keyboard) g_lobby_sel = over;
     for (const ImVec2& c : clicks) {
         (void)c;
         if (over >= 0) act(over);
     }
     {
         const float y = 300 * s + 96 * s + n * (92 * s + 14 * s) + 50 * s;
-        text(dl, width * 0.5f - text_w(21 * s, v.status) * 0.5f, y, 21 * s, v.status, kDim);
+        std::string line = v.status;
+        if (g_direct_page) {
+            std::string name, why;
+            const auto ours = net::direct_host_address(name, why);
+            line = ds.active ? "On " + ds.address + (ds.host ? ", hosting" : ", joined to " + ds.friend_address)
+                 : ours      ? "Your address: " + net::direct_dotted(*ours) + " on " + name
+                             : why;
+        }
+        if ((g_direct_page || ds.active) && !g_direct_note.empty()) line = g_direct_note;
+        text(dl, width * 0.5f - text_w(21 * s, line) * 0.5f, y, 21 * s, line, kDim);
     }
     draw_party(dl, width, height, v);
     // the title's own prompts (Play, New Game, Load, Exit) are not in play while the lobby is up: hidden
@@ -508,11 +601,11 @@ bool draw_lobby(float width, float height, ImDrawList* dl, ImVec2 mouse, const s
         float right = width - 60 * s;
         const float y = height - 64 * s, size = 20 * s;
         if (input::method() == input::Method::Keyboard) {
-            right = hint(dl, right, y, size, "Esc", v.choosing ? "Back" : "Start Solo");
+            right = hint(dl, right, y, size, "Esc", v.choosing || g_direct_page ? "Back" : "Start Solo");
             right = hint(dl, right, y, size, "Space", "Confirm");
             hint(dl, right, y, size, "W S", "Move");
         } else {
-            right = hint(dl, right, y, size, "B", v.choosing ? "Back" : "Start Solo");
+            right = hint(dl, right, y, size, "B", v.choosing || g_direct_page ? "Back" : "Start Solo");
             right = hint(dl, right, y, size, "A", "Confirm");
             hint(dl, right, y, size, "D-pad", "Move");
         }

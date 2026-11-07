@@ -22,6 +22,10 @@ struct Config {
     // peer_host = the friend's address on both sides; bind_host = our own (empty: the adapter that reaches the friend).
     bool net_transport_direct = false;
     std::string bind_host;
+    // Runtime only (the co-op menu's Radmin VPN / Direct IP, direct_ip.h): the invite's secret. A host with one lets in
+    // whoever knocks with it (peer_host may then be empty); a guest knocks with it.
+    uint64_t direct_token = 0;
+    bool direct_from_menu = false;  // runtime: this direct session was chosen in the menu (a failure goes back to Steam)
     bool net_role_host = false;
     // [net] role=auto (Co-op+): start as the host of our own world; a Steam invite
     // or "Join Game" switches to guest, and leaving switches back.
@@ -85,6 +89,8 @@ struct Config {
     // then talks to join_switch_port (UDP; 0 = peer_port).
     uint32_t dev_join_switch_s = 0;
     uint16_t dev_join_switch_port = 0;
+    // Co-op+ dev: the menu's Radmin VPN / Direct IP hosts on 127.0.0.1 (two copies on one PC) ([dev] direct_loopback).
+    bool dev_direct_loopback = false;
     bool dev_scaling_as_host = false;  // Co-op+ dev: party scaling acts as the host ([dev] scaling_as_host)
     int dev_challenge_test = 0;      // Co-op+ dev: a simulated friend accepts our challenges ([dev] challenge_test)
     bool dev_duel_test = false;      // Co-op+ dev: one-PC duel with the echo peer (coop_duel.h)

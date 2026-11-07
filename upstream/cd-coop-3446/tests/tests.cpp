@@ -26,6 +26,8 @@
 #include "common/reliable.h"
 #include "mod/net/room_codec.h"
 #include "mod/net/join_args.h"
+#include "mod/net/direct_invite.h"
+#include "common/transport.h"
 #include "common/party_scaling.h"
 #include "common/nameplate.h"
 #include "mod/net/boss_rules.h"
@@ -1754,8 +1756,87 @@ void test_game_save() {
 
 }  // namespace
 
+void test_direct_invite() {
+    using namespace cdmp::net;
+    // 26.12.34.56 in network byte order: the first number in the lowest byte.
+    const uint32_t ip = 26u | 12u << 8 | 34u << 16 | 56u << 24;
+    const std::string inv = direct_invite_encode(ip, 37015, 0x0123456789ABCDEFull);
+    CHECK(inv == "coopplus1/26.12.34.56:37015/0123456789abcdef");
+    auto t = direct_invite_parse("Join me! " + inv + " see you");
+    CHECK(t && t->ip == ip && t->port == 37015 && t->token == 0x0123456789ABCDEFull);
+    t = direct_invite_parse("COOPPLUS1/26.12.34.56:37015/0123456789abcdef");  // not our prefix (case): a bare address
+    CHECK(t && t->ip == ip && t->token == 0);
+    CHECK(!direct_invite_parse("coopplus1/26.12.34.56:37015/0123456789abcde"));     // 15 digits
+    CHECK(!direct_invite_parse("coopplus1/26.12.34.56:37015/0123456789abcdef0"));   // 17 digits
+    CHECK(!direct_invite_parse("coopplus1/26.12.34.256:37015/0123456789abcdef"));   // 256
+    CHECK(!direct_invite_parse("coopplus1/26.12.34.56:37015/0000000000000000"));    // no secret
+    CHECK(!direct_invite_parse("coopplus1/0.0.0.0:37015/0123456789abcdef"));
+    t = direct_invite_parse("coopplus1/26.12.34.56/00000000000000ff");              // no port: the default
+    CHECK(t && t->port == 37015 && t->token == 0xFF);
+    t = direct_invite_parse("coopplus1/127.0.0.1:40000/00000000000000ff");
+    CHECK(t && t->ip == 0x0100007Fu && t->port == 40000);
+    // a bare address (Radmin's Copy IP), with or without a port, inside text
+    t = direct_invite_parse("my radmin ip is 26.1.2.3");
+    CHECK(t && t->ip == (26u | 1u << 8 | 2u << 16 | 3u << 24) && t->port == 37015 && t->token == 0);
+    t = direct_invite_parse("26.1.2.3:41000");
+    CHECK(t && t->port == 41000);
+    CHECK(!direct_invite_parse("version 1.0.0.3576.1"));   // five numbers: not an address
+    CHECK(!direct_invite_parse("hello"));
+    CHECK(!direct_invite_parse(""));
+    CHECK(!direct_invite_parse("255.255.255.255"));
+    CHECK(direct_dotted_ip(ip) == "26.12.34.56");
+}
+
+void test_direct_knock() {
+    using namespace cdmp::net;
+    if (!startup()) {
+        std::printf("  (direct knock test skipped: no winsock)\n");
+        return;
+    }
+    const uint32_t lo = 0x0100007Fu;  // 127.0.0.1
+    const uint64_t token = 0x1122334455667788ull;
+    UdpTransport host;
+    CHECK(host.open_direct(Endpoint{lo, 0}, 0, token));  // an invite host: no guest address
+    const uint16_t port = static_cast<uint16_t>(std::stoi(host.status().substr(host.status().rfind(':') + 1)));
+    const PeerAddr to_host = PeerAddr::udp(Endpoint{lo, port});
+    uint8_t buf[256];
+    PeerAddr from;
+    // A wrong secret: dropped, nothing reaches the game protocol.
+    {
+        UdpTransport bad;
+        CHECK(bad.open_direct(Endpoint{lo, 0}, lo, token ^ 1, true));
+        const uint8_t hello[] = {1, 2, 3};
+        CHECK(bad.send(to_host, hello));
+        bool got = false;
+        for (int i = 0; i < 4; ++i) got = got || host.recv(from, buf, 50).has_value();
+        CHECK(!got && host.admitted() == 0 && host.dropped() >= 2);
+    }
+    // The right secret: the knock is swallowed, the data comes through, and the host can answer.
+    UdpTransport guest;
+    CHECK(guest.open_direct(Endpoint{lo, 0}, lo, token, true));
+    const uint8_t hello[] = {9, 8, 7, 6};
+    CHECK(guest.send(to_host, hello));
+    std::optional<size_t> n;
+    for (int i = 0; i < 4 && !n; ++i) n = host.recv(from, buf, 50);
+    CHECK(n && *n == 4 && buf[0] == 9 && host.admitted() == 1);
+    const uint8_t reply[] = {5};
+    CHECK(host.send(from, reply));
+    std::optional<size_t> m;
+    PeerAddr hf;
+    for (int i = 0; i < 4 && !m; ++i) m = guest.recv(hf, buf, 50);
+    CHECK(m && *m == 1 && buf[0] == 5);
+    // Once the host answered, the guest stops knocking: the next send is data only.
+    const uint64_t admitted = host.admitted();
+    CHECK(guest.send(to_host, hello));
+    n.reset();
+    for (int i = 0; i < 4 && !n; ++i) n = host.recv(from, buf, 50);
+    CHECK(n && *n == 4 && host.admitted() == admitted);
+}
+
 int main() {    test_pattern();
     test_byte_ring();
+    test_direct_invite();
+    test_direct_knock();
     test_math();
     test_roundtrip();
     test_rejects_bad_input();

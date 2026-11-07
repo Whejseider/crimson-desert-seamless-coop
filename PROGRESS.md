@@ -1822,3 +1822,21 @@ Done in the user's Chrome (signed in as Asher):
   stderr stopped it (ErrorActionPreference Stop) and Windows PowerShell 5.1 split --notes at embedded quotes (now
   --notes-file). Discord: download post pinned, announcement, #features 1 and 2 edited
   (docs/release/discord-server-posts.md). NOT done: unpinning the f3517194 post (refused by the permission check).
+- 2026-11-07 14:20-15:30 RADMIN VPN / DIRECT IP IN THE CO-OP MENU (Plitos's handoff, CrimsonDesert-Radmin-Asher-Handoff.zip:
+  RADMIN_UPSTREAM_HANDOFF.md + radmin-transport-reference.patch; their transport change = what we merged as direct play
+  in cd116c4, so only the menu and the invite were new). Built: a "Radmin VPN / Direct IP" card in the title menu (host
+  and guest views) opening Host / Join / Back to Steam Invite / Back. Host: our Radmin (26.x, else VPN/LAN) address,
+  port 37015, a 64-bit random secret (BCryptGenRandom) -> invite "coopplus1/<ip>:37015/<16 hex>" put on the clipboard;
+  Invite Friends becomes Copy Invite while hosting. Join: reads the clipboard (invite or bare address). The session
+  restarts on the new transport through a new SessionEnd::Kind::Direct (run_coop); a failed menu session goes back to
+  Steam with the reason on the page; Leave / Back to Steam return to Steam; nothing is written to the ini. Security
+  (handoff: "an encoded address alone provides no authentication"): UdpTransport::open_direct(local, only_ip, token,
+  knock) -- the guest sends a 16-byte knock "CDKNOCK1"+secret before each datagram until the host answers; the host lets
+  in only an address whose knock carries the secret, drops the rest unread (counted). Codec header-only
+  (net/direct_invite.h) for unit tests: test_direct_invite + test_direct_knock (loopback: wrong secret dropped, right
+  admitted, knocking stops after the answer) pass. [dev] direct_loopback=1 hosts the invite on 127.0.0.1 for two copies.
+  Two-copy test dr2 (harness: new -LobbyScript 'h=SEQ|g=SEQ|s=N'): Host -> invite on clipboard -> guest Join ->
+  connected -> Start Co-op -> Play Together -> both in the world, lag 106 ms, SAVES OK. dr1 FOUND A MENU BUG: a mouse
+  resting over a card snapped the highlight back every frame, so W/S did nothing; now the mouse only selects when it
+  moves. Known (old): "the other player's horse is not a plain mount load (slot 1)" in every run with the bandits save.
+  Not tested: two real PCs over Radmin (needs Plitos or the user).

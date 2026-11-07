@@ -257,8 +257,9 @@ private:
 // Why a network session ended (Co-op+): the player stopped the mod, accepted a
 // Steam join into another world, or left the world they were visiting.
 struct SessionEnd {
-    enum class Kind { Stop, Join, Leave } kind = Kind::Stop;
+    enum class Kind { Stop, Join, Leave, Direct } kind = Kind::Stop;
     uint64_t lobby = 0;  // Join: the lobby Steam asked for
+    net::DirectRequest direct;  // Direct: the co-op menu's Radmin VPN / Direct IP choice (Host, Join, back to Steam)
 };
 
 // True when the game owns the foreground window, so hotkeys typed into another
@@ -406,40 +407,61 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
             steam->set_peer(cfg.steam_peer_id);
         }
     } else if (cfg.net_transport_direct) {
-        // Co-op+ direct play (direct_ip.h): Radmin VPN / LAN / any VPN, straight to the friend's address.
-        const auto friend_ep = net::Endpoint::resolve(cfg.peer_host, cfg.peer_port);
+        // Co-op+ direct play (direct_ip.h): Radmin VPN / LAN / any VPN, straight to the friend's address. A host with an
+        // invite (the co-op menu's Host) needs no friend address: whoever knocks with the invite's secret gets in.
+        const bool invite_host = host && cfg.direct_token != 0;
+        const auto friend_ep = cfg.peer_host.empty() ? std::nullopt : net::Endpoint::resolve(cfg.peer_host, cfg.peer_port);
         std::string why;
         std::optional<uint32_t> local_ip;
         if (friend_ep && friend_ep->is_loopback()) {
             local_ip = friend_ep->ip, why = "this PC (a test with two copies)";
-        } else if (friend_ep && !cfg.bind_host.empty()) {
+        } else if (invite_host && cfg.dev_direct_loopback) {
+            local_ip = net::Endpoint{0x0100007Fu, 0}.ip, why = "[dev] direct_loopback (two copies on this PC)";
+        } else if ((friend_ep || invite_host) && !cfg.bind_host.empty()) {
             if (const auto b = net::Endpoint::resolve(cfg.bind_host, 0)) local_ip = b->ip, why = "bind_host";
             else why = "bind_host '" + cfg.bind_host + "' is not an address";
         } else if (friend_ep) {
             local_ip = net::direct_local_address_for(friend_ep->ip, why);
+        } else if (invite_host) {
+            std::string name;
+            local_ip = net::direct_host_address(name, why);
+            if (local_ip) why = "the adapter '" + name + "'";
         }
         log::info("Direct: our addresses: {}", net::direct_own_addresses());
-        if (!friend_ep || friend_ep->ip == 0 || !local_ip) {
-            const std::string text = !friend_ep || friend_ep->ip == 0
-                ? "Direct co-op: set peer_host in cdmp.ini to your FRIEND's VPN address (Radmin VPN shows it)."
-                : "Direct co-op: " + why + ".";
+        net::DirectState ds;
+        if ((!invite_host && (!friend_ep || friend_ep->ip == 0)) || !local_ip) {
+            const std::string text = !local_ip && (friend_ep || invite_host)
+                ? "Direct co-op: " + why + "."
+                : "Direct co-op: set peer_host in cdmp.ini to your FRIEND's VPN address (Radmin VPN shows it).";
             log::error("{} (peer_host '{}')", text, cfg.peer_host);
             render::hud_set_problem(render::Problem::Network, text);
+            ds.error = text;
+            net::direct_set_state(ds);
             net::cleanup();
             return {};
         }
         auto udp = std::make_unique<net::UdpTransport>();
         const net::Endpoint local{*local_ip, host ? cfg.peer_port : uint16_t{0}};
-        if (!udp->open_direct(local, friend_ep->ip)) {
+        if (!udp->open_direct(local, friend_ep ? friend_ep->ip : 0, cfg.direct_token, !host)) {
             const std::string text = "Direct co-op: cannot use " + local.str() + " (" + net::UdpSocket::last_error() +
                                      "); is another copy of the game hosting?";
             log::error("{}", text);
             render::hud_set_problem(render::Problem::Network, text);
+            ds.error = text;
+            net::direct_set_state(ds);
             net::cleanup();
             return {};
         }
-        log::info("Direct: {} on {} ({}), friend {}", host ? "hosting" : "joining", local.str(), why, friend_ep->str());
+        log::info("Direct: {} on {} ({}), friend {}{}", host ? "hosting" : "joining", local.str(), why,
+                  friend_ep ? friend_ep->str() : std::string("anyone with the invite"),
+                  cfg.direct_token ? " (invite)" : "");
         if (!host) peer = net::PeerAddr::udp(*friend_ep);
+        ds.active = true;
+        ds.host = host;
+        ds.address = net::direct_dotted(*local_ip);
+        if (friend_ep) ds.friend_address = net::direct_dotted(friend_ep->ip);
+        if (invite_host) ds.invite = net::direct_invite_encode(*local_ip, cfg.peer_port, cfg.direct_token);
+        net::direct_set_state(ds);
         transport = std::move(udp);
     } else {
         // UDP is only for tests on one PC (cdmp_peer, cdmp_host): it never
@@ -587,6 +609,14 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                 break;
             }
             say("you are the host: your friend leaves from their side (Ctrl+F2)");
+        }
+        // Co-op+: the co-op menu's Radmin VPN / Direct IP (Host, Join, Back to Steam) restarts the session on it.
+        if (auto want = net::direct_take_request()) {
+            log::info("Direct: the co-op menu asks for {}", want->kind == net::DirectRequest::Kind::Host   ? "Host"
+                                                            : want->kind == net::DirectRequest::Kind::Join ? "Join"
+                                                                                                           : "Steam");
+            end = {Kind::Direct, 0, *want};
+            break;
         }
         // Co-op+ dev ([dev] join_switch_s): this host becomes a guest, as when a Steam invite is accepted; once a game.
         if (static bool switched = false; host && cfg.dev_join_switch_s && !switched &&
@@ -1435,6 +1465,15 @@ void run_coop(const Config& base, LocalSource& local, bool in_game) {
     for (;;) {
         const SessionEnd end = run_network(cfg, local);
         if (stop_requested()) break;
+        if (end.kind == SessionEnd::Kind::Stop && cfg.direct_from_menu) {
+            // The menu's Radmin VPN / Direct IP could not start (no VPN address, the port taken...): the menu shows
+            // why (direct_state().error); back to Steam rather than retrying the same thing.
+            log::warn("Direct: could not start; back to {}", steam_named.net_transport_steam ? "Steam" : "the ini's transport");
+            cfg = steam_named;
+            apply_role_settings(cfg, in_game, true);
+            if (stop_requested(1500)) break;
+            continue;
+        }
         if (end.kind == SessionEnd::Kind::Stop) {
             // Co-op+ (T08): the network could not start (or stopped by itself). This used to end the worker, so co-op
             // stayed off for the rest of the game session (seen after a Leave on the one-PC transport). Try again.
@@ -1448,15 +1487,39 @@ void run_coop(const Config& base, LocalSource& local, bool in_game) {
             }
             continue;
         }
-        if (end.kind == SessionEnd::Kind::Join) {
+        if (end.kind == SessionEnd::Kind::Direct) {
+            const net::DirectRequest& r = end.direct;
+            if (r.kind == net::DirectRequest::Kind::Steam) {
+                cfg = steam_named;
+                net::direct_set_state({});
+            } else {
+                cfg.net_transport_steam = false;
+                cfg.net_transport_direct = true;
+                cfg.direct_from_menu = true;
+                cfg.net_role_host = r.kind == net::DirectRequest::Kind::Host;
+                cfg.peer_port = r.target.port;
+                cfg.direct_token = r.target.token;
+                cfg.room_lobby = 0;
+                cfg.room_code.clear();
+                cfg.steam_peer_id = 0;
+                if (cfg.net_role_host) {
+                    cfg.peer_host = r.peer_ip ? net::direct_dotted(r.peer_ip) : std::string();
+                    cfg.bind_host.clear();
+                } else {
+                    cfg.peer_host = net::direct_dotted(r.target.ip);
+                }
+            }
+        } else if (end.kind == SessionEnd::Kind::Join) {
             cfg.net_role_host = false;
             if (cfg.dev_join_switch_port) cfg.peer_port = cfg.dev_join_switch_port;
             cfg.room_lobby = end.lobby;
             cfg.room_code.clear();
             cfg.steam_peer_id = 0;
         } else {
-            // Leave: back to our own world, hosting it if role=auto, as configured otherwise.
+            // Leave: back to our own world, hosting it if role=auto, as configured otherwise (a menu-chosen direct
+            // session goes back to Steam too).
             cfg = steam_named;
+            net::direct_set_state({});
             if (!base.net_role_auto && !base.net_role_host) cfg.net_role_host = true;
         }
         log::info("Co-op+: now {}", cfg.net_role_host ? "hosting our own world" : "joining a friend's world");
