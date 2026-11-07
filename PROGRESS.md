@@ -1845,3 +1845,13 @@ Done in the user's Chrome (signed in as Asher):
   player zip, c767d700... mod-manager); FEATURES / README pushed; Discord: download post + a pinned zips message (the
   first post lost its attachments), announcement, #features line. The game folder now has the 096d9c3f asi (the test
   kit restores it); older local builds (c606602d, f3517194) deleted from dist (on GitHub still).
+- 2026-11-07 15:50 DECOMP PASS started (user: "begin decomping the game using Ghidra ... then address any issues ...
+  completely independently ... detailed notes ... then a concise list of what changed and why"). Full auto-analysis of
+  the 3576 exe in its own project (build/tools/full_analysis.ps1 -> build/tools/ghidra-full; FullOptions.java turns
+  off Decompiler Parameter ID / aggressive finder; 20 GB heap, 14 CPUs), then ExportIndex.java (functions, calls, RTTI
+  classes + vtables, strings with users) and ExportAllC.java (every function's C, sharded per MB, in build/decomp/c).
+  Meanwhile targeted reads with the small project. FIRST FINDING (items, docs/research/reverse-engineering-3576.md
+  "Items"): the retail exe switches cheat requests off by a flag at handler+0x21 (the handler answers success and does
+  nothing) -- the reason AddMinusItemReq "got no answer" in T18. Its worker 0x2E08220(inventory [[user+0x68]+0xB8],
+  &err, item key, count) adds or removes a chosen item with the game's own client update: callable on the server thread
+  like the XP grant. Unblocks T18 gifting, T45 stash, T26 penalties.

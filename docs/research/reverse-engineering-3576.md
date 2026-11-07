@@ -100,3 +100,23 @@ must be found again: the method section says how.
   (H does nothing); the horse teleports near (it moved 323 m in < 5 s).
 - A new game's first saves: 0 then 1 completed missions.
 - The sync digest must not count dead copies kept for loot (false resyncs gave back all hidden enemies).
+
+## Items (2026-11-07, the decomp pass; unblocks T18 trading / T45 stash / T26 penalties)
+
+- Every request handler in the TrocTr table starts the same way (generated code): check the size, then
+  `if (*(char*)(handler + 0x21) == 0) { read fields; do it }` else **silently answer 0 (success) and do nothing**.
+  In the retail exe the cheat / dev requests have +0x21 set: that is why AddMinusItemReq got "no answer at all" in
+  the T18 test (addminus1), not a wrong layout.
+- AddMinusItemReq (handler **0x2C9A090**, vtable 0x5EEC9F8): `u32 item key | i64 count`, then
+  **0x2E08220**(inventory, u32* err, u32 item key, i64 count) with inventory = `[[user + 0x68] + 0xB8]` (user = the
+  player's server actor, as for XP). 0x2E08220: key 0 -> error; key -> u16 index through 0x3D7E10 (-1 = unknown item
+  -> error); owner = [inventory + 8]; locks [owner + 8]; **0x22FE820**(inventory, key, count, INT64_MAX) changes the
+  count; then 0x2C89CA0(owner, msg, 2 if count > 0 else 1, ...) sends the client its inventory update; *err = 0.
+  On an error the handler sends message 0x3F5 (1013, an error notice) with the code.
+  -> A server-thread call of 0x2E08220 (the XP grant's mid-hook, quest_advance.cpp) adds (count > 0) or removes
+  (count < 0) a chosen item in that player's own save, with the game's own client update.
+- Other handlers read on the way (same +0x21 gate): SpawnItemToGroundByCheatReq 0x2C8B360 (`u32 | u64 | u16 | item
+  value struct` -> 0x2EE98D0 -> 0x2DD9600), PushEntitlementItemReq 0x2C98040 (`u16 | u32` -> 0x2B3D920 on
+  [comps + 0x168]), TransferItemReq 0x2C96A10 (`u16 | u16 | u16 | u16` -> 0x2EEB9A0 -> 0x2D6D410 on [comps + 0x38]),
+  CreateItemFromTrItemValueCheatReq 0x2C8B130 (a 0x1C0-byte item value read by 0x2642100 -> 0x2EE96F0),
+  CreateItemAndEquipXXXOnceTimer 0x2ED9FF0 (-> 0x2DFBF40).
