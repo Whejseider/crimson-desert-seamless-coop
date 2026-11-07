@@ -121,6 +121,7 @@ add_library(cdmp_mod SHARED
     src/mod/net/steam_join.cpp
     src/mod/net/direct_ip.cpp
     src/mod/net/prologue_hold.cpp
+    src/mod/net/xp_share.cpp
     src/mod/net/party_scaling.cpp
     src/mod/net/save_guard.cpp
     src/mod/net/story_sync.cpp

@@ -1,6 +1,6 @@
 # BLOCKED (roadmap tasks or parts that could not be done; what was tried, what would unblock)
 
-## T10 (part) -- experience for the guest from kills on the host's enemies
+## T10 (part) -- experience for the guest from kills on the host's enemies -- SOLVED 2026-11-07 (xp_share.h: the server's own experience timer handler, found with Ghidra)
 The guest's loot from shared kills works (its own hidden enemy of the same kind is killed on its own server and
 looted). Experience does not come with it.
 Tried:

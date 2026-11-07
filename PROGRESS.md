@@ -1724,3 +1724,19 @@ Done in the user's Chrome (signed in as Asher):
   Routes left: (a) the guest's OWN real hits on a copy rewritten to also hit its hidden twin (DoFrameEventReq target
   rewrite; the upstream "option A"): real damage, real kill, XP for kills the guest takes part in; (b) nothing found
   yet for kills the guest has no part in.
+- 2026-11-07 08:40 SHARED XP WORKS (both ways, two copies, xs1; sandbox gx2 first). Found with Ghidra: the XP message
+  writer (exe+0x2CF56D0, `mov word [r15], 0xBB3`) is called by the experience routine exe+0x2EB4180(sub-level manager,
+  out, actor, u16* index, u64 amount, u8 flag), which the server's own timer handler exe+0x2ED9000
+  (ProcessSubLevelIncreaseExperienceOnceTimer 2069, TrocTr vtable 0x5EFDF30) calls under the game's lock after turning
+  the sub-level KEY into its index. Its message: u32 actor at +3 (0 = the user), u32 key at +7, u64 amount at +0x0B,
+  u8 flag at +0x13; its context [0] = the user = our player's server actor, [3] = the message. The mod
+  (quest_advance.cpp run_xp_grants) runs on the quest server's thread inside MissionTriggerInOutReq's handler (woken by
+  the harmless mission-0 trigger), looks our actor up as that handler does (exe+0x2D11AA0(manager=[[exe+0x71C0610]+0x50],
+  handle, key), released via exe+0x1618660 with tag exe+0x5AC58E0), builds the 20-byte message and calls the timer
+  handler under SEH. gx1 (the trigger's r8 as the user) faulted at 0x2ED91E1 (caught, no harm); gx2: "done" twice and
+  AddSubLevelExperienceAck byte-identical to a kill's (521, +15). net/xp_share.{h,cpp}: every skill-point gain
+  (sub-levels 521-523) our server reports goes to the partner (RelKind::World type 8: u32 key | u64 amount); the
+  partner's mod grants it; our own grants of the partner's gains are never sent back (expected list, 10 s); not while
+  the solo prologue holds. [coop] shared_xp=1 by default; the loot-twin XP route is retired. xs1: host +15 and guest
+  +25 (dev grantxp, twice each): each side granted the other's amount, no echo, totals equal. SAVES OK.
+  Not yet checked live: a real kill on one side (the ack is the same; the dev grant stands in for it).

@@ -23,4 +23,13 @@ bool quest_advance_ready();
 // `checked` (live quests): re-checked on the quest thread with quest_live_can_advance; false only for the dev script.
 void quest_advance_request(uint32_t mission_key, bool checked = true);
 
+// Co-op+ shared XP (2026-11-07): MissionTriggerInOutReq's handler hooked on its own (no live quests needed).
+bool server_trigger_hook_install();
+// Our server adds `amount` to the sub-level `sublevel_key` (521 = Kliff's skill points) through its own experience
+// timer handler (ProcessSubLevelIncreaseExperienceOnceTimer), on its own thread, as a kill would. False if not
+// available. The result is logged ("XP: the server's experience timer ...") and our client gets the usual
+// AddSubLevelExperienceAck.
+bool quest_advance_grant_xp(uint32_t sublevel_key, uint64_t amount);
+uint64_t quest_advance_xp_granted();
+
 }  // namespace cdmp::net

@@ -33,6 +33,7 @@
 #include "mod/net/remote_puppet.h"
 #include "mod/net/time_sync.h"
 #include "mod/net/prologue_hold.h"
+#include "mod/net/xp_share.h"
 #include "mod/net/troc_sniffer.h"
 
 namespace cdmp::net {
@@ -222,6 +223,9 @@ void CoopLink::update(const std::optional<proto::Vec3>& local_pos, const proto::
     }
     for (auto& m : prologue_take_outgoing()) {  // Co-op+: our prologue state (prologue_hold.h)
         if (!session_.send_reliable(proto::RelKind::World, m, now_ms)) log::warn("Prologue: a message did not fit");
+    }
+    for (auto& m : xp_share_take_outgoing()) {  // Co-op+: our skill-point gains (xp_share.h)
+        if (!session_.send_reliable(proto::RelKind::World, m, now_ms)) log::warn("XP: a message did not fit");
     }
     enemy_tick();
     loot_tick();

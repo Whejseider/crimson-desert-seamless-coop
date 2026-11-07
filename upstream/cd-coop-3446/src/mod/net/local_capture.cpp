@@ -40,6 +40,7 @@
 #include "mod/net/attack_probe.h"
 #include "mod/net/guest_hits.h"
 #include "mod/net/loot_twin.h"
+#include "mod/net/xp_share.h"
 #include "mod/net/native_suppress.h"
 #include "mod/net/party_scaling.h"
 #include "mod/net/save_guard.h"
@@ -624,6 +625,7 @@ void capture_observe_s2c(const uint8_t* packet, size_t size) {
     enemy_observe_s2c(packet, size);
     suppress_observe_s2c(packet, size);
     loot_observe_s2c(packet, size);  // Co-op+ shared XP: experience messages counted
+    xp_share_observe_s2c(packet, size);  // Co-op+ shared XP: our skill-point gains go to the partner
     hits_observe_s2c(packet, size);
     guest_hits_observe_s2c(packet, size);
     piece4_observe_s2c(packet, size);

@@ -186,7 +186,7 @@ struct Config {
     // Co-op+ (2026-11-07, prologue_hold.h): [coop] solo_prologue: the opening tutorial is played solo; co-op waits
     // while a save has fewer than prologue_missions completed missions.
     bool coop_solo_prologue = true;
-    bool coop_shared_xp = false;  // [coop] shared_xp: XP from the host's kills within 400 m (loot_twin.h)
+    bool coop_shared_xp = true;  // [coop] shared_xp: every skill-point gain shared (xp_share.h)
     uint32_t coop_prologue_missions = 60;
     // Co-op+: abilities' slow motion (Focus...) does not slow the world while a co-op session is up (net/slowmo.h).
     bool coop_block_slowmo = true;

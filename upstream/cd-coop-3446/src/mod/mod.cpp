@@ -83,6 +83,7 @@
 #include "mod/net/steam_join.h"
 #include "mod/net/direct_ip.h"
 #include "mod/net/prologue_hold.h"
+#include "mod/net/xp_share.h"
 #include "mod/net/time_sync.h"
 #include "mod/net/troc_sniffer.h"
 #include "mod/render/dx12_hook.h"
@@ -896,6 +897,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     if (uint32_t carrier = 0; net::capture_carried_for(5000, &carrier)) pi.riding = carrier ? carrier : 1;
                     pi.partner_name = session.peer_name();
                     net::prologue_tick(pi);
+                    net::xp_share_tick(connected && !net::prologue_held());  // Co-op+ shared XP (xp_share.h)
                 }
                 if (std::string t = net::worlds_take_toast(); !t.empty()) {
                     toast = std::move(t);
@@ -1367,7 +1369,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
 void apply_role_settings(const Config& cfg, bool in_game, bool role_changed) {
     if (!(in_game && cfg.coop_enabled)) return;
     net::loot_set_enabled(cfg.coop_guest_loot && !cfg.net_role_host);
-    net::loot_set_shared_xp(cfg.coop_shared_xp && !cfg.net_role_host);  // Co-op+ shared XP (loot_twin.h)
+    net::loot_set_shared_xp(false);  // the twin-kill route is retired: shared XP is xp_share.h
     net::loot_set_mode(cfg.coop_loot_mode);
     // Co-op+: time of day follows the host ([coop] time_sync=3, the default).
     if (cfg.coop_time_sync == 3) {
@@ -1999,6 +2001,7 @@ DWORD WINAPI worker(LPVOID) {
             net::story_startup();
             net::quest_live_configure(cfg.coop_live_quests, cfg.dev_live_quests_any_world);
             net::prologue_configure(cfg.coop_solo_prologue, cfg.coop_prologue_missions);  // Co-op+ (2026-11-07)
+            net::xp_share_configure(cfg.coop_shared_xp);  // Co-op+ shared XP (xp_share.h)
             net::slowmo_configure(cfg.coop_block_slowmo, cfg.dev_block_slowmo_always);
             game::set_stat_log(cfg.dev_stat_log);
         }

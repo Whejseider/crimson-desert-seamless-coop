@@ -25,12 +25,13 @@
 #include "mod/net/enemy_relay.h"
 #include "mod/net/troc_sniffer.h"
 #include "mod/net/prologue_hold.h"
+#include "mod/net/quest_advance.h"
 
 namespace cdmp::net {
 namespace {
 
 struct Step {
-    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch, GSnap, GDiff, PtrScan, WatchStatus, Key, ClockScan, RideHorse, PrologueDone } kind;
+    enum Kind { C2S, S2C, Wait, Teleport, Poke, Time, Watch, Day, Pad, KillGame, KillAll, MemScan, MemDiff, MemWatch, Advance, FScan, FFilter, FWatch, WaitFile, DScan, DFilter, DWatch, GSnap, GDiff, PtrScan, WatchStatus, Key, ClockScan, RideHorse, PrologueDone, GrantXp } kind;
     uintptr_t addr = 0;
     float to[3] = {};
     uint16_t op = 0;
@@ -248,6 +249,16 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
             steps.push_back(st);
             continue;
         }
+        if (kind == "grantxp") {  // grantxp <sub-level key> <amount>: our server adds experience (quest_advance.h)
+            st.kind = Step::GrantXp;
+            uint32_t key = 0;
+            uint64_t amount = 0;
+            in >> key >> amount;
+            st.addr = key;
+            st.wait_ms = static_cast<uint32_t>(amount);
+            steps.push_back(st);
+            continue;
+        }
         if (kind == "prologuedone") {  // prologuedone: as the Co-op page's "My prologue is done" (prologue_hold.h)
             st.kind = Step::PrologueDone;
             steps.push_back(st);
@@ -424,6 +435,9 @@ int dev_script_run(const std::string& path, uint32_t own_player, float x, float 
                 Sleep(st.wait_ms ? st.wait_ms : 60);
                 keybd_event(vk, scan, KEYEVENTF_KEYUP, 0);
                 log::info("Dev script: key 0x{:02X} ({} ms)", vk, st.wait_ms);
+            } else if (st.kind == Step::GrantXp) {
+                const bool ok = quest_advance_grant_xp(static_cast<uint32_t>(st.addr), st.wait_ms);
+                log::info("Dev script: grantxp {} +{}{}", st.addr, st.wait_ms, ok ? " (queued)" : " NOT queued");
             } else if (st.kind == Step::PrologueDone) {
                 prologue_done_now();
                 log::info("Dev script: prologue done");
