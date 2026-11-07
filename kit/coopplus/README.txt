@@ -68,9 +68,30 @@ other loaders, .asi mods and ReShade it finds next to the game, once, as a notic
 It never blocks them. Details and a table by kind of mod: OTHER-MODS.md.
 
 
+QUICK START (the first time, about 2 minutes)
+---------------------------------------------
+1. Both players: install (above), then start the game from Steam. The Co-op menu
+   stands in for the game's title screen.
+2. Host: pick "Invite Friends". The Steam overlay opens: pick your friend.
+3. Friend: accept the invite in Steam (the pop-up, or right-click the host in the
+   friends list > "Join Game"). Stay at the Co-op menu. Both menus now list the
+   party top right; the crown marks the host.
+4. Host: pick "Start Co-op", then how the journey begins:
+   - Continue Our Co-op Save: where the two of you left off (greyed until you have one).
+   - Start From My Solo Progress: your friend joins your story where you are.
+   - New Co-op Save: both begin the story; the host picks the difficulty, the friend
+     sees "waiting for the host" while the mod sets their game up the same way.
+   (With co-op saves off in the settings there is one choice: "Play Together", each in
+   their own save.)
+5. Both games start together. Play alone instead: "Start Solo" (or Esc).
+Something went wrong (a crash, a stuck screen)? Run "Diagnose Co-op+.cmd" and send the
+.zip it puts on your Desktop; it holds the log we need.
+No Steam invite possible (Radmin VPN / LAN)? See DIRECT PLAY below.
+
+
 PLAYING TOGETHER
 ----------------
-- Load your save. Everyone starts as the host of their own world.
+- Everyone starts as the host of their own world (QUICK START above shows the menu).
 - CONTROLLER: every co-op action works on an Xbox or PlayStation pad. Hold View
   (Xbox) / the touchpad button (PlayStation) and press a button; the on-screen
   prompts show the buttons of whatever you last used (keys, Xbox or PlayStation).
@@ -341,6 +362,18 @@ IS IT SAFE? (ANTI-CHEAT, ACCOUNTS, CROSS-SAVE)
   nothing anywhere except to the friend you play with. It never changes your saves.
 - Cross-save / Steam Cloud upload your save when the game saves: that is one more
   reason not to save while your friend is connected.
+
+DIRECT PLAY (Radmin VPN, LAN, any VPN; no Steam invite)
+-------------------------------------------------------
+Both players join the same Radmin VPN network (or LAN) and tell each other their
+address (Radmin shows it, 26.x.x.x). Then in bin64\cdmp.ini, under [net]:
+    transport=direct
+    role=host            (the friend: role=guest)
+    peer_host=<your FRIEND's address>
+    peer_port=37015      (the same on both)
+Start the game; allow it on the network if Windows asks. The mod listens only on the
+adapter that reaches your friend and ignores anything not sent from their address.
+
 
 AFTER A GAME UPDATE
 -------------------

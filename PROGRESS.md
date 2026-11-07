@@ -1628,3 +1628,16 @@ Done in the user's Chrome (signed in as Asher):
   not the mod: either this test save's horse cannot be called (it never moves at all, not even idling) or the game
   does not take a simulated hold for this action. Next: a sandbox copy of a save where the user's call works (asked).
   Harness: -Solo (host copy alone) added; horse_kit.ps1 tries the repeating hold first.
+- 2026-11-07 03:15 HORSE CALL on a sandbox copy of the user's own newest save (user OK; build/test-saves/slot103-usercopy,
+  git-ignored, never pushed; the real slot only read, hashes equal): hk10 (-Solo, co-op off) H repeating 3 s and H 3 s:
+  the horse did not come; its position IS live (it moved 46 m while the kit walked toward it). The same save calls the
+  horse for the user, so the game most likely ignores the SIMULATED H hold for this action. Paused until the user can
+  help (user: work on other things meanwhile).
+- 2026-11-07 03:40 LAG re-check on today's build (enemy fast lane, direct play, Plitos fixes in): two copies, host walks
+  W/S/A/D for 60 s (lagc1): SCREEN TO COPY 50 ms (3 s windows 38-64, median 49), path residual 0.03 m, network out and
+  back 0.6 / 1.3 ms; the two-copy baseline was 52-54 ms (cp3). No regression. The one-copy echo harness (lag_test.sh /
+  port3460 run_echo.ps1) pressed E under the new co-op menu, which now holds the title's keys, so it never loaded
+  (lag20): run_echo presses Esc (Start Solo) first now.
+- 2026-11-07 03:40 Player README (kit/coopplus/README.txt): QUICK START for the co-op menu (invite, accept, Start
+  Co-op and its three choices, Start Solo, "Diagnose Co-op+" for crashes) for Borque's "how to start"; a DIRECT PLAY
+  section (Radmin / LAN settings).
