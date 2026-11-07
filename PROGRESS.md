@@ -1915,6 +1915,22 @@ Done in the user's Chrome (signed in as Asher):
     Each function starts with `// ===== exe+0x<rva> <name> (<bytes>)`, so `grep -n "exe+0xA12C00 " build/decomp/c/*.c`
     finds one.
   - Disk: Ghidra project 6 GB + C 415 MB; 142 GB free on C:.
+- 2026-11-07 19:30 CRASH SURVEY with the full index (every "Crash log" in 628 test logs). Caution learned: a crash
+  address is only meaningful against the game version it ran on (log line "Host version"); only 3576 is archived,
+  so 11-02..11-05 addresses (3479 / 3527 / 3549) cannot be read in the 3576 decomp (my first pass did, wrongly).
+  - Current features, 3576: A12E4E (fixed today, c0858a8), 2519762 / 251A1AD (FUN_142518850), 96918B, 976921: all
+    guarded already.
+  - Dev experiments only: qs-t1 and the qs-* set (3479, save-data load tests), dt10 (3549, re-addressing the death
+    notice; a dead end noted 11-05), fscan1/2 and dtscan (3527 scans).
+  - late1 (3479, 11-03): a game crash (exe+0xBA8D2A, reading 0x8) 71 ms after the guest started the copy of the
+    host's boss cutscene. late2 / late4 / late5 ran the same sequence (same stage, same timing) without it; not
+    seen since. NOT exercised on 3576 yet: no cutscene copy in any 3576 log. Left as a test to do.
+  - dragon7 (3479, 11-02): a game crash in the inventory push path while testing the dragon; not seen since.
+  - wr1 (3549, 11-05 03:30): the one crash inside cdmp.asi (+0x3B4591 reading 0x1400160) in 628 logs, right after a
+    load, with the PC out of memory (94 % used, page file 0.46 GB free, two copies running). Rebuilt that commit
+    (0364c3f) for its PDB: the stack's return address is in puppet_visibility's g_watch.clear() (under its mutex),
+    but the crash address itself lands in a destructor funclet, so the rebuild's layout is not exact; no conclusion.
+    197 later logs: no crash inside the mod.
 
 ## Bug reports 2026-11-07 (user: "Frame drops seem to be a rather big issue now")
 Reports kept in build/reports/ (not in git): borque-2026-11-07_13-28-50 (Borque's CoopPlus report: build 096D9C3F,
