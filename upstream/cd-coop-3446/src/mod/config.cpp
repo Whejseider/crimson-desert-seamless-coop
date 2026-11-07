@@ -79,9 +79,9 @@ constexpr wchar_t kDefaultIni[] =
     L"; also what marks you as having taken part in the kill, which is the condition\r\n"
     L"; shared loot fires on: a creature you never touched gives you nothing.\r\n"
     L"guest_hits=0\r\n"
-    L"; The stagger reaction on those blows. 0 is safer: it injects a hit reaction\r\n"
-    L"; into the other player's enemy, which its AI may not expect.\r\n"
-    L"guest_hit_stagger=0\r\n"
+    L"; The stagger reaction on those blows (the host's enemies reel from the guest's hits as\r\n"
+    L"; from the host's). 0 = damage only.\r\n"
+    L"guest_hit_stagger=1\r\n"
     L"; An older, blunter way to hurt the host's enemies (send the damage number).\r\n"
     L"; It and guest_hits would both hurt the same enemy, so guest_hits wins; the mod\r\n"
     L"; says so in the log if you set both.\r\n"
@@ -271,7 +271,7 @@ Config load_config(const std::wstring& ini_path) {
     // the copy, its blow arrived as -29 hp). Hits react and can kill like any blow.
     c.coop_enemies_target_copy = read_uint(ini_path, L"coop", L"enemies_target_copy", 1) != 0;
     c.coop_guest_hits = read_uint(ini_path, L"coop", L"guest_hits", 0) != 0;
-    c.coop_guest_hit_stagger = read_uint(ini_path, L"coop", L"guest_hit_stagger", 0) != 0;
+    c.coop_guest_hit_stagger = read_uint(ini_path, L"coop", L"guest_hit_stagger", 1) != 0;  // 2026-11-07: on
     c.coop_player_hit_react = read_uint(ini_path, L"coop", L"player_hit_react", 1) != 0;
     c.coop_player_hit_lethal = read_uint(ini_path, L"coop", L"player_hit_lethal", 1) != 0;
     // Co-op+: 3 = auto (the host sends its time of day, the guest takes it): the user wants the time to match.

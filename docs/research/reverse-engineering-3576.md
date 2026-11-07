@@ -1,0 +1,102 @@
+# Reverse-engineering reference, game 1.0.0.3576 (2026-11-07)
+
+One place for what was learnt about the game's code and messages on 3576 while building shared XP, the enemy attacks
+on the guest, the stagger and the crash guards. Dated entries with the full story are in PROGRESS.md (2026-11-07);
+this page is the lookup table. All addresses are RVAs (image base 0x140000000). After a game update every address here
+must be found again: the method section says how.
+
+## Method
+
+- **Ghidra 12.2** (needs JDK 25; Temurin 25 installed by the user) unpacked in `build/tools/` (git-ignored), settings
+  and cache redirected to `build/tools/ghidra-settings|ghidra-cache` (`support/launch.properties` VMARGS; the default
+  AppData OSGi cache failed with "The data file must be inside the data dir").
+- No full auto-analysis (the exe is 327 MB): `build/tools/scripts/Decomp.java` decompiles chosen RVAs only:
+  `analyzeHeadless build/tools/ghidra-proj cd3576 -process CrimsonDesert-1.0.0.3576.exe -noanalysis -scriptPath
+  build/tools/scripts -postScript Decomp.java <out.c> <rva...>` with JAVA_HOME = the JDK 25 (first run: `-import
+  build/exe-archive/CrimsonDesert-1.0.0.3576.exe` instead of `-process`).
+- Python helpers (`build/port3479/pe.py`, `vt.py`; `CDMP_EXE` selects the exe):
+  - a request's handler: TrocTr class vtable slot 2 (`vt.vtable('.?AVTrocTr<Name>@pa@@')`, `slot(v, 2)`);
+  - who writes a message: search executable sections for the opcode as an immediate (`mov word [r], 0xBB3`);
+  - a function's start: back from an address to `CC CC` padding (fails inside the protected `.tls$` / `.xtls` code,
+    which has no padding and is deliberately scrambled);
+  - callers: `E8 rel32` to the start; class of a function: find the 8-byte pointer in a vtable, RTTI COL before it.
+- Live checks: two copies of the game on one PC (`build/port3527/twocopy_cp.sh`), sandbox saves only, packet
+  recordings (`[sniffer] record=1`, read with `tools/port/pkbin.py`), SAVES OK checked after every run.
+
+## Opcodes used (same ids on 3549 and 3576)
+
+| Message | Id | Notes |
+|---|---|---|
+| AddSubLevelExperienceAck | 2995 (0xBB3) | `u32 player \| i64 max \| u8 0 \| u32 sub-level \| u64 amount \| u16` (27 B) |
+| ProcessSubLevelIncreaseExperienceOnceTimer | 2069 | server-internal timer; see "Experience" |
+| AddExperienceAck / AddExperienceByGmReq | 3152 / 2467 | character experience, unused by the game |
+| VarySubLevelExpByResourceReq | 2918 | spends a resource |
+| DoFrameEventReq | 3030 | the client's hit report; 1335 B for a hit (first byte 04) |
+| AttackByCollisionReq | 2150 | `u32 victim \| u32 attacker \| u32 0 \| vec3 point \| vec3 dir \| u32 projectile \| u32 0`; only collision keys (0xF2EE2678) are accepted; the arrow keys (0xF653A168, 0x0ED8D272) get no answer |
+| CreateProjectileFromFrameEventReq | 2644 | a real arrow, from the bow's action frame (236 B) |
+| CreateProjectileAck | 2737 | real arrow: `+4 0x0ED8D272 \| 0x000F4F01 \| data 0x0BB2BA9B \| ...target`; the collision "projectile" is all zeros (no damage) |
+| OnHitProjectileReq | 2860 | `u32 player \| u32 arrow n \| u32 owner \| u32 target \| vec3 point` |
+| PostProcessAttackResult_AttackTargetAck (ATA) | 2791 | 219 B: `+0 target \| +4 attacker \| +8 flags \| +0x24 attack hash` |
+| ApplyActionRestrictionAck (AAR, the stagger) | 3059 | **3576: 69 B, instance +0x1C, source +0x41** (2976: 77 B, +0x24, +0x49) |
+| ApplyBuffAck | 2677 | 77 B: `+0 holder \| +4 buff \| +0x14 instance \| +0x18 source \| +0x1C target \| +0x29 pos \| +0x39/+0x41 server ms`; stagger buff 0x452, damage buffs 1021/1023 |
+| VaryStatCheatReq | 2326 | `u32 key \| u32 stat (HP 0x000F4240) \| u8 mode \| i32 value \| u8 \| u8`; mode 0 = add (exact); mode 1 is NOT "set to" (63.9 -> 63.0 HP for value 1); HP 0 leaves the enemy "fatal" (no kill credit) |
+| VaryHPAck | 2740 | `+0 key \| +4 stat \| +8 hp x1000 \| ... \| +0x18 previous hp x1000` |
+| NotifyHandleDeadAck | 2985 | `u32 victim \| u32 killer \| ...` |
+| MissionTriggerInOutReq | 2899 | the harmless mission-0 trigger that wakes the quest server's thread |
+
+## Experience (shared XP, `net/xp_share.*`, `quest_advance.cpp`)
+
+- Kill experience = sub-level experience: KillActor fills a skill-point bar (521 Kliff, 522 Oongka, 523 Damiane):
+  Tier_1 10, Tier_2 15, Tier_3 25, Elite 140, Boss 1000; only after Mission_Intro_Abyss_Tutorial (upstream research).
+- XP message writer **0x2CF56D0** (`mov word [r15], 0xBB3` at 0x2CF5853); called by the experience routine
+  **0x2EB4180**(sub-level manager, u32* out, actor, u16* index, u64 amount, u8 flag) (from 0x2EB4795) and 0x2EB5600.
+- 0x2EB4180's callers: **0x2ED9000** = handler of ProcessSubLevelIncreaseExperienceOnceTimer (TrocTr vtable 0x5EFDF30,
+  slot 2) and protected code at .tls$ 0xE64D8EF (probably the KillActor path; not decompilable cleanly).
+- 0x2ED9000(handler, u32* out, int64* ctx): ctx[0] = the user = **the player's server actor** (key at +0x60,
+  components at +0x68: +0x28 sub-level manager, +0x1A0 lock object), ctx[3] = the message:
+  `u32 actor at +3 (0 = the user) | u32 sub-level KEY at +7 | u64 amount at +0x0B | u8 flag at +0x13` (the key is
+  turned into the index through the table at [exe+0x71C3B50]). Returns 0 in *out on success.
+- Server actor lookup (as MissionTriggerInOutReq's handler 0x2EEF470 does): **0x2D11AA0**(manager =
+  [[exe+0x71C0610]+0x50], handle*, u32 key): handle +8 = actor, +0x10 = found; release: write exe+0x5AC58E0 at handle+0,
+  call **0x1618660**(handle).
+- The mod calls 0x2ED9000 on the quest server's thread (mid-hook at 0x2EEF470's entry), under SEH. gx1 (wrong user)
+  faulted harmlessly; gx2 / xs1: the server answers with the same AddSubLevelExperienceAck as a kill.
+
+## Hits, projectiles, stagger (`guest_hits.cpp`)
+
+- DoFrameEventReq's reader 0x2BE1C10 -> **0x2B5A200** dispatches on the hit type byte: 0 -> 0x2D19830 (checks the
+  attacker's CURRENT action hash and frame: a fake melee hit only works while the player really swings), 1 ->
+  0x2E857C0 (a projectile's hit: checks only that the projectile exists in the attacker's table and its data entry;
+  no visibility or distance check seen), 3 -> 0x2D19E90.
+- The client flies projectiles and reports their hits itself (OnHitProjectileReq + DoFrameEventReq): a hit on an actor
+  the client does not show (a hidden native) hits nothing.
+- The collision blow (AttackByCollisionReq 0xF2EE2678) makes an all-zero "projectile": a buff (OnPostBuffDamagedAck,
+  ApplyBuffAck 0x3FF), **no damage** on 3576 -> the host-side "finishing collision" never kills; the mod's KillCheatReq
+  fallback kills without XP (hence `xp_share_partner_finished`).
+- Built-in reaction templates (a real sword hit on a bandit, recording rec/cdmp_packets_20261106-235658): kDefaultAta
+  (219 B), kDefaultAar (69 B), kDefaultBuff (77 B, buff 0x452).
+
+## Enemy AI and the guest's copy (`aggro_test.cpp`)
+
+- CheckAIBattleType: vtable slot 1 = 5-byte `jmp` at **0x24C2B50** into .xtls **0xD06B630**(cond, obj_ia, ctx):
+  target at **ctx+0x268**, valid byte **ctx+0x270** (2976: +0x260/+0x268); the asking enemy through a handle:
+  **0x192EF10**([[[obj_ia+0x68]]+8], out) -> out+8 = the actor (release as above). Target's CommonTarget component
+  = [comps+0x90]: rank lists +0x58+16t (counts +0x60/+0x70/+0x80/+0x90); battle byte **+0x164**.
+- The copy is only "in battle" if +0x164 = 1 (the game sets it only for its own characters): kept at 1 on the host
+  (`aggro_keep_copy_in_battle`); then the AI asks CheckAIBattleType about the copy and the override lets 2 attack.
+
+## Crash guards (`horse_diag.cpp`)
+
+- Character component (CC): actor at +0x08; layers at +0x88 + 8i; layer: current action +0x10, playing +0x18, chart
+  +0x110. A copy can load with layers that have a chart and no action.
+- **0xA128C0**([CC*]): processes queued animation events; reads [layer+0x10] -> +0x111/+0x115 with no null check on
+  one path (crash 0xA12E4E reading 0x115). Skipped for copies while any layer 0-3 has a chart and no action.
+- 0x2518850 (action playback, crash 0x2519762 reading 0x28, seen once): not guarded yet.
+- CC tick 0x9451E0, "still loading?" 0x9439B0, animation update 0x976B70 (existing guards).
+
+## Other 3576 facts found today
+
+- Starter horse: user-owned load kind 4 (slot 1); slot-2 mounts kind 5. Call: hold D-pad Up + right stick down
+  (H does nothing); the horse teleports near (it moved 323 m in < 5 s).
+- A new game's first saves: 0 then 1 completed missions.
+- The sync digest must not count dead copies kept for loot (false resyncs gave back all hidden enemies).
