@@ -14,6 +14,12 @@ must be found again: the method section says how.
   `analyzeHeadless build/tools/ghidra-proj cd3576 -process CrimsonDesert-1.0.0.3576.exe -noanalysis -scriptPath
   build/tools/scripts -postScript Decomp.java <out.c> <rva...>` with JAVA_HOME = the JDK 25 (first run: `-import
   build/exe-archive/CrimsonDesert-1.0.0.3576.exe` instead of `-process`).
+- **Full decomp (2026-11-07):** the whole exe analysed in its own project (`build/tools/ghidra-full`, sliced pass
+  `AnalyzeSliced.java`, `RttiFix.java` for this exe's renamed sections, Ghidra's RecoverClassesFromRTTIScript,
+  `ExportIndex.java`, `ExportAllC.java`; driver `build/tools/deep_analysis.ps1`). Outputs in `build/decomp/`:
+  `functions.tsv` (rva, size, name, callers, callees; 204,597, 58,346 with class names), `calls.tsv`, `strings.tsv`,
+  `classes.tsv` (class, vftable, slot RVAs; 14,628), `c/*.c` (191,917 functions as C, 415 MB). Section roles: `.arch`
+  = read-only data (vftables), `.rodata` = writable data (RTTI TypeDescriptors). Details in PROGRESS.md.
 - Python helpers (`build/port3479/pe.py`, `vt.py`; `CDMP_EXE` selects the exe):
   - a request's handler: TrocTr class vtable slot 2 (`vt.vtable('.?AVTrocTr<Name>@pa@@')`, `slot(v, 2)`);
   - who writes a message: search executable sections for the opcode as an immediate (`mov word [r], 0xBB3`);

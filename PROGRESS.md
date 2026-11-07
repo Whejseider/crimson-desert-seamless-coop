@@ -1895,6 +1895,26 @@ Done in the user's Chrome (signed in as Asher):
   end() threw "Transaction not found" over it. Fixed: FlatProgramAPI end(true) at the start / start() at the end, and
   each slice catches its own exception (logged with its stack, "FAILED <exc>" in the progress file, pass goes on).
   Restarted 11:00 from slice 23.
+- 2026-11-07 FULL DECOMP FINISHED. Chain after the sliced pass (build/tools/deep_analysis.ps1, logs in build/decomp):
+  - Out of memory in AddressTableAnalyzer on `.arch` (a 40 MB data block): data blocks are now sliced to 4 MB too, and
+    "Create Address Tables" is off for data slices. Deep mode's WindowsResourceReference looped forever: off.
+  - RTTI found nothing at first. Cause: this exe's section names are not the usual ones. Ghidra's RttiAnalyzer looks
+    for TypeDescriptors in ".data*" and the type_info vftable in ".rdata*"; here `.rodata` (RVA 0x6CD2000) is really
+    the writable data with the TypeDescriptors and `.arch` (0x5597000) is really the read-only data with the
+    vftables. Also the analyzer skips itself once the "RTTI Found" program option exists. Fix:
+    build/tools/scripts/RttiFix.java renames the blocks by RVA (.rodata -> .data, .sdata -> .data_s, .arch -> .rdata),
+    removes "RTTI Found", runs RttiAnalyzer again (326 s): 15,068 vftables. RecoverClassesFromRTTIScript also refuses a
+    program not marked analysed (GhidraProgramUtilities.markProgramAnalyzed).
+  - Class recovery 14:10-18:30 (4 h 20 min): 16,550 classes, 73,091 member functions assigned, 12,841 constructors,
+    730 destructors, 185,273 virtual functions. 13,462 classes are the game's own `pa::` namespace (the rest Havok
+    `hk*`, ICU, ...), e.g. pa::NwSyncSession(Pool), pa::VHousingManager, pa::CommonBuffProcessor, pa::ItemInfoManager.
+  - Index (ExportIndex.java, 1 min): build/decomp/functions.tsv 204,597 functions (58,346 now with class-qualified
+    names; 0 before RTTI), calls.tsv, strings.tsv 78,828, classes.tsv 14,628 vftables with every slot's RVA.
+  - C export (ExportAllC.java, 10 threads, 14 min): 191,917 functions in build/decomp/c/000-093.c (415 MB), 91
+    failed ("Decompiler process died" on a few huge ones; decompile those alone with build/port3479/dec.sh).
+    Each function starts with `// ===== exe+0x<rva> <name> (<bytes>)`, so `grep -n "exe+0xA12C00 " build/decomp/c/*.c`
+    finds one.
+  - Disk: Ghidra project 6 GB + C 415 MB; 142 GB free on C:.
 
 ## Bug reports 2026-11-07 (user: "Frame drops seem to be a rather big issue now")
 Reports kept in build/reports/ (not in git): borque-2026-11-07_13-28-50 (Borque's CoopPlus report: build 096D9C3F,
