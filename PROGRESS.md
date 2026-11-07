@@ -1840,3 +1840,8 @@ Done in the user's Chrome (signed in as Asher):
   resting over a card snapped the highlight back every frame, so W/S did nothing; now the mouse only selects when it
   moves. Known (old): "the other player's horse is not a plain mount load (slot 1)" in every run with the bandits save.
   Not tested: two real PCs over Radmin (needs Plitos or the user).
+- 2026-11-07 15:30-15:45 RELEASED 0.1.0-alpha+096d9c3f (user: "republish it once that is complete"): package + unit
+  tests, test-install-fake 14/14, Defender clean; GitHub v0.1.0-alpha-096d9c3f Latest (sha256 match: ac0126f2...
+  player zip, c767d700... mod-manager); FEATURES / README pushed; Discord: download post + a pinned zips message (the
+  first post lost its attachments), announcement, #features line. The game folder now has the 096d9c3f asi (the test
+  kit restores it); older local builds (c606602d, f3517194) deleted from dist (on GitHub still).

@@ -127,3 +127,11 @@ friends, then the host presses Ctrl+F1 to invite.
   fight the guest / stagger, NEW shared experience (was "XP for the guest: Not yet"), old NEW tags dropped, spoiler
   line shortened to stay under 2000 characters (1998). Text: docs/release/discord-features.txt.
 - The old Chrome tab's renderer was frozen (JS timed out); a new tab worked.
+
+## 2026-11-07 update 0.1.0-alpha+096d9c3f (Radmin VPN / Direct IP in the menu)
+- #download-here: the text post went out WITHOUT its zips (typed and sent right after the upload, before the attachments
+  were staged); a second message "The two zips for 0.1.0-alpha+096d9c3f (post above):" carries both zips and is pinned.
+  LESSON: after file_upload, check the composer lists both files (li[class*=upload]) before typing and sending.
+  Still pinned (unpinning refused by the permission check; the user removes them): c606602d and f3517194 posts.
+- #announcements: "Update 0.1.0-alpha+096d9c3f: Radmin VPN / Direct IP in the Co-op menu".
+- #features message 1: the direct play line became "NEW: Radmin VPN / Direct IP: Host / Join with an invite" (1999 chars).
