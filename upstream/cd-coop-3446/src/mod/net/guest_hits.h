@@ -48,6 +48,9 @@ double guest_hits_action_damage(uint32_t action_hash);
 // Co-op+ hunting contest (coop_hunt.h): one of our attacks (DoFrameEventReq, arrows included) named `key` as a target
 // within the last `within_ms`.
 bool guest_hits_we_hit(uint32_t key, uint64_t within_ms);
+// Co-op+ (2026-11-07, the user's "Journey together" showed the guest's kills as the host's): the mod finished this
+// enemy of ours for the OTHER player (their lethal blow; our server names us as the killer) within `within_ms`.
+bool guest_hits_finished_for_partner(uint32_t key, uint64_t within_ms);
 
 // Sniffer writer thread.
 void guest_hits_observe_c2s(const uint8_t* packet, size_t size);

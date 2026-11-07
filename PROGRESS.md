@@ -1748,3 +1748,15 @@ Done in the user's Chrome (signed in as Asher):
   40 ms after two newly re-sent enemy copies (0xB01F0006/7, "1 actions", placed by a Move) were injected:
   exe+0x2519762 reading 0x28 (stack exe+0x56759A0, 0x468C36D, 0x3E4433). Memory at 90 % (2.8 of 31 GB free, page file
   1.5 GB free) with two games on one PC. Open: copy-load crash vs memory pressure. SAVES OK.
+- 2026-11-07 09:30 Fixes after the played test:
+  - Kill counts ("Journey together" said host 2 / guest 4 when the guest made both kills): the host counted the guest's
+    kills (the mod's finishing blow names the host as killer) and the guest counted each kill twice (the copy, then
+    its hidden loot twin). kill_feed: a death the mod finished for the partner (guest_hits_finished_for_partner, 30 s)
+    or of our hidden twin (suppress_is_hidden / loot_is_twin) is not ours; duplicate death notices dropped first.
+  - Guest kills now give XP: when the partner's blow is finished here (KillCheatReq, no XP), the host grants the kill's
+    experience itself (xp_share_partner_finished): the amount learnt per enemy kind from the host's own natural kills
+    (the AddSubLevelExperienceAck within 500 ms of the death), else 15; xp_share passes it on, so both get it.
+  - Guest crash (xs2) analysed: exe+0x2519762 `mov rcx,[rax+0x28]` with [rsp+0x48] = 0, in exe+0x2518850 (action
+    playback; the same record's +0x28 -> +0x66 frame number the DoFrameEvent check uses): a re-sent enemy copy with
+    no current action reached a code path the action-layer guards do not cover. One crash in 5 similar runs, at 90 %
+    memory. Next: reproduce, then a guard (not mid-function blind).

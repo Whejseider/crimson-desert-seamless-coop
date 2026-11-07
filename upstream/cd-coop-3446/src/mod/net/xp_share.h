@@ -28,4 +28,12 @@ void xp_share_tick(bool linked);
 std::vector<std::vector<uint8_t>> xp_share_take_outgoing();
 void xp_share_on_message(const std::vector<uint8_t>& bytes);
 
+// Kill XP the game does not give by itself (2026-11-07, played test xs2): when the other player lands the killing blow
+// on one of OUR enemies, the mod finishes it here with KillCheatReq (the collision blow deals no damage on 3576), which
+// gives no experience. So the kill's experience is granted here (and, as any gain, shared): the amount this enemy kind
+// gave on our own natural kills (learnt: a KillActor's AddSubLevelExperienceAck follows its NotifyHandleDeadAck), else
+// 15 (the Tier_2 amount, the commonest). Sniffer thread.
+void xp_share_note_our_kill(uint32_t variant);              // a natural kill of ours (learns the amount)
+void xp_share_partner_finished(uint32_t variant);           // the other player's kill, finished here
+
 }  // namespace cdmp::net

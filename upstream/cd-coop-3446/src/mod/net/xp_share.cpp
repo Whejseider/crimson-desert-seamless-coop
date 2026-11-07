@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cstring>
 #include <deque>
+#include <map>
 #include <mutex>
 
 #include "mod/log.h"
@@ -29,6 +30,11 @@ struct Gain {
 };
 std::deque<Gain> g_expected;  // our grants still to show up as AddSubLevelExperienceAck (not to send back)
 std::deque<Gain> g_incoming;  // the partner's gains to grant here
+std::map<uint32_t, uint64_t> g_learnt;  // enemy kind -> its kill's experience (our natural kills)
+uint32_t g_last_kill_variant = 0;
+uint64_t g_last_kill_at = 0;
+uint32_t g_our_key = 521;               // the skill-point bar our kills fill (521 Kliff, 522 Oongka, 523 Damiane)
+constexpr uint64_t kDefaultKillXp = 15;
 std::vector<std::vector<uint8_t>> g_out;
 uint64_t g_sent = 0, g_granted = 0, g_dropped = 0;
 
@@ -58,6 +64,13 @@ void xp_share_observe_s2c(const uint8_t* packet, size_t size) {
     if (player != capture_own_player_key() || !skill_points(key) || amount == 0 || amount > 100000) return;
     const uint64_t now = GetTickCount64();
     std::lock_guard lock(g_m);
+    g_our_key = key;
+    if (g_last_kill_variant && now - g_last_kill_at <= 500) {  // this gain is that natural kill's
+        if (g_learnt.emplace(g_last_kill_variant, amount).second) {
+            log::info("XP: an enemy of kind {} gives {} experience (learnt from our kill)", g_last_kill_variant, amount);
+        }
+        g_last_kill_variant = 0;
+    }
     while (!g_expected.empty() && now - g_expected.front().at > kEchoWindowMs) g_expected.pop_front();
     for (auto it = g_expected.begin(); it != g_expected.end(); ++it) {
         if (it->key == key && it->amount == amount) {  // our own grant of the partner's gain: not sent back
@@ -91,6 +104,28 @@ void xp_share_on_message(const std::vector<uint8_t>& bytes) {
     if (!skill_points(key) || amount == 0 || amount > 100000) return;
     std::lock_guard lock(g_m);
     if (g_incoming.size() < kMaxQueued) g_incoming.push_back(Gain{key, amount, GetTickCount64()});
+}
+
+void xp_share_note_our_kill(uint32_t variant) {
+    std::lock_guard lock(g_m);
+    g_last_kill_variant = variant;
+    g_last_kill_at = GetTickCount64();
+}
+
+void xp_share_partner_finished(uint32_t variant) {
+    if (!g_on || prologue_held()) return;
+    uint64_t amount = kDefaultKillXp;
+    uint32_t key = 521;
+    bool learnt = false;
+    {
+        std::lock_guard lock(g_m);
+        if (const auto it = g_learnt.find(variant); it != g_learnt.end()) amount = it->second, learnt = true;
+        key = g_our_key;
+    }
+    // Our own grant: its AddSubLevelExperienceAck is NOT in g_expected, so it is shared like a kill of ours.
+    const bool ok = quest_advance_grant_xp(key, amount);
+    log::info("XP: the other player's kill (kind {}) finished here: {} experience granted ({}){}", variant, amount,
+              learnt ? "learnt for that kind" : "default", ok ? "" : " - NOT queued");
 }
 
 void xp_share_tick(bool linked) {

@@ -488,6 +488,11 @@ void loot_tick() {
     }
 }
 
+bool loot_is_twin(uint32_t key) {
+    Lock lock;
+    return g_twins.count(key) != 0;
+}
+
 bool loot_keeps_copy(uint32_t copy) {
     if (!g_enabled) return false;
     Lock lock;

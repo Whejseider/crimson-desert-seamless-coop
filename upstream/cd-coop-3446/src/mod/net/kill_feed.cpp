@@ -14,6 +14,9 @@
 #include "mod/net/enemy_relay.h"
 #include "mod/net/guest_hits.h"
 #include "mod/net/local_capture.h"
+#include "mod/net/loot_twin.h"
+#include "mod/net/native_suppress.h"
+#include "mod/net/xp_share.h"
 #include "mod/net/session_summary.h"
 
 namespace cdmp::net {
@@ -55,10 +58,25 @@ void kill_feed_observe_s2c(const uint8_t* packet, size_t size) {
     const uint32_t own = capture_own_player_key();
     if (!own || victim == own) return;
     if (killer != own && !guest_hits_we_hit(victim, kOursWithinMs)) return;
+    {
+        std::lock_guard lock(g_mutex);
+        if (victim == g_last_victim) return;  // the two notices of one death (fatal, then dead)
+        g_last_victim = victim;
+    }
+    // Co-op+ (2026-11-07): the other player's killing blow, finished by the mod in our world (they count it), and our
+    // own hidden enemies the mod kills for loot (the copy's death already counted it) are not our kills.
+    if (suppress_is_hidden(victim) || loot_is_twin(victim)) {
+        log::info("Kill feed: 0x{:08X} died but is not our kill (our hidden twin, killed for loot)", victim);
+        return;
+    }
+    if (guest_hits_finished_for_partner(victim, 30000)) {
+        log::info("Kill feed: 0x{:08X} died but is not our kill (the other player's blow, finished here)", victim);
+        xp_share_partner_finished(enemy_variant(victim));  // its experience: granted here, shared (xp_share.h)
+        return;
+    }
+    if (killer == own) xp_share_note_our_kill(enemy_variant(victim));  // learns this kind's kill experience
     const char* name = hunt_animal_name(enemy_variant(victim));
     std::lock_guard lock(g_mutex);
-    if (victim == g_last_victim) return;  // the two notices of one death
-    g_last_victim = victim;
     g_lines.push_back({0, name ? name : "", true});
     g_to_send.push_back(name ? name : "");
     log::info("Kill feed: we took down 0x{:08X} ({})", victim, name ? name : "an enemy");

@@ -240,6 +240,7 @@ struct Finishing {  // a lethal blow sent as 1 HP + collision, waiting for the d
     bool fatal = false;  // the enemy was left "fatal" (0 HP): fall back to DieByRunOutFatalReq
 };
 std::map<uint32_t, Finishing> g_finishing;
+std::map<uint32_t, uint64_t> g_finished_for_partner;  // enemy -> when its finish for the other player began
 uint32_t g_next_instance = 0;
 uint64_t g_applied = 0, g_learnt_log = 0, g_sent_log = 0, g_refused_log = 0;
 // Network thread (apply_hit): the bounds above.
@@ -304,6 +305,12 @@ bool guest_hits_we_hit(uint32_t key, uint64_t within_ms) {
         if (std::find(it->targets.begin(), it->targets.end(), key) != it->targets.end()) return true;
     }
     return false;
+}
+
+bool guest_hits_finished_for_partner(uint32_t key, uint64_t within_ms) {
+    std::lock_guard lock(g_mutex);
+    const auto it = g_finished_for_partner.find(key);
+    return it != g_finished_for_partner.end() && now_ms() - it->second <= within_ms;
 }
 
 double guest_hits_action_damage(uint32_t hash) {
@@ -495,6 +502,7 @@ void on_fatal(const uint8_t* p, size_t n) {
     g_cheated.erase(c);
     const bool ok = send_collision(key);
     g_finishing[key] = {now_ms(), true};
+    g_finished_for_partner[key] = now_ms();
     log::info("Piece 4: enemy 0x{:08X} left stunned at 0 hp by the other player's blow: finishing it{}", key,
               ok ? "" : " (collision NOT sent)");
 }
@@ -827,6 +835,8 @@ void apply_hit(const proto::GameEvent& ev) {
         ok = send_collision(enemy) && ok;
         std::lock_guard lock(g_mutex);
         g_finishing[enemy] = {now_ms(), false};
+        g_finished_for_partner[enemy] = now_ms();
+        if (g_finished_for_partner.size() > 256) g_finished_for_partner.erase(g_finished_for_partner.begin());
     } else if (damage > 0) {
         // VaryStatCheatReq mode 0: HP lost with our player as the source (live test V2).
         // Co-op+ (T17): a blow that would kill while killing is not the guest's to do (boss safety, guest_finishes=0)

@@ -50,6 +50,8 @@ void loot_forget_copy(uint32_t copy);
 // Network thread: a dead copy whose twin is still to be looted (or on its
 // way): its removal waits (the host's respawn sweep took them, 7 Oct night).
 bool loot_keeps_copy(uint32_t copy);
+// Co-op+: one of our own hidden enemies the mod is killing (or killed) for loot or experience.
+bool loot_is_twin(uint32_t key);
 // Network thread: the other player changed or their copies went (copy keys are
 // reused by a restarted host).
 void loot_reset();
