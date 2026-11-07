@@ -1322,7 +1322,8 @@ std::optional<proto::EnemyZoneMsg> suppress_stop(bool restore) {
 
 bool suppress_zone_on() { return g_dropping.load() && !g_dry.load(); }
 
-std::optional<uint32_t> suppress_take_native_for_loot(uint32_t variant, const float pos[3], float max_m) {
+std::optional<uint32_t> suppress_take_native_for_loot(uint32_t variant, const float pos[3], float max_m,
+                                                      proto::Vec3* at_out) {
     static std::set<uint32_t> taken;  // under g_lock
     AcquireSRWLockExclusive(&g_lock);
     std::optional<uint32_t> best;
@@ -1340,7 +1341,11 @@ std::optional<uint32_t> suppress_take_native_for_loot(uint32_t variant, const fl
         }
         const float dx = at.x - pos[0], dy = at.y - pos[1], dz = at.z - pos[2];
         const float d = std::sqrt(dx * dx + dy * dy + dz * dz);
-        if (d <= best_d) best_d = d, best = key;
+        if (d <= best_d) {
+            best_d = d;
+            best = key;
+            if (at_out) *at_out = at;
+        }
     }
     if (best) {
         if (taken.size() > 512) taken.clear();

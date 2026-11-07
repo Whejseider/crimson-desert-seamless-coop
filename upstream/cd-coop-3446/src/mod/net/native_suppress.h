@@ -79,7 +79,8 @@ bool suppress_is_hidden(uint32_t key);  // one of our natives held out of the cl
 // Co-op+ (loot from shared kills): one of our natives held out of the client, of this variant, alive as far
 // as we know, the nearest to `pos` within `max_m`; each is handed out once. It stands in for the host's
 // enemy the guest helped kill: killed on our server, its loot is the guest's own roll.
-std::optional<uint32_t> suppress_take_native_for_loot(uint32_t variant, const float pos[3], float max_m);
+std::optional<uint32_t> suppress_take_native_for_loot(uint32_t variant, const float pos[3], float max_m,
+                                                      proto::Vec3* at_out = nullptr);
 std::string suppress_hud_text();        // a line for the overlay ("" = none)
 
 // Co-op+ (T08 state audit): our natives held out of the client right now.

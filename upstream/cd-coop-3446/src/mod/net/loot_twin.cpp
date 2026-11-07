@@ -52,6 +52,13 @@ constexpr uint16_t kOpInteractionDoStepSuccessAck = 2794;          // u32 player
 constexpr uint16_t kOpAttackerAck = 2181;           // PostProcessAttackResult_AttackerAck: u32 attacker | u32 target
 constexpr uint16_t kOpRemoveActorAck = 3067;        // 04 | u32 0 | u8 reason | n x u32 key
 constexpr uint8_t kSpawnReasonCheat = 33;
+// Co-op+ shared XP: a normal kill of our hidden enemy (guest_hits.cpp's finishing blow: HP down, then our collision).
+constexpr uint16_t kOpVaryStatCheatReq = 2326;      // u32 key | u32 stat | u8 mode | i32 delta | u8 | u8
+constexpr uint16_t kOpAttackByCollisionReq = 2150;  // u32 victim | u32 attacker | u32 0 | vec3 point | vec3 dir | u32
+constexpr uint32_t kStatHP = 0x000F4240;
+constexpr uint32_t kCollisionProjectile = 0xF2EE2678;
+constexpr uint16_t kOpAddExperienceAck = 3152, kOpAddSubLevelExperienceAck = 2995;
+constexpr float kSharedXpRange = 400.0f;
 constexpr size_t kTargetEntry = wire::kFrameEventTargetEntry, kFirstEntry = wire::kFrameEventFixed;
 
 // The guest earns loot from a copy it hit lately, close to it; a few at most.
@@ -89,6 +96,8 @@ struct Twin {
 };
 
 std::atomic<bool> g_enabled{false};
+std::atomic<bool> g_shared_xp{false};
+std::atomic<uint64_t> g_xp_acks{0}, g_xp_kills{0};
 std::atomic<bool> g_test_original{false};  // Co-op+ dev: [dev] loot_test_original
 SRWLOCK g_lock = SRWLOCK_INIT;
 std::map<uint32_t, uint64_t> g_hit_ms;  // copy -> our last blow on it
@@ -143,6 +152,34 @@ bool send_kill(uint32_t twin) {
     Bytes b(8);
     std::memcpy(b.data(), &twin, 4);
     return sniffer_inject_c2s(make_packet(kOpKillCheatReq, b));
+}
+
+// Co-op+ shared XP: our hidden enemy dies by our blow (a normal kill: the experience is ours). Its HP goes to 0 (it is
+// left "fatal"; its real HP is not known here) and our player's collision lands on it at once; if it still lives,
+// loot_tick's KillCheatReq ends it (no XP then).
+bool send_xp_kill(uint32_t victim, const proto::Vec3& at) {
+    const uint32_t own = capture_own_player_key();
+    const auto me = game::actor_world_position(own);
+    if (!own || !me) return false;
+    Bytes vary(15, 0);
+    const int32_t delta = -100000000;
+    std::memcpy(vary.data(), &victim, 4);
+    std::memcpy(vary.data() + 4, &kStatHP, 4);
+    std::memcpy(vary.data() + 9, &delta, 4);
+    bool ok = sniffer_inject_c2s(make_packet(kOpVaryStatCheatReq, vary));
+    const float dx = at.x - me->x, dz = at.z - me->z;
+    const float len = std::sqrt(dx * dx + dz * dz) + 1e-4f;
+    const float dir[3] = {dx / len, 0.0f, dz / len};
+    const float point[3] = {at.x, at.y + 1.0f, at.z};
+    Bytes hit(44, 0);
+    std::memcpy(hit.data(), &victim, 4);
+    std::memcpy(hit.data() + 4, &own, 4);
+    std::memcpy(hit.data() + 12, point, sizeof point);
+    std::memcpy(hit.data() + 24, dir, sizeof dir);
+    std::memcpy(hit.data() + 36, &kCollisionProjectile, 4);
+    ok = sniffer_inject_c2s(make_packet(kOpAttackByCollisionReq, hit)) && ok;
+    ++g_xp_kills;
+    return ok;
 }
 
 // What a server sends once a corpse is emptied: the copy offers no loot.
@@ -215,6 +252,23 @@ void loot_partner_looted(uint32_t copy) {
     log::info("Loot: the host looted the original of copy 0x{:08X} first (first come): nothing here", copy);
 }
 
+void loot_set_shared_xp(bool on) {
+    g_shared_xp = on;
+    log::info("Co-op: shared XP within {:.0f} m of the host's kills: {}", kSharedXpRange, on ? "on" : "off");
+}
+
+void loot_observe_s2c(const uint8_t* packet, size_t size) {
+    if (size < 5) return;
+    uint16_t op;
+    std::memcpy(&op, packet, 2);
+    if (op != kOpAddExperienceAck && op != kOpAddSubLevelExperienceAck) return;
+    const uint64_t n = ++g_xp_acks;
+    if (n <= 30 || n % 100 == 0) {
+        log::info("XP: our server gave experience ({}, {} so far; {} shared-XP kills sent)",
+                  op == kOpAddExperienceAck ? "AddExperienceAck" : "AddSubLevelExperienceAck", n, g_xp_kills.load());
+    }
+}
+
 void loot_set_enabled(bool on) {
     g_enabled = on;
     log::info("Co-op: loot from the other player's enemies we help kill: {}", on ? "on (our own hidden enemy of the same kind)" : "off");
@@ -249,7 +303,7 @@ bool loot_on_copy_died(uint32_t copy, uint32_t variant, uint64_t /*delay_ms*/) {
     // Note what this guard is NOT: 0 was already refused (`!variant`), so the code was never
     // actually asking anyone for variant 0. The sentinel documents the distinction and keeps
     // it, rather than fixing a live bug -- the boss-loot refusal was already holding.
-    if (!g_enabled || !variant || variant == kNoVariant) return false;
+    if ((!g_enabled && !g_shared_xp) || !variant || variant == kNoVariant) return false;
     const uint64_t now = now_ms();
     const char* why = nullptr;
     float pos[3] = {};
@@ -265,7 +319,9 @@ bool loot_on_copy_died(uint32_t copy, uint32_t variant, uint64_t /*delay_ms*/) {
         g_done.insert(copy);
         auto hit = g_hit_ms.find(copy);
         while (!g_spawns.empty() && now - g_spawns.front() >= 300000) g_spawns.pop_front();
-        if (enemy_load::is_excluded_variant(variant)) {
+        if (!g_enabled) {
+            why = "loot of shared kills is off";
+        } else if (enemy_load::is_excluded_variant(variant)) {
             why = "a boss or unique enemy";
         } else if (hit == g_hit_ms.end() || now - hit->second > kHitWindowMs) {
             why = "we did not hit it lately";
@@ -283,6 +339,35 @@ bool loot_on_copy_died(uint32_t copy, uint32_t variant, uint64_t /*delay_ms*/) {
     }
     if (why) {
         if (g_logged++ < 40) log::info("Loot: copy 0x{:08X} died; no loot for us: {}", copy, why);
+        // Co-op+ shared XP: still the experience, within 400 m (not for bosses: their kill is the story's).
+        if (g_shared_xp && at && me && !enemy_load::is_excluded_variant(variant)) {
+            const float cp[3] = {at->x, at->y, at->z}, mine[3] = {me->x, me->y, me->z};
+            const float d = distance(cp, mine);
+            bool room = true;
+            {
+                Lock lock;
+                room = g_spawns.size() < kMaxSpawnsPer5Min;
+            }
+            proto::Vec3 nat{};
+            std::optional<uint32_t> native;
+            if (d <= kSharedXpRange && room) native = suppress_take_native_for_loot(variant, cp, kNativeLootRadius, &nat);
+            if (native) {
+                {
+                    Lock lock;
+                    g_twins[*native] = Twin{0, now, 0, false};  // copy 0: no loot from it
+                    g_spawns.push_back(now);
+                }
+                const bool ok = send_xp_kill(*native, nat);
+                log::info("XP: copy 0x{:08X} died {:.0f} m from us; our own hidden enemy 0x{:08X} of its kind dies by our "
+                          "blow for the experience{}",
+                          copy, d, *native, ok ? "" : " (NOT sent; KillCheatReq follows)");
+            } else if (g_logged++ < 40) {
+                log::info("XP: copy 0x{:08X} died {:.0f} m from us; no experience: {}", copy, d,
+                          d > kSharedXpRange ? "too far"
+                          : !room            ? "too many lately"
+                                             : "none of our hidden enemies of its kind is near it");
+            }
+        }
         return false;
     }
     // Co-op+ (3479): our own hidden native of the same kind stands in for the twin. The spawn request the
@@ -291,7 +376,8 @@ bool loot_on_copy_died(uint32_t copy, uint32_t variant, uint64_t /*delay_ms*/) {
     // 2026-11-01). Inside the host's zone our natives of that camp are held out of our client (suppress),
     // alive on our server: one of them is killed for its loot, and our looting of the copy goes to it,
     // exactly as it went to a twin. No native of that kind near: no loot from this kill (as before).
-    auto native = suppress_take_native_for_loot(variant, pos, kNativeLootRadius);
+    proto::Vec3 native_at{};
+    auto native = suppress_take_native_for_loot(variant, pos, kNativeLootRadius, &native_at);
     // Dev ([dev] loot_test_original=1, one PC with cdmp_peer): the hiding is a dry run there, so the copy's
     // own original -- an actor of this same client -- stands in, to exercise the looting path.
     bool already_dead = false;
@@ -312,7 +398,8 @@ bool loot_on_copy_died(uint32_t copy, uint32_t variant, uint64_t /*delay_ms*/) {
         g_twin_of[copy] = *native;
         g_spawns.push_back(now);
     }
-    const bool ok = already_dead || send_kill(*native);
+    // Co-op+ shared XP: by our blow (the experience too); KillCheatReq when it is off.
+    const bool ok = already_dead || (g_shared_xp ? send_xp_kill(*native, native_at) : send_kill(*native));
     if (g_logged++ < 40) {
         log::info("Loot: copy 0x{:08X} died; our own hidden enemy 0x{:08X} (same kind) dies for our loot{}", copy,
                   *native, ok ? "" : " (KillCheatReq NOT sent; tried again)");

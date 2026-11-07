@@ -16,6 +16,8 @@ way to make the guest's server count a real blow of the guest on its own hidden 
 naming the hidden native; needs the hidden native's HP brought low first, which (2) could not do).
 Also unknown: what AddSubLevelExperience feeds (weapon / skill sub-levels?) -- worth knowing before spending more.
 
+### Tried 2026-11-07 (xp1-xp4): the lead above on the guest's own hidden native (VaryStatCheatReq HP to 0, then AttackByCollisionReq of the guest's player, 113-118 m away): no AddExperienceAck / AddSubLevelExperienceAck, the native did not die from it. Next idea: the collision from close by (needs the guest near the kill) or a replayed DoFrameEventReq. [coop] shared_xp=0 by default.
+
 ## T16 (part) -- a shared bounty ("the host pays for the guest's crimes too", as an option)
 Crimes are per player by design: each player commits them in their own world, the guest's blows only ever reach
 copies of the host's ENEMIES (guest_hits.cpp: is_enemy_copy_key), so the host is never punished for the guest.

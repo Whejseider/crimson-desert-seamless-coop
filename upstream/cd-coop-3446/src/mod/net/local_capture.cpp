@@ -623,6 +623,7 @@ void capture_horse_synth(uint64_t now) {
 void capture_observe_s2c(const uint8_t* packet, size_t size) {
     enemy_observe_s2c(packet, size);
     suppress_observe_s2c(packet, size);
+    loot_observe_s2c(packet, size);  // Co-op+ shared XP: experience messages counted
     hits_observe_s2c(packet, size);
     guest_hits_observe_s2c(packet, size);
     piece4_observe_s2c(packet, size);
@@ -944,7 +945,7 @@ void capture_observe_c2s(const uint8_t* packet, size_t size) {
         uint32_t parent = 0;
         std::memcpy(&parent, payload.data() + wire::kMoveParent, 4);
         if (parent == g_own_horse) {
-            if (steady_ms() >= g_ridden_until_ms.load()) {  // Co-op+ test kit: each mount once in the log
+            if (steady_ms() >= g_ridden_until_ms.load() + 3000) {  // Co-op+ test kit: each mount once in the log
                 log::info("Capture: riding our horse 0x{:08X} (our moves name it as their parent)", g_own_horse);
             }
             g_ridden_until_ms = steady_ms() + 200;

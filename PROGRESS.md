@@ -1657,3 +1657,21 @@ Done in the user's Chrome (signed in as Asher):
   57 / 40 partner events set aside; dev "prologuedone" -> both copies loaded within 15 ms. pr2 (normal saves): held
   ~50 ms for the first save read, then normal. NOT tested live: the ride trigger (no ride possible in the test saves
   yet; see the horse call) and the 60-mission threshold (no prologue save; each read is logged for tuning).
+- 2026-11-07 05:10 PROLOGUE LENGTH: np1 (a New Game in a test copy, EULA accepted in the test copy as allowed): the
+  first saves have 0 then 1 completed missions ("Unfamiliar Lands", Day 0, Hills of No Return); kept as test save
+  slot103-newgame (1 done). The prologue's END count is still unknown; the 60 cutoff covers its start and the ride
+  trigger its end. The solo-prologue hold switched on by itself in that run.
+- 2026-11-07 05:10 SHARED XP, tried (xp1-xp4, two copies, bandit camp): the host's kills reach the guest as copy deaths;
+  the guest picks its own hidden bandit of each kind and sends VaryStatCheatReq (HP to 0) + AttackByCollisionReq of
+  its own player (xp4: 5 of 5 sent, 113-118 m away). Result: NO experience message (AddExperienceAck /
+  AddSubLevelExperienceAck, now counted and logged) and the bandits did not die from it (KillCheatReq retries
+  followed). Likely the server ignores a collision from 115 m or on an actor its client does not have. [coop]
+  shared_xp now defaults to 0 (the code stays). BLOCKED.md T10 updated. Test notes: copies wait for the guest's own
+  game clock, which needs the guest to act once (xp1/xp2 stood still); Ctrl+Shift+F6 needs a hold longer than one
+  network-loop pass (700 ms).
+- 2026-11-07 05:10 HORSE TEST KIT PASSES with the user calling (hk11, sandbox copy of the user's save, one copy): the
+  user held H; the horse came 323 m (in 5 s), the kit saw it stop, walked Kliff there for real (walkto.py, 1.1 m),
+  pressed E: "MOUNTED (try 1, 76 s after the call)"; "Capture: riding our horse 0xB0100003"; the solo prologue's
+  ride trigger fired ("we have ridden 0xB0100003 for 5 s ... our prologue is done"). SAVES OK. The simulated H hold
+  is still ignored by the game (hk4-hk10), so the call itself needs a person (or a real input path); horse_kit
+  -KitCalls manual waits 3 minutes for it.

@@ -1367,6 +1367,7 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
 void apply_role_settings(const Config& cfg, bool in_game, bool role_changed) {
     if (!(in_game && cfg.coop_enabled)) return;
     net::loot_set_enabled(cfg.coop_guest_loot && !cfg.net_role_host);
+    net::loot_set_shared_xp(cfg.coop_shared_xp && !cfg.net_role_host);  // Co-op+ shared XP (loot_twin.h)
     net::loot_set_mode(cfg.coop_loot_mode);
     // Co-op+: time of day follows the host ([coop] time_sync=3, the default).
     if (cfg.coop_time_sync == 3) {

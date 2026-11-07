@@ -20,6 +20,13 @@ namespace cdmp::net {
 
 // [coop] guest_loot.
 void loot_set_enabled(bool on);
+// Co-op+ (shared XP, user 2026-11-06: "XP shared within 400 m"): when the host kills an enemy whose copy is within
+// 400 m of us, one of our own hidden enemies of the same kind (the loot twin's way) dies by OUR blow -- HP to 0, then
+// a collision of our player -- so our server counts a normal kill and gives the experience. No loot unless we also
+// earned it (hit it lately, within 30 m). [coop] shared_xp.
+void loot_set_shared_xp(bool on);
+// Sniffer thread: our server's experience messages (counted and logged, so the XP can be checked).
+void loot_observe_s2c(const uint8_t* packet, size_t size);
 // Co-op+ (T10): [coop] loot_mode (0 per_player, 1 host_only, 2 first_come).
 void loot_set_mode(int mode);
 int loot_mode();
