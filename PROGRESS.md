@@ -1689,3 +1689,17 @@ Done in the user's Chrome (signed in as Asher):
   (the enemy is drawn there). Upstream research: no request grants sub-level XP (skill points; KillActor; 10/15/25,
   elite 140, boss 1000; needs Mission_Intro_Abyss_Tutorial done). Way left: give the hidden native back to the guest's
   client for a moment (at the copy's corpse, below 1 HP after an exact VaryStat) so our projectile can hit it.
+- 2026-11-07 06:40 GHIDRA (12.2 + Temurin JDK 25, in build/tools, git-ignored; user downloaded both). Headless, no
+  auto-analysis (327 MB exe): build/tools/scripts/Decomp.java decompiles chosen RVAs of the 3576 exe; settings/cache
+  in build/tools/ghidra-settings|-cache (launch.properties VMARGS; the AppData felix cache failed). Usage:
+  analyzeHeadless build/tools/ghidra-proj cd3576 -process CrimsonDesert-1.0.0.3576.exe -noanalysis -scriptPath
+  build/tools/scripts -postScript Decomp.java <out.c> <rva...> (JAVA_HOME = the JDK 25). Request handler RVAs on 3576
+  (TrocTr vtable slot 2): DoFrameEventReq 0x2BE1C10, VaryStatCheatReq 0x2C3FFB0, AddExperienceByGmReq 0x2C0F800,
+  AttackByCollisionReq 0x2CC95C0, OnAirFinishProjectileReq 0x2CC6BA0 (pe.py now takes CDMP_EXE).
+  FINDINGS for shared XP: DoFrameEventReq -> 0x2B5A200 dispatches by type byte (0 -> 0x2D19830, 1 -> 0x2E857C0,
+  3 -> 0x2D19E90). Type 0 (melee) checks the attacker's CURRENT action hash and frame (a fake melee hit only works
+  while the player really swings). Type 1 (a projectile's hit) only checks that the projectile exists in the
+  attacker's table (id +0x10, index +0x1C) and its data entry (+0x18 key, +0x20 hash), then queues the hit on the
+  listed targets: NO visibility or distance check seen. Plan: after our AttackByCollisionReq the server makes our
+  projectile (CreateProjectileAck); inject a type-1 DoFrameEventReq naming the hidden native (at 1 HP) before our
+  client removes the projectile. Needed: a real type-1 report recorded (a host-side collision kill on a visible enemy).
