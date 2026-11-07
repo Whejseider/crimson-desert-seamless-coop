@@ -1039,11 +1039,16 @@ bool spawn_horse(const proto::SpawnInfo& info, uint64_t now) {
                             (*chain)[1].index <= kLastMountSlot;
     // The load kind follows the slot: the STARTER horse in slot 1 is kind 4, other mounts kind 5 (local_capture.cpp,
     // 3576 run hk3). Requiring 5 refused every starter horse ("not a plain mount load (slot 1)" in all two-copy runs).
-    const uint8_t mount_kind = chain && chain->size() == 2 && (*chain)[1].index == 1 ? 4 : 5;
+    // Co-op+ (2026-11-07, Borque's report on an older build: horses in slots 2 and 3 were refused too while it
+    // demanded kind 5 for them -- so those are not kind 5 either): kind 4 or 5 in any mount slot (both are mount
+    // loads; the slot, the keys and "nothing of ours" are still checked). The kind is logged when refused.
+    const uint8_t got_kind = chain && chain->size() == 2 ? (*chain)[1].type : 0xFF;
+    const uint8_t mount_kind = got_kind == 4 || got_kind == 5 ? got_kind : 5;
     if (!chain || chain->size() != 2 || (*chain)[0].type != 0 || (*chain)[0].key != kPuppetUser || !mount_slot ||
         !head_is((*chain)[1], mount_kind, kPuppetHorse, kPuppetUser, (*chain)[1].index) || names_our_player(horse)) {
         log::warn("Puppet: the other player's horse is not a plain mount load{}; not loaded",
-                  chain && chain->size() == 2 ? std::format(" (slot {})", (*chain)[1].index) : std::string());
+                  chain && chain->size() == 2 ? std::format(" (slot {}, kind {})", (*chain)[1].index, got_kind)
+                                              : std::string());
         return false;
     }
     // Note: loading it without an owner record (+0x12 = 0, caballo-coop.md §8)

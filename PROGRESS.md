@@ -1935,3 +1935,11 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
   GPU for two games -- the focused copy no longer starves itself, so it takes most of it (total ~105 vs ~90 frames
   a second); not an issue with one game per PC. fps1's lag line (136 ms) was measured on that background copy;
   ctrl1's 56 ms. SAVES OK both. No WRN/ERR in fps1; player, horse and enemy copies loaded.
+- 2026-11-07 14:45 More from Borque's log: (a) "the other player's horse is not a plain mount load (slot 3 / slot 2 /
+  slot 1)": his build (096D9C3F) predates the kind-4 fix, but it demanded kind 5 for slots 2-3 and refused those too
+  -- so owned horses there are not kind 5 either. Now kind 4 or 5 in any mount slot (slot range, keys and "nothing
+  of ours" still checked); a refusal logs the kind. Not testable here (the test saves have the starter horse only).
+  (b) The partner's character was sent 11 times in 13 min: each after a reconnect (the session dropped 4 times
+  while our loop took 300+ ms); 5 refusals ("not a plain player load") fell in the 3-4 fps stretch. (c) 13:16:42 ->
+  13:18:29 both games acted as host after a reconnect (Borque's host got 1500+ EnemyAct/EnemyPos "only the other role
+  sends") until he joined the other world by hand. Left as is: a consequence of the drops; more data needed.
