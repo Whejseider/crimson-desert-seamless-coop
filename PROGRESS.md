@@ -1884,3 +1884,14 @@ Done in the user's Chrome (signed in as Asher):
 - 0x2E05550 (thought to be the add-item worker) is an item exchange / conversion: its bag add is 0x29EA7C0 with 200-byte
   item records from 0x25FED70 and a long commit chain (docs/research/reverse-engineering-3576.md, Items). Gifting not
   built: too many unnamed steps before the full index.
+- 2026-11-07 09:00 SECOND FULL RUN: the analysis without `.tls$` finished in 36 min, then OutOfMemoryError in
+  ProgramDBChangeSet.endTransaction (one transaction's change set covering all 85 MB of code). Fix:
+  build/tools/scripts/AnalyzeSliced.java -- the analysis in 4 MB slices of `.text1` (then each other block whole),
+  each slice its own transaction, saved, undo dropped (heap stays ~300-420 MB of 24 GB); progress in
+  build/decomp/sliced-progress.txt, a rerun goes on from the next slice. Base slices 0-22 (all of `.text1` + Headers)
+  done 09:02-10:26, ~203,100 functions; slice 11 (.text1+0x2C00000) alone took 48 min (a function-overlap repair).
+- 2026-11-07 10:57 Slice 23 (first data block after Headers) threw, and the three retries all stopped there. The real
+  exception was hidden: the script had ended GhidraScript's own transaction (the "probe" trick), so GhidraScript's
+  end() threw "Transaction not found" over it. Fixed: FlatProgramAPI end(true) at the start / start() at the end, and
+  each slice catches its own exception (logged with its stack, "FAILED <exc>" in the progress file, pass goes on).
+  Restarted 11:00 from slice 23.
