@@ -36,7 +36,8 @@ Get the newest build from **[Releases > Latest](../../releases/latest)**. Downlo
 - **Host:** pick **Start Co-op**, then Continue Our Co-op Save, Start From My Solo Progress or New Co-op Save. A new
   game begins with the prologue, which each of you plays on your own; co-op starts by itself after it.
 - **Experience is shared:** every skill point either of you earns goes to the other too.
-- No Steam invite possible (Radmin VPN, LAN)? See **DIRECT PLAY** in `README.txt` inside the zip.
+- **No Steam invite (Radmin VPN, LAN)?** Both join the same Radmin network. Host: Co-op menu > **Radmin VPN / Direct IP** >
+  **Host** (an invite is copied; paste it to your friend). Friend: copy the invite, then **Radmin VPN / Direct IP** > **Join**.
 - **F8** (pad: View + X) opens the co-op panel: connection, settings, your record.
 - **Your saves are never changed by Co-op+.**
 - **Experimental (you choose):** a co-op save of its own for each friend you play with, and quest steps shared

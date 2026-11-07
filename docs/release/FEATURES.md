@@ -18,7 +18,7 @@ ByJunter and its port by nouzert1.
 | NEW: the host picks Continue Our Co-op Save, Start From My Solo Progress or New Co-op Save; the friend follows on the host's difficulty | Works, needs testing with two players |
 | NEW: a Co-op tab in the game's Start menu with every co-op setting and what it does | Works |
 | Invite a Steam friend (Ctrl+F1), or they use "Join Game" on you in Steam | Needs testing |
-| NEW: Direct play without Steam (Radmin VPN, LAN, any VPN; see DIRECT PLAY in README.txt) | Needs testing |
+| NEW: Radmin VPN / Direct IP in the Co-op menu: Host copies an invite, your friend copies it and presses Join (no Steam needed) | Works, needs testing with two players |
 | Room code as a fallback way to join | Needs testing |
 | Friends-only or invite-only (setting) | Needs testing |
 | Version check: refuses a friend on another Co-op+ build or game version, and says what to update | Works |

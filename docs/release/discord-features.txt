@@ -6,8 +6,8 @@ Two-player co-op (Steam, game 1.0.0.3576). Each of you keeps your own save; your
 `Not yet` = not in this version
 
 **Joining and sessions**
-- NEW: Co-op menu at the title screen (invite, then continue, solo progress or a new co-op save): `Needs testing`
-- NEW: direct play without Steam (Radmin VPN / LAN): `Needs testing`
+- NEW: Co-op menu at the title screen (continue, solo progress or a new co-op save): `Needs testing`
+- NEW: Radmin VPN / Direct IP: Host copies an invite, friend presses Join: `Needs testing`
 - Invite a Steam friend (Ctrl+F1), or they use "Join Game" on you in Steam: `Needs testing`
 - Room code as a fallback way to join: `Needs testing`
 - Friends-only or invite-only (setting): `Needs testing`
