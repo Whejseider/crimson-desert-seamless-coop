@@ -6,6 +6,8 @@ Two-player co-op (Steam, game 1.0.0.3576). Each of you keeps your own save; your
 `Not yet` = not in this version
 
 **Joining and sessions**
+- NEW: Co-op menu at the title screen (invite, then continue, solo progress or a new co-op save): `Needs testing`
+- NEW: direct play without Steam (Radmin VPN / LAN): `Needs testing`
 - Invite a Steam friend (Ctrl+F1), or they use "Join Game" on you in Steam: `Needs testing`
 - Room code as a fallback way to join: `Needs testing`
 - Friends-only or invite-only (setting): `Needs testing`
@@ -31,14 +33,15 @@ Two-player co-op (Steam, game 1.0.0.3576). Each of you keeps your own save; your
 - Shared enemies near the host: both of you see and hit the same ones: `Works`
 - Tougher enemies with a guest (adjustable in the F8 settings): `Works`
 - Kill feed: "<friend> defeated a Deer": `Works`
+- NEW: enemies fight the guest; the guest's blows stagger: `Needs testing`
 - Bosses together; the host lands the final blow so the story is safe: `Needs testing`
 - Shared boss and story cutscenes; a skip needs everyone to press it: `Needs testing`
 - Revive your friend (hold Shift+F7 by them): `Works`
-- NEW: dying in co-op keeps your HUD, menus and horse: `Works`
+- Dying in co-op keeps your HUD, menus and horse: `Works`
 - Respawn option: back to your friend after a checkpoint revive: `Works`
 - Your friend can't kill your quest NPCs or townsfolk: `Works`
 - Loot from shared kills: each your own, host only, or first come: `Needs testing`
-- XP for the guest from shared kills: `Not yet`
+- NEW: shared experience: every skill point either of you earns goes to the other: `Needs testing`
 
 **Communication and travel**
 - Text chat (Shift+F2): `Works`
@@ -47,7 +50,7 @@ Two-player co-op (Steam, game 1.0.0.3576). Each of you keeps your own save; your
 - Ask your friend to come to you (Shift+F4): `Works`
 - Fast travel: your friend is offered to follow: `Needs testing`
 - Notices: your friend's quest steps, world events near them, when they become wanted: `Works`
-- Spoiler guard: hide your friend's story (quest names you haven't reached, their story scenes): `Works`
+- Spoiler guard: hide your friend's story: `Works`
 
 **Challenges**
 - Duel: a ring, 3-2-1, rounds, nobody dies; ring size option: `Works`
@@ -55,8 +58,8 @@ Two-player co-op (Steam, game 1.0.0.3576). Each of you keeps your own save; your
 - Hunting contest (3 minutes, the most game wins): `Works`
 - Race to the waypoint (first to the host's map waypoint): `Works`
 - Arm wrestling with your friend in the opponent's chair: `Needs testing`
-- NEW: Hide and seek (within 100 m; Cold / Warm / Hot): `Needs testing`
-- NEW: Fishing contest (6 minutes, you see each catch): `Needs testing`
+- Hide and seek (within 100 m; Cold / Warm / Hot): `Needs testing`
+- Fishing contest (6 minutes, you see each catch): `Needs testing`
 - Every challenge is one match (first to 2) and ends with Victory or Defeat: `Works`
 - Lasting scoreboard per friend and titles ("the Duelist"): `Works`
 - Quick rematch: `Works`

@@ -25,15 +25,21 @@ Get the newest build from **[Releases > Latest](../../releases/latest)**. Downlo
    saves to `Documents\CrimsonDesert-CoopPlus-SaveBackups`, and copies 4 files into the game's `bin64` folder.
    - If Windows SmartScreen still appears: **More info > Run anyway**. The scripts are plain text, so you can open
      them in Notepad first.
-5. Start Crimson Desert from Steam and load a save. A controls card appears the first time. **Shift+F1** (or hold
+5. Start Crimson Desert from Steam: the Co-op menu appears in place of the title screen. A controls card appears the first time. **Shift+F1** (or hold
    View / Touchpad and click the left stick) opens it again any time.
 
 ## Play together
-- **Host:** press **Ctrl+F1** (pad: hold View + Y) and invite your friend in the Steam overlay.
-- **Friend:** accept the invite, or right-click the host in your Steam friends list > **Join Game**.
+- **NEW: the Co-op menu** stands in for the title screen. **Host:** pick **Invite Friends** and choose your friend
+  in the Steam overlay (in the world: **Ctrl+F1**, pad: hold View + Y).
+- **Friend:** accept the invite, or right-click the host in your Steam friends list > **Join Game**. Stay at the
+  Co-op menu; both menus list the party (the crown marks the host).
+- **Host:** pick **Start Co-op**, then Continue Our Co-op Save, Start From My Solo Progress or New Co-op Save. A new
+  game begins with the prologue, which each of you plays on your own; co-op starts by itself after it.
+- **Experience is shared:** every skill point either of you earns goes to the other too.
+- No Steam invite possible (Radmin VPN, LAN)? See **DIRECT PLAY** in `README.txt` inside the zip.
 - **F8** (pad: View + X) opens the co-op panel: connection, settings, your record.
 - **Your saves are never changed by Co-op+.**
-- **NEW, experimental (you choose):** a co-op save of its own for each friend you play with, and quest steps shared
+- **Experimental (you choose):** a co-op save of its own for each friend you play with, and quest steps shared
   live. **The first time you play together you both begin a new journey** at the start of the story. The first
   launch asks: **Shift+F5** (pad: View + D-pad Up) turns it on, **Shift+F6** is "not now"; change it any time in
   F8 > Settings. Both players need it on. Switching between your own save and a co-op save always asks first.

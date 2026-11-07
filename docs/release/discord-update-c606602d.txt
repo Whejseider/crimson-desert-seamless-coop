@@ -1,0 +1,20 @@
+===== #download-here (attach both zips) =====
+**Download: Seamless Co-op+ 0.1.0-alpha+c606602d**
+NEW: shared experience, enemies that fight the guest, the guest's blows stagger, a co-op menu at the title screen, much less lag, direct play without Steam (Radmin VPN / LAN).
+- `CrimsonDesert-SeamlessCoop-0.1.0-alpha+c606602d.zip`: this is the one you want. Install steps are in #how-to-install.
+- `...-mod-manager.zip`: only for manual / Vortex / MO2 installs.
+You and your co-op partner need the **same** zip. Game version 1.0.0.3576 (Steam). Installing over the old version keeps your settings.
+Windows Defender scan: no threats. GPL-3.0; the source is inside the zip (source.zip).
+Always the newest: https://github.com/ashersheets-jpg/crimson-desert-coop-playtest/releases/latest
+
+===== #announcements =====
+**Update 0.1.0-alpha+c606602d: shared XP, enemies fight the guest, and a co-op menu**
+- **Shared experience:** every skill point either of you earns goes to the other too, anywhere on the map. The guest's kills count.
+- **Enemies fight the guest:** the host's enemies now attack the guest's character, and the guest no longer crashes when enemies load in a camp.
+- **The guest's blows stagger enemies**, just like the host's.
+- **Co-op menu at the title screen:** Start Solo / Invite Friends / Start Co-op; the host picks Continue Our Co-op Save, Start From My Solo Progress or New Co-op Save. A Co-op tab in the Start menu has every co-op setting.
+- **Much less lag:** your friend is drawn about 50 ms after the network (was about 350 ms).
+- **Prologue:** co-op waits while either of you plays the opening tutorial and starts by itself after it.
+- **Direct play without Steam** (Radmin VPN, LAN): see DIRECT PLAY in README.txt. Thanks Plitos, whose patch fixes are in too.
+- **Fixed:** the Journey Together card credits the guest's kills to the guest.
+Both players need the same zip: grab it in #download-here. Please report how XP, the guest's fights and the new menu work for you in #play-testing-feedback.
