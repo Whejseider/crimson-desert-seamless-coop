@@ -24,6 +24,14 @@ $expectedExeVersion = '1.0.0.3576'
 $files = @('winmm.dll', 'cdmp.asi', 'cdmp.ini', 'cdcoop\config\scaling.toml')
 # Files players edit: an update keeps theirs and puts the new defaults next to them.
 $settingsFiles = @('cdmp.ini', 'cdcoop\config\scaling.toml')
+# The shared-world package (B01, docs/design/native-join-and-saves.md): the native base is cdmp.asi, Co-op+ is
+# coopplus.asi with the player's settings in coopplus.ini; cdmp.ini is then Co-op+'s own launch-mode file (solo /
+# host / guest), never the player's: an update replaces it.
+$native = Test-Path (Join-Path $payload 'coopplus.asi')
+if ($native) {
+    $files += 'coopplus.asi', 'coopplus.ini'
+    $settingsFiles = @('coopplus.ini', 'cdcoop\config\scaling.toml')
+}
 
 function Done([int]$code) {
     if (-not $NoPause) { Write-Host ''; Read-Host 'Press Enter to close' | Out-Null }
@@ -81,7 +89,23 @@ $installed = @()
 if (Test-Path $listPath) {
     $installed += Get-Content $listPath | Where-Object { $_ -and -not $_.StartsWith('#') -and $_ -ne 'coopplus-installed.txt' }
 }
-# Vanilla mode (vanilla.ps1) parks the mod as cdmp.asi.off; installing turns it back on.
+# The shared-world package over an earlier Co-op+: that one's cdmp.ini held the player's settings; they move to
+# coopplus.ini (once, before the copy below keeps them as the player's own).
+if ($native) {
+    $oldIni = Join-Path $GameDir 'cdmp.ini'
+    $newIni = Join-Path $GameDir 'coopplus.ini'
+    if ((Test-Path $oldIni) -and -not (Test-Path $newIni) -and (Test-Path $listPath)) {
+        $oldText = [IO.File]::ReadAllText($oldIni)
+        if ($oldText -notmatch 'coopplus_mode=') {
+            Copy-Item $oldIni $newIni
+            $installed += 'coopplus.ini'
+            Write-Host 'Your Co-op+ settings moved from cdmp.ini to coopplus.ini'
+        }
+    }
+}
+# Vanilla mode (vanilla.ps1) parks the mod as cdmp.asi.off (and coopplus.asi.off); installing turns it back on.
+$parkedLayer = Join-Path $GameDir 'coopplus.asi.off'
+if (Test-Path $parkedLayer) { Remove-Item $parkedLayer -Force }
 $parked = Join-Path $GameDir 'cdmp.asi.off'
 if (Test-Path $parked) {
     Remove-Item $parked -Force

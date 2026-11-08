@@ -48,7 +48,8 @@ foreach ($line in Get-Content $list) {
     }
 }
 # Logs the mod wrote next to itself.
-foreach ($log in Get-ChildItem $GameDir -Filter 'cdmp*.log' -ErrorAction SilentlyContinue) {
+foreach ($log in @(Get-ChildItem $GameDir -Filter 'cdmp*.log' -ErrorAction SilentlyContinue) +
+                 @(Get-ChildItem $GameDir -Filter 'coopplus*.log' -ErrorAction SilentlyContinue)) {
     Remove-Item $log.FullName -Force
 }
 Remove-Item $list -Force
@@ -59,6 +60,8 @@ foreach ($d in (Join-Path $GameDir 'cdcoop\config'), (Join-Path $GameDir 'cdcoop
 # Vanilla mode (vanilla.ps1) parks the mod under this name.
 $parked = Join-Path $GameDir 'cdmp.asi.off'
 if (Test-Path $parked) { Remove-Item $parked -Force; Write-Host 'Removed cdmp.asi.off (vanilla mode)' }
+$parkedLayer = Join-Path $GameDir 'coopplus.asi.off'
+if (Test-Path $parkedLayer) { Remove-Item $parkedLayer -Force; Write-Host 'Removed coopplus.asi.off (vanilla mode)' }
 Write-Host ''
 Write-Host 'Co-op+ removed. The game runs as before. Your save backups stay in Documents\CrimsonDesert-CoopPlus-SaveBackups.' -ForegroundColor Green
 Done 0

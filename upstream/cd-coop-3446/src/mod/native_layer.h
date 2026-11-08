@@ -69,6 +69,12 @@ inline std::string apply_native_layer(Config& c) {
     c.coop_suppress = 0;
     if (c.coop_time_sync) changed += std::string(changed.empty() ? "" : ", ") + "time sync";
     c.coop_time_sync = 0;
+    // The native base's Steam tunnel uses channel 67 (its default, the same as ours): the layer's link takes 68 so the
+    // two never read each other's messages (2026-11-07, B01).
+    if (c.steam_channel == 67) {
+        c.steam_channel = 68;
+        changed += std::string(changed.empty() ? "" : ", ") + "Steam channel 67 (now 68)";
+    }
     return changed;
 }
 

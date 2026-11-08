@@ -2037,3 +2037,18 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
   SAVES OK. Also: Radmin VPN / Direct IP keeps its knock token and port across the restart ([native_resume] direct*),
   and over udp the native tunnel takes the Co-op+ port + 1 (Co-op+'s direct play already uses 37015). Not tested:
   Steam (needs two PCs / two accounts), Radmin across two PCs.
+- 2026-11-07 21:10 tcB8 (the latest build: native tunnel on the Co-op+ port + 1): the same full flow passes; both
+  inis back to "solo (the player's own game)" once in the world. SAVES OK.
+- 2026-11-07 21:10 BUG REPORT (user, from playtester Rahat on Discord, released 0.1.0-alpha builds): "the quest right
+  after the prologue: you go to the tavern to arm wrestle a guard but the guard doesn't appear" (both players got that
+  far). Same family as the first playtest's "host's NPCs did not load in the first town" (never reproduced: the host's
+  log was lost) and T21 (the arm-wrestling table not offered when the friend's copy arrived with us). Likely cause on
+  the old base: the friend's copy is a player-type actor in each world; the quest's stage / trigger setup counts it
+  (or binds it) and the guard is never spawned. Not reproduced: no test save is at that quest (build/test-saves has
+  none between the prologue and Hernand's inn). The shared-world build (B01) has no copies, so it should not have it.
+  Old-base mitigation to test once a save exists: no copy of the friend near a running story stage.
+- 2026-11-07 21:15 B01 packaging: tools/package-native.ps1 (the shared-world zip from the normal package's stage:
+  native cdmp.asi, coopplus.asi, the player's settings as coopplus.ini, a Solo cdmp.ini, source-native.zip);
+  installer: the shared-world payload installs coopplus.asi/.ini, moves an older Co-op+'s cdmp.ini settings to
+  coopplus.ini, cdmp.ini is Co-op+'s launch file (replaced on update); vanilla parks coopplus.asi too; uninstall
+  removes coopplus*.log. The layer's Steam link uses channel 68 on the native base (the native tunnel has 67).
