@@ -1,0 +1,14 @@
+===== #download-here (attach both zips) =====
+**Download: Seamless Co-op+ 0.1.0-alpha+862b4256 (hotfix)**
+FIXED: your friend's game could skip its own cutscene at the end of the prologue and get stuck on "Go to Hernand" (no guard for the inn's arm wrestling after that).
+- `CrimsonDesert-SeamlessCoop-0.1.0-alpha+862b4256.zip`: this is the one you want. Install steps are in #how-to-install.
+- `...-mod-manager.zip`: only for manual / Vortex / MO2 installs.
+You and your co-op partner need the **same** zip. Game version 1.0.0.3576 (Steam). Installing over the old version keeps your settings.
+Windows Defender scan: no threats. GPL-3.0; the source is inside the zip (source.zip).
+Always the newest: https://github.com/ashersheets-jpg/crimson-desert-coop-playtest/releases/latest
+
+===== #announcements =====
+**Hotfix 0.1.0-alpha+862b4256: the end of the prologue**
+- **Fixed:** your friend's game could skip its own cutscene at the end of the prologue and stay stuck on "Go to Hernand" (and the guard for the inn's arm wrestling never came). Co-op+ no longer starts the host's story cutscenes in the guest's game; each of you sees your own.
+- Already stuck? Load a save from before the prologue's last cutscene with this build.
+Thanks Rahat for the report. Both players need the same zip: grab it in #download-here.
