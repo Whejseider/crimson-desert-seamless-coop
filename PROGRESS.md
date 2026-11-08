@@ -2067,3 +2067,11 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
   installer's own guard, as intended.)
 - tcB9 (-HostVariant rps): the rps save also starts at Nas River (its tests teleported to Hernand). Harness:
   -HostScript / -GuestScript run a Co-op+ dev script (Ctrl+Shift+F6) after the join (tcB10: both teleport to Hernand).
+- 2026-11-07 21:30 tcB10 (both run live_tp_hernand.txt, Ctrl+Shift+F6): the dev script ran in both layers but nobody
+  moved: on the native base the layer has no path to put a server message INTO its own client
+  (puppet_inject_s2c_batch queues for the copy machinery's injector, which is off there; only the c2s bridge
+  cdmp_inject_c2s exists). Affects every Co-op+ feature built on s2c injection: dev teleports, "go to my friend" /
+  "bring my friend" hops (DoTeleportAck 3052), the revive's move to the partner. To do with B19 (party travel) /
+  B17 (revive): a cdmp_inject_s2c export from the native base's client delivery (the guest's OnRecvPacket path),
+  or travel through the native fast-travel funnels. B02 (NPCs) not compared yet: no town test save; ByJunter's
+  README lists "NPCs, schedules and travellers in the shared field" as validated.
