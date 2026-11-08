@@ -926,6 +926,9 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     li.own_name = cfg.player_name;
                     li.partner_name = session.peer_name();
                     li.steam = !peer || peer->kind == net::PeerAddr::Kind::Steam;
+                    li.direct = cfg.net_transport_direct;
+                    li.direct_token = cfg.direct_token;
+                    li.direct_port = cfg.peer_port;
                     if (peer && peer->kind == net::PeerAddr::Kind::Steam) li.partner_steam_id = peer->value;
                     if (peer && peer->kind == net::PeerAddr::Kind::Udp) {
                         const std::string ep = peer->endpoint().str();
@@ -1475,8 +1478,22 @@ void run_coop(const Config& base, LocalSource& local, bool in_game) {
                 cfg.steam_peer_id = r.partner_steam_id;
                 cfg.room_lobby = 0;
                 cfg.room_code.clear();
-            } else if (!r.steam && !cfg.net_role_host && !r.partner_address.empty()) {
-                cfg.peer_host = r.partner_address;
+            } else if (!r.steam) {
+                if (r.direct) {
+                    // Radmin VPN / Direct IP: the same token and port as before the restart (the host accepts only it).
+                    cfg.net_transport_steam = false;
+                    cfg.net_transport_direct = true;
+                    cfg.direct_from_menu = true;
+                    cfg.direct_token = r.direct_token;
+                    if (r.direct_port) cfg.peer_port = r.direct_port;
+                    cfg.room_lobby = 0;
+                    cfg.room_code.clear();
+                    cfg.steam_peer_id = 0;
+                }
+                if (!r.partner_address.empty()) {
+                    cfg.peer_host = r.partner_address;  // the guest: the host; the host: the friend it accepts
+                    if (cfg.net_role_host) cfg.bind_host.clear();
+                }
             }
             apply_role_settings(cfg, in_game, true);
             log::info("Co-op+: co-op restart: {} with {}", cfg.net_role_host ? "hosting" : "joining",

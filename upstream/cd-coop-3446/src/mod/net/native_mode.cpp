@@ -173,6 +173,9 @@ NativeResume native_resume_read(const std::wstring& ini_path) {
     r.partner_address = narrow_path(get(ini_path, L"partner_address"));
     r.plan = static_cast<uint8_t>(_wtoi(get(ini_path, L"plan").c_str()));
     r.written_unix = _wcstoui64(get(ini_path, L"written").c_str(), nullptr, 10);
+    r.direct = get(ini_path, L"direct") == L"1";
+    r.direct_token = _wcstoui64(get(ini_path, L"direct_token").c_str(), nullptr, 16);
+    r.direct_port = static_cast<uint16_t>(_wtoi(get(ini_path, L"direct_port").c_str()));
     return r;
 }
 
@@ -187,6 +190,11 @@ void native_resume_write(const std::wstring& ini_path, NativeResume r) {
     put(L"partner_address", widen(native_ini_value(r.partner_address)));
     put(L"plan", std::to_wstring(r.plan));
     put(L"written", std::to_wstring(r.written_unix));
+    put(L"direct", r.direct ? L"1" : L"0");
+    wchar_t tok[24] = {};
+    swprintf_s(tok, L"%016llx", static_cast<unsigned long long>(r.direct_token));
+    put(L"direct_token", r.direct ? tok : L"");
+    put(L"direct_port", r.direct ? std::to_wstring(r.direct_port) : L"");
 }
 
 void native_resume_clear(const std::wstring& ini_path) {

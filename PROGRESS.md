@@ -2030,3 +2030,10 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
     guest writes its Guest ini and restarts -> reconnects -> its native client goes REMOTE (in the host's world) ->
     "both games are in co-op" -> 3 s countdown on both. Play was NOT pressed: the press waits for the game window in
     front, and the user's Discord window was in front (the user is at the PC: in-game tests paused). SAVES OK.
+- 2026-11-07 21:00 tcB7: THE TITLE-SCREEN JOIN FLOW WORKS END TO END (two copies): Start Co-op -> host restart ->
+  guest restart -> guest REMOTE -> countdown -> Play on both (each window in front: the harness brings them forward;
+  a player's game is in front anyway) -> both in the shared world ("in the shared world; the next launch is solo
+  again": cdmp.<role>.ini back to Solo for the next start), shot tcB7-L5 (the guest's game, party frame "Host 0 m").
+  SAVES OK. Also: Radmin VPN / Direct IP keeps its knock token and port across the restart ([native_resume] direct*),
+  and over udp the native tunnel takes the Co-op+ port + 1 (Co-op+'s direct play already uses 37015). Not tested:
+  Steam (needs two PCs / two accounts), Radmin across two PCs.

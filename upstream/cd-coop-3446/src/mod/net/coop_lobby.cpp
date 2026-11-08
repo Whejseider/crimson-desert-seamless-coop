@@ -114,6 +114,8 @@ bool native_write(NativeMode mode, LobbyPlan plan) {
     spec.partner_steam_id = g_in.steam ? g_in.partner_steam_id : 0;
     spec.partner_address = g_in.steam ? std::string() : g_in.partner_address;
     spec.player_name = g_in.own_name.empty() ? "Player" : g_in.own_name;
+    // Over udp the Co-op+ link already has its port (Radmin VPN / Direct IP: 37015): the native tunnel takes the next.
+    if (!spec.steam) spec.port = static_cast<uint16_t>((g_in.direct_port ? g_in.direct_port : 37015) + 1);
     if (mode != NativeMode::Solo && !(mode == NativeMode::Guest && test_role() == L"guest")) {
         // (Two copies on one PC: the guest keeps save_cdmp_guest, the harness's test save.)
         spec.coop_save_dir = native_coop_dir(mode, spec.partner_steam_id, g_in.partner_address);
@@ -128,6 +130,9 @@ bool native_write(NativeMode mode, LobbyPlan plan) {
     r.partner_steam_id = spec.partner_steam_id;
     r.partner_address = spec.partner_address;
     r.plan = static_cast<uint8_t>(plan);
+    r.direct = g_in.direct;
+    r.direct_token = g_in.direct_token;
+    r.direct_port = g_in.direct_port;
     if (mode == NativeMode::Solo) {
         native_resume_clear(g_native_ini);
     } else {

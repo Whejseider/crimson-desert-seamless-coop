@@ -39,6 +39,9 @@ struct NativeResume {
     uint64_t partner_steam_id = 0;
     std::string partner_address;
     uint8_t plan = 0;          // LobbyPlan
+    bool direct = false;       // a Radmin VPN / Direct IP session: its token and port
+    uint64_t direct_token = 0;
+    uint16_t direct_port = 0;
     uint64_t written_unix = 0;  // seconds
 };
 NativeResume native_resume_read(const std::wstring& ini_path);

@@ -227,7 +227,20 @@ if ($Lobby) {
     "guest REMOTE: $remote at $(Get-Date -Format HH:mm:ss.fff)"
     Get-Process CrimsonDesert -ErrorAction SilentlyContinue | ForEach-Object { "running: pid $($_.Id) started $($_.StartTime.ToString('HH:mm:ss'))" }
     & $shot -Out "$here\shots\$Name-L3-after-restarts.png" | Out-Null
-    # The host's menu goes on by itself (both in co-op): the countdown and Play on both.
+    # The host's menu goes on by itself (both in co-op): the countdown and Play on both. Each game presses Play only
+    # with its window in front (a player's is): the host's window first, then the guest's (the restarted copies: the
+    # host restarted first).
+    $t0 = Get-Date
+    while (((Get-Date) - $t0).TotalSeconds -lt 120) {
+        Start-Sleep 2
+        if (Select-String -Path "$bin\coopplus.host.log" -Pattern 'both games start in' -Quiet) { break }
+    }
+    $new = @(Get-Process CrimsonDesert -ErrorAction SilentlyContinue | Sort-Object StartTime | Select-Object -Last 2)
+    if ($new.Count -eq 2) {
+        "countdown seen; host pid $($new[0].Id), guest pid $($new[1].Id): each window in front for its Play"
+        & "$here\actpid.ps1" -GamePid $new[0].Id -Seq "w:9000 shot:$Name-L3b-host-play" | Out-Null
+        & "$here\actpid.ps1" -GamePid $new[1].Id -Seq "w:9000 shot:$Name-L3c-guest-play" | Out-Null
+    }
     Start-Sleep $JoinWait
     & $shot -Out "$here\shots\$Name-L4-later.png" | Out-Null
     Start-Sleep 30

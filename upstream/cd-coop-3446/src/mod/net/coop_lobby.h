@@ -33,6 +33,10 @@ struct LobbyInput {
     bool steam = true;
     uint64_t partner_steam_id = 0;
     std::string partner_address;
+    // Radmin VPN / Direct IP (direct_ip.h): the session's knock token and port, kept across the restart.
+    bool direct = false;
+    uint64_t direct_token = 0;
+    uint16_t direct_port = 0;
 };
 void lobby_tick(const LobbyInput& in);
 
