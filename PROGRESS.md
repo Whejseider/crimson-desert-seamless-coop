@@ -2086,3 +2086,9 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
   end). The relay was never tested on 3576 either. Fix: [coop] stage_cinema off by default (config.cpp / .h), FEATURES
   and CHANGELOG say so. Not confirmed with the players' logs (asked through the user). Native base: the relay is off
   there anyway (native_layer.h).
+- 2026-11-07 21:40 tcB11: with cdmp_inject_s2c the layer's teleport WORKS on the native base (the host's dev script:
+  "Local: pos (-10611.27, 608.70, -3873.23)" = Hernand, from Nas River). SAVES OK. So "go to my friend" / "bring my
+  friend" hops and the revive move can work there too (to check in B19 / B17).
+- 2026-11-07 21:50 Hotfix 0.1.0-alpha+862b4256 PACKAGED, NOT PUBLISHED (needs the user's OK): unit tests pass,
+  test-install-fake all steps PASS, Defender clean. Texts: dist/notes-862b4256.md, docs/release/discord-update-862b4256.txt.
+  Regression run hf1 (old base, two copies) started.
