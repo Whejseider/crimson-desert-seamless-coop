@@ -2092,3 +2092,5 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
 - 2026-11-07 21:50 Hotfix 0.1.0-alpha+862b4256 PACKAGED, NOT PUBLISHED (needs the user's OK): unit tests pass,
   test-install-fake all steps PASS, Defender clean. Texts: dist/notes-862b4256.md, docs/release/discord-update-862b4256.txt.
   Regression run hf1 (old base, two copies) started.
+- 2026-11-07 21:45 hf1 (old base, two copies, build 862B4256): connected, both copies visible, no WRN/ERR beyond the
+  known clock line, guarded reads 0 faulted, SAVES OK. The hotfix is ready to publish (waiting for the user's OK).
