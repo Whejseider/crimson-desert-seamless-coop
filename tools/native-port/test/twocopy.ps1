@@ -5,7 +5,9 @@
 #  - guest: the guest role sends the whole save folder to ...\CD\save_cdmp_guest, which this script fills with a test
 #    slot and a windowed settings file. The real save folder is only read (its settings file, as the template).
 param([string]$Name = 'tc1', [string]$HostVariant = 'coop-test-bandits', [string]$GuestVariant = 'rps',
-      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk, [switch]$Ride, [switch]$Fight, [switch]$CoopPlus, [switch]$Kill)
+      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk, [switch]$Ride, [switch]$Fight, [switch]$CoopPlus, [switch]$Kill,
+      # B01 co-op saves (Co-op+ docs/design/native-join-and-saves.md): [session2] coop_save_dir / coop_save_seed per role
+      [string]$HostCoop = '', [string]$HostSeed = 'keep', [string]$GuestCoop = '', [string]$GuestSeed = 'keep')
 $ErrorActionPreference = 'Stop'
 $bin = 'D:\SteamLibrary\steamapps\common\Crimson Desert\bin64'
 $here = $PSScriptRoot; $saves = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\build\test-saves'
@@ -75,6 +77,7 @@ horse_follow=1
 horse_follow_reverse=1
 user2_fast_travel=1
 '@
+if ($HostCoop) { [IO.File]::AppendAllText("$bin\cdmp.host.ini", "`r`ncoop_save_dir=$HostCoop`r`ncoop_save_seed=$HostSeed`r`n", (New-Object Text.UnicodeEncoding($false, $false))); "host co-op save: $HostCoop ($HostSeed)" }
 Write-Ini "$bin\cdmp.guest.ini" @'
 [general]
 player_name=Guest
@@ -117,6 +120,7 @@ wallup_send=1
 dismount_probe=1
 guest_fast_travel_veto=probe
 '@
+if ($GuestCoop) { [IO.File]::AppendAllText("$bin\cdmp.guest.ini", "`r`ncoop_save_dir=$GuestCoop`r`ncoop_save_seed=$GuestSeed`r`n", (New-Object Text.UnicodeEncoding($false, $false))); "guest co-op save: $GuestCoop ($GuestSeed)" }
 
 if ($CoopPlus) {
     # The Co-op+ layer (docs/research/native-coopplus-layer.md): coopplus.asi next to the native cdmp.asi, its

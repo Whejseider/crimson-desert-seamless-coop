@@ -27,6 +27,7 @@
 #include "mod/net/room_codec.h"
 #include "mod/net/join_args.h"
 #include "mod/net/direct_invite.h"
+#include "mod/net/native_mode_text.h"
 #include "common/transport.h"
 #include "common/party_scaling.h"
 #include "common/nameplate.h"
@@ -1756,6 +1757,40 @@ void test_game_save() {
 
 }  // namespace
 
+void test_native_mode_text() {
+    using namespace cdmp::net;
+    auto has = [](const std::string& t, const std::string& l) { return t.find(l + "\r\n") != std::string::npos; };
+    NativeModeSpec solo;
+    solo.player_name = "Ana";
+    const std::string st = native_mode_ini_text(solo);
+    CHECK(has(st, "[session2]") && has(st, "enabled=0") && !has(st, "enabled=1") && has(st, "player_name=Ana"));
+    CHECK(native_mode_of_text(st) == NativeMode::Solo);
+
+    NativeModeSpec h;
+    h.mode = NativeMode::Host;
+    h.partner_steam_id = 76561198000000001ull;
+    h.coop_save_dir = native_coop_dir(NativeMode::Host, h.partner_steam_id, "");
+    h.coop_save_seed = "copy";
+    const std::string ht = native_mode_ini_text(h);
+    CHECK(native_mode_of_text(ht) == NativeMode::Host);
+    CHECK(has(ht, "transport=steam") && has(ht, "role=host") && has(ht, "accept_tunnel=1") && !has(ht, "guest=1"));
+    CHECK(has(ht, "peer_steamid=76561198000000001") && has(ht, "save_guard=redirect"));
+    CHECK(has(ht, "coop_save_dir=coop_worlds\\with_76561198000000001") && has(ht, "coop_save_seed=copy"));
+    CHECK(has(ht, "[overlay]") && ht.find("[overlay]\r\nenabled=0") != std::string::npos);
+
+    NativeModeSpec g;
+    g.mode = NativeMode::Guest;
+    g.steam = false;
+    g.partner_address = "26.12.34.56\r\n[session2]";  // a hostile address cannot add a line or a section
+    g.coop_save_dir = native_coop_dir(NativeMode::Guest, 0, "26.12.34.56");
+    const std::string gt = native_mode_ini_text(g);
+    CHECK(native_mode_of_text(gt) == NativeMode::Guest);
+    CHECK(has(gt, "transport=udp") && has(gt, "role=guest") && has(gt, "guest=1") && has(gt, "guest_mode=remote"));
+    CHECK(has(gt, "peer_host=26.12.34.56session2") && !has(gt, "accept_tunnel=1"));
+    CHECK(has(gt, "coop_save_dir=coop_worlds\\guest_of_26_12_34_56") && has(gt, "coop_save_seed=keep"));
+    CHECK(native_mode_of_text("[net]\r\nenabled=1\r\n") == NativeMode::Solo);  // a hand-made ini
+}
+
 void test_direct_invite() {
     using namespace cdmp::net;
     // 26.12.34.56 in network byte order: the first number in the lowest byte.
@@ -1836,6 +1871,7 @@ void test_direct_knock() {
 int main() {    test_pattern();
     test_byte_ring();
     test_direct_invite();
+    test_native_mode_text();
     test_direct_knock();
     test_math();
     test_roundtrip();

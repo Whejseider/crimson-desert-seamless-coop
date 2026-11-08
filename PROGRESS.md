@@ -2008,3 +2008,15 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
     real save folder (save_guard=redirect sandbox; host_save sandbox|export, "real" refused): where co-op progress
     lives is the open design item (Co-op+'s co-op worlds: one save per friend). User 2026-11-07: joining only from
     the main menu is fine (B08 dropped).
+- 2026-11-07 20:15-20:25 B01 co-op saves on the native base (design docs/design/native-join-and-saves.md):
+  native (upstream/cdmp-native, local branch coopplus-3549, bundle refreshed): [session2] coop_save_dir (relative =
+  under %LOCALAPPDATA%\Pearl Abyss\CD) + coop_save_seed keep|copy|new: the host's redirect sandbox and the guest's
+  redirect go there and are KEPT between runs (copy/new set an existing folder aside as <dir>_old_<time>, never
+  deleted; new = without slot folders); also on a real PC (no CDMP_ROLE) with [session2] enabled=1; only the first
+  process of a run seeds (a mutex per folder: the game's short-lived second process keeps). tcB4 (-HostCoop
+  coop_test\host -HostSeed copy -GuestCoop save_cdmp_guest -GuestSeed keep): "copied from the save folder (15
+  files, 7 folders)", the whole run redirected there (writes 0 to the real folder), guest kept + REMOTE, SAVES OK.
+  Co-op+: net/native_mode_text.h (the native cdmp.ini per mode, header-only, unit-tested: Solo / Host / Guest,
+  Steam or udp, co-op folders coop_worlds\with_<id> / guest_of_<id>, hostile values cannot add lines) and
+  net/native_mode.{h,cpp} (write the ini UTF-16, keep a hand-made one as cdmp.ini.before-coopplus, restart the game
+  through a hidden helper: Steam, or the exe itself with CDMP_ROLE). Not wired into the lobby yet.
