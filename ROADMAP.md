@@ -127,3 +127,46 @@ Steam join/invite/leave and room code, friends-only vs invite-only, join/leave n
 - [!] **T46 — Baby wyvern hatching.** Blocked until the game supports it; leave `[!]` unless that changes.
 - [ ] **T47 — Voice chat.** Steam voice integration (low priority, friends usually use Discord).
 - [ ] **T48 — 3-4 player support.** Only if the architecture allows it without destabilizing 2-player play.
+
+---
+
+## 5. The big update (picked by the user 2026-11-07, after the full decomp)
+
+Order: the native shared world first, because it makes most of the world picks real instead of simulated (one world:
+same NPCs, events, map, mounts, combat damage, bosses, join mid-event). Then the Co-op+ layer on top, then the
+features that stay Co-op+'s own. Each task: decomp first (build/decomp: functions.tsv / classes.tsv / c/*.c), then
+build, two-copy test, savecheck, notes, commit. Status key as above.
+
+**Foundation**
+- [ ] **B01 — Native shared world.** ByJunter's NativeServer base (upstream/cdmp-native, ported to 3576) under Co-op+:
+  native mode in Co-op+ (docs/research/native-coopplus-layer.md), both DLLs in the harness, joining starts both.
+  Shipping it distributes ByJunter's GPL code: ask the user before the release.
+- [ ] **B02 — Same NPCs and townsfolk** (native: one world; check towns, schedules, the playtest's missing NPCs).
+- [ ] **B03 — World events and sieges** joinable by the guest.
+- [ ] **B04 — Shared map and knowledge** (fog / visited zones, knowledge learned by one counts for both).
+- [ ] **B05 — Other mounts and vehicles** (bears, wolves, raptors...; wagon, skiff, mech) seen and ridden.
+- [ ] **B06 — Mounted combat damage** on shared enemies.
+- [ ] **B07 — Boss mechanics for two** (grabs, finishers, phase triggers, arena locks).
+- [ ] **B08 — Join mid-fight, boss, cutscene or loading screen.**
+- [ ] **B09 — Shared cutscenes on 3576** (the guest sees the host's boss cutscenes; late1's old crash).
+- [ ] **B10 — Quest sharing on by default** (live quest steps, co-op save per friend: out of experimental).
+
+**Items** (decomp: the bag's item transaction, docs/research/reverse-engineering-3576.md "Items")
+- [ ] **B11 — Item gifting and trading** (confirm step, no duplication, a log, controller).
+- [ ] **B12 — Shared stash.**
+
+**Minigames and challenges**
+- [ ] **B13 — Real PvP minigames** (arm wrestling on each other's live gauge; shot contests, boxing, spear duel, cards).
+- [ ] **B14 — The empty arm-wrestling table** (T21).
+- [ ] **B15 — Duel extras and scoreboard** (wagers, arenas, spectator camera, rematch, titles).
+- [ ] **B16 — Emotes and group photo mode.**
+
+**Combat and safety**
+- [ ] **B17 — Teammate revive rework** (bleed-out timer, revive by interacting, progress and credit; Q/U kept).
+- [ ] **B18 — Combat feedback for both** (status effects, knockback, damage numbers, per-player lock-on).
+- [ ] **B19 — Anti-grief protections** (quest NPCs, the host's story items; setting).
+- [ ] **B20 — Partner audio** (footsteps, combat sounds, voice lines, distance falloff).
+
+**Last (needs the rest stable)**
+- [ ] **B21 — 3-4 player co-op**, only if two-player play stays stable.
+- [ ] **B22 — Release**: package, two-copy regression, the user's OK (GPL native code), GitHub and Discord.
