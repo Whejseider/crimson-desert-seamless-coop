@@ -28,6 +28,7 @@
 #include "mod/game/offsets.h"
 #include "mod/game/safe_memory.h"
 #include "mod/log.h"
+#include "mod/native_layer.h"
 #include "mod/net/enemy_relay.h"
 #include "mod/net/horse_diag.h"
 #include "common/keys.h"
@@ -1508,11 +1509,33 @@ void puppet_remove_actor(uint32_t key) {
     enqueue_at(make_packet(off::kOpRemoveActorAck, payload), steady_ms(), /*movement=*/false);
 }
 
+// Co-op+ on the native base (native_layer.h): our sniffer is off, so nothing here would deliver the queue; the
+// native base's cdmp.asi puts server messages into our client instead (cdmp_inject_s2c, 2026-11-07). True = handed over.
+bool native_inject_s2c(uint16_t op, const std::vector<uint8_t>& payload) {
+    using InjectFn = int (*)(const uint8_t*, size_t);
+    static InjectFn fn = nullptr;
+    if (!fn) {
+        if (HMODULE m = GetModuleHandleW(L"cdmp.asi")) fn = reinterpret_cast<InjectFn>(GetProcAddress(m, "cdmp_inject_s2c"));
+    }
+    if (!fn) return false;
+    const Bytes pkt = make_packet(op, payload);
+    return fn(pkt.data(), pkt.size()) != 0;
+}
+
 void puppet_inject_s2c(uint16_t op, const std::vector<uint8_t>& payload, uint64_t delay_ms) {
+    if (kNativeLayer) {
+        // (no delay on the native base: the callers that need one are the copies', off there)
+        if (!native_inject_s2c(op, payload)) log::warn("Inject: the native base has no cdmp_inject_s2c; opcode {} dropped", op);
+        return;
+    }
     enqueue_at(make_packet(op, payload), steady_ms() + delay_ms, /*movement=*/false);
 }
 
 void puppet_inject_s2c_batch(const std::vector<std::pair<uint16_t, std::vector<uint8_t>>>& packets) {
+    if (kNativeLayer) {
+        for (const auto& [op, payload] : packets) puppet_inject_s2c(op, payload, 0);
+        return;
+    }
     const uint64_t due = steady_ms();
     AcquireSRWLockExclusive(&g_queue_lock);
     auto it = std::upper_bound(g_queue.begin(), g_queue.end(), due,
