@@ -2,6 +2,9 @@
 
 ## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 
+Hotfix (2026-11-07, after a playtester's report):
+- Fixed: the friend's game could skip its own prologue-ending cutscene and stay stuck on "Go to Hernand" (and then the guard for the inn's arm wrestling never came). The host's story cutscenes are no longer started in the guest's game by default ([coop] stage_cinema=1 turns that back on).
+
 Performance and crash fixes (2026-11-07, 0.1.0-alpha+4effc5c0, from a full decompile of game 1.0.0.3576):
 - Frame drops fixed: Co-op+ checked memory with a slow Windows call before every read of the game (about 100,000 a second), which stalled the game's own threads; it now remembers which memory is safe. Same test: 21-26 fps before, 92-94 fps after; the mod's network loop went from about 100 ms to about 2 ms.
 - Fixed: a guest crash (exe+0xA12E4E) right after joining; the guard is now on the function that really crashes.

@@ -277,7 +277,11 @@ Config load_config(const std::wstring& ini_path) {
     c.coop_player_hit_lethal = read_uint(ini_path, L"coop", L"player_hit_lethal", 1) != 0;
     // Co-op+: 3 = auto (the host sends its time of day, the guest takes it): the user wants the time to match.
     c.coop_time_sync = static_cast<int>(std::min(read_uint(ini_path, L"coop", L"time_sync", 3), 3u));
-    c.coop_stage_cinema = read_uint(ini_path, L"coop", L"stage_cinema", 1) != 0;
+    // 2026-11-07 hotfix (playtester Rahat: the friend's prologue-ending cutscene "would get skipped and then he would
+    // be stuck with the go to Hernand quest", then no guard at the inn): the relay can start a client-only copy of the
+    // host's story cutscene in the guest's game, which the guest's own story never counts. Off until verified on
+    // 3576; [coop] stage_cinema=1 turns it on.
+    c.coop_stage_cinema = read_uint(ini_path, L"coop", L"stage_cinema", 0) != 0;
     c.coop_weather_sync = read_uint(ini_path, L"coop", L"weather_sync", 1) != 0;
     c.coop_share_story = read_uint(ini_path, L"coop", L"share_story", 1) != 0;
     c.dev_story_slot = read_string(ini_path, L"dev", L"story_slot", "");

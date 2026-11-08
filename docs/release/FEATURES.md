@@ -53,7 +53,8 @@ ByJunter and its port by nouzert1.
 | Tougher enemies with a guest (adjustable in the F8 settings) | Works |
 | Kill feed: "<friend> defeated a Deer"; the Journey Together card credits the guest's kills to the guest | Works |
 | Bosses together; the host lands the final blow so the story is safe | Needs testing |
-| Shared boss and story cutscenes; a skip needs everyone to press it | Needs testing |
+| A cutscene you both watch skips when you both press Skip | Needs testing |
+| The host's boss and story cutscenes shown in the guest's game | Off for now: it could skip the guest's own story cutscene (the end of the prologue). [coop] stage_cinema=1 turns it on |
 | Revive your friend (hold Shift+F7 by them) | Works |
 | dying in co-op keeps your HUD, menus and horse (a death used to leave them gone after any revive) | Works |
 | Respawn option: back to your friend after a checkpoint revive | Works |

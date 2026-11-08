@@ -2075,3 +2075,14 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
   B17 (revive): a cdmp_inject_s2c export from the native base's client delivery (the guest's OnRecvPacket path),
   or travel through the native fast-travel funnels. B02 (NPCs) not compared yet: no town test save; ByJunter's
   README lists "NPCs, schedules and travellers in the shared field" as validated.
+- 2026-11-07 21:45 HOTFIX for the playtester's report (Rahat, second message: "my friend's game would stop and the
+  cutscene to end the prologue wouldn't play and would get skipped and then he would be stuck with the go to hernand
+  quest"; the missing inn guard follows from that). Reading of the code: the skip vote cannot skip a cutscene alone
+  (both must press; reset per cutscene). The stage cinema relay (D38) starts a CLIENT-ONLY copy of the host's stage
+  cutscene in the guest's game when the guest is within 100 m and not in a cutscene of its own; at the end of the
+  prologue the host reaches the final cutscene first, the guest's game plays the host's copy, and the guest's own
+  server never runs its own ending: the guest's story stays at "Go to Hernand". The prologue hold should have kept
+  the relay off, but its "out of the prologue" test is a mission count (60, never measured against a real prologue
+  end). The relay was never tested on 3576 either. Fix: [coop] stage_cinema off by default (config.cpp / .h), FEATURES
+  and CHANGELOG say so. Not confirmed with the players' logs (asked through the user). Native base: the relay is off
+  there anyway (native_layer.h).

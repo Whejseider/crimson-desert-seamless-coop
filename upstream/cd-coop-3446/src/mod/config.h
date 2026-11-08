@@ -201,7 +201,7 @@ struct Config {
     bool dev_stat_log = false;  // Co-op+ dev: our stats once a second (game/player_reader.h)  // Co-op+ dev: also with no partner (one-PC tests)
     bool dev_live_quests_any_world = false;  // Co-op+ dev: also outside co-op worlds (one-PC tests)
     // Co-op+: the host's stage cinematics (boss intros...) play for the guest (stage_cinema.h).
-    bool coop_stage_cinema = true;
+    bool coop_stage_cinema = false;  // off by default since 2026-11-07 (config.cpp: the skipped prologue ending)
     // Host: copies of our enemies that fight go to the guest on their own
     // (Ctrl+F7 turns them off and on). Needs [dev] enemy_relay=1.
     bool coop_enemy_auto = true;
