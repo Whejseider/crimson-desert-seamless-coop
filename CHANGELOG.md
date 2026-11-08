@@ -2,6 +2,12 @@
 
 ## 0.1.0-alpha (unreleased; single-PC tested on game 1.0.0.3479)
 
+Performance and crash fixes (2026-11-07, 0.1.0-alpha+4effc5c0, from a full decompile of game 1.0.0.3576):
+- Frame drops fixed: Co-op+ checked memory with a slow Windows call before every read of the game (about 100,000 a second), which stalled the game's own threads; it now remembers which memory is safe. Same test: 21-26 fps before, 92-94 fps after; the mod's network loop went from about 100 ms to about 2 ms.
+- Fixed: a guest crash (exe+0xA12E4E) right after joining; the guard is now on the function that really crashes.
+- An enemy debugging watch that ran for everyone (and added lag) now runs only with [dev] enemy_relay.
+- Your friend's horse shows up when it is in mount slot 2 or 3 too (only slot 1 worked).
+
 Radmin VPN / Direct IP in the co-op menu (2026-11-07, Plitos's handoff): Host copies an invite (coopplus1/<address>:37015/<secret>), the friend copies it and presses Join; a random secret, new on every Host, lets only the invited player in. Steam invites stay the default; Back to Steam Invite or Leave returns to them. The ini setup still works.
 
 Since 0.1.0-alpha+f3517194 (2026-11-06 / 07, game 1.0.0.3576; tested with two copies of the game on one PC, sandbox saves only):

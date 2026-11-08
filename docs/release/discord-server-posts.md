@@ -135,3 +135,8 @@ friends, then the host presses Ctrl+F1 to invite.
   Still pinned (unpinning refused by the permission check; the user removes them): c606602d and f3517194 posts.
 - #announcements: "Update 0.1.0-alpha+096d9c3f: Radmin VPN / Direct IP in the Co-op menu".
 - #features message 1: the direct play line became "NEW: Radmin VPN / Direct IP: Host / Join with an invite" (1999 chars).
+
+## 2026-11-07 update 0.1.0-alpha+4effc5c0 (frame drop fix)
+- #download-here: post with both zips (the zips dropped from the composer once when Escape closed the channel
+  suggestion; uploaded again and checked li[class*=upload] = 2 before sending), pinned.
+- #announcements: "Update 0.1.0-alpha+4effc5c0: frame drop fix". Text: docs/release/discord-update-4effc5c0.txt.

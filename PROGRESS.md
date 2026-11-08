@@ -1985,3 +1985,7 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
   while our loop took 300+ ms); 5 refusals ("not a plain player load") fell in the 3-4 fps stretch. (c) 13:16:42 ->
   13:18:29 both games acted as host after a reconnect (Borque's host got 1500+ EnemyAct/EnemyPos "only the other role
   sends") until he joined the other world by hand. Left as is: a consequence of the drops; more data needed.
+- 2026-11-07 ~19:20 RELEASED 0.1.0-alpha+4effc5c0 (user: "go ahead and publish what we have now"): test-install-fake
+  all steps PASS, Defender clean; GitHub v0.1.0-alpha-4effc5c0 Latest (sha256 1481163e... player zip, 44d536f5...
+  mod-manager, match the local files); Discord #download-here post with both zips, pinned; #announcements "Update
+  0.1.0-alpha+4effc5c0: frame drop fix" (texts: docs/release/discord-update-4effc5c0.txt). CHANGELOG entry added.

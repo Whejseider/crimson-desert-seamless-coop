@@ -1,0 +1,16 @@
+===== #download-here (attach both zips) =====
+**Download: Seamless Co-op+ 0.1.0-alpha+4effc5c0**
+NEW: the big frame drops in co-op are fixed (92-94 fps where the last build managed 21-26 in the same test), plus a crash fix for the joining player and your friend's horse in mount slots 2 and 3.
+- `CrimsonDesert-SeamlessCoop-0.1.0-alpha+4effc5c0.zip`: this is the one you want. Install steps are in #how-to-install.
+- `...-mod-manager.zip`: only for manual / Vortex / MO2 installs.
+You and your co-op partner need the **same** zip. Game version 1.0.0.3576 (Steam). Installing over the old version keeps your settings.
+Windows Defender scan: no threats. GPL-3.0; the source is inside the zip (source.zip).
+Always the newest: https://github.com/ashersheets-jpg/crimson-desert-coop-playtest/releases/latest
+
+===== #announcements =====
+**Update 0.1.0-alpha+4effc5c0: frame drop fix**
+- **Big frame drops fixed:** Co-op+ was checking memory with a slow Windows call about 100,000 times a second, which held up the game. In the same test the last build ran at 21-26 fps, this one at 92-94 fps, and the mod's own network work dropped from about 100 ms to about 2 ms per loop.
+- **Fixed:** a crash for the joining player shortly after joining.
+- **Less lag:** an enemy debugging check that ran for everyone is now off.
+- **Fixed:** your friend's horse now shows up when it is in mount slot 2 or 3 (only slot 1 worked).
+Thanks Borque for the report, and Plitos for the FPS test build. Both players need the same zip: grab it in #download-here. Tell us in #play-testing-feedback how your frame rate is now.
