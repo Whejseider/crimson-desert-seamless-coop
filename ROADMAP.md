@@ -138,7 +138,7 @@ features that stay Co-op+'s own. Each task: decomp first (build/decomp: function
 build, two-copy test, savecheck, notes, commit. Status key as above.
 
 **Foundation**
-- [ ] **B01 — Native shared world.** ByJunter's NativeServer base (upstream/cdmp-native, ported to 3576) under Co-op+:
+- [~] **B01 — Native shared world.** (two copies: join from the title, restart into the shared world, co-op saves per friend, package; Steam and two PCs untested) ByJunter's NativeServer base (upstream/cdmp-native, ported to 3576) under Co-op+:
   native mode in Co-op+ (docs/research/native-coopplus-layer.md), both DLLs in the harness, joining starts both.
   Joining only from the main menu (user 2026-11-07), before a save loads. Open design item: where co-op progress
   is saved (the native host plays in a save sandbox and never writes the real folder; tie it to Co-op+'s co-op

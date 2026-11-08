@@ -2052,3 +2052,11 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
   installer: the shared-world payload installs coopplus.asi/.ini, moves an older Co-op+'s cdmp.ini settings to
   coopplus.ini, cdmp.ini is Co-op+'s launch file (replaced on update); vanilla parks coopplus.asi too; uninstall
   removes coopplus*.log. The layer's Steam link uses channel 68 on the native base (the native tunnel has 67).
+- 2026-11-07 21:25 B01 packages built (not published): dist\CrimsonDesert-SeamlessCoop-0.1.0-alpha+da1436e9.zip (the
+  normal Co-op+) and ...-da1436e9-shared-world.zip (11.7 MB: native cdmp.asi + coopplus.asi + coopplus.ini + Solo
+  cdmp.ini + source-native.zip). test-install-fake: ALL STEPS PASS on both (the shared-world one also: coopplus.*
+  installed, Solo cdmp.ini, settings kept in coopplus.ini on update, the stagger migration there, coopplus.asi
+  parked in vanilla, uninstall leaves bin64 exactly as before). Not covered yet: an old Co-op+ install updated to
+  the shared-world zip (cdmp.ini settings -> coopplus.ini). Steam transport and two PCs: untested (one SteamID here).
+  ROADMAP B01 -> [~]. Test leftovers under %LOCALAPPDATA%\Pearl Abyss\CD: coop_test\, coop_worlds\with_127_0_0_1*
+  (copies made by the tests, not the real saves).
