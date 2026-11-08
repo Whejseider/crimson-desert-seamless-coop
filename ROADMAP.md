@@ -140,6 +140,9 @@ build, two-copy test, savecheck, notes, commit. Status key as above.
 **Foundation**
 - [ ] **B01 — Native shared world.** ByJunter's NativeServer base (upstream/cdmp-native, ported to 3576) under Co-op+:
   native mode in Co-op+ (docs/research/native-coopplus-layer.md), both DLLs in the harness, joining starts both.
+  Joining only from the main menu (user 2026-11-07), before a save loads. Open design item: where co-op progress
+  is saved (the native host plays in a save sandbox and never writes the real folder; tie it to Co-op+'s co-op
+  worlds, one save per friend).
   Shipping it distributes ByJunter's GPL code: ask the user before the release.
 - [ ] **B02 — Same NPCs and townsfolk** (native: one world; check towns, schedules, the playtest's missing NPCs).
 - [ ] **B03 — World events and sieges** joinable by the guest.
@@ -147,7 +150,9 @@ build, two-copy test, savecheck, notes, commit. Status key as above.
 - [ ] **B05 — Other mounts and vehicles** (bears, wolves, raptors...; wagon, skiff, mech) seen and ridden.
 - [ ] **B06 — Mounted combat damage** on shared enemies.
 - [ ] **B07 — Boss mechanics for two** (grabs, finishers, phase triggers, arena locks).
-- [ ] **B08 — Join mid-fight, boss, cutscene or loading screen.**
+- [-] **B08 — Join mid-fight, boss, cutscene or loading screen.** DROPPED (user 2026-11-07: "Being able to join
+  mid-game is not a priority ... people can only join parties from the main menu screen"). Joining is from the title
+  screen only (B01's join flow).
 - [ ] **B09 — Shared cutscenes on 3576** (the guest sees the host's boss cutscenes; late1's old crash).
 - [ ] **B10 — Quest sharing on by default** (live quest steps, co-op save per friend: out of experimental).
 
