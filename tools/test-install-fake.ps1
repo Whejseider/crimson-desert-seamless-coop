@@ -48,7 +48,13 @@ Check 'install: saves backed up' ((Get-ChildItem $backups -Recurse -File | Measu
 Check 'install: version note for another game version' ($o -match 'this mod was built for')
 
 # A player edits the settings; an update must keep them.
-$ini = Join-Path $bin 'cdmp.ini'
+# The shared-world zip (coopplus.asi): the player's settings are coopplus.ini (cdmp.ini is Co-op+'s launch file).
+$native = Test-Path (Join-Path $kit 'mod\coopplus.asi')
+if ($native) {
+    Check 'install (shared world): coopplus.asi, coopplus.ini and a Solo cdmp.ini' ((Test-Path (Join-Path $bin 'coopplus.asi')) -and
+        (Test-Path (Join-Path $bin 'coopplus.ini')) -and ([IO.File]::ReadAllText((Join-Path $bin 'cdmp.ini'), [Text.Encoding]::Unicode) -match 'coopplus_mode=solo'))
+}
+$ini = Join-Path $bin $(if ($native) { 'coopplus.ini' } else { 'cdmp.ini' })
 $text = [IO.File]::ReadAllText($ini, [Text.Encoding]::Unicode) -replace 'join=friends', 'join=invite'
 # ... and it came from an older zip, which shipped the guest's stagger off under the old comment (the update turns it on).
 $text = [regex]::Replace($text, '(?m)^; The stagger reaction on those blows.*\r?\n; 0 = damage only.*\r?\nguest_hit_stagger=1',
@@ -56,15 +62,17 @@ $text = [regex]::Replace($text, '(?m)^; The stagger reaction on those blows.*\r?
 if ($text -notmatch 'guest_hit_stagger=0') { Check 'update: an older ini made for the stagger test' $false }
 [IO.File]::WriteAllText($ini, $text, (New-Object Text.UnicodeEncoding($false, $true)))
 $o = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $kit 'install.ps1') -GameDir $bin -SaveDir $saves -BackupRoot $backups -NoPause 2>&1 | Out-String
-Check 'update: player settings kept, new defaults as cdmp.ini.new' (([IO.File]::ReadAllText($ini, [Text.Encoding]::Unicode) -match 'join=invite') -and (Test-Path "$ini.new"))
+Check 'update: player settings kept, new defaults as <settings>.new' (([IO.File]::ReadAllText($ini, [Text.Encoding]::Unicode) -match 'join=invite') -and (Test-Path "$ini.new"))
 Check 'update: an older zip''s guest_hit_stagger=0 turned on, once' (([IO.File]::ReadAllText($ini, [Text.Encoding]::Unicode) -match '(?m)^guest_hit_stagger=1') -and ($o -match 'Turned on: the guest'))
 
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $kit 'vanilla.ps1') -GameDir $bin -Mode on -NoPause | Out-Null
 Check 'vanilla on: cdmp.asi parked' ((Test-Path (Join-Path $bin 'cdmp.asi.off')) -and -not (Test-Path (Join-Path $bin 'cdmp.asi')))
+if ($native) { Check 'vanilla on: coopplus.asi parked too' ((Test-Path (Join-Path $bin 'coopplus.asi.off')) -and -not (Test-Path (Join-Path $bin 'coopplus.asi'))) }
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $kit 'vanilla.ps1') -GameDir $bin -Mode off -NoPause | Out-Null
 Check 'vanilla off: cdmp.asi back' (Test-Path (Join-Path $bin 'cdmp.asi'))
 
 Set-Content (Join-Path $bin 'cdmp.log') 'a log the mod wrote'
+if ($native) { Set-Content (Join-Path $bin 'coopplus.log') 'a log the layer wrote' }
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $kit 'uninstall.ps1') -GameDir $bin -NoPause | Out-Null
 $after = Snapshot $bin
 Check 'uninstall: bin64 exactly as before the install' (-not (Compare-Object $before $after))

@@ -30,8 +30,11 @@ if (-not $normal) { throw 'No normal package stage in dist\ (run without -SkipNo
 $natDirty = & git -C $nat status --porcelain -- src
 if ($natDirty) { throw "Uncommitted changes in upstream\cdmp-native\src:`n$($natDirty -join "`n")" }
 foreach ($b in @(@{ dir = (Join-Path $nat 'build'); what = 'native base' }, @{ dir = (Join-Path $up 'build-native-layer'); what = 'Co-op+ layer' })) {
-    & $cmake --build $b.dir --config $Config --target cdmp_mod -- -m -v:minimal | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Build failed: $($b.what)" }
+    # (PowerShell 5.1: with Stop, a line the build writes to stderr would end the script here)
+    $ErrorActionPreference = 'Continue'
+    $log = & $cmake --build $b.dir --config $Config --target cdmp_mod -- -m '/v:minimal' 2>&1
+    $ErrorActionPreference = 'Stop'
+    if ($LASTEXITCODE -ne 0) { throw "Build failed: $($b.what)`n$(($log | Select-Object -Last 15) -join "`n")" }
 }
 $natBin = Join-Path $nat "build\bin\$Config"
 $layerBin = Join-Path $up "build-native-layer\bin\$Config"

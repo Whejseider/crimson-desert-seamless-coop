@@ -129,13 +129,13 @@ foreach ($f in $files) {
             # 2026-11-07: the guest's stagger works on 3576 now. Earlier zips shipped guest_hit_stagger=0 under the
             # comment "0 is safer"; a player could not have chosen 0 deliberately under that text (it was the
             # default), so exactly that old shipped block is switched on, once. Any other value is left alone.
-            if ($f -eq 'cdmp.ini') {
+            if ($f -eq 'cdmp.ini' -or $f -eq 'coopplus.ini') {
                 $text = [IO.File]::ReadAllText($target)
                 $old = '(?m)^; The stagger reaction on those blows\. 0 is safer: it injects a hit reaction\r?\n; into the other player''s enemy, which its AI may not expect\.\r?\nguest_hit_stagger=0[ \t]*(?=\r?$)'
                 if ($text -match $old) {
                     $text = [regex]::Replace($text, $old, "; The stagger reaction on those blows (1 = they stagger the enemy as your own blows do).`r`n; 0 = damage only, no hit reaction.`r`nguest_hit_stagger=1")
                     [IO.File]::WriteAllText($target, $text, (New-Object Text.UnicodeEncoding($false, $true)))
-                    Write-Host 'Turned on: the guest''s blows now stagger enemies (guest_hit_stagger=1 in cdmp.ini)'
+                    Write-Host ('Turned on: the guest''s blows now stagger enemies (guest_hit_stagger=1 in ' + $f + ')')
                 }
             }
             $installed += $f, "$f.new"
