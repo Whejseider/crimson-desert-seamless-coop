@@ -216,8 +216,8 @@ if ($Lobby) {
     $gp = $gp | Where-Object { $_ -is [System.Diagnostics.Process] }
     Start-Sleep 15
     & $shot -Out "$here\shots\$Name-L0-both-titles.png" | Out-Null
-    "host: Start Co-op, then Start From My Solo Progress at $(Get-Date -Format HH:mm:ss.fff)"
-    & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:S:80 w:500 k:S:80 w:500 k:S:80 w:700 shot:$Name-L1-host-start-coop k:SPACE:120 w:1500 shot:$Name-L2-host-question k:S:80 w:700 k:SPACE:120 w:1000" | Out-Null
+    "host: Start Co-op, then the first enabled choice (Start From My Solo Progress) at $(Get-Date -Format HH:mm:ss.fff)"
+    & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:S:80 w:500 k:S:80 w:500 k:S:80 w:700 shot:$Name-L1-host-start-coop k:SPACE:120 w:1500 shot:$Name-L2-host-question k:SPACE:120 w:1000" | Out-Null
     # The host restarts, then the guest: wait for both new processes and the guest's connection to the host's world.
     $t0 = Get-Date; $remote = $false
     while (((Get-Date) - $t0).TotalSeconds -lt 420) {

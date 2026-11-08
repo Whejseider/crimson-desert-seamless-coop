@@ -2020,3 +2020,13 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
   Steam or udp, co-op folders coop_worlds\with_<id> / guest_of_<id>, hostile values cannot add lines) and
   net/native_mode.{h,cpp} (write the ini UTF-16, keep a hand-made one as cdmp.ini.before-coopplus, restart the game
   through a hidden helper: Steam, or the exe itself with CDMP_ROLE). Not wired into the lobby yet.
+- 2026-11-07 20:30-20:47 B01 JOIN FLOW (title screen, restart into the native modes), two-copy harness -Lobby:
+  - tcB5: the host wrote its native Host ini and closed, but never came back, and the guest never saw the host's
+    message: the new lobby messages 7/8 collided with prologue_hold.h (7) and xp_share.h (8), which coop_worlds.cpp
+    routes first. Now 20/21. The restart helper logs to bin64\coopplus.restart.log and tries to break away from the
+    game's job (the game IS in a job; breakaway is refused, the helper survives anyway).
+  - tcB6: WORKS up to the start: host Start Co-op -> Start From My Solo Progress -> host ini (udp, co-op save
+    coop_worlds\with_127_0_0_1, copy) -> host restarts (3 s) -> its layer reconnects (resume) -> tells the guest -> the
+    guest writes its Guest ini and restarts -> reconnects -> its native client goes REMOTE (in the host's world) ->
+    "both games are in co-op" -> 3 s countdown on both. Play was NOT pressed: the press waits for the game window in
+    front, and the user's Discord window was in front (the user is at the PC: in-game tests paused). SAVES OK.

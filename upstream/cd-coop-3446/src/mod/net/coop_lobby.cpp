@@ -23,8 +23,8 @@ constexpr uint8_t kMsgDifficulty = 5;  // u8 | u32 difficulty                   
 constexpr uint8_t kMsgPlan = 6;        // u8 | u8 LobbyPlan                        host -> guest
 // Native base (lobby_native_init): u8 | u8 LobbyPlan | u8 stage (1 = the host restarts now, 2 = your turn: restart as
 // the guest)                                                                     host -> guest
-constexpr uint8_t kMsgNative = 7;
-constexpr uint8_t kMsgNativeReady = 8;  // u8: the guest's game is in guest mode (after its restart)   guest -> host
+constexpr uint8_t kMsgNative = 20;  // (7 is prologue_hold.h, 8 xp_share.h: coop_worlds.cpp routes those first)
+constexpr uint8_t kMsgNativeReady = 21;  // u8: the guest's game is in guest mode (after its restart)   guest -> host
 constexpr uint64_t kRestartDelayMs = 1500;  // the message goes out before this game closes
 constexpr uint64_t kCountdownMs = 3000;
 constexpr uint64_t kDifficultyWaitMs = 25000;  // the guest's new game waits this long for the host's difficulty

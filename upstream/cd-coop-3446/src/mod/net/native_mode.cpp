@@ -106,9 +106,15 @@ bool native_restart_game(const char* why) {
                                       L"' -ArgumentList 'PlatformServiceType=Steam' -WorkingDirectory '" +
                                       std::wstring(exe).substr(0, std::wstring(exe).find_last_of(L'\\')) + L"'"
                                 : L"Start-Process 'steam://rungameid/3321460'";
-    const std::wstring cmd = L"powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command \"Wait-Process -Id " +
-                             std::to_wstring(pid) + L" -Timeout 120 -ErrorAction SilentlyContinue; Start-Sleep -Seconds 3; " +
-                             start + L"\"";
+    // The helper writes what it did next to the game (coopplus.restart.log): a restart that never came back says why.
+    const std::wstring bin = std::wstring(exe).substr(0, std::wstring(exe).find_last_of(L'\\'));
+    const std::wstring note = L"'" + bin + L"\\coopplus.restart.log'";
+    const std::wstring cmd =
+        L"powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command \"try { (Get-Date).ToString('o') + "
+        L"' waiting for " + std::to_wstring(pid) + L"' | Out-File -Append " + note + L"; Wait-Process -Id " +
+        std::to_wstring(pid) + L" -Timeout 120 -ErrorAction SilentlyContinue; Start-Sleep -Seconds 3; " + start +
+        L"; (Get-Date).ToString('o') + ' started the game' | Out-File -Append " + note +
+        L" } catch { (Get-Date).ToString('o') + ' FAILED: ' + $_ | Out-File -Append " + note + L" }\"";
     std::vector<wchar_t> line(cmd.begin(), cmd.end());
     line.push_back(L'\0');
     STARTUPINFOW si{};
@@ -116,14 +122,24 @@ bool native_restart_game(const char* why) {
     si.dwFlags = STARTF_USESHOWWINDOW;
     si.wShowWindow = SW_HIDE;
     PROCESS_INFORMATION pi{};
-    if (!CreateProcessW(nullptr, line.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW | DETACHED_PROCESS, nullptr,
-                        nullptr, &si, &pi)) {
+    BOOL in_job = FALSE;
+    IsProcessInJob(GetCurrentProcess(), nullptr, &in_job);
+    // tcB5: the game may run in a job that ends its children with it: the helper breaks away when the job allows it.
+    DWORD flags = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB;
+    bool ok = CreateProcessW(nullptr, line.data(), nullptr, nullptr, FALSE, flags, nullptr, nullptr, &si, &pi) != 0;
+    if (!ok) {
+        flags &= ~static_cast<DWORD>(CREATE_BREAKAWAY_FROM_JOB);
+        ok = CreateProcessW(nullptr, line.data(), nullptr, nullptr, FALSE, flags, nullptr, nullptr, &si, &pi) != 0;
+    }
+    if (!ok) {
         log::warn("Native mode: the restart helper did not start (error {}); the game keeps running", GetLastError());
         return false;
     }
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
-    log::info("Native mode: restarting the game ({}){}", why, direct ? " -- two copies: the exe directly" : "");
+    log::info("Native mode: restarting the game ({}){}; in a job: {}, helper {}", why,
+              direct ? " -- two copies: the exe directly" : "", in_job ? "yes" : "no",
+              flags & CREATE_BREAKAWAY_FROM_JOB ? "broke away" : "in the job");
     log::close();  // flushed before the process ends
     TerminateProcess(GetCurrentProcess(), 0);
     return true;
