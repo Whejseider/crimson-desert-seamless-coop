@@ -10,7 +10,9 @@ param([string]$Name = 'tc1', [string]$HostVariant = 'coop-test-bandits', [string
       [string]$HostCoop = '', [string]$HostSeed = 'keep', [string]$GuestCoop = '', [string]$GuestSeed = 'keep',
       # B01 join flow (-Lobby, needs -CoopPlus): both start SOLO (native off); the host's Co-op+ menu starts co-op,
       # both games restart into the native modes (the layer writes cdmp.<role>.ini), then start together.
-      [switch]$Lobby)
+      [switch]$Lobby,
+      # A Co-op+ dev script per role ([dev] script=..., run with Ctrl+Shift+F6 after the join), e.g. a teleport
+      [string]$HostScript = '', [string]$GuestScript = '')
 $ErrorActionPreference = 'Stop'
 $bin = 'D:\SteamLibrary\steamapps\common\Crimson Desert\bin64'
 $here = $PSScriptRoot; $saves = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\build\test-saves'
@@ -137,6 +139,8 @@ if ($CoopPlus) {
         # -Kill (tc48+): the host's layer gets the one-PC death test's script (KillCheatReq on its own key 0xA0100001),
         # sent on Ctrl+Shift+F6 through the injection bridge, so the revive step does not depend on the bandits.
         $dev = $(if ($Kill -and $r -eq 'host') { "[dev]`nscript=C:\Users\asher\CrimsonDesert-SeamlessCoop\build\port3479\scripts\selfkill.txt" } else { '' })
+        $own = $(if ($r -eq 'host') { $HostScript } else { $GuestScript })
+        if ($own) { $dev = "[dev]`nscript=$own" }
         Write-Ini "$bin\coopplus.$r.ini" @"
 [general]
 player_name=$who
@@ -278,6 +282,15 @@ if (-not (Select-String -Path "$bin\cdmp.guest.log" -Pattern 'LoginCharacterToFi
     & "$here\keyspid.ps1" -GamePid $gp.Id -Keys E | Out-Null
 }
 Start-Sleep $JoinWait
+foreach ($pair in @(@{ s = $HostScript; p = $h; n = 'host' }, @{ s = $GuestScript; p = $gp; n = 'guest' })) {
+    if (-not $pair.s) { continue }
+    "$($pair.n): its dev script (Ctrl+Shift+F6) at $(Get-Date -Format HH:mm:ss.fff)"
+    & "$here\actpid.ps1" -GamePid $pair.p.Id -Seq "kd:CTRL kd:SHIFT kd:F6 w:400 ku:F6 ku:SHIFT ku:CTRL w:20000 shot:$Name-38-$($pair.n)-after-script" | Out-Null
+}
+if ($HostScript -or $GuestScript) {
+    & "$here\actpid.ps1" -GamePid $h.Id -Seq "w:3000 shot:$Name-39-host-view" | Out-Null
+    & "$here\actpid.ps1" -GamePid $gp.Id -Seq "w:3000 shot:$Name-39-guest-view" | Out-Null
+}
 & $shot -Out "$here\shots\$Name-30-guest-joined.png" | Out-Null
 if ($Walk) {
     # Movement sync (tc23+): both spawn on one spot facing the same way (same save). The guest walks ahead (4 s of W)

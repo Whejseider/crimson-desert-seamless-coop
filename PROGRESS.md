@@ -2060,3 +2060,10 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
   the shared-world zip (cdmp.ini settings -> coopplus.ini). Steam transport and two PCs: untested (one SteamID here).
   ROADMAP B01 -> [~]. Test leftovers under %LOCALAPPDATA%\Pearl Abyss\CD: coop_test\, coop_worlds\with_127_0_0_1*
   (copies made by the tests, not the real saves).
+- 2026-11-07 21:30 tools/test-install-upgrade.ps1 (fake folder): the normal da1436e9 zip installed, the player's
+  join=invite set in cdmp.ini, then the shared-world zip over it: "settings moved from cdmp.ini to coopplus.ini",
+  coopplus.ini keeps join=invite, cdmp.ini is the Solo launch file, coopplus.asi in, uninstall leaves bin64 exactly
+  as before the first install: ALL PASS. (A first try refused: "Crimson Desert is running" -- the tcB9 copies; the
+  installer's own guard, as intended.)
+- tcB9 (-HostVariant rps): the rps save also starts at Nas River (its tests teleported to Hernand). Harness:
+  -HostScript / -GuestScript run a Co-op+ dev script (Ctrl+Shift+F6) after the join (tcB10: both teleport to Hernand).
