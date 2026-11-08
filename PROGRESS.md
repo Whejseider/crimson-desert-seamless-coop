@@ -1989,3 +1989,22 @@ watch_hidden() scan only with diagnostics, enemy retries every 33 ms, DX12 overl
   all steps PASS, Defender clean; GitHub v0.1.0-alpha-4effc5c0 Latest (sha256 1481163e... player zip, 44d536f5...
   mod-manager, match the local files); Discord #download-here post with both zips, pinned; #announcements "Update
   0.1.0-alpha+4effc5c0: frame drop fix" (texts: docs/release/discord-update-4effc5c0.txt). CHANGELOG entry added.
+- 2026-11-07 19:30-20:10 BIG UPDATE B01 (native shared world), first runs on 3576 with today's Co-op+ (FPS fix etc.):
+  - tcB1: the native host installed NOTHING ("another process of this role runs the mod"): Co-op+'s two_copy.cpp
+    (added 11-06 for the old-base harness) takes Local\cdmp_role_<role>, the native cdmp.asi's own role mutex, and
+    coopplus.asi loads first in the same process. Fix: the layer's lock is Local\coopplus_role_<role>
+    (two_copy::extra_process(role, kNativeLayer)); and on the native base the layer no longer needs [dev] coop_world
+    (the native save redirect covers both roles' saves; the layer's save systems are off there).
+  - tcB2: the guest went REMOTE (in the host's world), but neither game loaded: Co-op+'s co-op title menu
+    (coop_lobby.h, added 11-06) covers the title and takes the harness's Continue key; later presses hit "Leave the
+    Party" on the guest (its layer then tried to host on 37115, taken by the host: "Cannot open UDP socket: WSA
+    error 0" -- the error number is lost, to fix). Harness (build/native/twocopy.ps1, copy in
+    tools/native-port/test): with -CoopPlus, Esc closes the layer's title menu first.
+  - tcB3: WORKS on 3576: guest REMOTE, both walk (positions both ways), host to the dock and fights, revive step,
+    the Co-op+ party frame / nameplate / chat ("Host: hi") on both (shots build/native/shots/tcB3-34, -64), SAVES OK.
+  - Design facts for B01's join flow: the guest's client decides remote or local per connection, at its first
+    packet (ConnectCryptogramToServerReq 2493), i.e. at the title before a save is chosen; guest and host stages are
+    process roles set at start (cdmp.ini [session2] guest=1 / accept_tunnel...). The native host never writes the
+    real save folder (save_guard=redirect sandbox; host_save sandbox|export, "real" refused): where co-op progress
+    lives is the open design item (Co-op+'s co-op worlds: one save per friend). User 2026-11-07: joining only from
+    the main menu is fine (B08 dropped).

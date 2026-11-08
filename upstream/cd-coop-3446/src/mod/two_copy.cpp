@@ -22,8 +22,11 @@ bool foreground_is_ours() {
 
 }  // namespace
 
-bool extra_process(const std::wstring& role) {
-    const std::wstring name = L"Local\\cdmp_role_" + role;
+bool extra_process(const std::wstring& role, bool native_layer) {
+    // Co-op+ 2026-11-07 (tcB1): on the native base this DLL (coopplus.asi) shares the process with the native cdmp.asi,
+    // which takes Local\cdmp_role_<role> itself; the layer taking it first made the native base believe it was the
+    // game's short-lived second process, so it installed nothing. The layer has its own name there.
+    const std::wstring name = (native_layer ? L"Local\\coopplus_role_" : L"Local\\cdmp_role_") + role;
     CreateMutexW(nullptr, FALSE, name.c_str());  // kept for the life of the process
     return GetLastError() == ERROR_ALREADY_EXISTS;
 }

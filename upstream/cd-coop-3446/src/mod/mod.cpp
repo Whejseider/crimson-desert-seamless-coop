@@ -2007,7 +2007,7 @@ DWORD WINAPI worker(LPVOID) {
     const std::wstring dir = dir_of(module_path(g_self));
     // Co-op+ dev: two copies on one PC (two_copy.h); the game's short-lived second process of a role stays untouched.
     const std::wstring role = test_role();
-    if (!role.empty() && two_copy::extra_process(role)) return 0;
+    if (!role.empty() && two_copy::extra_process(role, kNativeLayer)) return 0;
     log::open(own_file(dir, L".log"));
     crash_log::install();
     log::info("=== Crimson Desert Multiplayer {} (build {:08X}{}, protocol {}) ===", CDMP_VERSION, kModBuild,
@@ -2054,7 +2054,12 @@ DWORD WINAPI worker(LPVOID) {
                     GetPrivateProfileIntW(L"general", L"experimental_asked", 0, (own_file(dir, L".ini")).c_str()) != 0);
         if (optin::enabled() && !cfg.dev_coop_world_partner.empty()) net::worlds_configure(true, cfg.dev_coop_world_partner);
         net::worlds_dev_as_host(cfg.dev_coop_world_as_host);
-        if (!role.empty()) {
+        if (!role.empty() && kNativeLayer) {
+            // Co-op+ 2026-11-07 (tcB1): on the native base the native cdmp.asi redirects both roles' saves (its sandbox /
+            // save_cdmp_guest) and the layer's save systems are off (native_layer.h): no scratch world needed here.
+            log::info("Two copies: role {} on the native base (its save redirect covers the saves)", narrow(role));
+            two_copy::keep_full_speed();
+        } else if (!role.empty()) {
             // Two copies on one PC: never on the real save folder.
             if (cfg.dev_coop_world.empty()) {
                 log::warn("Two copies: CDMP_ROLE={} needs [dev] coop_world (a scratch world); Co-op+ stays off", narrow(role));

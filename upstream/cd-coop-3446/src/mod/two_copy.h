@@ -10,7 +10,7 @@ namespace cdmp::two_copy {
 
 // The game starts a short-lived second CrimsonDesert.exe ~40 s after launch, which inherits CDMP_ROLE. True in such a
 // process (another process of this role runs already): the mod stays out of it, before even opening the log.
-bool extra_process(const std::wstring& role);
+bool extra_process(const std::wstring& role, bool native_layer);  // native_layer: the coopplus.asi lock name
 
 // The copy without the focus fell to 2-4 fps (ByJunter's two-copy notes: its GPU work waits behind the focused
 // copy's). While another window has the focus, this process's GPU scheduling class goes up to High (AboveNormal if

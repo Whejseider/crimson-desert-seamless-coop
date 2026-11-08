@@ -5,7 +5,7 @@
 #  - guest: the guest role sends the whole save folder to ...\CD\save_cdmp_guest, which this script fills with a test
 #    slot and a windowed settings file. The real save folder is only read (its settings file, as the template).
 param([string]$Name = 'tc1', [string]$HostVariant = 'coop-test-bandits', [string]$GuestVariant = 'rps',
-      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk, [switch]$Ride, [switch]$Fight, [switch]$CoopPlus)
+      [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk, [switch]$Ride, [switch]$Fight, [switch]$CoopPlus, [switch]$Kill)
 $ErrorActionPreference = 'Stop'
 $bin = 'D:\SteamLibrary\steamapps\common\Crimson Desert\bin64'
 $here = $PSScriptRoot; $saves = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\build\test-saves'
@@ -127,6 +127,9 @@ if ($CoopPlus) {
     foreach ($r in 'host', 'guest') {
         # NOT $name: PowerShell variables ignore case, $name would overwrite the test's $Name (tc34).
         $who = $(if ($r -eq 'host') { 'Host' } else { 'Guest' })
+        # -Kill (tc48+): the host's layer gets the one-PC death test's script (KillCheatReq on its own key 0xA0100001),
+        # sent on Ctrl+Shift+F6 through the injection bridge, so the revive step does not depend on the bandits.
+        $dev = $(if ($Kill -and $r -eq 'host') { "[dev]`nscript=C:\Users\asher\CrimsonDesert-SeamlessCoop\build\port3479\scripts\selfkill.txt" } else { '' })
         Write-Ini "$bin\coopplus.$r.ini" @"
 [general]
 player_name=$who
@@ -142,6 +145,7 @@ peer_port=37115
 enabled=1
 [overlay]
 enabled=1
+$dev
 "@
     }
     # No relay: Co-op+'s host binds peer_port itself and its guest connects to it (tc34: a relay on the same port kept
@@ -191,6 +195,9 @@ Remove-Item "$here\$Name.pids" -ErrorAction SilentlyContinue
 $h = Start-Copy 'host' "$saves\slot103-$HostVariant|$acct\slot103;$here\settings-windowed.xml|user_engine_option_save.xml"
 $h = $h | Where-Object { $_ -is [System.Diagnostics.Process] }
 & $shot -Out "$here\shots\$Name-00-host-title.png" | Out-Null
+# tcB2: with -CoopPlus the layer's co-op title menu (coop_lobby.h) covers the title and takes the keys; Esc ("Start
+# Solo") gives the game's own title back (the native session is set by the inis, not by that menu yet).
+if ($CoopPlus) { Start-Sleep 8; & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:ESC:120 w:1500 shot:$Name-01-host-menu-closed" | Out-Null }
 & "$here\keyspid.ps1" -GamePid $h.Id -Keys E | Out-Null
 Start-Sleep $LoadWait
 & $shot -Out "$here\shots\$Name-10-host-loaded.png" | Out-Null
@@ -206,6 +213,7 @@ if ($Ride) {
 $gp = Start-Copy 'guest' ''
 $gp = $gp | Where-Object { $_ -is [System.Diagnostics.Process] }
 & $shot -Out "$here\shots\$Name-20-guest-title.png" | Out-Null
+if ($CoopPlus) { Start-Sleep 8; & "$here\actpid.ps1" -GamePid $gp.Id -Seq "k:ESC:120 w:1500 shot:$Name-21-guest-menu-closed" | Out-Null }
 & "$here\keyspid.ps1" -GamePid $gp.Id -Keys E | Out-Null
 Start-Sleep 10
 # A second press if the first only refreshed the slot list (tc7): harmless once the load has started.
@@ -299,6 +307,10 @@ if ($Fight) {
         # guest pressed while the host still had 96 HP (it fell 30 s later, 8 m away): first wait for the host's
         # Co-op+ status line to say hp 0 (60 s at most), then the guest walks to where the host lies (its packet log)
         # and presses ReviveFriend (Shift+F7) there.
+        if ($Kill -and -not (Select-String -Path "$bin\coopplus.host.log" -Pattern 'Local: .* hp 0\.0/' -Quiet)) {
+            "host: the self-kill script (Ctrl+Shift+F6) at $(Get-Date -Format HH:mm:ss.fff)"
+            & "$here\actpid.ps1" -GamePid $h.Id -Seq "kd:CTRL kd:SHIFT kd:F6 w:400 ku:F6 ku:SHIFT ku:CTRL w:4000 shot:$Name-53b-host-killed" | Out-Null
+        }
         $t0 = Get-Date
         while (((Get-Date) - $t0).TotalSeconds -lt 60) {
             if (Select-String -Path "$bin\coopplus.host.log" -Pattern 'Local: .* hp 0\.0/' -Quiet) { break }
