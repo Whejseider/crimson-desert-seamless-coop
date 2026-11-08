@@ -130,3 +130,56 @@ bool native_restart_game(const char* why) {
 }
 
 }  // namespace cdmp::net
+
+namespace cdmp::net {
+namespace {
+constexpr uint64_t kResumeFreshS = 15 * 60;
+constexpr const wchar_t* kSec = L"native_resume";
+uint64_t unix_now() {
+    FILETIME ft{};
+    GetSystemTimeAsFileTime(&ft);
+    const uint64_t t = (static_cast<uint64_t>(ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
+    return t / 10000000ull - 11644473600ull;
+}
+std::wstring get(const std::wstring& ini, const wchar_t* key) {
+    wchar_t buf[256] = {};
+    GetPrivateProfileStringW(kSec, key, L"", buf, 256, ini.c_str());
+    return buf;
+}
+}  // namespace
+
+NativeResume native_resume_read(const std::wstring& ini_path) {
+    NativeResume r;
+    const std::wstring m = get(ini_path, L"mode");
+    r.mode = m == L"host" ? NativeMode::Host : m == L"guest" ? NativeMode::Guest : NativeMode::Solo;
+    r.steam = get(ini_path, L"transport") != L"udp";
+    r.partner_steam_id = _wcstoui64(get(ini_path, L"partner_steamid").c_str(), nullptr, 10);
+    r.partner_address = narrow_path(get(ini_path, L"partner_address"));
+    r.plan = static_cast<uint8_t>(_wtoi(get(ini_path, L"plan").c_str()));
+    r.written_unix = _wcstoui64(get(ini_path, L"written").c_str(), nullptr, 10);
+    return r;
+}
+
+void native_resume_write(const std::wstring& ini_path, NativeResume r) {
+    r.written_unix = unix_now();
+    const auto put = [&](const wchar_t* k, const std::wstring& v) {
+        WritePrivateProfileStringW(kSec, k, v.c_str(), ini_path.c_str());
+    };
+    put(L"mode", r.mode == NativeMode::Host ? L"host" : r.mode == NativeMode::Guest ? L"guest" : L"solo");
+    put(L"transport", r.steam ? L"steam" : L"udp");
+    put(L"partner_steamid", r.partner_steam_id ? std::to_wstring(r.partner_steam_id) : L"");
+    put(L"partner_address", widen(native_ini_value(r.partner_address)));
+    put(L"plan", std::to_wstring(r.plan));
+    put(L"written", std::to_wstring(r.written_unix));
+}
+
+void native_resume_clear(const std::wstring& ini_path) {
+    WritePrivateProfileStringW(kSec, nullptr, nullptr, ini_path.c_str());  // the whole section
+}
+
+bool native_resume_fresh(const NativeResume& r) {
+    const uint64_t now = unix_now();
+    return r.mode != NativeMode::Solo && r.written_unix && now >= r.written_unix && now - r.written_unix < kResumeFreshS;
+}
+
+}  // namespace cdmp::net

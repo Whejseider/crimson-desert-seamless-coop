@@ -29,8 +29,17 @@ struct LobbyInput {
     bool connected = false;
     bool host = false;
     std::string own_name, partner_name;
+    // The partner, for the native base's restart into co-op (native_mode.h): over Steam its SteamID, direct its IPv4.
+    bool steam = true;
+    uint64_t partner_steam_id = 0;
+    std::string partner_address;
 };
 void lobby_tick(const LobbyInput& in);
+
+// Co-op+ on the native base (coopplus.asi; docs/design/native-join-and-saves.md): Start Co-op restarts both games
+// into the native shared world (host first, then the guest), then both start together. `coopplus_ini` keeps the
+// restart's state ([native_resume]); `bin_dir` holds the native cdmp.ini. Call once at start, before the first tick.
+void lobby_native_init(const std::wstring& coopplus_ini, const std::wstring& bin_dir);
 
 // How the host's co-op journey begins (Start Co-op's question).
 enum class LobbyPlan : uint8_t { None = 0, NewSave = 1, ContinueCoop = 2, FromSolo = 3 };

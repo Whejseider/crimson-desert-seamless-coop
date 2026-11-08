@@ -60,6 +60,7 @@
 #include "mod/net/coop_fishing.h"
 #include "mod/net/fast_lane.h"
 #include "mod/net/coop_lobby.h"
+#include "mod/net/native_mode.h"
 #include "mod/net/lag_probe.h"
 #include "mod/two_copy.h"
 #include "mod/net/coop_race.h"
@@ -924,6 +925,12 @@ SessionEnd run_network(const Config& cfg, LocalSource& local) {
                     li.host = wi.host;
                     li.own_name = cfg.player_name;
                     li.partner_name = session.peer_name();
+                    li.steam = !peer || peer->kind == net::PeerAddr::Kind::Steam;
+                    if (peer && peer->kind == net::PeerAddr::Kind::Steam) li.partner_steam_id = peer->value;
+                    if (peer && peer->kind == net::PeerAddr::Kind::Udp) {
+                        const std::string ep = peer->endpoint().str();
+                        li.partner_address = ep.substr(0, ep.rfind(':'));
+                    }
                     net::lobby_tick(li);
                     // Co-op+ (2026-11-07): the prologue is played solo (prologue_hold.h).
                     net::PrologueInput pi;
@@ -1456,6 +1463,24 @@ void run_coop(const Config& base, LocalSource& local, bool in_game) {
                 break;
             }
             if (stop_requested(1000)) return;
+        }
+    }
+    // Co-op+ on the native base (net/native_mode.h): this launch is the restart into co-op: the same partner, in that
+    // role, before anything else connects (lobby_native_init dropped a stale one already).
+    if (kNativeLayer) {
+        const net::NativeResume r = net::native_resume_read(own_file(dir_of(module_path(g_self)), L".ini"));
+        if (net::native_resume_fresh(r)) {
+            cfg.net_role_host = r.mode == net::NativeMode::Host;
+            if (r.steam && cfg.net_transport_steam) {
+                cfg.steam_peer_id = r.partner_steam_id;
+                cfg.room_lobby = 0;
+                cfg.room_code.clear();
+            } else if (!r.steam && !cfg.net_role_host && !r.partner_address.empty()) {
+                cfg.peer_host = r.partner_address;
+            }
+            apply_role_settings(cfg, in_game, true);
+            log::info("Co-op+: co-op restart: {} with {}", cfg.net_role_host ? "hosting" : "joining",
+                      r.steam ? std::to_string(r.partner_steam_id) : r.partner_address);
         }
     }
     Config steam_named = cfg;  // what a Leave goes back to
@@ -2050,6 +2075,8 @@ DWORD WINAPI worker(LPVOID) {
         }
         // Co-op+ story sync: a story taken from a host goes into the save now, before the game loads one.
         // Co-op+ co-op worlds (save_io.h) + live quests: the experimental opt-in (optin.h), asked on the first launch.
+        // Co-op+ on the native base: the restart into co-op (net/native_mode.h), before the network starts.
+        if (kNativeLayer && in_game && build_ok && cfg.coop_enabled) net::lobby_native_init(own_file(dir, L".ini"), dir);
         optin::init(own_file(dir, L".ini"), in_game && build_ok && cfg.coop_enabled, cfg.coop_coop_worlds,
                     GetPrivateProfileIntW(L"general", L"experimental_asked", 0, (own_file(dir, L".ini")).c_str()) != 0);
         if (optin::enabled() && !cfg.dev_coop_world_partner.empty()) net::worlds_configure(true, cfg.dev_coop_world_partner);

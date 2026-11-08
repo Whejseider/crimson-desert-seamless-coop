@@ -27,3 +27,23 @@ bool native_mode_write(const std::wstring& bin_dir, const NativeModeSpec& spec);
 bool native_restart_game(const char* why);
 
 }  // namespace cdmp::net
+
+namespace cdmp::net {
+
+// What the restart is for, kept in coopplus.ini [native_resume] across the restart: the next start of the layer
+// reconnects to that partner in that role and the lobby goes on with the plan. Fresh for 15 minutes; an older one
+// (a crash, a friend who never came back) is dropped and the next launch is Solo again.
+struct NativeResume {
+    NativeMode mode = NativeMode::Solo;
+    bool steam = true;
+    uint64_t partner_steam_id = 0;
+    std::string partner_address;
+    uint8_t plan = 0;          // LobbyPlan
+    uint64_t written_unix = 0;  // seconds
+};
+NativeResume native_resume_read(const std::wstring& ini_path);
+void native_resume_write(const std::wstring& ini_path, NativeResume r);  // stamps written_unix
+void native_resume_clear(const std::wstring& ini_path);
+bool native_resume_fresh(const NativeResume& r);
+
+}  // namespace cdmp::net

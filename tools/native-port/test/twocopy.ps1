@@ -7,7 +7,10 @@
 param([string]$Name = 'tc1', [string]$HostVariant = 'coop-test-bandits', [string]$GuestVariant = 'rps',
       [int]$LoadWait = 80, [int]$JoinWait = 120, [int]$Hold = 60, [switch]$Walk, [switch]$Ride, [switch]$Fight, [switch]$CoopPlus, [switch]$Kill,
       # B01 co-op saves (Co-op+ docs/design/native-join-and-saves.md): [session2] coop_save_dir / coop_save_seed per role
-      [string]$HostCoop = '', [string]$HostSeed = 'keep', [string]$GuestCoop = '', [string]$GuestSeed = 'keep')
+      [string]$HostCoop = '', [string]$HostSeed = 'keep', [string]$GuestCoop = '', [string]$GuestSeed = 'keep',
+      # B01 join flow (-Lobby, needs -CoopPlus): both start SOLO (native off); the host's Co-op+ menu starts co-op,
+      # both games restart into the native modes (the layer writes cdmp.<role>.ini), then start together.
+      [switch]$Lobby)
 $ErrorActionPreference = 'Stop'
 $bin = 'D:\SteamLibrary\steamapps\common\Crimson Desert\bin64'
 $here = $PSScriptRoot; $saves = 'C:\Users\asher\CrimsonDesert-SeamlessCoop\build\test-saves'
@@ -195,10 +198,47 @@ function Start-Copy([string]$role, [string]$add) {
     Start-Sleep 20
     return $p
 }
+if ($Lobby) {
+    # Solo inis (no Co-op+ mark: the layer keeps them once as .before-coopplus and writes its own on Start Co-op).
+    foreach ($r in 'host', 'guest') {
+        $nm = $(if ($r -eq 'host') { 'Host' } else { 'Guest' })
+        Write-Ini "$bin\cdmp.$r.ini" "[general]`nplayer_name=$nm`nbackground_full_speed=1`n[net]`nenabled=0`n[overlay]`nenabled=0`n[coop]`nenabled=0`n[session2]`nenabled=0`n"
+        Remove-Item "$bin\cdmp.$r.ini.before-coopplus", "$bin\coopplus.$r.1.log" -ErrorAction SilentlyContinue
+    }
+    "lobby flow: both start solo"
+}
 Remove-Item "$here\$Name.pids" -ErrorAction SilentlyContinue
 $h = Start-Copy 'host' "$saves\slot103-$HostVariant|$acct\slot103;$here\settings-windowed.xml|user_engine_option_save.xml"
 $h = $h | Where-Object { $_ -is [System.Diagnostics.Process] }
 & $shot -Out "$here\shots\$Name-00-host-title.png" | Out-Null
+if ($Lobby) {
+    $gp = Start-Copy 'guest' ''
+    $gp = $gp | Where-Object { $_ -is [System.Diagnostics.Process] }
+    Start-Sleep 15
+    & $shot -Out "$here\shots\$Name-L0-both-titles.png" | Out-Null
+    "host: Start Co-op, then Start From My Solo Progress at $(Get-Date -Format HH:mm:ss.fff)"
+    & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:S:80 w:500 k:S:80 w:500 k:S:80 w:700 shot:$Name-L1-host-start-coop k:SPACE:120 w:1500 shot:$Name-L2-host-question k:S:80 w:700 k:SPACE:120 w:1000" | Out-Null
+    # The host restarts, then the guest: wait for both new processes and the guest's connection to the host's world.
+    $t0 = Get-Date; $remote = $false
+    while (((Get-Date) - $t0).TotalSeconds -lt 420) {
+        Start-Sleep 5
+        if ((Test-Path "$bin\cdmp.guest.log") -and (Select-String -Path "$bin\cdmp.guest.log" -Pattern '-> REMOTE' -Quiet)) { $remote = $true; break }
+    }
+    "guest REMOTE: $remote at $(Get-Date -Format HH:mm:ss.fff)"
+    Get-Process CrimsonDesert -ErrorAction SilentlyContinue | ForEach-Object { "running: pid $($_.Id) started $($_.StartTime.ToString('HH:mm:ss'))" }
+    & $shot -Out "$here\shots\$Name-L3-after-restarts.png" | Out-Null
+    # The host's menu goes on by itself (both in co-op): the countdown and Play on both.
+    Start-Sleep $JoinWait
+    & $shot -Out "$here\shots\$Name-L4-later.png" | Out-Null
+    Start-Sleep 30
+    & $shot -Out "$here\shots\$Name-L5-later.png" | Out-Null
+    foreach ($r in 'host', 'guest') {
+        Copy-Item "$bin\coopplus.$r.1.log" "$here\$Name.coopplus.$r.before.log" -ErrorAction SilentlyContinue
+        Copy-Item "$bin\cdmp.$r.ini" "$here\$Name.cdmp.$r.ini" -ErrorAction SilentlyContinue
+    }
+    "lobby flow done"
+    exit 0
+}
 # tcB2: with -CoopPlus the layer's co-op title menu (coop_lobby.h) covers the title and takes the keys; Esc ("Start
 # Solo") gives the game's own title back (the native session is set by the inis, not by that menu yet).
 if ($CoopPlus) { Start-Sleep 8; & "$here\actpid.ps1" -GamePid $h.Id -Seq "k:ESC:120 w:1500 shot:$Name-01-host-menu-closed" | Out-Null }

@@ -4,7 +4,7 @@
 source /c/Users/asher/CrimsonDesert-SeamlessCoop/build/port3479/test_guard.sh
 N=/c/Users/asher/CrimsonDesert-SeamlessCoop/build/native; H=/c/Users/asher/CrimsonDesert-SeamlessCoop/build/port3479
 BIN="/d/SteamLibrary/steamapps/common/Crimson Desert/bin64"
-REL=/c/Users/asher/CrimsonDesert-SeamlessCoop/dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+a82c1b48/mod/cdmp.asi
+REL=/c/Users/asher/CrimsonDesert-SeamlessCoop/dist/CrimsonDesert-SeamlessCoop-0.1.0-alpha+4effc5c0/mod/cdmp.asi
 NAME=${1:-tc1}
 T0=$(powershell -NoProfile -Command "(Get-Date).ToString('o')" | tr -d '\r')
 powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w $N/twocopy.ps1)" -Name $NAME ${PSARGS:-} 2>&1 < /dev/null
@@ -16,6 +16,8 @@ for P in $(cat $N/$NAME.pids 2>/dev/null | tr -d '\r'); do
   powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='CrimsonDesert.exe' AND ParentProcessId=$P\" | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force }" >/dev/null 2>&1
   taskkill //PID $P //F >/dev/null 2>&1
 done
+# B01 (-Lobby): the layer restarts the copies (new processes): every CrimsonDesert started after T0 is ours too.
+powershell -NoProfile -Command "Get-Process CrimsonDesert -ErrorAction SilentlyContinue | Where-Object { \$_.StartTime -ge [datetime]'$T0' } | Stop-Process -Force" >/dev/null 2>&1
 sleep 6
 for r in host guest; do cp "$BIN/cdmp.$r.log" $N/$NAME.$r.log 2>/dev/null; done
 cp $REL "$BIN/cdmp.asi"; rm -f "$BIN/cdmp.host.ini" "$BIN/cdmp.guest.ini"
